@@ -29,8 +29,6 @@ interface Plant {
   pop: number;
   zone: string;
   gate: LotusGate;
-  sprite: THREE.Sprite | null;
-  useSheet: boolean;
   bob: { value: number; velocity: number };
   roll: { value: number; velocity: number };
 }
@@ -80,8 +78,7 @@ const LOOK: Record<LotusStage, { open: number; scale: number; y: number; mat: nu
 /** Outer ring opens wide, inner ring stays cupped — reads as a water lily. */
 const INNER_RING_FACTOR = 0.42;
 
-export function buildLotusField(stageTextures?: THREE.Texture[] | null): LotusField {
-  const sheetStages = stageTextures && stageTextures.length >= 4 ? stageTextures : null;
+export function buildLotusField(): LotusField {
   const group = new THREE.Group();
   const rand = mulberry32(77002);
 
@@ -255,23 +252,6 @@ export function buildLotusField(stageTextures?: THREE.Texture[] | null): LotusFi
     halo.visible = false;
     flower.add(halo);
 
-    let sprite: THREE.Sprite | null = null;
-    if (sheetStages) {
-      for (const pivot of petals) pivot.visible = false;
-      heart.visible = false;
-      const sm = new THREE.SpriteMaterial({
-        map: sheetStages[0],
-        transparent: true,
-        alphaTest: 0.08,
-        depthWrite: false,
-      });
-      sprite = new THREE.Sprite(sm);
-      sprite.center.set(0.5, 0.22);
-      sprite.scale.set(1.35, 1.35, 1);
-      sprite.position.y = 0.15;
-      flower.add(sprite);
-    }
-
     group.add(g);
 
     const stage: LotusStage = STAGE_ORDER[Math.floor(rand() * 4)];
@@ -290,8 +270,6 @@ export function buildLotusField(stageTextures?: THREE.Texture[] | null): LotusFi
       pop: 0,
       zone: s.zone,
       gate,
-      sprite,
-      useSheet: sprite !== null,
       bob: { value: 0, velocity: 0 },
       roll: { value: 0, velocity: 0 },
     };
@@ -301,23 +279,6 @@ export function buildLotusField(stageTextures?: THREE.Texture[] | null): LotusFi
 
   function applyStage(p: Plant): void {
     const look = LOOK[p.stage];
-    if (p.useSheet && p.sprite) {
-      if (p.stage === "gone") {
-        p.sprite.visible = false;
-        p.flower.visible = p.pop > 0.01;
-      } else {
-        p.sprite.visible = true;
-        p.flower.visible = true;
-        const mat = p.sprite.material as THREE.SpriteMaterial;
-        mat.map = sheetStages![look.mat];
-        mat.needsUpdate = true;
-        const s = 1.25 * look.scale;
-        p.sprite.scale.set(s, s, 1);
-        p.sprite.position.y = 0.12 + look.y * 0.15;
-      }
-      p.halo.visible = p.stage === "ripe";
-      return;
-    }
     const mat = petalMats[look.mat];
     for (let i = 0; i < p.petals.length; i++) {
       const inner = p.petals[i].userData.inner === true;
@@ -402,18 +363,7 @@ export function buildLotusField(stageTextures?: THREE.Texture[] | null): LotusFi
         const look = LOOK[p.stage];
         const baseY = look.y + p.bob.value;
 
-        if (p.useSheet && p.sprite && p.stage !== "gone") {
-          p.flower.position.y = baseY;
-          p.flower.rotation.y =
-            Math.sin(t * 0.55 + p.phase) * LOTUS_PHYSICS.swayAmp +
-            (p.stage === "ripe" ? Math.sin(t * 1.6 + p.phase) * 0.04 : 0);
-          p.flower.scale.setScalar(popScale);
-          if (p.stage === "ripe") {
-            p.halo.scale.setScalar(1.1 + Math.sin(t * 3 + p.phase) * 0.15 + p.pop * 0.8);
-            (p.halo.material as THREE.SpriteMaterial).opacity =
-              0.28 + Math.sin(t * 2.4 + p.phase) * 0.1;
-          }
-        } else if (p.stage === "ripe") {
+        if (p.stage === "ripe") {
           p.flower.position.y = baseY + Math.sin(t * 1.6 + p.phase) * 0.035;
           p.flower.rotation.y = Math.sin(t * 0.5 + p.phase) * 0.12;
           p.flower.scale.setScalar(LOOK.ripe.scale * popScale);

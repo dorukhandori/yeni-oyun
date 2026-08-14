@@ -35,7 +35,7 @@ CCGS `asset-spec` karşılıkları: `planned`=Needed · `generated`=In Progress 
 
 | Toplam | planned | generated | accepted | integrated |
 |---|---|---|---|---|
-| 34 | 31 | 0 | 0 | 2 |
+| 34 | 31 | 0 | 2 | 0 |
 
 ---
 

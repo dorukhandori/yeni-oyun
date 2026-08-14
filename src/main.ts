@@ -7,5 +7,5 @@ if (!canvas) throw new Error("#game canvas missing");
 
 bootShell((choice: SessionChoice) => {
   if (choice.island !== "lotus") return;
-  void startGame(canvas, choice);
+  startGame(canvas, choice);
 });
