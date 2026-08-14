@@ -35,7 +35,7 @@ CCGS `asset-spec` karşılıkları: `planned`=Needed · `generated`=In Progress 
 
 | Toplam | planned | generated | accepted | integrated |
 |---|---|---|---|---|
-| 34 | 31 | 0 | 2 | 0 |
+| 34 | 31 | 0 | 0 | 2 |
 
 ---
 
@@ -43,8 +43,8 @@ CCGS `asset-spec` karşılıkları: `planned`=Needed · `generated`=In Progress 
 
 | ID | Ad | Sınıf | Tip | Şablon | Durum | Not |
 |---|---|---|---|---|---|---|
-| ASSET-001 | **Odysseus** turnaround | `reference` **[K]** | still, 4 açı | `prompts/character-turnaround.md` (Gemini §) | **accepted** | Sahip **varyant 04** seçti (2026-08-14). Kilit: `art-source/ref/char_odysseus_turnaround_01_ref_2048.png` · git yedeği: `public/preview/selected/`. Model: `gemini-2.5-flash-image`. Sırada ASSET-002. |
-| ASSET-002 | Lotus 4 olgunluk aşaması sayfası | `reference` **[K]** → `scene-texture` **[?]** | still, yan yana 4 | `prompts/concept-sheet.md` (Gemini §) | **accepted** | Sahip **varyant 02** seçti (2026-08-14). Kilit: `art-source/ref/lotus_stages_01_ref_2048.png` · git yedeği: `public/preview/selected/`. Model: `gemini-2.5-flash-image`. |
+| ASSET-001 | **Odysseus** turnaround | `reference` **[K]** | still, 4 açı | `prompts/character-turnaround.md` (Gemini §) | **integrated** | Sahip **varyant 04**. `assets/ref/char_odysseus_turnaround_01_ref_2048.png` → billboard + satchel fiziği. |
+| ASSET-002 | Lotus 4 olgunluk aşaması sayfası | `reference` **[K]** → `scene-texture` **[?]** | still, yan yana 4 | `prompts/concept-sheet.md` (Gemini §) | **integrated** | Sahip **varyant 02**. `assets/ref/lotus_stages_01_ref_2048.png` → sahnede sprite + su fiziği. |
 | ASSET-003 | Ada key art — kıyı + gemi | `media` **[K]** | still 16:9 | `prompts/key-art.md` | planned | Palet doğrulaması: art bible §2 hex'leri tutuyor mu |
 
 ---
