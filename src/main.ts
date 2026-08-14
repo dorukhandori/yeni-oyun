@@ -1,6 +1,11 @@
 import { startGame } from "./game";
+import { bootShell } from "./ui/shell";
+import type { SessionChoice } from "./ui/profile";
 
 const canvas = document.getElementById("game") as HTMLCanvasElement | null;
 if (!canvas) throw new Error("#game canvas missing");
 
-startGame(canvas);
+bootShell((choice: SessionChoice) => {
+  if (choice.island !== "lotus") return;
+  startGame(canvas, choice);
+});
