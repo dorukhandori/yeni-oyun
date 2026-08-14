@@ -1,11 +1,20 @@
 import * as THREE from "three";
-import { LAGOON, LOTUS, PALETTE } from "../constants";
+import { LAGOON, LOTUS, LOTUS_PHYSICS, PALETTE, PUZZLE } from "../constants";
 import type { LotusStage } from "../types";
+import { springStep, type SpringState } from "../systems/spring";
+import { assetUrl } from "../assets/paths";
 import { heightAt, lagoonDist, lagoonRadiusAt } from "./terrain";
 import { mulberry32 } from "./rng";
 import { glowSprite, loadAlbedoTexture } from "./sprite";
 
 type BloomStage = "bud" | "half" | "ripe" | "wilt";
+
+export type LotusGate = "stones" | "hill" | null;
+
+export interface LotusGateState {
+  stonesOpen: boolean;
+  hillOpen: boolean;
+}
 
 interface Plant {
   pos: THREE.Vector3;
@@ -19,16 +28,24 @@ interface Plant {
   phase: number;
   /** Collect punch scale residual. */
   pop: number;
+  zone: string;
+  gate: LotusGate;
+  /** Vertical spring — pad riding the lagoon swell. */
+  bob: SpringState;
+  /** Roll spring — whole plant tilting with the same swell. */
+  roll: SpringState;
 }
 
 export interface LotusField {
   group: THREE.Group;
   /** Advance growth; returns nothing. */
   update(dt: number, t: number): void;
-  /** Nearest ripe plant within range of a point, or null. */
-  findRipe(x: number, z: number): number | null;
+  /** Nearest harvestable ripe plant within range, or null. */
+  findRipe(x: number, z: number, gates: LotusGateState): number | null;
+  /** Nearest gated ripe plant (blocked) for prompt feedback. */
+  findGatedRipe(x: number, z: number, gates: LotusGateState): LotusGate | null;
   positionOf(index: number): THREE.Vector3;
-  pick(index: number): boolean;
+  pick(index: number, gates: LotusGateState): boolean;
   ripeCount(): number;
   setHighlight(index: number | null): void;
   /** Reseed growth stages for a fresh run. */
@@ -60,10 +77,10 @@ function baseDuration(stage: LotusStage): number {
  * shift while the texture streams in.
  */
 const STAGE_TEX: Record<BloomStage, { url: string; aspect: number }> = {
-  bud: { url: "/assets/textures/lotus_bud_01_albedo_512.png", aspect: 502 / 512 },
-  half: { url: "/assets/textures/lotus_half_02_albedo_512.png", aspect: 512 / 351 },
-  ripe: { url: "/assets/textures/lotus_bloom_03_albedo_512.png", aspect: 512 / 232 },
-  wilt: { url: "/assets/textures/lotus_wilt_04_albedo_512.png", aspect: 512 / 353 },
+  bud: { url: "assets/textures/lotus_bud_01_albedo_512.png", aspect: 502 / 512 },
+  half: { url: "assets/textures/lotus_half_02_albedo_512.png", aspect: 512 / 351 },
+  ripe: { url: "assets/textures/lotus_bloom_03_albedo_512.png", aspect: 512 / 232 },
+  wilt: { url: "assets/textures/lotus_wilt_04_albedo_512.png", aspect: 512 / 353 },
 };
 
 /** Per-stage billboard height (world units), anchor height above the pad, and texture. */
@@ -108,7 +125,7 @@ export function buildLotusField(): LotusField {
   >;
   for (const key of Object.keys(STAGE_TEX) as BloomStage[]) {
     stageMatTemplates[key] = new THREE.SpriteMaterial({
-      map: loadAlbedoTexture(STAGE_TEX[key].url),
+      map: loadAlbedoTexture(assetUrl(STAGE_TEX[key].url)),
       transparent: true,
       alphaTest: 0.35,
       depthWrite: true,
@@ -120,7 +137,7 @@ export function buildLotusField(): LotusField {
   const stemGeo = new THREE.CylinderGeometry(0.035, 0.05, 1, 6);
 
   const plants: Plant[] = [];
-  const spots: Array<{ x: number; z: number }> = [];
+  const spots: Array<{ x: number; z: number; zone: string; indexInZone: number }> = [];
 
   // Three harvest pockets: reed shore (near ship), deep lagoon, north cove.
   for (const zone of LOTUS.zones) {
@@ -134,7 +151,7 @@ export function buildLotusField(): LotusField {
       if (heightAt(x, z) > LAGOON.waterY - 0.05) continue;
       if (lagoonDist(x, z) > lagoonRadiusAt(x, z) - 0.6) continue;
       if (spots.some((s) => Math.hypot(s.x - x, s.z - z) < zone.spacing)) continue;
-      spots.push({ x, z });
+      spots.push({ x, z, zone: zone.name, indexInZone: placed });
       placed++;
     }
   }
@@ -153,10 +170,21 @@ export function buildLotusField(): LotusField {
     const z = LAGOON.center.z + Math.sin(a) * r;
     if (heightAt(x, z) > LAGOON.waterY - 0.08) continue;
     if (spots.some((s) => Math.hypot(s.x - x, s.z - z) < LOTUS.minSpacing)) continue;
-    spots.push({ x, z });
+    spots.push({ x, z, zone: "fallback", indexInZone: spots.length });
   }
 
+  const coveCount = spots.filter((s) => s.zone === "cove").length;
+  let coveGatedLeft = Math.ceil(coveCount * PUZZLE.coveGatedRatio);
+
   for (const s of spots) {
+    let gate: LotusGate = null;
+    if (s.zone === "deep" && s.indexInZone >= PUZZLE.deepGatedFromIndex) {
+      gate = "stones";
+    } else if (s.zone === "cove" && coveGatedLeft > 0) {
+      gate = "hill";
+      coveGatedLeft -= 1;
+    }
+
     const g = new THREE.Group();
     g.position.set(s.x, LAGOON.waterY, s.z);
     g.rotation.y = rand() * Math.PI * 2;
@@ -209,6 +237,10 @@ export function buildLotusField(): LotusField {
       halo,
       phase: rand() * 6.28,
       pop: 0,
+      zone: s.zone,
+      gate,
+      bob: { value: 0, velocity: 0 },
+      roll: { value: 0, velocity: 0 },
     };
     plants.push(plant);
     applyStage(plant);
@@ -251,6 +283,34 @@ export function buildLotusField(): LotusField {
   highlight.visible = false;
   group.add(highlight);
 
+  function gateOpen(p: Plant, gates: LotusGateState): boolean {
+    if (!p.gate) return true;
+    if (p.gate === "stones") return gates.stonesOpen;
+    if (p.gate === "hill") return gates.hillOpen;
+    return true;
+  }
+
+  function nearestRipe(
+    x: number,
+    z: number,
+    gates: LotusGateState,
+    blockedOnly: boolean,
+  ): number | null {
+    let best: number | null = null;
+    let bestD: number = LOTUS.pickRange;
+    for (let i = 0; i < plants.length; i++) {
+      if (plants[i].stage !== "ripe") continue;
+      const open = gateOpen(plants[i], gates);
+      if (blockedOnly !== !open) continue;
+      const d = Math.hypot(plants[i].pos.x - x, plants[i].pos.z - z);
+      if (d < bestD) {
+        bestD = d;
+        best = i;
+      }
+    }
+    return best;
+  }
+
   return {
     group,
     update(dt: number, t: number) {
@@ -260,18 +320,37 @@ export function buildLotusField(): LotusField {
         if (p.timer >= p.duration) advance(p);
         p.pop = Math.max(0, p.pop - dt * 4.5);
         const popScale = 1 + p.pop * 0.55;
+
+        // Lagoon swell. A two-sine wave is the *target*; springs chase it so
+        // each pad lags the water slightly instead of riding the sine exactly
+        // — that lag is what makes a field of them read as floating.
+        const wave =
+          Math.sin(t * 1.15 + p.phase) * LOTUS_PHYSICS.bobWaveAmp +
+          Math.sin(t * 2.35 + p.phase * 1.6) * LOTUS_PHYSICS.bobWaveAmp * 0.45;
+        springStep(p.bob, wave, LOTUS_PHYSICS.bobStiffness, LOTUS_PHYSICS.bobDamping, dt);
+
+        const rollTarget = Math.sin(t * 0.85 + p.phase * 1.2) * LOTUS_PHYSICS.rollWaveAmp;
+        springStep(p.roll, rollTarget, LOTUS_PHYSICS.rollStiffness, LOTUS_PHYSICS.rollDamping, dt);
+        // Roll tilts the whole plant (pads + stem). The bloom is a billboard
+        // sprite, so it only translates with the tilt — it never shears.
+        p.group.rotation.z = p.roll.value;
+
+        const look = LOOK[p.stage];
+        const baseY = look.y + p.bob.value;
         const bloomMat = p.bloom.material as THREE.SpriteMaterial;
+        p.bloom.position.y = baseY;
+        p.halo.position.y = baseY;
+
         if (p.stage === "ripe") {
-          p.bloom.position.y = LOOK.ripe.y + Math.sin(t * 1.6 + p.phase) * 0.035;
-          bloomMat.rotation = Math.sin(t * 0.5 + p.phase) * 0.07;
+          p.bloom.position.y = baseY + Math.sin(t * 1.6 + p.phase) * 0.035;
+          bloomMat.rotation = Math.sin(t * 0.5 + p.phase) * LOTUS_PHYSICS.swayAmp;
           const h = LOOK.ripe.height * popScale;
           p.bloom.scale.set(h * ripeAspect, h, 1);
           bloomMat.color.setScalar(1 + Math.sin(t * 2.4 + p.phase) * 0.06 + 0.05);
           p.halo.scale.setScalar(1.1 + Math.sin(t * 3 + p.phase) * 0.15 + p.pop * 0.8);
           (p.halo.material as THREE.SpriteMaterial).opacity = 0.28 + Math.sin(t * 2.4 + p.phase) * 0.1;
         } else if (p.stage === "half" || p.stage === "bud") {
-          bloomMat.rotation = Math.sin(t * 0.4 + p.phase) * 0.05;
-          const look = LOOK[p.stage];
+          bloomMat.rotation = Math.sin(t * 0.4 + p.phase) * LOTUS_PHYSICS.swayAmp * 0.8;
           const h = look.height * popScale;
           p.bloom.scale.set(h * STAGE_TEX[look.tex].aspect, h, 1);
         } else if (p.stage === "gone") {
@@ -290,25 +369,20 @@ export function buildLotusField(): LotusField {
       (highlight.material as THREE.MeshBasicMaterial).opacity = 0.55 + Math.sin(t * 5) * 0.3;
       highlight.scale.setScalar(1 + Math.sin(t * 5) * 0.05);
     },
-    findRipe(x: number, z: number) {
-      let best: number | null = null;
-      let bestD: number = LOTUS.pickRange;
-      for (let i = 0; i < plants.length; i++) {
-        if (plants[i].stage !== "ripe") continue;
-        const d = Math.hypot(plants[i].pos.x - x, plants[i].pos.z - z);
-        if (d < bestD) {
-          bestD = d;
-          best = i;
-        }
-      }
-      return best;
+    findRipe(x, z, gates) {
+      return nearestRipe(x, z, gates, false);
+    },
+    findGatedRipe(x, z, gates) {
+      const i = nearestRipe(x, z, gates, true);
+      return i === null ? null : plants[i].gate;
     },
     positionOf(index: number) {
       return plants[index].pos;
     },
-    pick(index: number) {
+    pick(index, gates) {
       const p = plants[index];
       if (p.stage !== "ripe") return false;
+      if (!gateOpen(p, gates)) return false;
       p.stage = "gone";
       p.timer = 0;
       p.duration = LOTUS.goneTime * (1 + (Math.random() - 0.5) * LOTUS.timeJitter);
@@ -338,6 +412,11 @@ export function buildLotusField(): LotusField {
         p.timer = re() * baseDuration(p.stage);
         p.duration = baseDuration(p.stage) * (1 + (re() - 0.5) * LOTUS.timeJitter);
         p.pop = 0;
+        p.bob.value = 0;
+        p.bob.velocity = 0;
+        p.roll.value = 0;
+        p.roll.velocity = 0;
+        p.group.rotation.z = 0;
         applyStage(p);
       }
       highlight.visible = false;

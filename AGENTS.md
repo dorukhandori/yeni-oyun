@@ -7,7 +7,8 @@ Sahiple Türkçe. Kod/commit İngilizce. Stüdyo işletim sistemi: **Claude Code
 **Lotophagoi** (Lotus Adası) — Vite + TypeScript + **Three.js (r160)** 3D prototipi. Doryseus’un filosu Lotus Adası’nda: güneş batmadan 12 olgun lotus teslim et; her çiçek unutuşu büyütür.
 
 - Çalıştır: `npm run dev` → http://localhost:5173/
-- Build: `npm run build`
+- Telefon (canlı): **https://dorukhandori.github.io/yeni-oyun/** (master merge + GitHub Pages Actions)
+- Build: `npm run build` · Pages build: `npm run build:pages`
 - Kod kökü: `src/`
 - Glowsprig mağara-çiftlik varyantı: `variants/cave-farm/` (ana oyuna dokunma)
 

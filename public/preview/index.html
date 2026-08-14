@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Lotophagoi — Asset önizleme</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Source+Sans+3:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #1a2430;
+        --panel: #f4ead8;
+        --ink: #2c2419;
+        --muted: #6b5f52;
+        --accent: #3a8f9e;
+        --gold: #c9a227;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "Source Sans 3", system-ui, sans-serif;
+        color: var(--ink);
+        background: radial-gradient(ellipse 120% 80% at 50% 0%, #2d4a5e 0%, var(--bg) 55%);
+      }
+      .wrap {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 1.25rem 1rem 2.5rem;
+      }
+      header {
+        text-align: center;
+        color: #e8dcc8;
+        margin-bottom: 1.25rem;
+      }
+      header h1 {
+        font-family: "Cormorant Garamond", Georgia, serif;
+        font-weight: 600;
+        font-size: clamp(1.6rem, 4vw, 2.2rem);
+        margin: 0 0 0.35rem;
+        letter-spacing: 0.02em;
+      }
+      header p {
+        margin: 0;
+        font-size: 0.95rem;
+        opacity: 0.85;
+      }
+      header a {
+        color: var(--gold);
+        text-decoration: none;
+      }
+      header a:hover {
+        text-decoration: underline;
+      }
+      .notice {
+        background: rgba(201, 162, 39, 0.15);
+        border: 1px solid rgba(201, 162, 39, 0.45);
+        color: #f0e6d0;
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        font-size: 0.88rem;
+        margin-bottom: 1.25rem;
+        line-height: 1.45;
+      }
+      .sheet {
+        background: var(--panel);
+        border-radius: 14px;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+        padding: 1rem 1rem 1.25rem;
+        margin-bottom: 1.5rem;
+      }
+      .sheet h2 {
+        font-family: "Cormorant Garamond", Georgia, serif;
+        font-size: 1.35rem;
+        margin: 0 0 0.25rem;
+      }
+      .meta {
+        font-size: 0.82rem;
+        color: var(--muted);
+        margin-bottom: 0.75rem;
+      }
+      .meta code {
+        font-size: 0.78rem;
+        background: rgba(0, 0, 0, 0.06);
+        padding: 0.1rem 0.35rem;
+        border-radius: 4px;
+      }
+      figure {
+        margin: 0;
+      }
+      figure img {
+        display: block;
+        width: 100%;
+        height: auto;
+        border-radius: 8px;
+        background: #d8cfc0;
+        cursor: zoom-in;
+      }
+      .pick {
+        margin-top: 0.75rem;
+        font-size: 0.9rem;
+      }
+      .sheet.selected {
+        outline: 3px solid var(--gold);
+        outline-offset: 2px;
+      }
+      .badge {
+        display: inline-block;
+        background: var(--gold);
+        color: #1a2430;
+        font-size: 0.75rem;
+        font-weight: 600;
+        padding: 0.2rem 0.55rem;
+        border-radius: 999px;
+        margin-left: 0.5rem;
+        vertical-align: middle;
+      }
+      dialog {
+        border: none;
+        padding: 0;
+        max-width: min(96vw, 1400px);
+        background: transparent;
+      }
+      dialog::backdrop {
+        background: rgba(10, 14, 20, 0.88);
+      }
+      dialog img {
+        display: block;
+        max-width: 96vw;
+        max-height: 92vh;
+        border-radius: 10px;
+      }
+      dialog button {
+        position: fixed;
+        top: 1rem;
+        right: 1rem;
+        font: inherit;
+        padding: 0.5rem 0.85rem;
+        border-radius: 8px;
+        border: none;
+        background: var(--panel);
+        cursor: pointer;
+      }
+      .nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        justify-content: center;
+        margin-bottom: 1rem;
+      }
+      .nav a {
+        color: #e8dcc8;
+        text-decoration: none;
+        font-size: 0.88rem;
+        padding: 0.35rem 0.75rem;
+        border: 1px solid rgba(232, 220, 200, 0.35);
+        border-radius: 999px;
+      }
+      .nav a:hover {
+        border-color: var(--gold);
+        color: var(--gold);
+      }
+      .section-title {
+        font-family: "Cormorant Garamond", Georgia, serif;
+        font-size: 1.5rem;
+        color: #e8dcc8;
+        margin: 2rem 0 0.75rem;
+        padding-top: 0.5rem;
+        border-top: 1px solid rgba(232, 220, 200, 0.2);
+      }
+      footer {
+        text-align: center;
+        color: rgba(232, 220, 200, 0.65);
+        font-size: 0.8rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <h1>Asset önizleme</h1>
+        <p>
+          Gemini <code>gemini-2.5-flash-image</code> ·
+          <a href="../">← Oyuna dön</a>
+        </p>
+        <nav class="nav" aria-label="Bölümler">
+          <a href="#turnaround">ASSET-001 Odysseus</a>
+          <a href="#lotus">ASSET-002 Lotus</a>
+        </nav>
+      </header>
+
+      <p class="notice">
+        Ham üretim galerisi. Odysseus <strong>04</strong> · Lotus <strong>02</strong> kilitlendi.
+      </p>
+
+      <h2 class="section-title" id="turnaround">ASSET-001 — Odysseus turnaround</h2>
+
+      <section class="sheet" id="v01">
+        <h2>Varyant 01</h2>
+        <p class="meta"><code>char_odysseus_turnaround_01_ref_2048.png</code></p>
+        <figure>
+          <img
+            src="./turnaround/char_odysseus_turnaround_01_ref_2048.png"
+            alt="Odysseus turnaround varyant 01"
+            width="2048"
+            height="1152"
+            loading="eager"
+          />
+        </figure>
+        <p class="pick">Seçim için: <strong>“01’i seç”</strong></p>
+      </section>
+
+      <section class="sheet" id="v02">
+        <h2>Varyant 02</h2>
+        <p class="meta"><code>char_odysseus_turnaround_02_ref_2048.png</code></p>
+        <figure>
+          <img
+            src="./turnaround/char_odysseus_turnaround_02_ref_2048.png"
+            alt="Odysseus turnaround varyant 02"
+            width="2048"
+            height="1152"
+            loading="lazy"
+          />
+        </figure>
+        <p class="pick">Seçim için: <strong>“02’yi seç”</strong></p>
+      </section>
+
+      <section class="sheet" id="v03">
+        <h2>Varyant 03</h2>
+        <p class="meta"><code>char_odysseus_turnaround_03_ref_2048.png</code></p>
+        <figure>
+          <img
+            src="./turnaround/char_odysseus_turnaround_03_ref_2048.png"
+            alt="Odysseus turnaround varyant 03"
+            width="2048"
+            height="1152"
+            loading="lazy"
+          />
+        </figure>
+        <p class="pick">Seçim için: <strong>“03’ü seç”</strong></p>
+      </section>
+
+      <section class="sheet selected" id="v04">
+        <h2>Varyant 04 <span class="badge">SEÇİLDİ</span></h2>
+        <p class="meta"><code>char_odysseus_turnaround_04_ref_2048.png</code> → kilit: <code>char_odysseus_turnaround_01_ref_2048.png</code></p>
+        <figure>
+          <img
+            src="./turnaround/char_odysseus_turnaround_04_ref_2048.png"
+            alt="Odysseus turnaround varyant 04"
+            width="2048"
+            height="1152"
+            loading="lazy"
+          />
+        </figure>
+        <p class="pick">Sahip onayı: <strong>04 kilitlendi</strong> — sonraki asset’ler buna nişan alınır.</p>
+      </section>
+
+      <h2 class="section-title" id="lotus">ASSET-002 — Lotus 4 olgunluk evresi</h2>
+
+      <section class="sheet" id="lotus-v01">
+        <h2>Lotus varyant 01</h2>
+        <p class="meta"><code>lotus_stages_01_ref_2048.png</code></p>
+        <figure>
+          <img
+            src="./lotus/lotus_stages_01_ref_2048.png"
+            alt="Lotus 4 evre varyant 01"
+            width="2048"
+            height="1152"
+            loading="lazy"
+          />
+        </figure>
+        <p class="pick">Seçim için: <strong>“lotus 01”</strong></p>
+      </section>
+
+      <section class="sheet selected" id="lotus-v02">
+        <h2>Lotus varyant 02 <span class="badge">SEÇİLDİ</span></h2>
+        <p class="meta"><code>lotus_stages_02_ref_2048.png</code> → kilit: <code>lotus_stages_01_ref_2048.png</code></p>
+        <figure>
+          <img
+            src="./lotus/lotus_stages_02_ref_2048.png"
+            alt="Lotus 4 evre varyant 02"
+            width="2048"
+            height="1152"
+            loading="lazy"
+          />
+        </figure>
+        <p class="pick">Sahip onayı: <strong>02 kilitlendi</strong> — lotus evreleri buna nişan alınır.</p>
+      </section>
+
+      <section class="sheet" id="lotus-v03">
+        <h2>Lotus varyant 03</h2>
+        <p class="meta"><code>lotus_stages_03_ref_2048.png</code></p>
+        <figure>
+          <img
+            src="./lotus/lotus_stages_03_ref_2048.png"
+            alt="Lotus 4 evre varyant 03"
+            width="2048"
+            height="1152"
+            loading="lazy"
+          />
+        </figure>
+        <p class="pick">Seçim için: <strong>“lotus 03”</strong></p>
+      </section>
+
+      <section class="sheet" id="lotus-v04">
+        <h2>Lotus varyant 04</h2>
+        <p class="meta"><code>lotus_stages_04_ref_2048.png</code></p>
+        <figure>
+          <img
+            src="./lotus/lotus_stages_04_ref_2048.png"
+            alt="Lotus 4 evre varyant 04"
+            width="2048"
+            height="1152"
+            loading="lazy"
+          />
+        </figure>
+        <p class="pick">Seçim için: <strong>“lotus 04”</strong></p>
+      </section>
+
+      <footer>Pipeline: character-turnaround.md · concept-sheet.md · noindex</footer>
+    </div>
+
+    <dialog id="zoom">
+      <button type="button" aria-label="Kapat">Kapat ✕</button>
+      <img id="zoom-img" alt="" />
+    </dialog>
+
+    <script>
+      const dlg = document.getElementById("zoom");
+      const zoomImg = document.getElementById("zoom-img");
+      document.querySelectorAll(".sheet img").forEach((img) => {
+        img.addEventListener("click", () => {
+          zoomImg.src = img.src;
+          zoomImg.alt = img.alt;
+          dlg.showModal();
+        });
+      });
+      dlg.querySelector("button").addEventListener("click", () => dlg.close());
+      dlg.addEventListener("click", (e) => {
+        if (e.target === dlg) dlg.close();
+      });
+    </script>
+  </body>
+</html>

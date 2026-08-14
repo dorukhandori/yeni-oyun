@@ -707,3 +707,53 @@ body[data-ui-phase="hub"] #touch {
     display: none;
   }
 }
+
+/* ------------------------------------------------------------ rotate gate
+   Landscape-first mobile shell. Mounted by src/ui/orientation.ts, which is
+   the only piece of the (removed) Cursor menu shell still in use — it sits
+   above everything, including the Title screen. */
+.rotate-gate {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(165deg, #14507f 0%, #1f6fa8 40%, #d7e4ea 100%);
+  color: #fbf7ef;
+  text-align: center;
+  padding: 24px;
+  font-family: "Optima", "Palatino Linotype", "Georgia", serif;
+}
+
+.rotate-gate.on {
+  display: flex;
+}
+
+.rotate-icon {
+  font-size: 64px;
+  margin-bottom: 12px;
+  animation: rotate-hint 2.4s ease-in-out infinite;
+}
+
+.rotate-title {
+  margin: 0 0 6px;
+  font-size: 22px;
+  letter-spacing: 0.5px;
+}
+
+.rotate-sub {
+  margin: 0;
+  font-size: 15px;
+  opacity: 0.82;
+}
+
+@keyframes rotate-hint {
+  0%,
+  100% {
+    transform: rotate(-90deg);
+  }
+  50% {
+    transform: rotate(0deg);
+  }
+}

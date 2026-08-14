@@ -14,7 +14,7 @@
 
 **Sıra: turnaround → lotus aşama sayfası → key art → geri kalanı.**
 
-## Prompt
+## Prompt — Higgsfield
 
 ```text
 Using Higgsfield, generate this as an image — 16:9, high quality, character design turnaround sheet. Pick the best model for stylized-cartoon next-gen game graphics (bright, glossy stylized 3D look — soft-shaded, rounded, colorful, NOT photoreal).
@@ -27,6 +27,24 @@ No background scenery, no HUD, no text, no labels, no arrows, no grid, no waterm
 
 Look: stylized-cartoon game character design, soft-shaded rounded forms, clean flat colors, crisp silhouette, palette of off-white linen / faded ochre / leather brown / sun-tanned skin, with white-and-pink lotus and a golden flower center as the only bright accents. Original character only — no logos, no brand marks, no real game titles, no text.
 ```
+
+## Prompt — Gemini (medya motoru) **[P]**
+
+> **API:** `generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent` · `generationConfig.responseModalities: ["TEXT","IMAGE"]` · Key: Cursor secret `GEMINI_API_KEY` (sohbete yazılmaz).
+
+```text
+Using Gemini, generate this as an image — 16:9 landscape, high quality, character design turnaround sheet. Stylized-cartoon next-gen game graphics (bright, glossy stylized 3D look — soft-shaded, rounded, colorful, NOT photoreal, NOT photographic).
+
+Four views of the SAME character in one frame, evenly spaced left to right on a flat neutral warm-grey background: front view, three-quarter view, side profile, back view. Identical proportions, identical costume details, identical scale across all four. Flat even studio lighting so the design reads clearly — this is a reference sheet, not a scene.
+
+Character (fully original design, no resemblance to any existing game or film character): Odysseus — a lean weathered Bronze Age captain, a simple stylized figure with a small head and a readable shoulder line, sun-worn off-white linen tunic with a faded ochre band, a leather belt and sandals, short dark beard, weathered forearms, and a plain cloth satchel at his hip. In the front and three-quarter views a white-and-pink lotus blossom shows at the mouth of the satchel; in the side and back views the satchel is flat and empty so the body shape reads clearly. No armour, no weapon, no helmet — he is ashore, not at war. Readable silhouette at thumbnail size.
+
+No background scenery, no HUD, no text, no labels, no arrows, no grid, no watermark, no turn-around annotation marks.
+
+Look: stylized-cartoon game character design, soft-shaded rounded forms, clean flat colors, crisp silhouette, palette of off-white linen / faded ochre / leather brown / sun-tanned skin, with white-and-pink lotus and a golden flower center as the only bright accents. Original character only — no logos, no brand marks, no real game titles, no text.
+```
+
+**Model notu:** Imagen 4 endpoint yeni projelerde 403/404 dönebiliyor; native image modelleri (`gemini-2.5-flash-image`) kullan. Video/animasyon için ileride Veo ayrı test edilir.
 
 ## Varyasyon
 
