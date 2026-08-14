@@ -1,0 +1,144 @@
+# CCGS agent routing — used by orchestrator / orchestrate skill
+# Engine context for this repo (override per-project in production/orchestrator/config.yaml)
+default_engine: three.js
+active_engine_specialists: []  # unity-*, unreal-*, godot-* disabled unless engine changes
+
+# Task type → primary agent. First match wins (order matters).
+task_routes:
+  - match:
+      keywords: [prototype, spike, vertical slice, playable, proof of fun, throwaway]
+      domains: [gameplay, mechanic, feel]
+    agent: prototyper
+    skill: prototype
+    wave_hint: 2
+
+  - match:
+      keywords: [design, mechanic, balance, formula, progression, gdd, system design]
+      domains: [design]
+    agent: game-designer
+    skill: quick-design
+    wave_hint: 1
+
+  - match:
+      keywords: [implement, code, gameplay, movement, interaction, lotus, crop, farm, world]
+      domains: [code, gameplay]
+    agent: gameplay-programmer
+    wave_hint: 2
+
+  - match:
+      keywords: [hud, ui, menu, overlay, button, screen, widget]
+      domains: [ui]
+    agent: ui-programmer
+    wave_hint: 2
+
+  - match:
+      keywords: [ux, flow, wireframe, accessibility, input map]
+      domains: [ux]
+    agent: ux-designer
+    skill: ux-design
+    wave_hint: 1
+
+  - match:
+      keywords: [shader, bloom, vfx, particle, visual effect, post-process]
+      domains: [render, vfx]
+    agent: technical-artist
+    wave_hint: -1  # after gameplay
+
+  - match:
+      keywords: [art bible, palette, visual direction, style, art spec]
+      domains: [art]
+    agent: art-director
+    skill: art-bible
+    wave_hint: 1
+
+  - match:
+      keywords: [asset, texture, sprite, prompt, higgsfield, manifest]
+      domains: [art, pipeline]
+    agent: art-director
+    skill: asset-spec
+    wave_hint: 1
+
+  - match:
+      keywords: [test, qa, smoke, regression, bug, playtest]
+      domains: [qa]
+    agent: qa-tester
+    skill: smoke-check
+    wave_hint: 99  # last wave
+
+  - match:
+      keywords: [architecture, adr, refactor, technical decision]
+      domains: [architecture]
+    agent: technical-director
+    skill: architecture-decision
+    wave_hint: 1
+
+  - match:
+      keywords: [sprint, milestone, scope, schedule, plan, prioritize]
+      domains: [production]
+    agent: producer
+    skill: sprint-plan
+    wave_hint: 1
+
+  - match:
+      keywords: [narrative, dialogue, lore, story, character voice]
+      domains: [narrative]
+    agent: narrative-director
+    wave_hint: 1
+
+  - match:
+      keywords: [audio, sfx, music, sound]
+      domains: [audio]
+    agent: audio-director
+    wave_hint: -1
+
+  - match:
+      keywords: [review, code quality, lint]
+      domains: [review]
+    agent: lead-programmer
+    skill: code-review
+    wave_hint: 99
+
+# Pre-built team pipelines — orchestrator delegates whole flows to these skills
+team_pipelines:
+  ui:
+    skill: team-ui
+    triggers: [full ui feature, new screen, hud redesign]
+  qa:
+    skill: team-qa
+    triggers: [qa cycle, test sprint, release gate]
+  combat:
+    skill: team-combat
+    triggers: [combat system, enemy ai fight]
+  narrative:
+    skill: team-narrative
+    triggers: [story arc, dialogue pack, lore bible]
+  polish:
+    skill: team-polish
+    triggers: [polish pass, perf + juice]
+  release:
+    skill: team-release
+    triggers: [ship, release candidate, deploy]
+
+# Slice templates — common one-session workflows for this repo
+slice_templates:
+  gameplay-feel:
+    description: Design tweak → implement → smoke test
+    tasks:
+      - { title: Quick design spec for feel change, agent: game-designer, skill: quick-design }
+      - { title: Implement in Three.js, agent: gameplay-programmer, depends: [0] }
+      - { title: Smoke check, agent: qa-tester, skill: smoke-check, depends: [1] }
+
+  ui-screen:
+    description: UX spec → implement HUD → review
+    team_skill: team-ui
+
+  art-direction:
+    description: Art spec → registry update → prompt stub
+    tasks:
+      - { title: Asset visual spec, agent: art-director, skill: asset-spec }
+      - { title: Update asset registry row, agent: art-director, depends: [0] }
+
+  prototype-slice:
+    description: Fast playable validation, no GDD
+    tasks:
+      - { title: Build throwaway prototype, agent: prototyper, skill: prototype }

@@ -14,4 +14,4 @@ Görsel referans pazarlıksız: karanlık mağara, tavandan sarkan emissive mor 
 
 Kaynak stüdyo kit: Desktop `game-project` (CCGS). Canopy’ye özel kurallar `.cursor/rules/reference-canopy/` altında arşiv; bu ürüne uygulanmaz.
 
-Bir seans = bir oynanır dilim. Skill adı söyle veya ajan çağır (`help`, `producer`, `game-designer`, `prototyper`, …). Commit ancak sahip derse.
+Bir seans = bir oynanır dilim. Tek hedef ver: `orchestrate [dilim]` (orchestrator otomatik atar). Manuel: skill/ajan adı (`help`, `producer`, `game-designer`, …). Commit ancak sahip derse.

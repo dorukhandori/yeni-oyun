@@ -15,8 +15,11 @@ Sahiple Türkçe. Kod/commit İngilizce. Stüdyo işletim sistemi: **Claude Code
 
 Cursor’da slash yok. Skill adı söyle veya ajan çağır.
 
+**Tek kapı (önerilen):** `orchestrate [hedef]` veya `orchestrator` — hedefi parçalar, doğru ajanlara otomatik atar, sırayla/paralel çalıştırır. Durum: `orchestrate status` · devam: `orchestrate continue`. Task board: `production/orchestrator/task-board.yaml`.
+
 | İhtiyacın | Ajan / skill |
 |---|---|
+| Her şeyi otomatik yönet | **`orchestrator`** · **`orchestrate`** |
 | Bugün ne? | `help` veya `producer` |
 | Mekanik / tasarım | `game-designer` · `design-system` · `quick-design` |
 | Prototip dilim | `prototyper` · `prototype` · `vertical-slice` |
