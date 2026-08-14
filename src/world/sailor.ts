@@ -9,7 +9,7 @@ export interface Sailor {
   land(strength: number): void;
 }
 
-/** Low-poly Achaean sailor: chiton, crimson cloak, woven basket of lotuses. */
+/** ASSET-001 turnaround v04 — ashore Odysseus: linen tunic, ochre bands, hip satchel, no cloak/armour. */
 export function buildSailor(): Sailor {
   const root = new THREE.Group();
   const body = new THREE.Group();
@@ -17,17 +17,24 @@ export function buildSailor(): Sailor {
 
   const skin = new THREE.MeshStandardMaterial({
     color: 0xd8a074,
-    roughness: 0.75,
+    roughness: 0.78,
     flatShading: true,
   });
   const linen = new THREE.MeshStandardMaterial({
-    color: 0xf2e6cd,
+    color: 0xf0e8d8,
+    roughness: 0.82,
+    flatShading: true,
+    side: THREE.DoubleSide,
+  });
+  const ochre = new THREE.MeshStandardMaterial({
+    color: 0xc9a04a,
     roughness: 0.8,
     flatShading: true,
+    side: THREE.DoubleSide,
   });
-  const cloak = new THREE.MeshStandardMaterial({
-    color: 0xb03a2e,
-    roughness: 0.75,
+  const leather = new THREE.MeshStandardMaterial({
+    color: 0x8a6b45,
+    roughness: 0.88,
     flatShading: true,
     side: THREE.DoubleSide,
   });
@@ -36,101 +43,94 @@ export function buildSailor(): Sailor {
     roughness: 0.85,
     flatShading: true,
   });
-  const wicker = new THREE.MeshStandardMaterial({
-    color: 0xb88a4a,
+  const satchelCloth = new THREE.MeshStandardMaterial({
+    color: 0xc4a574,
     roughness: 0.9,
     flatShading: true,
     side: THREE.DoubleSide,
   });
-  const bronze = new THREE.MeshStandardMaterial({
-    color: 0xc9a227,
-    roughness: 0.4,
-    metalness: 0.6,
-    flatShading: true,
-  });
 
   const legs: THREE.Mesh[] = [];
+  const sandals: THREE.Mesh[] = [];
   for (const s of [-1, 1]) {
-    const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.11, 0.5, 4, 8), skin);
-    leg.position.set(s * 0.14, 0.42, 0);
+    const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.46, 4, 8), skin);
+    leg.position.set(s * 0.13, 0.44, 0);
     body.add(leg);
     legs.push(leg);
+
+    const sandal = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.05, 0.28), leather);
+    sandal.position.set(s * 0.13, 0.06, 0.04);
+    body.add(sandal);
+    sandals.push(sandal);
+    const strap = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 0.12), leather);
+    strap.position.set(s * 0.13, 0.12, 0.1);
+    body.add(strap);
   }
 
-  const tunic = new THREE.Mesh(new THREE.ConeGeometry(0.42, 0.72, 10), linen);
-  tunic.position.y = 0.92;
-  body.add(tunic);
+  const tunicSkirt = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.44, 0.62, 10), linen);
+  tunicSkirt.position.y = 0.88;
+  body.add(tunicSkirt);
 
-  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.26, 0.34, 5, 10), linen);
-  torso.position.y = 1.24;
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.28, 0.32, 5, 10), linen);
+  torso.position.y = 1.2;
+  torso.scale.set(1.08, 1, 0.92);
   body.add(torso);
 
-  const belt = new THREE.Mesh(new THREE.TorusGeometry(0.27, 0.045, 6, 14), bronze);
+  for (const y of [0.72, 0.88, 1.04]) {
+    const band = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.035, 5, 14), ochre);
+    band.rotation.x = Math.PI / 2;
+    band.position.y = y;
+    body.add(band);
+  }
+
+  const belt = new THREE.Mesh(new THREE.TorusGeometry(0.29, 0.05, 6, 14), leather);
   belt.rotation.x = Math.PI / 2;
-  belt.position.y = 1.06;
+  belt.position.y = 1.02;
   body.add(belt);
 
-  // Cloak: open half-cylinder draped over the back.
-  const cape = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.36, 0.46, 0.95, 12, 1, true, Math.PI * 0.15, Math.PI * 1.2),
-    cloak,
-  );
-  cape.position.set(0, 1.22, -0.04);
-  body.add(cape);
-
-  const clasp = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), bronze);
-  clasp.position.set(0.2, 1.46, 0.16);
-  body.add(clasp);
-
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.23, 14, 12), skin);
-  head.position.y = 1.66;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.19, 12, 10), skin);
+  head.position.y = 1.58;
+  head.scale.set(0.92, 1, 0.95);
   body.add(head);
 
   const cap = new THREE.Mesh(
-    new THREE.SphereGeometry(0.245, 14, 12, 0, Math.PI * 2, 0, Math.PI * 0.62),
+    new THREE.SphereGeometry(0.2, 12, 10, 0, Math.PI * 2, 0, Math.PI * 0.55),
     hair,
   );
-  cap.position.set(0, 1.67, -0.02);
+  cap.position.set(0, 1.6, -0.02);
   body.add(cap);
 
-  const beard = new THREE.Mesh(new THREE.SphereGeometry(0.15, 10, 8), hair);
-  beard.scale.set(1, 0.85, 0.7);
-  beard.position.set(0, 1.55, 0.13);
+  const beard = new THREE.Mesh(new THREE.SphereGeometry(0.11, 8, 6), hair);
+  beard.scale.set(1.05, 0.75, 0.65);
+  beard.position.set(0, 1.5, 0.11);
   body.add(beard);
 
-  const band = new THREE.Mesh(new THREE.TorusGeometry(0.235, 0.028, 6, 16), cloak);
-  band.rotation.x = Math.PI / 2;
-  band.position.y = 1.76;
-  body.add(band);
-
-  // Arms cradle the basket in front.
   const arms: THREE.Mesh[] = [];
   for (const s of [-1, 1]) {
-    const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.085, 0.42, 4, 8), skin);
-    arm.position.set(s * 0.3, 1.2, 0.16);
-    arm.rotation.set(-0.75, 0, s * 0.22);
+    const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.38, 4, 8), skin);
+    arm.position.set(s * 0.34, 1.14, 0.02);
+    arm.rotation.set(0.15, 0, s * 0.12);
     body.add(arm);
     arms.push(arm);
   }
 
-  const basket = new THREE.Group();
-  basket.position.set(0, 1.02, 0.38);
-  body.add(basket);
-  const bowl = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.26, 0.19, 0.3, 12, 1, true),
-    wicker,
-  );
-  basket.add(bowl);
-  const bottom = new THREE.Mesh(new THREE.CircleGeometry(0.19, 12), wicker);
-  bottom.rotation.x = -Math.PI / 2;
-  bottom.position.y = -0.15;
-  basket.add(bottom);
-  const brim = new THREE.Mesh(new THREE.TorusGeometry(0.26, 0.028, 6, 16), wicker);
-  brim.rotation.x = Math.PI / 2;
-  brim.position.y = 0.15;
-  basket.add(brim);
+  const satchel = new THREE.Group();
+  satchel.position.set(0.32, 0.98, 0.06);
+  satchel.rotation.y = -0.35;
+  body.add(satchel);
 
-  // Visible harvest: one bloom per carried lotus.
+  const bag = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.28, 0.12), satchelCloth);
+  bag.position.y = 0.02;
+  satchel.add(bag);
+  const flap = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.08, 0.14), leather);
+  flap.position.set(0, 0.16, 0.02);
+  flap.rotation.x = 0.25;
+  satchel.add(flap);
+  const strap = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.5, 0.04), leather);
+  strap.position.set(-0.08, 0.12, -0.06);
+  strap.rotation.z = 0.2;
+  satchel.add(strap);
+
   const bloomMat = new THREE.MeshStandardMaterial({
     color: PALETTE.petalRipe,
     emissive: new THREE.Color(PALETTE.petalRipeTint),
@@ -139,14 +139,12 @@ export function buildSailor(): Sailor {
     flatShading: true,
   });
   const blooms: THREE.Mesh[] = [];
-  const bloomGeo = new THREE.IcosahedronGeometry(0.085, 0);
+  const bloomGeo = new THREE.IcosahedronGeometry(0.07, 0);
   for (let i = 0; i < LOTUS.carryCap; i++) {
     const b = new THREE.Mesh(bloomGeo, bloomMat);
-    const a = (i / LOTUS.carryCap) * Math.PI * 2;
-    const rr = i === 0 ? 0 : 0.11;
-    b.position.set(Math.cos(a) * rr, 0.1 + (i % 2) * 0.04, Math.sin(a) * rr);
+    b.position.set(-0.02 + i * 0.05, 0.2, 0.04);
     b.visible = false;
-    basket.add(b);
+    satchel.add(b);
     blooms.push(b);
   }
 
@@ -169,7 +167,6 @@ export function buildSailor(): Sailor {
       squash = Math.max(squash, strength);
       stretch = Math.max(stretch, strength * 0.65);
     },
-    /** Extra squash when feet hit ground after a height drop / stop. */
     land(strength: number) {
       landSquash = Math.max(landSquash, strength);
     },
@@ -191,13 +188,13 @@ export function buildSailor(): Sailor {
 
       legs[0].position.z = Math.sin(phase) * 0.24 * moving;
       legs[1].position.z = -Math.sin(phase) * 0.24 * moving;
-      legs[0].position.y = 0.42 + Math.max(0, Math.sin(phase)) * 0.08 * moving;
-      legs[1].position.y = 0.42 + Math.max(0, -Math.sin(phase)) * 0.08 * moving;
+      legs[0].position.y = 0.44 + Math.max(0, Math.sin(phase)) * 0.08 * moving;
+      legs[1].position.y = 0.44 + Math.max(0, -Math.sin(phase)) * 0.08 * moving;
 
-      arms[0].rotation.x = -0.75 + Math.sin(phase) * 0.08 * moving;
-      arms[1].rotation.x = -0.75 - Math.sin(phase) * 0.08 * moving;
+      arms[0].rotation.x = 0.15 + Math.sin(phase) * 0.12 * moving;
+      arms[1].rotation.x = 0.15 - Math.sin(phase) * 0.12 * moving;
 
-      cape.rotation.x = -0.06 - moving * 0.14 + Math.sin(t * 2.2) * 0.025;
+      satchel.rotation.z = Math.sin(t * 2.5) * 0.04 * (0.3 + moving);
       bloomMat.emissiveIntensity = 0.35 + Math.sin(t * 2.4) * 0.15 + squash * 0.4;
     },
   };
