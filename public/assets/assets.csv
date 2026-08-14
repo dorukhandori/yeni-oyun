@@ -6,3 +6,4 @@ asset_id,file,category,class,prompt_file,model,seed,aspect,resolution,date,statu
 # seed  = varsa deger, yoksa "none" (tahmin edilmez)
 # status = generated | accepted | integrated
 ASSET-001,preview/selected/char_odysseus_turnaround_01_ref_2048.png,char,reference,prompts/character-turnaround.md,gemini-2.5-flash-image,none,16:9,2048,2026-08-14,accepted,sahip selected raw variant 04; canonical lock name 01
+ASSET-002,preview/selected/lotus_stages_01_ref_2048.png,lotus,reference,prompts/concept-sheet.md,gemini-2.5-flash-image,none,16:9,2048,2026-08-14,accepted,sahip selected raw variant 02; canonical lock name 01

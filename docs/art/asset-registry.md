@@ -1,6 +1,6 @@
 # Asset kayıt defteri — Lotus Adası
 
-> **Son güncelleme:** 2026-08-14 · **Durum:** Gemini medya motoru aktif · **ASSET-001 kilitlendi** (sahip: ham varyant **04** → `char_odysseus_turnaround_01_ref_2048.png`)
+> **Son güncelleme:** 2026-08-14 · **Durum:** Gemini medya motoru aktif · **ASSET-001** (Odysseus v04) · **ASSET-002** (lotus v02) kilitlendi
 > **Oyun:** Odysseia IX — Lotus Yiyenler Adası · **Motor:** Three.js 3D
 > **Tasarım otoritesi:** `docs/design/` (`game-concept.md`, `gdd-lotus-collection.md`, `gdd-memory-system.md`, `tuning.md`). Bu liste onlarla eşitlendi 2026-08-14; `level-lotus-island.md` gelince tarla/bölge kalemleri gözden geçirilecek.
 > **Pipeline:** `docs/art/pipeline.md` · **Görsel dil:** `docs/art/art-bible.md` · **Shipping manifest:** `public/assets/assets.csv`
@@ -35,7 +35,7 @@ CCGS `asset-spec` karşılıkları: `planned`=Needed · `generated`=In Progress 
 
 | Toplam | planned | generated | accepted | integrated |
 |---|---|---|---|---|
-| 34 | 32 | 1 | 1 | 0 |
+| 34 | 31 | 0 | 2 | 0 |
 
 ---
 
@@ -44,7 +44,7 @@ CCGS `asset-spec` karşılıkları: `planned`=Needed · `generated`=In Progress 
 | ID | Ad | Sınıf | Tip | Şablon | Durum | Not |
 |---|---|---|---|---|---|---|
 | ASSET-001 | **Odysseus** turnaround | `reference` **[K]** | still, 4 açı | `prompts/character-turnaround.md` (Gemini §) | **accepted** | Sahip **varyant 04** seçti (2026-08-14). Kilit: `art-source/ref/char_odysseus_turnaround_01_ref_2048.png` · git yedeği: `public/preview/selected/`. Model: `gemini-2.5-flash-image`. Sırada ASSET-002. |
-| ASSET-002 | Lotus 4 olgunluk aşaması sayfası | `reference` **[K]** → `scene-texture` **[?]** | still, yan yana 4 | `prompts/concept-sheet.md` (Gemini §) | **generated** | 4 varyant `public/preview/lotus/` — sahip seçimi bekliyor. Tomurcuk / yarı açık / olgun / solmuş (`gdd-lotus-collection.md` §3.2). |
+| ASSET-002 | Lotus 4 olgunluk aşaması sayfası | `reference` **[K]** → `scene-texture` **[?]** | still, yan yana 4 | `prompts/concept-sheet.md` (Gemini §) | **accepted** | Sahip **varyant 02** seçti (2026-08-14). Kilit: `art-source/ref/lotus_stages_01_ref_2048.png` · git yedeği: `public/preview/selected/`. Model: `gemini-2.5-flash-image`. |
 | ASSET-003 | Ada key art — kıyı + gemi | `media` **[K]** | still 16:9 | `prompts/key-art.md` | planned | Palet doğrulaması: art bible §2 hex'leri tutuyor mu |
 
 ---
