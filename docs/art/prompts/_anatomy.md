@@ -9,7 +9,7 @@
 
 ## Kurallar
 
-1. **Model adı sabitlenmez. [K]** *"the agent picks the right one per shot"* — prompt `Pick the best model for …` der. Makalede sayılan modeller: Sora 2, Veo 3.1, Kling 3.0, Seedance 2.0, GPT Image 2, Nano Banana Pro, Soul 2.0.
+1. **Model adı sabitlenmez. [K]** *"the agent picks the right one per shot"* — prompt `Pick the best model for …` der. Makalede sayılan modeller: Sora 2, Veo 3.1, Kling 3.0, Seedance 2.0, GPT Image 2, Nano Banana Pro, Soul 2.0. **Gemini hattında** açılış `Using Gemini, generate…` der; API modeli `gemini-2.5-flash-image` veya `gemini-3-pro-image` (native image `generateContent`, `responseModalities: IMAGE`).
 2. **Negatifler ayrı blok değil, cümle içindedir. [K]** `NOT photoreal`, `no logos`.
 3. **IP satırı her prompt'un sonunda zorunlu. [K]** *Odysseia* kamu malı ama tasarım orijinal; mevcut hiçbir uyarlamaya atıf yok.
 4. **Prompt gövdesi İngilizce**, dokümanların açıklaması Türkçe.
@@ -19,7 +19,7 @@
 
 | # | Blok | İçerik |
 |---|---|---|
-| 1 | Açılış direktifi | `Using Higgsfield, generate this as a <video/image> — <en-boy>, <süre>, high quality. Pick the best model for …` + stil + `NOT photoreal` |
+| 1 | Açılış direktifi | Higgsfield: `Using Higgsfield, generate this as a <video/image> — …` · Gemini: `Using Gemini, generate this as an image — <en-boy>, high quality.` + stil + `NOT photoreal` |
 | 2 | Çekim / kamera | plan tipi, kamera konumu ve hareketi |
 | 3 | Renk ve bakış | doygunluk, ışık renkleri, shading, bloom |
 | 4 | Karakter | `(fully original design)` + figür tarifi |
