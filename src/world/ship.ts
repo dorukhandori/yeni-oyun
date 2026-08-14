@@ -1,6 +1,38 @@
 import * as THREE from "three";
 import { FLEET, PALETTE, SHIP } from "../constants";
 import { heightAt } from "./terrain";
+import { assetUrl } from "../assets/paths";
+import { loadAlbedoTexture } from "./sprite";
+
+/** Generated ship textures (`docs/art/asset-registry.md` P1 — Gemi), shipped as WebP. */
+const PLANK_TEX_URL = "assets/textures/ship_plank_01_albedo_1024.webp";
+const SAIL_TEX_URL = "assets/textures/ship_sail_01_albedo_1024.webp";
+const ROPE_TEX_URL = "assets/textures/ship_rope_01_albedo_512.webp";
+
+/** Shared deck-plank material — one texture instance, reused across every hull. */
+function buildDeckMaterial(): THREE.MeshStandardMaterial {
+  const tex = loadAlbedoTexture(assetUrl(PLANK_TEX_URL));
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(1.8, 5.4);
+  return new THREE.MeshStandardMaterial({
+    map: tex,
+    color: PALETTE.hullDark,
+    roughness: 0.85,
+    flatShading: true,
+  });
+}
+
+/** Shared sail-cloth material. */
+function buildSailMaterial(): THREE.MeshStandardMaterial {
+  const tex = loadAlbedoTexture(assetUrl(SAIL_TEX_URL));
+  return new THREE.MeshStandardMaterial({
+    map: tex,
+    color: PALETTE.sail,
+    roughness: 0.8,
+    side: THREE.DoubleSide,
+  });
+}
 
 export interface Ship {
   group: THREE.Group;
@@ -119,11 +151,8 @@ function buildHeroHull(): THREE.Group {
     roughness: 0.7,
     flatShading: true,
   });
-  const sailMat = new THREE.MeshStandardMaterial({
-    color: PALETTE.sail,
-    roughness: 0.8,
-    side: THREE.DoubleSide,
-  });
+  const deckMat = buildDeckMaterial();
+  const sailMat = buildSailMaterial();
   const eyeMat = new THREE.MeshStandardMaterial({ color: 0xf7f2e2, roughness: 0.6 });
 
   const hullGeo = new THREE.SphereGeometry(1, 20, 12, 0, Math.PI * 2, Math.PI * 0.5, Math.PI * 0.5);
@@ -139,7 +168,7 @@ function buildHeroHull(): THREE.Group {
   rail.position.y = 1.5;
   group.add(rail);
 
-  const deck = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.16, 9.2), darkMat);
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.16, 9.2), deckMat);
   deck.position.y = 1.42;
   group.add(deck);
 
@@ -203,7 +232,7 @@ function buildHeroHull(): THREE.Group {
     }
   }
 
-  const plank = new THREE.Mesh(new THREE.BoxGeometry(1, 0.14, 4.6), hullMat);
+  const plank = new THREE.Mesh(new THREE.BoxGeometry(1, 0.14, 4.6), deckMat);
   plank.position.set(-1.6, 0.85, -1.2);
   plank.rotation.set(0.28, 0.35, 0.12);
   group.add(plank);
@@ -223,6 +252,25 @@ function buildHeroHull(): THREE.Group {
     basket.add(jar);
   }
   group.add(basket);
+
+  // Coiled fishing net on the deck (ASSET-020) — the source sheet has a rope
+  // strand on top and a net square below; crop to just the net square via
+  // offset/repeat instead of shipping a second file.
+  const ropeTex = loadAlbedoTexture(assetUrl(ROPE_TEX_URL));
+  ropeTex.offset.set(0.197, 0.009);
+  ropeTex.repeat.set(0.66, 0.542);
+  const netMat = new THREE.MeshStandardMaterial({
+    map: ropeTex,
+    transparent: true,
+    alphaTest: 0.4,
+    roughness: 0.8,
+    side: THREE.DoubleSide,
+  });
+  const net = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.1), netMat);
+  net.rotation.x = -Math.PI / 2;
+  net.position.set(0.7, 1.52, -3.6);
+  net.rotation.z = 0.3;
+  group.add(net);
 
   group.userData.sailUpdate = (t: number, departing: number) => {
     for (let i = 0; i < sailPos.count; i++) {
@@ -250,16 +298,8 @@ function buildSisterHull(scale: number): THREE.Group {
     roughness: 0.88,
     flatShading: true,
   });
-  const darkMat = new THREE.MeshStandardMaterial({
-    color: PALETTE.hullDark,
-    roughness: 0.92,
-    flatShading: true,
-  });
-  const sailMat = new THREE.MeshStandardMaterial({
-    color: PALETTE.sail,
-    roughness: 0.85,
-    side: THREE.DoubleSide,
-  });
+  const deckMat = buildDeckMaterial();
+  const sailMat = buildSailMaterial();
 
   const hull = new THREE.Mesh(
     new THREE.SphereGeometry(1, 12, 8, 0, Math.PI * 2, Math.PI * 0.5, Math.PI * 0.5),
@@ -270,7 +310,7 @@ function buildSisterHull(scale: number): THREE.Group {
   hull.castShadow = true;
   group.add(hull);
 
-  const deck = new THREE.Mesh(new THREE.BoxGeometry(2, 0.12, 7.2), darkMat);
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(2, 0.12, 7.2), deckMat);
   deck.position.y = 1.15;
   group.add(deck);
 

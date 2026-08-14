@@ -4,9 +4,10 @@
 > **Tarih:** 2026-08-14
 > **Uyguladığı sütun:** **P2** (unutma görülür, anlatılmaz) · **P4** (kıyı huzurdur)
 > **Sayılar:** hepsi `docs/design/tuning.md`'den. Bu dokümanda sayılar **sabit adıyla** anılır.
-> **Bağlı doküman:** `gdd-lotus-collection.md` (kardeş sistem), `scenario.md` (tema), `game-concept.md` (çerçeve)
+> **Bağlı doküman:** `gdd-lotus-collection.md` (kardeş sistem), `scenario.md` (tema), `game-concept.md` (çerçeve), `gdd-lotus-hallucination.md` (yeni, Lotus Adası'na özgü sanrı figürleri — bu sisteme tek yönlü besler, bkz. §3.4), `gdd-detection-cyclops.md` (Kiklop'un akraba sistemi, aynı desen)
 > **Çoklu-ada notu (14 Ağu 2026, sahip onayı, `multi-island-concept.md` M7):** proje artık **3 duraklı bir koşu** (Lotus Adası + Kiklop Mağarası + Sirenler Geçidi). Bu doküman aşağıda buna göre güncellendi: unutuş **ada başına sıfırlanmıyor**, koşu boyunca taşınıyor (§3.5). Kiklop/Sirenler'in kendi yerel unutuş kaynakları (`island-designer`'ın işi) henüz bu dosyaya yazılmadı; burada sadece **paylaşılan** mekanik (tek unutuş ölçeği, hub'a dönüş formülü) tanımlanıyor.
 > **Hub'a dönüş notu (14 Ağu 2026 — `multi-island-concept.md` §9):** sahip "hub yok" kararını tersine çevirdi — **gerçek bir hub var, oyuncu durak seçebiliyor.** §3.1 madde 1 ve §3.5 buna göre güncellendi (taşıma tetiği "hub'a dönüş", "adalar arası doğrudan geçiş" değil — sonuç aynı, çerçeve değişti). **§3.1 madde 9 ve §4.4'teki kayıp finali de sahip onayıyla kapandı (14 Ağu 2026, K27):** kayıp artık koşu bazlı değil, **durak bazlı** — bir durakta `MEM_GRACE` biterse yalnızca o durak biter, oyuncu hub'a döner.
+> **Bayılma/sanrı yeniden çerçevelemesi (14 Ağu 2026, sahip kararı):** playtest sonrası sahip'in geri bildirimi üzerine `docs/design/hallucination-reframe-concept.md`'de üç seçenek sunuldu; sahip **her ikisini de** onayladı — (a) unutuşun hissiyatı "bayılma/bilinç gevşemesi, uykuya sürüklenme" katmanını da içerecek şekilde genişledi (§2, §9 — isim ve çekirdek sayılar **değişmedi**, yalnızca sunum genişledi), (b) **Lotus Adası'na özgü, gerçek bir "sanrı figürleri" mekaniği** eklendi (ayrıntı: `gdd-lotus-hallucination.md`, yeni dosya). Sanrı figürleri Kiklop'un `DETECT`/`CAUGHT` diliyle aynı ailede — can/envanter kaybı yok, yalnızca tek seferlik unutuş sıçraması + geçici `DRIFT` şiddetlenmesi. **Yalnızca Lotus Adası'nda** — Kiklop kendi `DETECT`/`CAUGHT` sistemini korur, çakışma yok.
 
 ---
 
@@ -29,6 +30,8 @@ Hedef duygu korku değil, **tatlı bir dalgınlık**. Oyuncu ilk eşiği geçti�
 En değerli an oyuncunun ilk kez **isteyerek denize girdiği** andır. O an oyunun temasını kimse anlatmadan anlamış olur: dönüş fikrini hatırlamak için tuza dokunman gerekir.
 
 Kaybetmek de kötü hissettirmemeli. Kayıp finali bir "game over" değil, adada kalmanın huzurudur — ve tam da bu yüzden rahatsız edicidir.
+
+**Genişleme (14 Ağu 2026, sahip kararı — playtest geri bildirimi, `hallucination-reframe-concept.md`):** "tatlı bir dalgınlık" tarifinin altına ikinci bir katman ekleniyor — **bilincin gevşemesi, uykuya sürüklenme.** Bu, oyuncunun *ne unuttuğunu* değil, *nasıl unuttuğunu* zenginleştiriyor: yalnızca "hatıralarım siliniyor" değil, "gözlerimi açık tutmakta zorlanıyorum, ayaktayken uyuyakalıyorum" hissi. Sistemin sayıları (eşikler, oranlar, `MEM_GRACE`) **hiç değişmedi** — bu yalnızca §9'daki sunumun genişlemesi. Eşik 3-4'te ("Unutuş", "Kalış") artık yalnızca "unutuyorum" değil, "bilincimi kaybediyorum, sanrı görüyorum" hissi de var — ve bu, aynı eşikte Lotus Adası'na özgü **sanrı figürlerinin** (bkz. `gdd-lotus-hallucination.md`) sahneye girmesiyle somutlaşıyor. Kaybetmenin huzurlu tonu değişmedi: bayılma da bir "game over" değil, gözlerin kapanması gibi yumuşak bir teslimiyet.
 
 ---
 
@@ -92,6 +95,7 @@ Kaybetmek de kötü hissettirmemeli. Kayıp finali bir "game over" değil, adada
 | **Hareket** | Unutuş → Hareket | Sapma açısı (yalnızca eşik 3+) |
 | **Oyun durumu** | Unutuş → Oyun | Kayıp finali tetiği |
 | **Kiklop algılanma sistemi** (`gdd-detection-cyclops.md`, yalnızca 2. durak) | tek yönlü (o → bu) | `onCaught` → `CAUGHT_MEM_SPIKE` (tek seferlik ekleme). Bu sistem unutuşun tersine hiç okumaz — sadece besler. **Örnek desen:** her yeni durağın kendi yerel tehlikesi, ikinci bir ölçek yerine bu tek kaynağa beslenmeli (`multi-island-concept.md` §6/M3 ilkesi). |
+| **Sanrı figürleri** (`gdd-lotus-hallucination.md`, yalnızca 1. durak — Lotus Adası) | tek yönlü, **çift kanal** | (1) Unutuş → Sanrı: `memory ≥ HALLUCINATION_THRESHOLD` iken figürler sahneye girer (bu sistem unutuşu **okur**, tek istisna — Kiklop'un `DETECT`'i unutuşu hiç okumaz, bu fark bilerek var çünkü sanrılar unutuşun **görünür bir belirtisi**, ayrı bir tehlike kaynağı değil). (2) Sanrı → Unutuş: temas anında `HALLUCINATION_CONTACT_MEM_SPIKE` (tek seferlik ekleme) + geçici `DRIFT_MAX_ANGLE` şiddetlenmesi (`HALLUCINATION_DRIFT_MULTIPLIER`, `HALLUCINATION_DRIFT_SPIKE_DURATION`). Kiklop'un `CAUGHT_MEM_SPIKE` deseniyle aynı aile — can/envanter kaybı yok. |
 
 ### 3.5 Hub'a dönüşte taşıma (14 Ağu 2026, `multi-island-concept.md` M4 sonucu; 14 Ağu 2026 aynı gün — hub bağlamına taşındı, `multi-island-concept.md` §9.2)
 
@@ -251,6 +255,21 @@ Tam liste `tuning.md` §5'te. Playtest'te en riskli üç düğme:
 **Renk körlüğü:** unutuş rengi hiç kullanmaz — vinyet, bulanıklık, doygunluk ve ses üzerinden anlatılır. Renk körü oyuncu için bilgi kaybı yoktur.
 
 **Fotosensitivite:** hiçbir eşikte yanıp sönme, stroboskopik etki veya ani parlaklık sıçraması yoktur. Tüm geçişler ≥ 1,5 s.
+
+### 9.1 Bayılma katmanı — ek (14 Ağu 2026, sahip kararı)
+
+Mevcut dört katmana (doygunluk, vinyet, sis, bulanıklık) **iki yeni, isteğe bağlı ince katman** ekleniyor. Bunlar mevcut katmanların **yerini almaz**, üstüne biner — çekirdek sıra (konfor → navigasyon → durum → kontrol, §3.2) değişmez.
+
+| Katman | Ne yapar | Sabit | Sınır |
+|---|---|---|---|
+| **Çift görüntü (ghosting)** | Ekranın **kenarlarında** (merkezde değil — netlik korunur), yüksek eşikte hafif gecikmeli bir ikinci görüntü katmanı belirir. "Gözlerini açık tutmakta zorlanma" hissi — **karartma değil, netlik kaybı.** | `FX_GHOST_OFFSET` | eşik 3 (75) → eşik 4 (100) arası, maks birkaç piksel — `FX_BLUR`'dan (3 px) daha küçük kalmalı, onunla yarışmaz, ona eşlik eder |
+| **Nefes ritmi (vinyet nabzı)** | Süt beyazı vinyetin opaklığı sabit değil; çok yavaş, sinüsoidal bir "nefes alma" ile hafifçe genişleyip daralır. | `FX_BREATH_PERIOD`, `FX_BREATH_AMPLITUDE` | Genlik çok küçük (`FX_VIGNETTE` tavanının ~%5'i) — **yanıp sönme değil**, göz kırpma kadar yavaş bir dalgalanma; fotosensitivite kuralını (≥1,5 s geçiş) ihlal etmez çünkü periyot saniyelerle ölçülür, ani sıçrama yok |
+
+**Neden bunlar ve neden başka bir şey değil:** ikisi de **kararan ekran, kırmızı flaş, stroboskopik geçiş** yasaklarının hiçbirine dokunmuyor — ghosting netlik kaybı ailesinde (`FX_BLUR` gibi), nefes ritmi vinyet ailesinde (`FX_VIGNETTE` gibi). Yeni bir görsel dil icat edilmiyor, mevcut iki katmanın her biri kendi ailesinde bir "doku" kazanıyor. Sesle de eşleşir: `gdd-memory-system.md` §9'daki uğultu zaten "kulakların su altına inmesi" tarif ediyor — nefes ritmi bunun görsel karşılığı.
+
+**Ses tarafında karşılığı:** düşük frekanslı, çok hafif bir nabız (kalp atışı değil, nefes) eşik 3'ten itibaren uğultunun altına eklenebilir — mevcut uğultu katmanının (§9, madde 2) bir varyasyonu, yeni bir ses kaynağı değil.
+
+**Sanrı figürleriyle ilişki:** bu katman, Lotus Adası'na özgü sanrı figürlerinin (`gdd-lotus-hallucination.md`) sahneye girdiği eşikle (`HALLUCINATION_THRESHOLD`) örtüşecek biçimde tasarlandı — "bilincim gevşiyor" hissi (bu bölüm) ile "bir şey görüyorum" somutluğu (sanrı figürleri) aynı eşik civarında birbirini besliyor, ama biri diğerinin ön koşulu değil: `real` world-profile'da her ikisi de aynı `memory` değerini okur, ayrı sistemler değil.
 
 ---
 

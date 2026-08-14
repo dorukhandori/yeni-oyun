@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { LAGOON, LOTUS, LOTUS_PHYSICS, PALETTE, PUZZLE } from "../constants";
+import { LAGOON, LOTUS, LOTUS_FX, LOTUS_PHYSICS, PALETTE, PUZZLE } from "../constants";
 import type { LotusStage } from "../types";
 import { springStep, type SpringState } from "../systems/spring";
 import { assetUrl } from "../assets/paths";
@@ -83,6 +83,9 @@ const STAGE_TEX: Record<BloomStage, { url: string; aspect: number }> = {
   wilt: { url: "assets/textures/lotus_wilt_04_albedo_512.png", aspect: 512 / 353 },
 };
 
+/** Lily pad billboard (ASSET-009), alpha-keyed and shipped as WebP. */
+const LILYPAD_TEX_URL = "assets/textures/flora_lilypad_01_albedo_512.webp";
+
 /** Per-stage billboard height (world units), anchor height above the pad, and texture. */
 const LOOK: Record<LotusStage, { height: number; y: number; tex: BloomStage }> = {
   bud: { height: 0.32, y: 0.34, tex: "bud" },
@@ -98,16 +101,25 @@ export function buildLotusField(): LotusField {
   const group = new THREE.Group();
   const rand = mulberry32(77002);
 
+  // Lily pad billboard (ASSET-009, alpha-keyed) laid flat on the water — the
+  // texture's own silhouette (round leaf + notch) replaces the old wedge-cut
+  // CircleGeometry, so the base geometry is now a plain flat quad.
+  const padTex = loadAlbedoTexture(assetUrl(LILYPAD_TEX_URL));
+  const padAspect = 547 / 643;
   const padMat = new THREE.MeshStandardMaterial({
+    map: padTex,
     color: PALETTE.pad,
     roughness: 0.72,
-    flatShading: true,
+    transparent: true,
+    alphaTest: 0.4,
     side: THREE.DoubleSide,
   });
   const padMatLight = new THREE.MeshStandardMaterial({
+    map: padTex,
     color: PALETTE.padLight,
     roughness: 0.72,
-    flatShading: true,
+    transparent: true,
+    alphaTest: 0.4,
     side: THREE.DoubleSide,
   });
   const stemMat = new THREE.MeshStandardMaterial({
@@ -132,7 +144,7 @@ export function buildLotusField(): LotusField {
     });
   }
 
-  const padGeo = new THREE.CircleGeometry(1, 14, 0.32, Math.PI * 2 - 0.64);
+  const padGeo = new THREE.PlaneGeometry(padAspect, 1);
   padGeo.rotateX(-Math.PI / 2);
   const stemGeo = new THREE.CylinderGeometry(0.035, 0.05, 1, 6);
 
@@ -346,9 +358,19 @@ export function buildLotusField(): LotusField {
           bloomMat.rotation = Math.sin(t * 0.5 + p.phase) * LOTUS_PHYSICS.swayAmp;
           const h = LOOK.ripe.height * popScale;
           p.bloom.scale.set(h * ripeAspect, h, 1);
-          bloomMat.color.setScalar(1 + Math.sin(t * 2.4 + p.phase) * 0.06 + 0.05);
-          p.halo.scale.setScalar(1.1 + Math.sin(t * 3 + p.phase) * 0.15 + p.pop * 0.8);
-          (p.halo.material as THREE.SpriteMaterial).opacity = 0.28 + Math.sin(t * 2.4 + p.phase) * 0.1;
+          // Ripe is the only harvestable stage — deliberately the brightest,
+          // most animated one so it reads at a glance against bud/half/wilt
+          // (playtest bug: "lotus aşaması okunmuyor").
+          bloomMat.color.setScalar(
+            1 + Math.sin(t * 2.4 + p.phase) * LOTUS_FX.ripeBloomBrightPulse + 0.05,
+          );
+          p.halo.scale.setScalar(
+            LOTUS_FX.ripeHaloBaseScale +
+              Math.sin(t * 3 + p.phase) * LOTUS_FX.ripeHaloPulseScale +
+              p.pop * 0.8,
+          );
+          (p.halo.material as THREE.SpriteMaterial).opacity =
+            LOTUS_FX.ripeHaloBaseOpacity + Math.sin(t * 2.4 + p.phase) * LOTUS_FX.ripeHaloPulseOpacity;
         } else if (p.stage === "half" || p.stage === "bud") {
           bloomMat.rotation = Math.sin(t * 0.4 + p.phase) * LOTUS_PHYSICS.swayAmp * 0.8;
           const h = look.height * popScale;
@@ -366,8 +388,14 @@ export function buildLotusField(): LotusField {
           }
         }
       }
-      (highlight.material as THREE.MeshBasicMaterial).opacity = 0.55 + Math.sin(t * 5) * 0.3;
-      highlight.scale.setScalar(1 + Math.sin(t * 5) * 0.05);
+      // Never dips too low — the ring is the player's only cue for "this is
+      // the flower you can reach right now" (playtest bug: highlight felt
+      // unreliable).
+      (highlight.material as THREE.MeshBasicMaterial).opacity =
+        LOTUS_FX.highlightBaseOpacity + Math.sin(t * 5) * LOTUS_FX.highlightPulseOpacity;
+      highlight.scale.setScalar(
+        LOTUS_FX.highlightBaseScale + Math.sin(t * 5) * LOTUS_FX.highlightPulseScale,
+      );
     },
     findRipe(x, z, gates) {
       return nearestRipe(x, z, gates, false);

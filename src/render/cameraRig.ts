@@ -39,17 +39,28 @@ export class CameraRig {
     this.target.copy(focus);
   }
 
-  private desired(focus: THREE.Vector3, out = new THREE.Vector3()): THREE.Vector3 {
+  /**
+   * `extraHeight`/`extraDist` bias the camera above and back from its usual
+   * spot without moving the look target — used to keep a nearby harvest
+   * target visible past the character's body (playtest bug: "toplarken
+   * karakter çiçeği kapatıyor").
+   */
+  private desired(
+    focus: THREE.Vector3,
+    out = new THREE.Vector3(),
+    extraHeight = 0,
+    extraDist = 0,
+  ): THREE.Vector3 {
     const dir = new THREE.Vector3(Math.sin(this.yaw), 0, Math.cos(this.yaw));
-    out.copy(focus).addScaledVector(dir, CAMERA.dist);
-    out.y = focus.y + CAMERA.height + this.pitch * 3.2;
+    out.copy(focus).addScaledVector(dir, CAMERA.dist + extraDist);
+    out.y = focus.y + CAMERA.height + extraHeight + this.pitch * 3.2;
     const floor = Math.max(0, this.groundAt(out.x, out.z)) + CAMERA.minClearance;
     if (out.y < floor) out.y = floor;
     return out;
   }
 
-  update(focus: THREE.Vector3, dt: number): void {
-    const want = this.desired(focus);
+  update(focus: THREE.Vector3, dt: number, extraHeight = 0, extraDist = 0): void {
+    const want = this.desired(focus, undefined, extraHeight, extraDist);
     const k = 1 - Math.pow(1 - CAMERA.lerp, dt * 60);
     this.pos.lerp(want, k);
     this.camera.position.copy(this.pos);

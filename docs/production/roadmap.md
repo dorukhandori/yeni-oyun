@@ -25,6 +25,8 @@ Bu dosyanın tek işi şu soruyu tek bakışta cevaplamak: **şu an neredeyiz, s
 | `multi-island-concept.md` *(yeni)* | M7 + K27–K29 kapandı | 3 duraklı koşu kararı verildi ve gerçek dokümanlara yazıldı; kendisi hâlâ bir karar kaydı, tuning kaynağı değil |
 | `level-cyclops-cave.md` *(yeni, `island-designer`)* | taslak — sahip onayı bekliyor, **kilitli** (dokunulmuyor) | Kiklop Mağarası'nın kroki + bölgeleri + algılanma sistemi önerisi hazır; 6 açık soru (1 tanesi — respawn konumu — `gdd-detection-cyclops.md` ile kapandı) |
 | `gdd-detection-cyclops.md` *(yeni, `game-designer`)* | onaylandı (kavramsal), sayılar 🔬 | Kiklop'un algılanma sistemi karara bağlandı; sabitler `tuning.md` §12'de |
+| `hallucination-reframe-concept.md` *(yeni, `game-designer`)* | karar dokümanı, kapandı | Playtest geri bildirimi üzerine 3 seçenek sundu; sahip 14 Ağu 2026'da karar verdi — sonuçlar aşağıdaki iki dosyaya yazıldı |
+| `gdd-lotus-hallucination.md` *(yeni, `game-designer`)* | onaylandı (kavramsal), sayılar 🔬 | Lotus Adası'na özgü sanrı figürleri sistemi karara bağlandı; sabitler `tuning.md` §13'te |
 
 **Sonuç:** tasarım tarafı yazım olarak neredeyse tamam, **onay olarak hiç kapanmadı.** Tek resmî onay `docs/art/art-bible.md` (Intake kapısı, 14 Ağu 2026).
 
@@ -62,6 +64,8 @@ Bu dosyanın tek işi şu soruyu tek bakışta cevaplamak: **şu an neredeyiz, s
 | DOM pusula (alt orta, eşik 50'de gider) | `ux/hud.md` | Yerine 3D dünya oku var, 0.8'de soluyor |
 | Muğlak teslim sayacı (`HUD_VAGUE_COUNTER`) | memory GDD §10 | Yok |
 | Dalga sesinin lowpass'tan muafiyeti | memory GDD §9 | **İhlal:** `waveGain → filter → master`, dalga da filtreleniyor |
+| Bayılma katmanı (`FX_GHOST_OFFSET`, `FX_BREATH_*`) *(yeni, 14 Ağu 2026)* | memory GDD §9.1, `tuning.md` §5.4 | Yok — bkz. Faz 3.7 |
+| Sanrı figürleri (Lotus Adası) *(yeni, 14 Ağu 2026)* | `gdd-lotus-hallucination.md`, `tuning.md` §13 | Yok — bkz. Faz 2.10/3.8, henüz sahnede hiçbir sanrı figürü, spawn sistemi ya da temas çarpışması yok |
 
 **Tasarımda YOK, kodda VAR (çelişki):**
 
@@ -163,8 +167,8 @@ Her faz tek başına oynanır bir build bırakır. Faz içindeki her madde **tek
 **Hedef:** iki GDD'nin kabul kriterlerinin **hepsinin** kodda geçmesi.
 **Bitiş kriteri:** `gdd-lotus-collection.md` §8'deki 10 kriter + `gdd-memory-system.md` §8'deki 14 kriter, `qa-tester` tarafından tek tek koşulup **geçti** işaretlenmiş; deterministiklik testi (aynı tohum → aynı evre) geçiyor.
 
-**Tahmini kapsam:** 6–8 oturum (Lotus Adası'nın çekirdek mekaniği, 2.1–2.9) **+ tahmini 3 ek oturum** (14 Ağu 2026, K29 sonucu ve `gdd-detection-cyclops.md` onayı — Kiklop ve Sirenler'in kendi el yerleşimleri 2.6b/2.6c, artı Kiklop'un algılanma sistemi 2.6e). **Toplam ~9–11 oturum.** Kapsam eskiye göre kabaca 2.6 özelinde **3× büyüdü** (1 durak → 3 durak) ve Kiklop'a özgü yeni bir sistem (algılanma) eklendi; 2.1–2.5 ve 2.7–2.9 paylaşılan sistemler olduğu için bir kez yazılıyor, çarpılmıyor.
-**Bağımlılık / risk:** Faz 1'e **sert bağımlı**. 2.6 (el yerleşimi) ada ölçeği kararı olmadan yapılamaz. 2.2 (harvest hold) HUD halkası gerektirir → Faz 4 ile küçük bir kesişme; halkanın dünya-uzayı versiyonu burada, DOM tarafı Faz 4'te. 2.6b/2.6c, Kiklop/Sirenler'in `island-designer` level-spec'leri yazılmadan başlayamaz.
+**Tahmini kapsam:** 6–8 oturum (Lotus Adası'nın çekirdek mekaniği, 2.1–2.9) **+ tahmini 3 ek oturum** (14 Ağu 2026, K29 sonucu ve `gdd-detection-cyclops.md` onayı — Kiklop ve Sirenler'in kendi el yerleşimleri 2.6b/2.6c, artı Kiklop'un algılanma sistemi 2.6e) **+ tahmini 1–2 ek oturum** (14 Ağu 2026, sanrı figürleri sistemi — 2.10). **Toplam ~10–13 oturum.** Kapsam eskiye göre kabaca 2.6 özelinde **3× büyüdü** (1 durak → 3 durak), Kiklop'a özgü yeni bir sistem (algılanma) ve şimdi Lotus Adası'na özgü ikinci yeni bir sistem (sanrı figürleri) eklendi; 2.1–2.5 ve 2.7–2.9 paylaşılan sistemler olduğu için bir kez yazılıyor, çarpılmıyor.
+**Bağımlılık / risk:** Faz 1'e **sert bağımlı**. 2.6 (el yerleşimi) ada ölçeği kararı olmadan yapılamaz. 2.2 (harvest hold) HUD halkası gerektirir → Faz 4 ile küçük bir kesişme; halkanın dünya-uzayı versiyonu burada, DOM tarafı Faz 4'te. 2.6b/2.6c, Kiklop/Sirenler'in `island-designer` level-spec'leri yazılmadan başlayamaz. 2.10 (sanrı figürleri) 2.5'e (yürüyüş sapması) bağımlı — mevcut `DRIFT_*` kodunu yeniden kullanıyor, o kod yoksa temas etkisi uygulanamaz.
 
 | # | İş | Rol |
 |---|---|---|
@@ -181,6 +185,7 @@ Her faz tek başına oynanır bir build bırakır. Faz içindeki her madde **tek
 | 2.7 | Koku modeli: `SCENT_RADIUS` tabanlı, **yığılmayan** — mevcut "lagündeyse" kontrolünün yerine | `gameplay-programmer` |
 | 2.8 | Deniz/gemi iyileşmesi `SHORE_WET_BAND` + `SHIP_AURA_RADIUS` ile; iç göl iyileştirmesin | `gameplay-programmer` |
 | 2.9 | Kayıp finali davranışı (§4-K3 kararına göre, **artık koşu bazlı** — §4-K27) + Esc/sekme duraklatması | `gameplay-programmer` |
+| 2.10 *(yeni, 14 Ağu 2026, `gdd-lotus-hallucination.md` onayından sonra)* | Lotus Adası'nın **sanrı figürleri**: `HALLUCINATION_THRESHOLD` aktivasyonu, deterministik spawn/despawn döngüsü (`HALLUCINATION_SEED`, `_FADE_TIME`, `_LINGER`, `_RESPAWN_GAP`), rota-önyargılı konum seçimi (`_ROUTE_BIAS_RADIUS`), temas çarpışması (`_CONTACT_RADIUS`) → `onHallucinationContact` (tek seferlik `_CONTACT_MEM_SPIKE` + geçici `DRIFT_MAX_ANGLE` çarpanı `_DRIFT_MULTIPLIER`/`_DRIFT_SPIKE_DURATION`, `_CONTACT_COOLDOWN` ile korumalı). Sabitler `tuning.md` §13'te, davranış kuralları/kabul kriterleri `gdd-lotus-hallucination.md`'de. **Yalnızca Lotus Adası** — Kiklop/Sirenler bu koddan hiç etkilenmez. 2.5'e (yürüyüş sapması) bağımlı. | `gameplay-programmer` |
 
 ---
 
@@ -200,6 +205,8 @@ Her faz tek başına oynanır bir build bırakır. Faz içindeki her madde **tek
 | 3.4 | Uğultu katmanı (eşik 2+) + lir bozulması | `gameplay-programmer` |
 | 3.5 | Post-process bütçe ölçümü (hedef FPS, kare süresi) | `technical-director` |
 | 3.6 | Dört eşiğin görsel doğrulaması, art bible §4 ile karşılaştırma | `art-director` |
+| 3.7 *(yeni, 14 Ağu 2026)* | Bayılma katmanı: `FX_GHOST_OFFSET` (kenar ghosting) + `FX_BREATH_PERIOD`/`FX_BREATH_AMPLITUDE` (vinyet nefes ritmi) — `gdd-memory-system.md` §9.1, `tuning.md` §5.4. Fotosensitivite kontrolü (`art-bible.md` §4.1) burada da geçerli: ani sıçrama yok, periyot saniyelerle. | `gameplay-programmer` |
+| 3.8 *(yeni, 14 Ağu 2026)* | Sanrı figürlerinin görsel üretimi: yarı-saydam/silüet-bazlı billboard veya parçacık, `art-bible.md` §4.1 paletiyle (`#f6f2ea` ailesi) — 2.10'un render tarafı, kod entegrasyonu `gameplay-programmer` ile paylaşılır | `art-director` + `gameplay-programmer` |
 
 ---
 
@@ -333,6 +340,9 @@ Tek liste. Numaralar kalıcı; karar verilince satır silinmez, **sonuç ve tari
 
 | # | Karar | Durum |
 |---|---|---|
+| **K31** *(14 Ağu 2026)* | **Bayılma/sanrı yeniden çerçevelemesi** — playtest sonrası sahip geri bildirimi ("bayılmaya doğru, sanrılar arttıkça teslim zorlaşsın, yaratıklar kovalasın"). `hallucination-reframe-concept.md`'de 3 kritik soru soruldu. | **kapandı (14 Ağu 2026):** sahip üçünü de cevapladı — (1) **ikisi de**: hem his değişikliği (bayılma/bilinç gevşemesi sunumu) hem gerçek mekanik (sanrı figürleri) isteniyor. (2) **İlke korunuyor**: temas can/envanter kaybı değil, unutuş sıçraması + geçici `DRIFT` şiddetlenmesi — Kiklop'un `CAUGHT` diliyle aynı aile. (3) **Yalnızca Lotus Adası** — Kiklop'un kendi `DETECT`/`CAUGHT` sistemiyle çakışmasın. Sonuçlar yazıldı: `gdd-memory-system.md` (§2, §3.4, §9.1), `gdd-lotus-hallucination.md` (yeni dosya), `tuning.md` (§5.4, §13, §10, §11.5), `art-bible.md` (§4.1, yeni). Uygulama: Faz 2.10 + Faz 3.7/3.8. | (kapandı) |
+| **K32** *(14 Ağu 2026)* | **WebGPU/TSL migration** — sahip Poseidon (GPU okyanus, WebGPU-only) ve EZ-Tree/Gaia/Dryad (prosedürel doğa) buldu, `technical-director`'a fizibilite çıkarttırıldı (`docs/production/webgpu-migration-assessment.md`). Bulgular: WebGL fallback var ama compute shader'lar (Poseidon) fallback'te çalışmıyor (~%18 kullanıcı okyanus göremez); `hazePass.ts` (unutuş efekti) TSL'de sıfırdan yazılmalı; EZ-Tree npm paketi 3MB gzip bundle şişirdiği için diskalifiye (GLB export önerildi); Three.js r160→r185 yükseltmesi neredeyse bedava. | **kapandı (14 Ağu 2026):** sahip "olsa iyi olur" dedi — **tam migration ertelendi** (Faz 7+ sonrasına). Şimdi yapılacak: (1) Three.js r185'e yükselt, (2) EZ-Tree'den GLB ağaç export et (npm paketi değil). Gaia/Dryad alınmıyor (ağır `onBeforeCompile` bağımlılığı). Poseidon/tam WebGPU spike'ı bu karara dahil değil, ileride ayrı değerlendirilecek. **Uygulandı (14 Ağu 2026):** Three.js r185'e yükseltildi (`gameplay-programmer`, sıfır tip hatası). EZ-Tree GLB export'u sandbox tarayıcısında editör güvenilir yüklenmediği için henüz yapılamadı — sahip kendi tarayıcısında deneyebilir ya da headless bir yol aranacak. | (kod tarafı büyük ölçüde uygulandı, EZ-Tree GLB bekliyor) |
+| **K33** *(14 Ağu 2026)* | **Minimap** — sahip playtest geri bildiriminde "sağ üst köşeye mini ada haritası" istedi. `ui-programmer` uygulamadan önce `ux/hud.md`, `ux/ia.md`, `ux/design-lines.md`, `art-bible.md`'nin **dördünün de** minimap'i açıkça yasakladığını buldu (unutuş barı yasağıyla aynı ağırlıkta — "yön gemi+dalga sesiyle bulunur, haritayla değil"), uygulamadan flag'ledi. | **kapandı (14 Ağu 2026):** sahip ilkeyi korumayı seçti — **minimap eklenmiyor**, dört doküman değişmedi. `GameState.playerX`/`playerZ` (gameplay-programmer'ın eklediği) kullanılmadan kalıyor, zararsız — ileride başka bir ihtiyaç çıkarsa hazır duruyor. | (kapandı) |
 | **K5** | **Faz 5 art kapsamı:** 27 planned asset'in hangileri MVP'ye girecek? (öneri: 5 kalemlik alt küme) | açık |
 | **K6** | **Key art nerede kullanılacak?** | **kapandı (14 Ağu 2026, tersine çevrildi):** eski karar ("oyun sahnesine hiç girmez") sahip tarafından değiştirildi — key art artık **oyun içi ekranlarda da** kullanılıyor, en azından Başlık ekranı arkaplanı (bkz. `ux/screens.md` §1). `asset-registry.md` ASSET-003'ün "olası başlık ekranı arka planı (karar bekliyor)" notu artık **evet**e dönüyor — dosya kendisi henüz güncellenmedi, bu `art-director`'ın işi. Hub ekranının arkaplanının da aynı key art'ı mı kullanacağı yoksa ayrı bir kompozisyon mu isteyeceği (3 durağı temsil etmesi gerektiği için) ayrı bir açık soru, `art-director`'a devredildi. |
 | **K7** | **Veo/video yolu denenecek mi?** `gen-assets.mjs` video kolu hiç çalıştırılmadı. Trailer buna bağlı; plan B gameplay capture. | açık |

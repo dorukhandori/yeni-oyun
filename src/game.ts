@@ -4,6 +4,7 @@ import {
   DAY,
   FEEL,
   FLOW,
+  HALLUCINATION,
   LAGOON,
   LOTOPHAGOS,
   LOTUS,
@@ -24,6 +25,7 @@ import type { GameState } from "./types";
 import { Hud } from "./ui/hud";
 import { Menu } from "./ui/menu";
 import { requestLandscapeLock } from "./ui/orientation";
+import { buildHallucinations } from "./world/hallucination";
 import { buildLotophagoi } from "./world/lotophagos";
 import { buildLotusField, type LotusGateState } from "./world/lotus";
 import { buildSailor } from "./world/sailor";
@@ -49,6 +51,7 @@ export function startGame(canvas: HTMLCanvasElement): void {
   const hill = buildHillPuzzle();
   const ship = buildShip();
   const lotophagoi = buildLotophagoi();
+  const hallucinations = buildHallucinations();
   const sailor = buildSailor();
   const bursts = new Bursts();
   const audio = new GameAudio();
@@ -61,6 +64,7 @@ export function startGame(canvas: HTMLCanvasElement): void {
     hill.group,
     ship.group,
     lotophagoi.group,
+    hallucinations.group,
     sailor.root,
     bursts.points,
   );
@@ -105,6 +109,10 @@ export function startGame(canvas: HTMLCanvasElement): void {
   let wonSoundPlayed = false;
   let duskSoundPlayed = false;
   let warnSoundPlayed = false;
+  /** Cooldown so the "bu kadar açılabilirsin" toast doesn't spam the boundary. */
+  let boundaryHintTimer = 0;
+  /** Seconds remaining on the hallucination contact drift-spike (see updateDrift). */
+  let driftTimer = 0;
 
   const rig = new CameraRig(stage.camera, (x, z) => Math.max(heightAt(x, z), 0));
   rig.snap(pos);
@@ -128,12 +136,15 @@ export function startGame(canvas: HTMLCanvasElement): void {
     depart: 0,
     cardTimer: 0,
     dayTime: 0,
+    playerX: PLAYER.spawn.x,
+    playerZ: PLAYER.spawn.z,
   };
 
   const fwd = new THREE.Vector3();
   const rightV = new THREE.Vector3();
   const wish = new THREE.Vector3();
   const focus = new THREE.Vector3();
+  const driftAxis = new THREE.Vector3(0, 1, 0);
   let time = 0;
 
   const shipDist = () => Math.hypot(ship.anchor.x - pos.x, ship.anchor.z - pos.z);
@@ -146,10 +157,13 @@ export function startGame(canvas: HTMLCanvasElement): void {
     pos.set(PLAYER.spawn.x, 0, PLAYER.spawn.z);
     pos.y = standY(pos.x, pos.z);
     vel.set(0, 0, 0);
+    st.playerX = pos.x;
+    st.playerZ = pos.z;
     st.carried = 0;
     st.memory = MEMORY.resetTo;
     st.lostTimer = 0;
     st.phase = "play";
+    driftTimer = 0;
     prevGroundY = pos.y;
     sailor.setCarried(0);
     sailor.root.visible = true;
@@ -170,6 +184,7 @@ export function startGame(canvas: HTMLCanvasElement): void {
     stones.reset();
     hill.reset();
     lotophagoi.reset();
+    hallucinations.reset();
     st.phase = "play";
     st.carried = 0;
     st.delivered = 0;
@@ -181,9 +196,13 @@ export function startGame(canvas: HTMLCanvasElement): void {
     wonSoundPlayed = false;
     duskSoundPlayed = false;
     warnSoundPlayed = false;
+    boundaryHintTimer = 0;
+    driftTimer = 0;
     pos.set(PLAYER.spawn.x, 0, PLAYER.spawn.z);
     pos.y = standY(pos.x, pos.z);
     vel.set(0, 0, 0);
+    st.playerX = pos.x;
+    st.playerZ = pos.z;
     facing = Math.PI;
     prevGroundY = pos.y;
     sailor.setCarried(0);
@@ -405,6 +424,19 @@ export function startGame(canvas: HTMLCanvasElement): void {
     if (canMove) {
       wish.addScaledVector(fwd, input.moveZ()).addScaledVector(rightV, input.moveX());
     }
+    // Hallucination contact drift-spike (gdd-lotus-hallucination.md §4.2):
+    // reuses the base memory-system drift primitives (MEMORY.driftMaxAngleDeg
+    // / driftPeriod), temporarily amplified, regardless of the (not yet
+    // implemented) eşik-3 baseline drift. Only rotates the wish direction —
+    // never speed, never blocks input.
+    if (canMove && driftTimer > 0 && wish.lengthSq() > 0.0001) {
+      const angleDeg =
+        MEMORY.driftMaxAngleDeg *
+        HALLUCINATION.driftMultiplier *
+        Math.sin((2 * Math.PI * time) / MEMORY.driftPeriod);
+      wish.applyAxisAngle(driftAxis, THREE.MathUtils.degToRad(angleDeg));
+    }
+    if (driftTimer > 0) driftTimer = Math.max(0, driftTimer - dt);
     const wading = inLagoon(pos.x, pos.z);
     const topSpeed = PLAYER.speed * (wading ? PLAYER.waterSpeedMul : 1);
     if (wish.lengthSq() > 0.001) wish.normalize().multiplyScalar(topSpeed);
@@ -422,15 +454,40 @@ export function startGame(canvas: HTMLCanvasElement): void {
 
     let nx = pos.x + vel.x * dt;
     let nz = pos.z + vel.z * dt;
-    const nr = Math.hypot(nx, nz);
+    let nr = Math.hypot(nx, nz);
     const limit = wadeLimitAt(nx, nz);
-    if (nr > limit) {
-      const s = limit / nr;
-      nx *= s;
-      nz *= s;
-      vel.x *= 0.4;
-      vel.z *= 0.4;
+    const softStart = limit - PLAYER.boundarySoftZone;
+    if (nr > softStart) {
+      // Soft resistance band: outward speed bleeds off gradually the deeper
+      // you push past softStart, instead of snapping to a hard wall
+      // (playtest bug: "harita sınırında duvara takılma"). `depth` 0 at the
+      // start of the band, 1 at the hard limit and beyond.
+      const depth = Math.min(1, (nr - softStart) / PLAYER.boundarySoftZone);
+      const rx = nx / nr;
+      const rz = nz / nr;
+      const outward = vel.x * rx + vel.z * rz;
+      if (outward > 0) {
+        const shed = outward * depth * PLAYER.boundaryResistance;
+        vel.x -= rx * shed;
+        vel.z -= rz * shed;
+        nx = pos.x + vel.x * dt;
+        nz = pos.z + vel.z * dt;
+        nr = Math.hypot(nx, nz);
+      }
+      if (nr > limit) {
+        // Residual push still crosses the hard limit in one step (e.g. a big
+        // dt) — clamp position only, velocity already shed above.
+        const s = limit / nr;
+        nx *= s;
+        nz *= s;
+      }
+      if (boundaryHintTimer <= 0) {
+        boundaryHintTimer = PLAYER.boundaryHintCooldown;
+        hud.say("Açık denize bu kadar açılabilirsin");
+        audio.boundary();
+      }
     }
+    if (boundaryHintTimer > 0) boundaryHintTimer -= dt;
     pos.x = nx;
     pos.z = nz;
     const groundY = standY(pos.x, pos.z);
@@ -458,6 +515,10 @@ export function startGame(canvas: HTMLCanvasElement): void {
     }
     sailor.root.position.copy(pos);
     sailor.root.rotation.y = facing;
+    // GameState.playerX/playerZ — read by ui-programmer's minimap via
+    // hud.update(st, haze); kept in lockstep with the physics position above.
+    st.playerX = pos.x;
+    st.playerZ = pos.z;
 
     stones.touch(pos);
 
@@ -535,6 +596,10 @@ export function startGame(canvas: HTMLCanvasElement): void {
         hud.setPrompt("Kuzeydeki rüzgâr taşlarını çöz");
       } else if (ripe !== null) {
         hud.setPrompt(input.touchActive ? "Topla · olgun lotusu kopar" : "<b>E</b> olgun lotusu topla");
+      } else if (stones.hintNear(pos.x, pos.z)) {
+        hud.setPrompt("Taşlara basarak sırayla geç");
+      } else if (hill.hintNear(pos.x, pos.z)) {
+        hud.setPrompt("Rüzgârın işaret ettiği taşa dokun");
       } else {
         hud.setPrompt(null);
       }
@@ -561,7 +626,19 @@ export function startGame(canvas: HTMLCanvasElement): void {
       hud.setPrompt(null);
     }
 
-    if (st.phase === "play") updateMemory(dt);
+    if (st.phase === "play") {
+      // Lotus Adası only — gdd-lotus-hallucination.md. Contact is a one-shot
+      // memory spike + temporary drift amplification, never a speed/inventory
+      // hit (the "not an enemy" contract, §1).
+      const contactAt = hallucinations.update(dt, time, st.memory, pos, ship.anchor);
+      if (contactAt) {
+        st.memory = Math.min(1, st.memory + HALLUCINATION.contactMemSpike);
+        driftTimer = HALLUCINATION.driftSpikeDuration;
+        bursts.spawnPop(contactAt, PALETTE.hallucination, 14);
+        audio.hallucinationTouch();
+      }
+      updateMemory(dt);
+    }
 
     // ----------------------------------------------------------- guide arrow
     const guideOn =
@@ -611,8 +688,19 @@ export function startGame(canvas: HTMLCanvasElement): void {
     if (st.phase === "departing" || st.phase === "won") {
       focus.set(ship.anchor.x, ship.anchor.y + 2, ship.anchor.z);
     }
+    // Ease the camera up and back the closer the player stands to a
+    // harvestable bloom, so the sailor's body doesn't block it at the moment
+    // of picking (playtest bug: "toplarken karakter çiçeği kapatıyor").
+    let camLift = 0;
+    let camPullback = 0;
+    if (ripe !== null) {
+      const p = field.positionOf(ripe);
+      const closeness = Math.max(0, 1 - Math.hypot(p.x - pos.x, p.z - pos.z) / CAMERA.pickRevealRange);
+      camLift = CAMERA.pickRevealLift * closeness;
+      camPullback = CAMERA.pickRevealPullback * closeness;
+    }
     sailor.update(time, dt, Math.min(1, speed / PLAYER.speed), vel.x, vel.z);
-    rig.update(focus, dt);
+    rig.update(focus, dt, camLift, camPullback);
     sea.update(time);
     field.update(dt, time);
     updateHillPuzzleVisuals(hill, time);

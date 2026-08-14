@@ -195,6 +195,16 @@ export const PLAYER = {
   wadeFloor: -0.42,
   /** How far past the shoreline he may wade before being held back. */
   shoreLimit: 1,
+  /**
+   * Width of the resistance zone before `shoreLimit` (playtest bug: hard
+   * invisible-wall stop at the boundary). Outward velocity is progressively
+   * damped across this band instead of snapping the player to the limit.
+   */
+  boundarySoftZone: 1.6,
+  /** Fraction of outward velocity shed per second at full boundary depth. */
+  boundaryResistance: 0.85,
+  /** Minimum gap between "this far" boundary toasts. */
+  boundaryHintCooldown: 14,
 } as const;
 
 export const CAMERA = {
@@ -215,6 +225,14 @@ export const CAMERA = {
   /** Camera kick decay and frequency for juice shakes. */
   shakeDecay: 7.5,
   shakeHz: 18,
+  /**
+   * Harvest reveal (playtest bug: the sailor's body blocks the flower while
+   * picking). Within `pickRevealRange` of a harvestable ripe bloom, the
+   * camera eases up and back so the plant stays visible past the character.
+   */
+  pickRevealRange: 2.2,
+  pickRevealLift: 0.6,
+  pickRevealPullback: 0.9,
 } as const;
 
 export const FEEL = {
@@ -240,6 +258,14 @@ export const PUZZLE = {
   /** Hill wind cairns — interact in wind order to unlock cove lotuses. */
   cairnRange: 2.35,
   cairnSolveOrder: [0, 2, 1] as readonly number[],
+  /**
+   * Teaching-hint radii (playtest bug: "taşlar için ipucu eksik") — wider
+   * than the actual interact/step ranges above, so the HUD explains the
+   * mechanic while the player is still approaching it, not only once
+   * they're already standing on top of it.
+   */
+  stoneHintRange: 6.0,
+  cairnHintRange: 7.0,
   /** Fraction of cove-zone plants that stay gated until hill puzzle clears. */
   coveGatedRatio: 0.55,
   /** Deep-zone plants behind the lily-pad chain (by index within zone). */
@@ -276,6 +302,26 @@ export const LOTUS = {
   ],
 } as const;
 
+/**
+ * Stage readability tuning (playtest bug: "lotus aşaması okunmuyor" — the 4
+ * billboard stages read too similarly at a glance). Only affects the ripe
+ * stage's halo/glow pulse and the nearest-target highlight ring; the stage
+ * textures/scales themselves (`LOOK` in `world/lotus.ts`) are unchanged.
+ */
+export const LOTUS_FX = {
+  ripeHaloBaseOpacity: 0.48,
+  ripeHaloPulseOpacity: 0.24,
+  ripeHaloBaseScale: 1.3,
+  ripeHaloPulseScale: 0.24,
+  /** Extra brightness swing on the ripe bloom sprite itself. */
+  ripeBloomBrightPulse: 0.12,
+  /** Nearest-pickable-target ring — kept bright and never dips too low. */
+  highlightBaseOpacity: 0.78,
+  highlightPulseOpacity: 0.2,
+  highlightBaseScale: 1.05,
+  highlightPulseScale: 0.08,
+} as const;
+
 // ------------------------------------------------------------- memory system
 export const MEMORY = {
   /** 0 = clear headed, 1 = fully lotus-drunk. Rates are per second. */
@@ -301,6 +347,76 @@ export const MEMORY = {
   /** Visual haze curve mapped from memory. */
   hazeGamma: 1.85,
   hazeMax: 0.95,
+  /**
+   * Walking-drift primitives (tuning.md §5.3 `DRIFT_MAX_ANGLE`/`DRIFT_PERIOD`
+   * — the base eşik-3 "sarhoş yürüyüş" behaviour from `gdd-memory-system.md`
+   * §4.3 is Faz 2.5, not yet wired here). Currently only consumed by the
+   * hallucination contact spike below (`HALLUCINATION.driftMultiplier`),
+   * which per `gdd-lotus-hallucination.md` §3.1/§4.2 reuses these two
+   * constants rather than inventing its own drift system.
+   */
+  driftMaxAngleDeg: 15,
+  driftPeriod: 4.0,
+} as const;
+
+/**
+ * Lotus Adası'na özgü sanrı figürleri (hallucination) — `tuning.md` §13,
+ * `docs/design/gdd-lotus-hallucination.md`. Yalnızca Lotus Adası'nda okunur;
+ * Kiklop Mağarası ve Sirenler Geçidi bu sabitleri hiç okumaz (bkz. o
+ * dosyanın §1.1). Puan cinsinden (0-100) tuning.md değerleri, `MEMORY`
+ * grubuyla aynı ilkeyle motorun dahili 0-1 float `memory` state'ine 100'e
+ * bölünerek çevrildi (bkz. `MEMORY`'nin başındaki "real" profile notu).
+ */
+export const HALLUCINATION = {
+  /** HALLUCINATION_THRESHOLD (öneri 60 puan, 🔬 playtest'e ertelendi). */
+  threshold: 60 / 100,
+  /** MEM_THRESHOLD_HYSTERESIS (3 puan) yeniden kullanılıyor — ayrı bir sabit tanımlanmadı, gdd §4.1. */
+  hysteresis: 3 / 100,
+  /** HALLUCINATION_CREATURE_COUNT */
+  creatureCount: 3,
+  /** HALLUCINATION_SEED */
+  seed: 7429,
+  /** HALLUCINATION_FADE_TIME (s) */
+  fadeTime: 1.5,
+  /** HALLUCINATION_LINGER (s) */
+  linger: 10.0,
+  /** HALLUCINATION_RESPAWN_GAP (s) */
+  respawnGap: 6.0,
+  /** HALLUCINATION_ROUTE_BIAS_RADIUS (m) — spawn weighting toward the player-ship line. */
+  routeBiasRadius: 18.0,
+  /** HALLUCINATION_CONTACT_RADIUS (m) */
+  contactRadius: 1.8,
+  /** HALLUCINATION_CONTACT_MEM_SPIKE (öneri 10 puan -> dahili 0.10, 🔬 playtest'e ertelendi). */
+  contactMemSpike: 10 / 100,
+  /** HALLUCINATION_DRIFT_MULTIPLIER — MEMORY.driftMaxAngleDeg'e uygulanan geçici çarpan. */
+  driftMultiplier: 2.0,
+  /** HALLUCINATION_DRIFT_SPIKE_DURATION (s) */
+  driftSpikeDuration: 4.0,
+  /** HALLUCINATION_CONTACT_COOLDOWN (s) — kare-bazlı çoklu tetiklenmeyi önler. */
+  contactCooldown: 2.0,
+  /** HALLUCINATION_VANISH_ON_CONTACT — temas eden figür hemen söner. */
+  vanishOnContact: true,
+  /** Minimum spawn distance from the player/ship so a figure never "ambushes". */
+  minSpawnDistFromPlayer: 3.5,
+  minSpawnDistFromShip: 7.0,
+  /** Gentle ghost-wander amplitude/speed while lingering (visual only). */
+  wanderRadius: 1.1,
+  wanderSpeed: 0.35,
+} as const;
+
+/**
+ * Bayılma sunum katmanı — `gdd-memory-system.md` §9.1, `art-bible.md` §4.1,
+ * `tuning.md` §5.4. Adds on top of the existing 4 haze layers in
+ * `render/hazePass.ts` (desaturate/vignette/fog/blur) — does not replace
+ * them. Only Lotus Adası runs today, so this is not profile-gated.
+ */
+export const FX = {
+  /** FX_GHOST_OFFSET (px) — max edge double-image pixel offset, high memory only. */
+  ghostOffsetPx: 2.5,
+  /** FX_BREATH_PERIOD (s) — vignette opacity "breathing" period. */
+  breathPeriod: 5.0,
+  /** FX_BREATH_AMPLITUDE (0-1) — swing added to the vignette mix, small on purpose. */
+  breathAmplitude: 0.04,
 } as const;
 
 export const FLOW = {
@@ -363,6 +479,55 @@ export const RENDER = {
   bounceIntensity: 0.36,
 } as const;
 
+/**
+ * Generated-texture tiling — `docs/art/pipeline.md` §6: tile scale is a
+ * meters-per-repeat constant, not eyeballed per mesh. Ground textures are
+ * sampled in the terrain shader from world-space XZ (see `terrain.ts`), so
+ * these are plain "meters per texture repeat" values independent of the
+ * plane's own UV layout.
+ */
+export const TERRAIN_TEX = {
+  /** flora_drygrass_01 (ASSET-032) tuft spacing reads right around this scale. */
+  grassTileMeters: 3.4,
+  /** sand_gold_01 (ASSET-015, cropped to drop its decorative border). */
+  sandTileMeters: 4.5,
+  /** sand_wet_01 (ASSET-016), same tiling as dry sand so the blend is seamless. */
+  sandWetTileMeters: 4.5,
+} as const;
+
+export const SEA_TEX = {
+  /** water_shallow_01 (ASSET-012) ripple wavelength. */
+  shallowNormalTileMeters: 6.5,
+  shallowNormalStrength: 0.55,
+  /** water_lake_01 (ASSET-033) — slower, calmer ripple than the open sea. */
+  lakeNormalTileMeters: 7.5,
+  lakeNormalStrength: 0.4,
+  /** water_foam_01 (ASSET-013) repeats around the coastline ring. */
+  foamRepeatX: 30,
+  /** water_caustic_01 (ASSET-014), additive shimmer over the shallows. */
+  causticTileMeters: 3.2,
+  causticScrollSpeed: 0.035,
+  causticOpacity: 0.55,
+} as const;
+
+export const SHIP_TEX = {
+  /** ship_plank_01 (ASSET-018) plank width, in hull-local units (unscaled hull). */
+  plankTileUnits: 1.35,
+} as const;
+
+export const SKY_TEX = {
+  /** hill_backdrop_01 (ASSET-023) — textured ring replacing the two farthest procedural cone layers. */
+  hillDistance: 205,
+  hillHeight: 46,
+  hillY: 4,
+  /** Times the backdrop image repeats around the horizon (it is a single wide shot, not a 360 pan). */
+  hillRepeat: 4,
+  /** sky_goldenhour_01 (ASSET-022) cloud/horizon detail, blended over the procedural dusk gradient. */
+  cloudRadius: 350,
+  /** Opacity the cloud layer reaches at full dusk (t=1); 0 at t=0, matching today's look exactly. */
+  cloudMaxOpacity: 0.5,
+} as const;
+
 export const PALETTE = {
   sand: 0xe9cf98,
   sandWet: 0xc7a468,
@@ -391,4 +556,6 @@ export const PALETTE = {
   cypress: 0x3f5f3a,
   olive: 0x7d9464,
   trunk: 0x6b5136,
+  /** Sanrı figürleri + unutma pusu ailesi (art-bible.md §2/§4.1) — yeni bir renk ailesi getirilmiyor. */
+  hallucination: 0xf6f2ea,
 } as const;

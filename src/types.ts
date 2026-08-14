@@ -27,4 +27,7 @@ export interface GameState {
   cardTimer: number;
   /** Seconds since dawn (caps at DAY.length). */
   dayTime: number;
+  /** World-space player position (XZ, y omitted — minimap/HUD only needs the ground plane). Updated every step() while playing. */
+  playerX: number;
+  playerZ: number;
 }

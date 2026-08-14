@@ -150,6 +150,23 @@ Katman sırası (post-process, `gdd-memory-system.md` §9'daki sıra):
 - **Çalışma zamanında uygulanır.** Vinyet, doygunluk, sis ve bulanıklık **texture'a boyanmaz**. Asset'ler her zaman "unutuş = 0" halinde üretilir (`pipeline.md` §8).
 - **Geri dönüş hızlı ve okunur.** Denize girince veya teslim edince etki belirgin biçimde geri çekilir; oyuncu "aklım başıma geldi"yi görsel olarak almalı. Kalıcı bozulma yok.
 
+### 4.1 Bayılma katmanı — ek (14 Ağu 2026, sahip kararı, playtest geri bildirimi)
+
+Sahip'in playtest sonrası geri bildirimi ("bayılmaya doğru, uykuya doğru çekiyormuş gibi") üzerine mevcut dört katmana **iki ince, isteğe bağlı katman** eklendi. Karar dokümanı: `docs/design/hallucination-reframe-concept.md`. Tasarım otoritesi `gdd-memory-system.md` §9.1'de karara bağlandı — bu bölüm onun görsel/hex düzeyindeki karşılığı.
+
+1. **Çift görüntü (ghosting)** — ekranın **kenarlarında** (merkez netliği korunur), yüksek unutuşta hafif gecikmeli bir ikinci görüntü katmanı (`FX_GHOST_OFFSET`, `tuning.md` §5.4). "Gözlerini açık tutamama" hissi — **bulanıklığın (`FX_BLUR`) bir kardeşi**, ondan daha küçük genlikte kalır, onunla yarışmaz.
+2. **Nefes ritmi** — süt beyazı vinyetin opaklığı sabit değil, çok yavaş (`FX_BREATH_PERIOD` = 5 s) ve çok küçük genlikte (`FX_BREATH_AMPLITUDE`, ~%4-5) bir "nefes alma" ile dalgalanır.
+
+**Bu iki katman şu kilitli kuralların hiçbirini ihlal etmiyor:** kararan ekran yasağı (ikisi de netlik/vinyet ailesinde, karartma değil), fotosensitivite (periyotlar saniyelerle ölçülüyor, ani sıçrama yok — ≥1,5 s kuralına zaten uyan mevcut katmanların üstüne biniyor), renk kısıtı (yeni bir hex ailesi getirmiyor — ghosting mevcut görüntünün kendi kopyası, nefes ritmi mevcut `#f6f2ea` vinyetinin opaklık salınımı). **Işık asla azalmaz** ilkesi de korunuyor — ikisi de netlik/doku katmanı, ışık şiddeti katmanı değil.
+
+**Sanrı figürleri (yeni, yalnızca Lotus Adası):** unutuş yüksek bir eşiği geçtiğinde (`HALLUCINATION_THRESHOLD`, `tuning.md` §13), az sayıda (3) yarı-saydam, silüet-bazlı figür sahneye giriyor. Tasarım otoritesi `docs/design/gdd-lotus-hallucination.md`'de. Görsel dil için:
+
+- **Palet:** unutma pusuyla (`#f6f2ea`) **aynı aile** — yeni bir renk ailesi getirilmiyor, §2/§9'daki "palet dışı renk yasak" kuralına uyuluyor.
+- **Form:** dolu bir 3D mesh değil, dumanlı/yarı-saydam bir "izlenim" — §5'in "stylized, asla fotogerçekçi" ilkesiyle uyumlu; parçacık sistemi veya billboard sprite ile üretilebilecek kadar hafif (aynı anda en fazla 3 tane).
+- **Kesinlikle kullanılmayacak:** Kiklop'un kehribar/turuncu kenar parıltısı (`gdd-detection-cyclops.md` §3.3) — bu, o sistemin kendi işareti; iki durak farklı olsa da görsel diller kasıtlı olarak ayrışık tutuluyor, oyuncu ilerde iki sistemi karıştırmasın.
+- **Kesinlikle kullanılmayacak:** kırmızı/turuncu "tehlike" rengi, keskin kontur, düşman silüeti dili (§9 yasaklarıyla aynı gerekçe — bu figürler görsel olarak da "düşman" değil "unutuşun bir belirtisi" okunmalı).
+- **Kimliği belirsiz kalmalı** — Homeros'ta yok, oyun için icat; doğrudan doğrulanmayan bir ima (Lotophagoi'nin "oyuncunun kayıp adamları mı" sorusunun kapalı kalması gibi).
+
 ---
 
 ## 5. Şekil dili

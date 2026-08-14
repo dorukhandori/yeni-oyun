@@ -8,6 +8,8 @@ export interface SteppingStones {
   touch(pos: THREE.Vector3): void;
   /** True once the far pad in the chain has been reached. */
   isOpen(): boolean;
+  /** True when near the (still-locked) chain — teaching hint, not the tight step radius. */
+  hintNear(x: number, z: number): boolean;
   reset(): void;
 }
 
@@ -70,6 +72,10 @@ export function buildSteppingStones(): SteppingStones {
     },
     isOpen() {
       return progress >= PUZZLE.stonePickGateIndex;
+    },
+    hintNear(x, z) {
+      if (progress >= PUZZLE.stonePickGateIndex) return false;
+      return nodes.some((n) => Math.hypot(x - n.x, z - n.z) < PUZZLE.stoneHintRange);
     },
     reset() {
       progress = -1;

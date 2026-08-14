@@ -333,6 +333,47 @@ canvas#game {
   pointer-events: auto;
 }
 
+/* --------------------------------------------------- parchment panel system */
+/* Shared BOTW-style parchment chrome — Title menu block, Hub map, and the
+   How-to/About sub-panels all use this. ASSET-035 (panel texture) + ASSET-036
+   (gold frame) — docs/art/asset-registry.md P2 "UI (menü kroması)". A single
+   utility class instead of four near-duplicate rules.
+   Both source images carry their own margin baked in (ASSET-035 is a shaped
+   sheet on a white field, not edge-to-edge; ASSET-036's border ring sits
+   ~15% in from the 1024×1024 canvas edge) — measured directly against the
+   shipped files (art-source pixel scan, 2026-08-14) rather than guessed, so
+   background-size is oversized + centered to crop that margin away and let
+   the visible sheet/ring trace the panel's actual box edges at any aspect. */
+.parchment-panel {
+  position: relative;
+  isolation: isolate;
+  border-radius: 10px;
+  box-shadow: 0 16px 40px rgba(40, 26, 10, 0.4);
+}
+
+.parchment-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  background: url("/assets/ui/ui_parchment_panel_01_albedo_1024.png") center / 116% 116% no-repeat;
+}
+
+.parchment-panel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: url("/assets/ui/ui_frame_gold_01_alpha_1024.png") center / 146% 146% no-repeat;
+  pointer-events: none;
+}
+
+.parchment-panel > * {
+  position: relative;
+  z-index: 2;
+}
+
 /* ------------------------------------------------------------ shared buttons */
 .menu-btn {
   pointer-events: auto;
@@ -365,20 +406,24 @@ canvas#game {
 }
 
 .menu-btn.ghost {
-  background: rgba(255, 255, 255, 0.1);
-  color: #f3ead8;
-  border-color: rgba(255, 255, 255, 0.35);
+  background: rgba(255, 246, 227, 0.4);
+  color: #6d4a16;
+  border-color: rgba(120, 90, 30, 0.45);
   min-width: 0;
   padding: 9px 20px;
 }
 
 .menu-btn.ghost:hover {
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 246, 227, 0.65);
 }
 
 /* -------------------------------------------------------------------- title */
+/* BOTW-parchment layout, sahip decision 2026-08-14: menu block right-aligned
+   over the key art, scrim reduced to a whisper — readability now comes from
+   the parchment panel's own opacity, not a dark gradient. */
 .title-screen {
-  flex-direction: column;
+  justify-content: flex-end;
+  padding-right: clamp(28px, 8vw, 130px);
 }
 
 .title-bg {
@@ -390,12 +435,7 @@ canvas#game {
 .title-scrim {
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    180deg,
-    rgba(18, 26, 34, 0.18) 0%,
-    rgba(18, 24, 32, 0.5) 58%,
-    rgba(10, 14, 20, 0.8) 100%
-  );
+  background: linear-gradient(180deg, rgba(20, 16, 10, 0.05) 0%, rgba(20, 16, 10, 0.22) 100%);
 }
 
 .title-content {
@@ -405,24 +445,25 @@ canvas#game {
   align-items: center;
   gap: 8px;
   text-align: center;
-  padding: 24px;
+  width: min(300px, 78vw);
+  padding: 50px 28px 40px;
 }
 
 .title-name {
   margin: 0;
-  font-size: 52px;
-  letter-spacing: 9px;
+  font-size: 32px;
+  letter-spacing: 6px;
   text-transform: uppercase;
-  color: #fff6e0;
-  text-shadow: 0 3px 18px rgba(0, 0, 0, 0.55), 0 0 40px rgba(255, 210, 140, 0.35);
+  color: #6d4a16;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.55);
 }
 
 .title-sub {
-  font-size: 13px;
-  letter-spacing: 4px;
+  font-size: 11.5px;
+  letter-spacing: 3.5px;
   text-transform: uppercase;
-  color: rgba(255, 246, 227, 0.75);
-  margin-bottom: 20px;
+  color: rgba(90, 64, 28, 0.75);
+  margin-bottom: 18px;
 }
 
 .title-menu {
@@ -430,6 +471,142 @@ canvas#game {
   flex-direction: column;
   gap: 10px;
   align-items: center;
+}
+
+/* ------------------------------------------------------------ floating motes
+   Slow-drifting pollen/firefly glints over the key art (sahip brief item 3).
+   Pure CSS transform/opacity animation — no JS, no reflow. */
+.title-motes {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.mote {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(255, 228, 176, 0.95) 0%,
+    rgba(255, 210, 140, 0.4) 55%,
+    rgba(255, 210, 140, 0) 76%
+  );
+  opacity: 0;
+  will-change: transform, opacity;
+  animation: mote-drift 24s ease-in-out infinite;
+}
+
+.mote:nth-child(1) {
+  left: 8%;
+  top: 78%;
+  width: 4px;
+  height: 4px;
+  animation-duration: 21s;
+  animation-delay: -2s;
+}
+.mote:nth-child(2) {
+  left: 16%;
+  top: 40%;
+  animation-duration: 27s;
+  animation-delay: -9s;
+}
+.mote:nth-child(3) {
+  left: 24%;
+  top: 62%;
+  width: 3px;
+  height: 3px;
+  animation-duration: 19s;
+  animation-delay: -14s;
+}
+.mote:nth-child(4) {
+  left: 33%;
+  top: 22%;
+  animation-duration: 30s;
+  animation-delay: -4s;
+}
+.mote:nth-child(5) {
+  left: 41%;
+  top: 84%;
+  width: 6px;
+  height: 6px;
+  animation-duration: 25s;
+  animation-delay: -18s;
+}
+.mote:nth-child(6) {
+  left: 12%;
+  top: 15%;
+  width: 4px;
+  height: 4px;
+  animation-duration: 22s;
+  animation-delay: -7s;
+}
+.mote:nth-child(7) {
+  left: 29%;
+  top: 46%;
+  animation-duration: 33s;
+  animation-delay: -11s;
+}
+.mote:nth-child(8) {
+  left: 5%;
+  top: 55%;
+  width: 3px;
+  height: 3px;
+  animation-duration: 18s;
+  animation-delay: -1s;
+}
+.mote:nth-child(9) {
+  left: 38%;
+  top: 65%;
+  animation-duration: 26s;
+  animation-delay: -16s;
+}
+.mote:nth-child(10) {
+  left: 20%;
+  top: 90%;
+  width: 5px;
+  height: 5px;
+  animation-duration: 29s;
+  animation-delay: -6s;
+}
+.mote:nth-child(11) {
+  left: 45%;
+  top: 34%;
+  width: 3px;
+  height: 3px;
+  animation-duration: 20s;
+  animation-delay: -13s;
+}
+.mote:nth-child(12) {
+  left: 2%;
+  top: 30%;
+  animation-duration: 31s;
+  animation-delay: -20s;
+}
+
+@keyframes mote-drift {
+  0% {
+    transform: translate(0, 0) scale(0.85);
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.9;
+  }
+  50% {
+    transform: translate(16px, -54px) scale(1.15);
+    opacity: 0.5;
+  }
+  88% {
+    opacity: 0.15;
+  }
+  100% {
+    transform: translate(-8px, -104px) scale(0.9);
+    opacity: 0;
+  }
 }
 
 /* ------------------------------------------------------- how-to / about panels */
@@ -440,7 +617,7 @@ canvas#game {
   display: none;
   align-items: center;
   justify-content: center;
-  background: rgba(10, 14, 20, 0.72);
+  background: rgba(24, 16, 9, 0.68);
 }
 
 .sub-panel.on {
@@ -449,13 +626,9 @@ canvas#game {
 }
 
 .sub-panel-inner {
-  background: var(--parchment);
-  border: 1px solid rgba(150, 116, 58, 0.55);
-  border-radius: 6px;
-  padding: 26px 30px;
+  padding: 30px 34px;
   max-width: 440px;
   text-align: left;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
 }
 
 .sub-panel-inner h2 {
@@ -505,16 +678,22 @@ canvas#game {
 }
 
 /* --------------------------------------------------------------------- hub */
+/* Illustrated parchment map, sahip decision 2026-08-14 (was a dark navy
+   radial + blurred key art card row — that chroma is gone). The three-island
+   layout + dotted route are ASSET-037..040 (asset-registry.md P2 "UI (menü
+   kroması)") composed with a hand-authored SVG path — the path itself is a
+   deliberate non-asset (asset-registry.md: "asset ÜRETİLMİYOR (bilinçli
+   karar)"). */
 .hub-screen {
-  background: radial-gradient(circle at 50% 30%, #2a4a5a 0%, #16232c 70%);
+  background: url("/assets/ui/ui_parchment_panel_01_albedo_1024.png") center / cover no-repeat;
 }
 
-.hub-bg {
+.hub-screen::before {
+  content: "";
   position: absolute;
   inset: 0;
-  background: url("/assets/ui/title_bg_key_art_1344.webp") center 30% / cover no-repeat;
-  filter: blur(7px) brightness(0.5) saturate(0.8);
-  transform: scale(1.06);
+  background: radial-gradient(circle at 50% 38%, rgba(120, 90, 40, 0) 42%, rgba(70, 48, 18, 0.2) 100%);
+  pointer-events: none;
 }
 
 .hub-content {
@@ -522,83 +701,131 @@ canvas#game {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 26px;
-  padding: 24px;
+  gap: 18px;
+  padding: 22px;
 }
 
 .hub-title {
   margin: 0;
-  font-size: 19px;
+  font-size: 18px;
   letter-spacing: 5px;
   text-transform: uppercase;
-  color: #fff6e0;
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.6);
+  color: #6d4a16;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 
-.hub-cards {
-  display: flex;
-  gap: 22px;
-  flex-wrap: wrap;
-  justify-content: center;
+.hub-map {
+  width: min(760px, 88vw);
+  aspect-ratio: 16 / 10;
+  padding: 8px;
 }
 
-.hub-card {
-  width: 200px;
-  min-height: 140px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 246, 227, 0.35);
-  background: rgba(20, 26, 34, 0.55);
-  color: #fff6e0;
+.hub-route {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.hub-route-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.hub-route-path {
+  fill: none;
+  stroke: rgba(140, 100, 40, 0.55);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 6 7;
+  vector-effect: non-scaling-stroke;
+}
+
+.hub-island {
+  position: absolute;
+  transform: translate(-50%, -50%);
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 18px;
+  gap: 6px;
+  border: none;
+  background: none;
+  padding: 4px;
   font-family: inherit;
+  color: #6d4a16;
+  min-width: 44px;
+  min-height: 44px;
 }
 
-button.hub-card {
+button.hub-island {
   cursor: pointer;
   pointer-events: auto;
-  transition: transform 150ms ease, background 150ms ease;
+  transition: transform 150ms ease;
 }
 
-button.hub-card:hover {
-  transform: translateY(-3px);
-  background: rgba(40, 50, 62, 0.7);
+button.hub-island:hover {
+  transform: translate(-50%, -50%) translateY(-3px);
 }
 
-.hub-card-name {
-  font-size: 16px;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  text-align: center;
+.hub-island.locked {
+  cursor: default;
+  opacity: 0.7;
 }
 
-.hub-card-badge {
+.hub-island-thumb {
+  width: clamp(64px, 10vw, 96px);
+  height: clamp(64px, 10vw, 96px);
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid rgba(180, 138, 60, 0.65);
+  box-shadow: 0 6px 16px rgba(40, 26, 10, 0.32);
+  background: rgba(255, 246, 227, 0.6);
+  transition: box-shadow 150ms ease;
+}
+
+.hub-island-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+button.hub-island:hover .hub-island-thumb {
+  box-shadow: 0 10px 22px rgba(40, 26, 10, 0.42);
+}
+
+.hub-island.locked .hub-island-thumb {
+  filter: grayscale(0.4) brightness(0.94);
+}
+
+.hub-island-name {
   font-size: 12px;
   letter-spacing: 1px;
-  padding: 4px 10px;
+  text-transform: uppercase;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.hub-island-badge {
+  font-size: 10.5px;
+  letter-spacing: 0.6px;
+  padding: 2px 8px;
   border-radius: 3px;
   text-transform: uppercase;
 }
 
-.hub-card-badge.ready {
-  background: rgba(140, 200, 130, 0.24);
-  color: #cdeec2;
-  border: 1px solid rgba(140, 200, 130, 0.5);
+.hub-island-badge.ready {
+  background: rgba(138, 168, 96, 0.24);
+  color: #55642a;
+  border: 1px solid rgba(138, 168, 96, 0.55);
 }
 
-.hub-card.locked {
-  opacity: 0.55;
-  cursor: default;
-}
-
-.hub-card-badge.locked-badge {
-  background: rgba(255, 255, 255, 0.12);
-  color: rgba(255, 246, 227, 0.75);
-  border: 1px solid rgba(255, 255, 255, 0.25);
+.hub-island-badge.locked-badge {
+  background: rgba(120, 96, 60, 0.14);
+  color: rgba(90, 64, 28, 0.75);
+  border: 1px solid rgba(120, 96, 60, 0.35);
 }
 
 /* Title/Hub cover the canvas — hide the touch HUD behind them so virtual

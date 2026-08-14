@@ -110,6 +110,21 @@ export class GameAudio {
     this.blip(180, 0.22, "sawtooth", 0.08);
   }
 
+  /** Soft, non-alarming cue for the wading boundary — a nudge, not a buzzer. */
+  boundary(): void {
+    this.blip(210, 0.3, "sine", 0.06);
+  }
+
+  /**
+   * Hallucination-figure contact (Lotus Adası only). Deliberately not a
+   * "hit"/damage sound — the figure is an information disruption, not an
+   * enemy (gdd-lotus-hallucination.md §1). A hollow, receding chime.
+   */
+  hallucinationTouch(): void {
+    this.blip(340, 0.4, "sine", 0.1);
+    this.blip(255, 0.5, "sine", 0.07, 0.09);
+  }
+
   win(): void {
     this.blip(392, 0.2, "sine", 0.14);
     this.blip(523, 0.22, "sine", 0.12, 0.12);

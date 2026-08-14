@@ -3,6 +3,10 @@ dist
 .DS_Store
 *.local
 
+# Claude Code — local-only, never shared
+.claude/worktrees/
+.claude/settings.local.json
+
 # Ham asset/medya çıktıları — git'e girmez (docs/art/pipeline.md §6)
 # Klasör iskeleti .gitkeep ile korunur.
 art-source/**

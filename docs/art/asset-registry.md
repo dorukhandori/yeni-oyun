@@ -1,6 +1,6 @@
 # Asset kayıt defteri — Lotus Adası
 
-> **Son güncelleme:** 2026-08-14 · **Durum:** Higgsfield hâlâ bağlı değil; tüm üretim Gemini API doğrudan yolla yapıldı — `scripts/gen-assets.mjs` (toplu tur + Veo video, `pipeline.md` §3) ve `scripts/gen-gemini-image.mjs` (tekil varyant üretimi, ASSET-001/002 varyant turları). P0 üçlüsü + 26/27 `planned` kalem üretildi (bkz. Özet ve "Üretim sırası" bölümü) — 20'si `public/assets/`'e taşınmış durumda, kod entegrasyonu (Three.js'e `TextureLoader` ile bağlanma) ayrı bir sonraki iş. Oyuncu karakterinin adı **Doryseus** (orijinal tasarım, Homeros'un Odysseus'u değil — sahip kararı 2026-08-14).
+> **Son güncelleme:** 2026-08-14 (ikinci tur — menü görsel yönü, ASSET-035..040 eklendi) · **Durum:** Higgsfield hâlâ bağlı değil; tüm üretim Gemini API doğrudan yolla yapıldı — `scripts/gen-assets.mjs` (toplu tur + Veo video, `pipeline.md` §3) ve `scripts/gen-gemini-image.mjs` (tekil varyant üretimi, ASSET-001/002 varyant turları). P0 üçlüsü + 26/27 `planned` kalem üretildi (bkz. Özet ve "Üretim sırası" bölümü) — 20'si `public/assets/`'e taşınmış durumda, kod entegrasyonu (Three.js'e `TextureLoader` ile bağlanma) ayrı bir sonraki iş. Oyuncu karakterinin adı **Doryseus** (orijinal tasarım, Homeros'un Odysseus'u değil — sahip kararı 2026-08-14). **ASSET-035..040** (menü parşömen paneli + altın çerçeve + Hub illustre ada haritası) `planned` — bu turun art-director alt-ajanının Bash aracı yoktu, prompt dosyaları hazır, üretim bekliyor (bkz. P2 — UI (menü kroması) bölümü).
 > **Kilitli varyantlar:** **ASSET-001** = sahip seçimi varyant 04 · **ASSET-002** = sahip seçimi varyant 02 (`public/preview/` galerisinde tüm varyantlar duruyor).
 > **Oyun:** Odysseia IX — Lotus Yiyenler Adası · **Motor:** Three.js 3D
 > **Tasarım otoritesi:** `docs/design/` (`game-concept.md`, `gdd-lotus-collection.md`, `gdd-memory-system.md`, `tuning.md`). Bu liste onlarla eşitlendi 2026-08-14; `level-lotus-island.md` gelince tarla/bölge kalemleri gözden geçirilecek.
@@ -36,7 +36,11 @@ CCGS `asset-spec` karşılıkları: `planned`=Needed · `generated`=In Progress 
 
 | Toplam | planned | generated | accepted | integrated |
 |---|---|---|---|---|
-| 34 | 1 | 8 | 20 | 5 |
+| 40 | 7 | 8 | 5 | 20 |
+
+**2026-08-14, ikinci tur — menü görsel yönü (BOTW parşömen + illustre Hub haritası):** sahip'le menü görsel dili üzerine kilitlenen kararlar sonrası **ASSET-035..040** eklendi (aşağıda P2 — UI (menü kroması) bölümü). Bu oturumun **Bash aracı yoktur** — `scripts/gen-assets.mjs` bizzat çalıştırılamadı; üç prompt dosyası `art-source/work/prompt-asset-035/036/037-*.txt` olarak hazırlandı, komutlar aşağıdaki tabloda. Hepsi `planned`.
+
+**2026-08-14, üçüncü tur — Three.js kod entegrasyonu (gameplay-programmer):** 15 `accepted` scene-texture kalemi (ASSET-009, 010, 012–016, 018–020, 022, 023, 031–033) gerçek Three.js materyallerine bağlandı, `accepted` → `integrated`. Kapsam dışı kalan tek kalem **ASSET-017** (çakıl) — sahip'in bu tur için verdiği texture listesinde yoktu, dokunulmadı. İki raw dosyada (`flora_reed_01`, `water_foam_01`) ve iki ek dosyada (`flora_lilypad_01`, `ship_rope_01`) isimlerindeki "alpha" ibaresine rağmen **gerçek alpha kanalı yoktu** (düz gri/beyaz fon) — renk-mesafe alpha-key ile işlendi, sonuçlar `art-source/work/*_alpha_keyed.png`'de duruyor. `sand_gold_01` ayrıca **tileable değildi** (kenarlarda deniz kabuğu süsü + köşede farklı ton) — merkezden kırpıldı. `hill_backdrop_01`'de üretimden kalma beyaz çerçeve kırpıldı. Tüm entegre dosyalar PNG'den WebP'ye çevrildi (`docs/art/pipeline.md` §6) — toplam `public/assets/textures/` + `public/assets/skybox/` boyutu ~22 MB ham çıktıdan **~950 KB**'a indi. Detaylar: `public/assets/assets.csv` satır notları + bu tablodaki ilgili satırlar.
 
 **2026-08-14 toplu üretim turu:** kalan 27 `planned` kalemden 26'sı üretildi (ASSET-034 Lotophagos figürü kasıtlı olarak MVP-sonrası ertelendi). 20'si `public/assets/`'e taşındı ve §8 kabul kapısından geçti (kod entegrasyonu hâlâ ayrı bir iş — `accepted` ≠ `integrated`); 8'i (`generated`) ham halde kaldı: 3 UI ikonu tek sayfada kırpılmayı bekliyor, zeytin/servi turnaround sayfası kırpılmayı bekliyor, 4 karakter/lotus video klibi `pipeline.md` §5'in henüz yazılmamış frame-extraction/quantize/temizlik hattını bekliyor. 4 asset ilk denemede reddedilip (davetsiz çiçek motifleri veya yanlış palet — bkz. ilgili satır notları) prompt düzeltmesiyle yeniden üretildi.
 
@@ -107,8 +111,8 @@ CCGS `asset-spec` karşılıkları: `planned`=Needed · `generated`=In Progress 
 | ASSET-006 | Lotus — aşama 3, **olgun** | `scene-texture` | albedo (alpha gömülü) | ASSET-002'den kırpıldı | **integrated** | `public/assets/textures/lotus_bloom_03_albedo_512.png` (512×232) · Adanın en doygun ve en geniş çiçeği, içten hafif ışıyor — tek "topla" sinyali, ikon yok · `lotus.ts` `STAGE_TEX.ripe` |
 | ASSET-007 | Lotus — aşama 4, solmuş | `scene-texture` | albedo (alpha gömülü) | ASSET-002'den kırpıldı | **integrated** | `public/assets/textures/lotus_wilt_04_albedo_512.png` (512×353) · Yapraklar düşük, doygunluk ölü · `lotus.ts` `STAGE_TEX.wilt` |
 | ASSET-008 | Lotus açma animasyonu (2→3) | `spritesheet` **[A]** | sheet | `art-source/work/prompt-asset-008-lotus-open.txt` | **generated** | `art-source/raw/lotus_open_clip_01.mp4` (Veo, 4s/16:9) · aynı şekilde spritesheet hattı bekliyor |
-| ASSET-009 | Nilüfer yaprağı (su üstü) | `scene-texture` | albedo | `art-source/work/prompt-asset-009-lilypad.txt` | **accepted** | `public/assets/textures/flora_lilypad_01_albedo_512.png` · `gemini-2.5-flash-image` · 2026-08-14 · kod entegrasyonu bekliyor |
-| ASSET-010 | Sazlık / kamış (billboard) | `scene-texture` | alpha | `art-source/work/prompt-asset-010-reed.txt` | **accepted** | `public/assets/textures/flora_reed_01_alpha_512.png` · `gemini-2.5-flash-image` · 2026-08-14 · kod entegrasyonu bekliyor |
+| ASSET-009 | Nilüfer yaprağı (su üstü) | `scene-texture` | albedo | `art-source/work/prompt-asset-009-lilypad.txt` | **integrated** | `public/assets/textures/flora_lilypad_01_albedo_512.webp` · `gemini-2.5-flash-image` · 2026-08-14 · raw dosyada gerçek alpha yoktu (beyaz fon) — alpha-key'lendi (547×643'e kırpıldı), WebP'ye çevrildi · `src/world/lotus.ts` `padMat`/`padMatLight` (CircleGeometry yerini PlaneGeometry+alphaTest aldı) |
+| ASSET-010 | Sazlık / kamış (billboard) | `scene-texture` | alpha | `art-source/work/prompt-asset-010-reed.txt` | **integrated** | `public/assets/textures/flora_reed_01_alpha_512.webp` · `gemini-2.5-flash-image` · 2026-08-14 · raw dosyada gerçek alpha yoktu (gri fon) — alpha-key'lendi (624×862'ye kırpıldı), WebP'ye çevrildi · `src/world/terrain.ts` `buildReedBeds` (çapraz çift-plane billboard kümeleri, `mergeGeometries` ile tek draw call — eski prosedürel govde/uç silindir-koni çiftlerinin yerini aldı) |
 | ASSET-011 | Zeytin & servi silueti | `scene-texture` | alpha | `art-source/work/prompt-asset-011-olive-cypress.txt` | **generated** | `art-source/raw/flora_tree_01_alpha.png` · 3'lü turnaround sayfası (zeytin×2 + servi) · **henüz kırpılmadı** — lotus stages gibi tek tek alpha-key'lenmesi lazım · `public/assets/`'e taşınmadı |
 
 ---
@@ -117,15 +121,15 @@ CCGS `asset-spec` karşılıkları: `planned`=Needed · `generated`=In Progress 
 
 | ID | Ad | Sınıf | Kanal | Şablon | Durum | Not |
 |---|---|---|---|---|---|---|
-| ASSET-012 | Sığ su dalga dokusu | `scene-texture` | normal | `art-source/work/prompt-asset-012-water-shallow-normal.txt` | **accepted** | `public/assets/textures/water_shallow_01_normal_512.png` · 2026-08-14 · kod entegrasyonu bekliyor |
-| ASSET-013 | Köpük hattı | `scene-texture` | alpha | `art-source/work/prompt-asset-013-foam.txt` | **accepted** | `public/assets/textures/water_foam_01_alpha_512.png` · 2026-08-14 · kod entegrasyonu bekliyor |
-| ASSET-014 | Sığ su caustic | `scene-texture` | caustic | `art-source/work/prompt-asset-014-caustic.txt` | **accepted** | `public/assets/textures/water_caustic_01_caustic_512.png` · 2026-08-14 · siyah=kapalı/turkuaz=açık additive harita olarak üretildi, izole halde parlak/neon görünüyor ama additive blend'de doğru çalışması beklenir — kod entegrasyonunda doğrulanmalı |
-| ASSET-015 | Altın kum (tileable) | `scene-texture` | albedo | `art-source/work/prompt-asset-015-sand-gold.txt` | **accepted** | `public/assets/textures/sand_gold_01_albedo_1024.png` · 2026-08-14 · 2×2 döşeme dikiş kontrolü henüz yapılmadı (pipeline.md §8) — kod entegrasyonunda doğrulanmalı |
-| ASSET-016 | Islak kum | `scene-texture` | albedo | `art-source/work/prompt-asset-016-sand-wet.txt` | **accepted** | `public/assets/textures/sand_wet_01_albedo_1024.png` · 2026-08-14 · ilk deneme davetsiz lotus/parlayan çiçek motifleriyle reddedildi, prompta "no flowers" kısıtı eklenip yeniden üretildi |
-| ASSET-017 | Çakıl / kıyı taşı | `scene-texture` | albedo | `art-source/work/prompt-asset-017-pebble.txt` | **accepted** | `public/assets/textures/sand_pebble_01_albedo_512.png` · 2026-08-14 · ilk deneme davetsiz beyaz çiçek lekeleriyle reddedildi, "no flowers" kısıtıyla yeniden üretildi |
-| ASSET-031 | Tebeşir beyazı kayalık | `scene-texture` | albedo | `art-source/work/prompt-asset-031-rock-chalk.txt` | **accepted** | `public/assets/textures/rock_chalk_01_albedo_1024.png` · 2026-08-14 · kod entegrasyonu bekliyor |
-| ASSET-032 | Kavruk yeşil ot | `scene-texture` | albedo | `art-source/work/prompt-asset-032-drygrass.txt` | **accepted** | `public/assets/textures/flora_drygrass_01_albedo_1024.png` · 2026-08-14 · iki revizyon gerekti (önce davetsiz lotus çiçekleri, sonra mavi renkli toprak çatlakları) |
-| ASSET-033 | İç göl suyu (tatlı su) | `scene-texture` | normal | `art-source/work/prompt-asset-033-lake-water.txt` | **accepted** | `public/assets/textures/water_lake_01_normal_512.png` · 2026-08-14 · denizden renkle (motorda) ayrışacak — kod entegrasyonu bekliyor |
+| ASSET-012 | Sığ su dalga dokusu | `scene-texture` | normal | `art-source/work/prompt-asset-012-water-shallow-normal.txt` | **integrated** | `public/assets/textures/water_shallow_01_normal_512.webp` · 2026-08-14 · WebP (linear, sRGB yok) · `src/world/sea.ts` ana deniz `MeshStandardMaterial.normalMap`, `SEA_TEX.shallowNormalTileMeters/Strength` |
+| ASSET-013 | Köpük hattı | `scene-texture` | alpha | `art-source/work/prompt-asset-013-foam.txt` | **integrated** | `public/assets/textures/water_foam_01_alpha_512.webp` · 2026-08-14 · raw dosyada gerçek alpha yoktu (gri fon) — alpha-key'lendi, WebP'ye çevrildi · `src/world/sea.ts` `foamMat` (RingGeometry u=kıyı çevresinde repeat, v=clamp), `SEA_TEX.foamRepeatX` |
+| ASSET-014 | Sığ su caustic | `scene-texture` | caustic | `art-source/work/prompt-asset-014-caustic.txt` | **integrated** | `public/assets/textures/water_caustic_01_caustic_512.webp` · 2026-08-14 · additive blend'de doğru çalıştığı doğrulandı (siyah zemin katkı yapmıyor) · `src/world/sea.ts` yeni caustic ring mesh (`AdditiveBlending`, zamanla kayan UV offset), `SEA_TEX.causticTileMeters/ScrollSpeed/Opacity` |
+| ASSET-015 | Altın kum (tileable) | `scene-texture` | albedo | `art-source/work/prompt-asset-015-sand-gold.txt` | **integrated** | `public/assets/textures/sand_gold_01_albedo_512.webp` · 2026-08-14 · **2×2 döşeme kontrolünde orijinal görsel tileable DEĞİLDİ** (kenarlarda deniz kabuğu süsü + köşede farklı ton bandı) — 620×620 merkez bölge kırpılıp 512'ye küçültüldü, yeniden test edilip dikişsiz doğrulandı · `src/world/terrain.ts` `buildGroundMaterial` (world-space UV splat shader), `TERRAIN_TEX.sandTileMeters` |
+| ASSET-016 | Islak kum | `scene-texture` | albedo | `art-source/work/prompt-asset-016-sand-wet.txt` | **integrated** | `public/assets/textures/sand_wet_01_albedo_1024.webp` · 2026-08-14 · ilk deneme davetsiz lotus/parlayan çiçek motifleriyle reddedildi, prompta "no flowers" kısıtı eklenip yeniden üretildi · 2×2 döşemede dikişsiz doğrulandı · `src/world/terrain.ts` `buildGroundMaterial` (`aWeights.y` ile kuru kum karışımı) |
+| ASSET-017 | Çakıl / kıyı taşı | `scene-texture` | albedo | `art-source/work/prompt-asset-017-pebble.txt` | **accepted** | `public/assets/textures/sand_pebble_01_albedo_512.png` · 2026-08-14 · ilk deneme davetsiz beyaz çiçek lekeleriyle reddedildi, "no flowers" kısıtıyla yeniden üretildi · **2026-08-14 üçüncü tur kapsamı dışında bırakıldı** (sahip'in bu turdaki texture listesinde yoktu) — kod entegrasyonu hâlâ bekliyor |
+| ASSET-031 | Tebeşir beyazı kayalık | `scene-texture` | albedo | `art-source/work/prompt-asset-031-rock-chalk.txt` | **integrated** | `public/assets/textures/rock_chalk_01_albedo_1024.webp` · 2026-08-14 · `src/world/terrain.ts` `rockMat` (kayalar) + `marbleMat` (mabet sütunları) + kuzey koyu adım taşları |
+| ASSET-032 | Kavruk yeşil ot | `scene-texture` | albedo | `art-source/work/prompt-asset-032-drygrass.txt` | **integrated** | `public/assets/textures/flora_drygrass_01_albedo_1024.webp` · 2026-08-14 · iki revizyon gerekti (önce davetsiz lotus çiçekleri, sonra mavi renkli toprak çatlakları) · `src/world/terrain.ts` `buildGroundMaterial` (`aTint` ile yükseklik-bazlı yeşil gradyan çarpımı), `TERRAIN_TEX.grassTileMeters` |
+| ASSET-033 | İç göl suyu (tatlı su) | `scene-texture` | normal | `art-source/work/prompt-asset-033-lake-water.txt` | **integrated** | `public/assets/textures/water_lake_01_normal_512.webp` · 2026-08-14 · denizden hem renkle (mevcut `PALETTE.lagoon`) hem artık normal dalga karakteriyle ayrışıyor · `src/world/sea.ts` lagoon `MeshStandardMaterial.normalMap`, `SEA_TEX.lakeNormalTileMeters/Strength` |
 
 ---
 
@@ -133,9 +137,9 @@ CCGS `asset-spec` karşılıkları: `planned`=Needed · `generated`=In Progress 
 
 | ID | Ad | Sınıf | Kanal | Şablon | Durum | Not |
 |---|---|---|---|---|---|---|
-| ASSET-018 | Ağarmış gemi tahtası | `scene-texture` | albedo | `art-source/work/prompt-asset-018-ship-plank.txt` | **accepted** | `public/assets/textures/ship_plank_01_albedo_1024.png` · 2026-08-14 · ilk deneme yanlış palette (mavi/camgöbeği) ile reddedildi, hex açıkça belirtilip yeniden üretildi |
-| ASSET-019 | Yelken bezi | `scene-texture` | albedo | `art-source/work/prompt-asset-019-ship-sail.txt` | **accepted** | `public/assets/textures/ship_sail_01_albedo_1024.png` · 2026-08-14 · doku kontrastı zayıf/neredeyse düz beyaz — kullanılabilir ama kod entegrasyonunda gözden geçirilmeli |
-| ASSET-020 | Halat / ağ | `scene-texture` | albedo + alpha | `art-source/work/prompt-asset-020-ship-rope.txt` | **accepted** | `public/assets/textures/ship_rope_01_albedo_512.png` · 2026-08-14 · kod entegrasyonu bekliyor |
+| ASSET-018 | Ağarmış gemi tahtası | `scene-texture` | albedo | `art-source/work/prompt-asset-018-ship-plank.txt` | **integrated** | `public/assets/textures/ship_plank_01_albedo_1024.webp` · 2026-08-14 · ilk deneme yanlış palette (mavi/camgöbeği) ile reddedildi, hex açıkça belirtilip yeniden üretildi · `src/world/ship.ts` `buildDeckMaterial` (güverte, yürüme tahtası, tüm filo — 12 gemi) |
+| ASSET-019 | Yelken bezi | `scene-texture` | albedo | `art-source/work/prompt-asset-019-ship-sail.txt` | **integrated** | `public/assets/textures/ship_sail_01_albedo_1024.webp` · 2026-08-14 · doku kontrastı zayıf/neredeyse düz beyaz doğru tespit edilmişti, yine de `PALETTE.sail` tonuyla çarpılarak kullanıldı · `src/world/ship.ts` `buildSailMaterial` |
+| ASSET-020 | Halat / ağ | `scene-texture` | albedo + alpha | `art-source/work/prompt-asset-020-ship-rope.txt` | **integrated** | `public/assets/textures/ship_rope_01_albedo_512.webp` · 2026-08-14 · raw dosyada gerçek alpha yoktu (beyaz fon) — alpha-key'lendi (1024×644'e kırpıldı); yalnızca ağ yarısı offset/repeat ile kırpılıp kullanıldı (halat şeridi kullanılmadı) · `src/world/ship.ts` `netMat` (güverte üstü balıkçı ağı prop'u) |
 | ASSET-021 | Gemi concept — teslim noktası | `reference` **[K]** | still | `art-source/work/prompt-asset-021-ship-concept.txt` | **accepted** | `art-source/ref/ship_concept_01_ref_1344.png` · 2026-08-14 · oyuna girmez, 3D agent'ın nişan aldığı hedef |
 
 **Gemi sayısı — kapandı:** tek teslim gemisi + kıyıda 12 gemilik filo silüeti (`FLEET.count = 12`, `constants.ts`). `level-lotus-island.md` krokisi ve kod bunu doğruluyor. Key art bu varsayımla üretildi.
@@ -146,8 +150,8 @@ CCGS `asset-spec` karşılıkları: `planned`=Needed · `generated`=In Progress 
 
 | ID | Ad | Sınıf | Kanal | Şablon | Durum | Not |
 |---|---|---|---|---|---|---|
-| ASSET-022 | Altın saat gökyüzü (skybox) | `scene-texture` | albedo | `art-source/work/prompt-asset-022-sky-goldenhour.txt` | **accepted** | `public/assets/skybox/sky_goldenhour_01_albedo_2048.png` · 2026-08-14 · kod entegrasyonu bekliyor |
-| ASSET-023 | Uzak sisli tepe backdrop | `scene-texture` | albedo | `art-source/work/prompt-asset-023-hill-backdrop.txt` | **accepted** | `public/assets/skybox/hill_backdrop_01_albedo_2048.png` · 2026-08-14 · ilk deneme 2:1 geçersiz aspect ile düştü, 21:9'a düzeltildi · kod entegrasyonu bekliyor |
+| ASSET-022 | Altın saat gökyüzü (skybox) | `scene-texture` | albedo | `art-source/work/prompt-asset-022-sky-goldenhour.txt` | **integrated** | `public/assets/skybox/sky_goldenhour_01_albedo_2048.webp` · 2026-08-14 · `src/render/stage.ts` — ikinci sky sphere (radius 350, `BackSide`), gündüz→alacakaranlık geçişinde opaklığı 0→0.5 artan katman olarak prosedürel gradyanın üstüne biniyor; mevcut dinamik renk geçişi bozulmadı, `SKY_TEX.cloudMaxOpacity` |
+| ASSET-023 | Uzak sisli tepe backdrop | `scene-texture` | albedo | `art-source/work/prompt-asset-023-hill-backdrop.txt` | **integrated** | `public/assets/skybox/hill_backdrop_01_albedo_2048.webp` · 2026-08-14 · ilk deneme 2:1 geçersiz aspect ile düştü, 21:9'a düzeltildi · üretimden kalma beyaz çerçeve kırpıldı (1536×672→1480×583), 2048 genişliğe ölçeklendi · `src/world/terrain.ts` `buildHillBackdropRing` (açık silindir + üst kenar solma shader'ı) uzak iki koni katmanının yerini aldı, yakın koni katmanı korundu, `SKY_TEX.hillDistance/Height/Repeat` |
 
 ---
 
@@ -171,6 +175,36 @@ CCGS `asset-spec` karşılıkları: `planned`=Needed · `generated`=In Progress 
 | ASSET-027 | Çanta ikonu + lotus yuvası | `ui` | `art-source/work/prompt-asset-027-029-ui-icons.txt` | **generated** | `art-source/raw/ui_icon_sheet_01.png` — 6 ikonluk tek sayfa (çanta/lotus/pusula/gem/gemi/çerçeve), **henüz kırpılmadı**, `public/assets/ui/`'ye taşınmadı |
 | ASSET-028 | Güneş yayı + pusula oku | `ui` | `art-source/work/prompt-asset-027-029-ui-icons.txt` | **generated** | Aynı sayfadan kırpılacak (pusula oku) — **henüz kırpılmadı** |
 | ASSET-029 | Teslim istemi çerçevesi + gemi işareti | `ui` | `art-source/work/prompt-asset-027-029-ui-icons.txt` | **generated** | Aynı sayfadan kırpılacak (çerçeve + gemi işareti) — **henüz kırpılmadı** |
+
+---
+
+## P2 — UI (menü kroması) — **YENİ, 2026-08-14** **[P]**
+
+> Sahip'le kilitlenen karar: menü görsel dili **Zelda BOTW tarzı parşömen** (krem zemin, ince altın çizgi çerçeve, sade tipografi) + Hub'ın **illustre parşömen harita**'ya dönüşmesi (3 ada, noktalı rota). Kaynak: sahip'in görev talimatı, 2026-08-14. Palet art-bible §2'nin altın saat ailesinden (`#e8c98a`, `#c99a3c`, `#c8b49a`, `#f3d488`) çıkmıyor; mor/mavi/soğuk fantastik RPG klişesine kaçmıyor (art-bible §9 yasağı — "generic AI look", "doygun neon"). Kiklop illüstrasyonu bile art-bible'ın "ışık asla azalmaz" ilkesine uyuyor — mağara ağzı gölgeli/serin ama mor-neon kristal yok.
+>
+> **Bu turun Bash durumu:** bu oturumun Bash/kabuk aracı yok. Üç prompt dosyası hazır (`art-source/work/prompt-asset-035/036/037-*.txt`), aşağıdaki komutlar Bash erişimi olan tarafça (ana oturum ya da sahip) çalıştırılmalı. Çıktı `art-source/raw/`'a düşer, §8 kapısından geçirilip doğru klasöre taşınmalı, bu tablo ve `assets.csv` güncellenmeli.
+
+| ID | Ad | Sınıf | Şablon / prompt dosyası | Durum | Komut | Hedef (§8 geçince) |
+|---|---|---|---|---|---|---|
+| ASSET-035 | Parşömen panel dokusu (menü paneli arkaplanı — Başlık/Nasıl oynanır/Hakkında ortak) | `ui` | `art-source/work/prompt-asset-035-parchment-panel.txt` | **accepted** | `public/assets/ui/ui_parchment_panel_01_albedo_1024.png` · 2026-08-14 · kod entegrasyonu (ui-programmer) bekliyor |
+| ASSET-036 | İnce altın çizgi çerçeve (köşe motifli, panel kenarı) | `ui` | `art-source/work/prompt-asset-036-gold-frame.txt` | **accepted** | `public/assets/ui/ui_frame_gold_01_alpha_1024.png` · 2026-08-14 · alpha-key'lendi (düz gri zemin şeffaflaştırıldı), 9-slice/border-image olarak kullanılabilir |
+| ASSET-037 | Hub harita sayfası — 3 ada yan yana (Lotus/Kiklop/Sirenler), tek illüstrasyon dili | `reference` | `art-source/work/prompt-asset-037-hub-map-islands.txt` | **accepted** | `art-source/ref/ui_hubmap_sheet_01_ref_2048.png` · 2026-08-14 · üç ada tek çizim dilinde, kırpıldı → ASSET-038/039/040 |
+| ASSET-038 | Hub kartı — Lotus Adası ikonu | `ui` | ASSET-037'den kırpıldı | **accepted** | `public/assets/ui/ui_hubmap_lotus_01_albedo_512.png` · 2026-08-14 |
+| ASSET-039 | Hub kartı — Kiklop Mağarası ikonu | `ui` | ASSET-037'den kırpıldı | **accepted** | `public/assets/ui/ui_hubmap_cyclops_01_albedo_512.png` · 2026-08-14 |
+| ASSET-040 | Hub kartı — Sirenler Geçidi ikonu | `ui` | ASSET-037'den kırpıldı | **accepted** | `public/assets/ui/ui_hubmap_sirens_01_albedo_512.png` · 2026-08-14 |
+
+**Rota/noktalı yol motifi — asset ÜRETİLMİYOR (bilinçli karar) [P]:** sahip'in görev talimatı üretmenin şart olmadığını, basit olanın kazanmasını söylüyor. 3 Hub kartını birleştiren noktalı rota, sabit bir kompozisyonda (3 kart + aralarında düz/hafif eğri bir çizgi) SVG `stroke-dasharray` veya CSS `border-style: dashed` ile **kodla** çözülebilecek kadar basit; ayrı bir Higgsfield/Gemini çıktısı gerektirmiyor (`asset-registry.md`'nin "Higgsfield'a GİTMEYEN kalemler" sınıfına düşüyor, aşağıdaki tabloya bkz.). Uygulama `ui-programmer`'ın işi.
+
+### Kabul kriteri **[P]** — ASSET-035/036/037-040 seti
+
+- [ ] Palet §2'nin altın saat ailesinde (`#e8c98a`, `#c99a3c`, `#c8b49a`, `#f3d488`, `#fdf3f0`) — mor/mavi/soğuk RPG tonu yok
+- [ ] ASSET-035: kenarlar yıpranmış/hafif kıvrık ama **merkez metin okunacak kadar temiz/kontrastlı** — sahip'in "scrim azalacak, panel doku yeterince opak olsun" talebi
+- [ ] ASSET-036: çerçeve ince, köşe motifleri sade — ağır "fantasy RPG gotik çerçeve" değil
+- [ ] ASSET-037: üç ada **aynı çizim elinden** çıkmış hissi — aynı çizgi kalınlığı, aynı ışık yönü, aynı doygunluk
+- [ ] Kiklop illüstrasyonu gölgeli/serin ama **mor-neon kristal yok**, mağara ağzı kapkaranlık değil (art-bible §1 "ışık asla azalmaz")
+- [ ] Üçünde de ekranda metin/rakam/etiket yok
+- [ ] Fotogerçekçi değil, logo/marka yok
+- [ ] `assets.csv` satırı ve bu tablonun durumu üretim sonrası güncellenecek
 
 ---
 

@@ -2,7 +2,7 @@
 
 > **Bu dosya tüm sayısal değerlerin TEK kaynağıdır.** Başka bir dokümanda bir sayı görürsen ve buradakiyle çelişiyorsa, **burası doğrudur** ve o doküman düzeltilmelidir.
 > **Motor tarafı için:** bu dosya `src/constants.ts`'in doğrudan kaynağıdır. Aşağıdaki her `SABİT_AD` **olduğu gibi** TypeScript sabit adı olarak kullanılabilir.
-> **Tarih:** 2026-08-14 · **Durum:** ilk pas · üç değer playtest'e ertelendi (bkz. §11)
+> **Tarih:** 2026-08-14 · **Durum:** ilk pas · birden çok değer playtest'e ertelendi (bkz. §11 — `DAY_LENGTH`, `MEM_SEA_RECOVER`, `HUD_VAGUE_COUNTER`, `MEM_ISLAND_RELIEF_PCT`, `HALLUCINATION_THRESHOLD`/`HALLUCINATION_CONTACT_MEM_SPIKE`)
 
 > **Çoklu-ada notu (14 Ağu 2026, sahip onayı):** proje artık **3 duraklı bir koşu** — Lotus Adası (1. durak/çapa) + Kiklop Mağarası (2.) + Sirenler Geçidi (3.). Karar `docs/design/multi-island-concept.md`'de M7 (Seçenek 3) olarak kapandı. Bu dosyadaki sayıların büyük çoğunluğu (§1, §2, §3'ün çoğu, §4, §6, §7, §8) **hâlâ yalnızca Lotus Adası'nı** tarif ediyor — Sirenler'in kendi `level-*.md` ve tuning satırları `island-designer` agent'ının işi, henüz yazılmadı. Kiklop Mağarası için **§3.0 (hedef dağılımı), §5 (unutuş taşıma) ve §12 (algılanma sistemi)** eklendi; Kiklop'un salt geometri sabitleri (mağara derinliği, oda-başı öğe sayıları) hâlâ yalnızca `level-cyclops-cave.md`'de, buraya taşınmadı.
 > **⚠️ Hub'a dönüş notu (14 Ağu 2026, aynı gün — `multi-island-concept.md` §9):** sahip "hub yok" kararını tersine çevirdi — **gerçek bir hub var, oyuncu durağı serbest sırayla seçiyor.** `RUN_TARGET_TOTAL` ve durak alt-hedefleri (§3.0) **değişmedi** — hub sıra özgürlüğü verir, hedefleri tek bir esnek havuza çevirmez. `MEM_ISLAND_RELIEF_PCT`'in tetik noktası (§5.2) artık "adalar arası doğrudan geçiş" değil, **"hub'a dönüş"** olarak okunmalı — formül/değer aynı. Ayrıntı ve gerekçe: `multi-island-concept.md` §9.2/§9.3.
@@ -182,6 +182,10 @@ Hepsi `0.0`–`1.0` normalize edilmiş `etki = clamp01((unutuş − başlangıç
 | `FX_BLUR` | `75.0` | `100.0` | `3.0` | piksel |
 | `FX_LOWPASS_HZ_MAX` | `25.0` | `100.0` | `18000.0` → `900.0` | Hz (kesim frekansı düşer) |
 | `FX_FOG_DISTANCE` | `25.0` | `100.0` | `120.0` → `45.0` | m (sis yaklaşır) |
+| `FX_GHOST_OFFSET` *(yeni, 14 Ağu 2026 — bayılma katmanı)* | `75.0` | `100.0` | `2.5` | piksel — kenar bölgesinde çift görüntü (ghosting) kayması. `FX_BLUR`'un (3 px) altında kalmalı, onunla yarışmaz. Bkz. `gdd-memory-system.md` §9.1. |
+| `FX_BREATH_AMPLITUDE` *(yeni, 14 Ağu 2026 — bayılma katmanı)* | `0.0` | `100.0` | `0.04` | `FX_VIGNETTE` opaklığına eklenen sinüsoidal salınımın genliği (0–1 ölçeğinde, ~%5 tavan). Eşiksiz, unutuş `>0` olduğu sürece hafifçe aktif — "nefes" hissi sürekli, eşiğe bağlı sıçramaz. |
+
+`FX_BREATH_PERIOD` = `5.0` s *(yeni, 14 Ağu 2026)* — nefes ritminin salınım periyodu, sabit (eşiğe bağlı değişmez). `DRIFT_PERIOD` (4.0 s) ile aynı büyüklük ailesinde ama ayrı bir sabit — ikisi karışmasın, sapma daha hızlı/keskin, nefes daha yavaş/yumuşak hissetmeli.
 
 **Ayrık** olan tek şey bilgidir: pusula ve HUD ya vardır ya yoktur, `HUD_FADE_TIME` süresinde solar. Dalga sesi `FX_LOWPASS_HZ_MAX`'tan **muaftır** — en kötü anda bile duyulur.
 
@@ -259,6 +263,7 @@ Tipik verimli tur — gemiden çıkış, 4 çiçek, dönüş:
 | Çoklu-ada yapısı (roadmap eski K2'nin büyütülmüş hâli, `multi-island-concept.md` M7) | **Seçenek 3.** 3 durak (Lotus + Kiklop + Sirenler), ~~hub yok, tek kesintisiz koşu~~ **(aynı gün tersine çevrildi, aşağıdaki satıra bkz.)**, unutuş taşınıyor (`MEM_ISLAND_RELIEF_PCT`), hedef koşu-toplamında (`RUN_TARGET_TOTAL = 12`, durak başı: Lotus 5 / Kiklop 4 / Sirenler 3 — öneri, kesinleşmedi). | 14 Ağu 2026 |
 | Kiklop Mağarası'nın algılanma (tespit) sistemi — `island-designer`'ın `level-cyclops-cave.md`'de önerdiği | **Onaylandı.** Mevcut unutuş sistemleriyle çelişmiyor (tek besleme noktası, ikinci can barı değil). İstemsiz envanter kaybı (`CAUGHT_ITEM_LOSS`) yeni bir sözleşme ama **yalnızca bu durakla sınırlı** kalması şartıyla kabul edildi. Sabitler §12'de, ayrıntı `gdd-detection-cyclops.md`'de. | 14 Ağu 2026 |
 | Hub'a dönüş (M7'nin "hub yok" alt-maddesinin tersine çevrilmesi) | **Gerçek hub var** — oyuncu 3 durağı serbest sırayla seçer. Unutuş taşınmaya devam ediyor, tetik noktası "hub'a dönüş" (§5.2). `RUN_TARGET_TOTAL` ve durak alt-hedefleri değişmedi (§3.0). Oturum süresi (~20–30 dk) değişmedi, hub gezinme süresi ihmal edilebilir tutulmalı (hub = hafif seçim ekranı, dördüncü oynanabilir alan değil). **Kapanmayan tek soru:** koşu-bazlı kayıp (K27) — hub'sız varsayımla yazıldı, artık flag'li. Ayrıntı: `multi-island-concept.md` §9. | 14 Ağu 2026 (M7 ile aynı gün) |
+| Bayılma/sanrı yeniden çerçevelemesi (playtest geri bildirimi, `hallucination-reframe-concept.md`) | **İkisi de onaylandı:** (1) unutuşun sunumu "bayılma/bilinç gevşemesi" katmanını içerecek şekilde genişledi — yeni `FX_GHOST_OFFSET`/`FX_BREATH_AMPLITUDE`/`FX_BREATH_PERIOD` (§5.4), çekirdek sayılar değişmedi. (2) **Lotus Adası'na özgü** yeni bir "sanrı figürleri" sistemi eklendi (§13, `gdd-lotus-hallucination.md`) — can/envanter kaybı yok (ilke korundu), temas = unutuş sıçraması + geçici `DRIFT` şiddetlenmesi, Kiklop'un `CAUGHT` diliyle aynı aile. Yalnızca 1. durak — Kiklop/Sirenler bu sabitleri okumaz. | 14 Ağu 2026 |
 
 ---
 
@@ -286,6 +291,11 @@ Bu üç değer **oynanır sürüm elde olmadan değiştirilmeyecek.** Masa baş�
 - **Karar kriteri:** oyuncular sistematik olarak hub'dan çıkışta "önceki turdan miras kalan" bir unutuşla başlayıp adil bulmuyorsa oran yükseltilir (daha çok bağışlama, `0.4` → `0.6`); tersine, taşıma hiç hissedilmiyorsa (duraklar birbirinden kopuk hissettiriyorsa) düşürülür (`0.4` → `0.2`).
 - **Uyarı:** bu değer henüz bir level-spec üstünde test edilmedi (Kiklop/Sirenler henüz yazılmadı) — ilk ölçüm bu iki durak oynanır hale gelince mümkün. Hub'ın kendisi de henüz uygulanmadı (`gameplay-programmer`'ın işi) — ölçüm hub UI'ı çalışır hale gelince mümkün.
 
+### 11.5 `HALLUCINATION_THRESHOLD` = 60.0 puan · `HALLUCINATION_CONTACT_MEM_SPIKE` = 10.0 puan 🔬 (yeni, 14 Ağu 2026)
+- **Ölçülecek:** (a) oyuncular figürleri gerçekten bir "kaçış/rota" kararı olarak mı okuyor yoksa dekor mu sanıyor; (b) temas sıklığı — bir oyunda kaç kez temas ediliyor, bunun toplam unutuş bütçesine etkisi.
+- **Karar kriteri:** oyuncular figürleri hiç fark etmiyorsa (ya eşik çok geç geliyor ya da temas riski hiç hissedilmiyor) `HALLUCINATION_THRESHOLD` düşürülür ve/veya `HALLUCINATION_CREATURE_COUNT`/`HALLUCINATION_ROUTE_BIAS_RADIUS` artırılır. Temas sıklıkla oluyor ve oyuncular "adaletsiz" buluyorsa `HALLUCINATION_CONTACT_MEM_SPIKE` düşürülür ya da `HALLUCINATION_CONTACT_RADIUS` daraltılır.
+- **Uyarı:** bu ikisi `MEM_SEA_RECOVER`/`MEM_PER_DELIVERED` çiftiyle aynı anda değiştirilmez — sanrı sisteminin kendi bütçesi, unutuşun temel oranlarından ayrı ölçülmeli, yoksa hangi değişikliğin işe yaradığı belirsizleşir.
+
 ### Playtest ölçüm listesi (kısa)
 
 | # | Ölçülen | Nasıl | Eşik |
@@ -297,6 +307,7 @@ Bu üç değer **oynanır sürüm elde olmadan değiştirilmeyecek.** Masa baş�
 | 5 | Tepeye çıkan oyuncu oranı | Otomatik log | %30'un altı → tepe yeniden değerlendirilir |
 | 6 | Kayıp finaline ulaşma oranı | Otomatik log | %0 ise unutuş etkisiz, %80+ ise çok sert |
 | 7 | Durak geçişinde taşınan unutuşun sonraki durağı ne kadar zorlaştırdığı | Otomatik log | Bkz. §11.4 |
+| 8 | Sanrı figürü temas sıklığı ve oyuncu tepkisi | Otomatik log + sözlü | Bkz. §11.5 |
 
 ---
 
@@ -326,6 +337,30 @@ Bu üç değer **oynanır sürüm elde olmadan değiştirilmeyecek.** Masa baş�
 | `CYCLOPS_LIGHT_RADIUS` 🔬 | `6.0` (öneri) | m | `SCENT_RADIUS` deseninin yeniden kullanımı — meşale/ocak/mağara ağzı çevresinde "aydınlık" bayrağı üreten sabit yarıçap. Kesin değer mağara geometrisi netleşince (`island-designer`'ın iş) doğrulanmalı. |
 
 **Kayıt dışı bırakılan (bilerek):** `CYCLOPS_CAVE_DEPTH` (65 m), `CYCLOPS_COVE_DEPTH` (15 m), oda-başı öğe sayıları (`CYCLOPS_ITEM_ANTECHAMBER_COUNT`=2, `CYCLOPS_ITEM_PENS_COUNT`=3, `CYCLOPS_ITEM_INNER_COUNT`=2) gibi salt-geometri sabitleri `level-cyclops-cave.md`'de kalıyor — bu dosyanın kapsamı yalnızca **algılanma sisteminin** paylaşılan/motor-genelinde sabitleri. Geometri sabitleri `island-designer`'ın level-spec'i netleştiğinde buraya taşınabilir (Lotus'un `LOTUS_MIN_SPACING` gibi §7'ye benzer bir yerleşim bölümü).
+
+---
+
+## 13. Lotus Adası (1. durak) — sanrı figürleri (hallucination) (yeni, 14 Ağu 2026)
+
+> **Kaynak:** playtest sonrası sahip geri bildirimi → `hallucination-reframe-concept.md`'de seçenekler sunuldu → sahip kararı (14 Ağu 2026): his değişikliği + gerçek mekanik, ikisi de; ilke korunuyor (can kaybı yok); yalnızca Lotus Adası. Ayrıntı/gerekçe/formüller: `docs/design/gdd-lotus-hallucination.md`. **Bu sistem yalnızca Lotus Adası'nda geçerli** — Kiklop Mağarası ve Sirenler Geçidi bu sabitleri okumaz (Kiklop'un kendi ayrı `DETECT_*` sistemi var, §12).
+
+| İsim | Değer | Birim | Gerekçe |
+|---|---|---|---|
+| `HALLUCINATION_THRESHOLD` 🔬 | `60.0` (öneri) | puan | Figürlerin sahneye girmeye başladığı unutuş seviyesi. `MEM_THRESHOLD_DRIFT` (50, pusula gider) ile `MEM_THRESHOLD_LOST` (75, HUD tamamen gider) arası — "önceden haber" penceresi: pusula zaten kaybolmuşken, HUD tamamen gitmeden önce ilk figürler beliriyor. **Playtest'te ölçülecek — §11.5.** |
+| `HALLUCINATION_CREATURE_COUNT` | `3` | adet | Aynı anda sahnede olabilecek maksimum figür. `LOTOPHAGOS_COUNT` (3) ile aynı ölçek felsefesi — "az ama anlamlı", CLAUDE.md'nin "merge static geometry, don't spawn hundreds" performans disipliniyle uyumlu. |
+| `HALLUCINATION_SEED` | `7429` | int | Deterministik spawn düzeni — `LOTUS_PHASE_SEED`'in izlediği aynı ilke (P3, "ada okunabilir", rastgele değil). |
+| `HALLUCINATION_FADE_TIME` | `1.5` | s | Belirme/kaybolma süresi. `HUD_FADE_TIME` ile aynı değer ve aynı gerekçe — fotosensitivite kuralı (≥1,5 s geçiş) burada da geçerli. |
+| `HALLUCINATION_LINGER` | `10.0` | s | Bir figürün sahnede kalma süresi (fade-in/out hariç). Temas olmazsa bu sürenin sonunda kendiliğinden söner. |
+| `HALLUCINATION_RESPAWN_GAP` | `6.0` | s | Bir figür söndükten sonra yeni birinin belirmesi için bekleme — ekran sürekli dolu olmasın. |
+| `HALLUCINATION_ROUTE_BIAS_RADIUS` | `18.0` | m | Figürlerin spawn ağırlığının oyuncu-gemi hattına doğru kaydığı yarıçap — "teslim zorlaşıyor" burada somutlaşıyor (coğrafi tıkanma değil, rota üzerinde risk). Bkz. `gdd-lotus-hallucination.md` §3.3. |
+| `HALLUCINATION_CONTACT_RADIUS` | `1.8` | m | Temas çarpışma yarıçapı. `PLAYER_RADIUS` (0.4) + figürün kendi hacmi payı. |
+| `HALLUCINATION_CONTACT_MEM_SPIKE` 🔬 | `10.0` (öneri) | puan | Temas anındaki tek seferlik unutuş artışı. `MEM_ON_HARVEST` (4) ile `MEM_WITHERED_PENALTY` (12) arası; Kiklop'un `CAUGHT_MEM_SPIKE` (30) ailesinin en küçüğü — burada temas daha sık/daha hafif bir olay, Kiklop'taki yakalanma kadar nadir/ağır değil. **Playtest'te ölçülecek — §11.5.** |
+| `HALLUCINATION_DRIFT_MULTIPLIER` | `2.0` | çarpan | Temas sonrası `DRIFT_MAX_ANGLE`'a uygulanan geçici çarpan. |
+| `HALLUCINATION_DRIFT_SPIKE_DURATION` | `4.0` | s | Çarpanın etkili kaldığı süre. Unutuş `MEM_THRESHOLD_LOST` (75) altında olsa bile bu süre boyunca sapma mekaniği geçici olarak aktive olur — mevcut `DRIFT_*` kodunun yeniden kullanımı, yeni bir sapma sistemi icat edilmiyor. |
+| `HALLUCINATION_CONTACT_COOLDOWN` | `2.0` | s | Temas sonrası kısa dokunulmazlık — kare-bazlı çoklu tetiklenmeyi önler. Farklı figürlere ayrı zamanlarda temas etmenin önünde değildir. |
+| `HALLUCINATION_VANISH_ON_CONTACT` | `true` | bool | Temas eden figür hemen söner (yeniden `HALLUCINATION_RESPAWN_GAP` sonrası başka bir konumda belirebilir) — sürekli takip eden bir "avcı" değil, tek seferlik bir olay. |
+
+**Kasıtlı olarak tanımlanmayan:** can/hasar/envanter sabiti **yok** — `gdd-lotus-hallucination.md` §1'in "düşman değil, unutuşun bir belirtisi" ilkesinin doğrudan sonucu. `CAUGHT_ITEM_LOSS` benzeri bir sabit buraya **bilerek eklenmedi**; Kiklop'un o istisnası yalnızca Kiklop Mağarası'na özgü kalıyor (bkz. `gdd-detection-cyclops.md` §1.1).
 
 ---
 

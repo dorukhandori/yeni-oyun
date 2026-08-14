@@ -10,6 +10,8 @@ export interface HillPuzzle {
   /** Try the next cairn in the ritual; returns outcome for HUD feedback. */
   interact(index: number): "progress" | "wrong" | "done" | "ignore";
   isOpen(): boolean;
+  /** True when near the (still-unsolved) cairns — teaching hint, wider than `cairnRange`. */
+  hintNear(x: number, z: number): boolean;
   reset(): void;
 }
 
@@ -120,6 +122,10 @@ export function buildHillPuzzle(): HillPuzzle {
     },
     isOpen() {
       return solved;
+    },
+    hintNear(x, z) {
+      if (solved) return false;
+      return spots.some((s) => Math.hypot(x - s.x, z - s.z) < PUZZLE.cairnHintRange);
     },
     reset() {
       step = 0;

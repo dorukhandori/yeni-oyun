@@ -1,6 +1,19 @@
 import * as THREE from "three";
-import { ISLAND, LAGOON, PALETTE } from "../constants";
+import { ISLAND, LAGOON, PALETTE, SEA_TEX } from "../constants";
 import { islandRadiusFactor, lagoonRadiusFactor } from "./terrain";
+import { assetUrl } from "../assets/paths";
+import { loadAlbedoTexture, loadDataTexture } from "./sprite";
+
+/**
+ * Generated water textures (`docs/art/asset-registry.md` P1 — Su ve kıyı),
+ * shipped as WebP. Normal/caustic stay in linear space (`loadDataTexture` —
+ * `docs/art/pipeline.md` §6, data maps never get `SRGBColorSpace`); foam is
+ * an alpha-cutout albedo so it goes through `loadAlbedoTexture`.
+ */
+const SHALLOW_NORMAL_URL = "assets/textures/water_shallow_01_normal_512.webp";
+const LAKE_NORMAL_URL = "assets/textures/water_lake_01_normal_512.webp";
+const FOAM_TEX_URL = "assets/textures/water_foam_01_alpha_512.webp";
+const CAUSTIC_TEX_URL = "assets/textures/water_caustic_01_caustic_512.webp";
 
 /** Push a flat (XZ) disc/ring outward by an angular radius factor. */
 function wobbleRadially(
@@ -50,6 +63,12 @@ export function buildSea(): Sea {
   }
   geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
 
+  const shallowNormal = loadDataTexture(assetUrl(SHALLOW_NORMAL_URL));
+  shallowNormal.wrapS = THREE.RepeatWrapping;
+  shallowNormal.wrapT = THREE.RepeatWrapping;
+  const shallowReps = size / SEA_TEX.shallowNormalTileMeters;
+  shallowNormal.repeat.set(shallowReps, shallowReps);
+
   const sea = new THREE.Mesh(
     geo,
     new THREE.MeshStandardMaterial({
@@ -59,15 +78,25 @@ export function buildSea(): Sea {
       transparent: true,
       opacity: 0.9,
       flatShading: true,
+      normalMap: shallowNormal,
+      normalScale: new THREE.Vector2(SEA_TEX.shallowNormalStrength, SEA_TEX.shallowNormalStrength),
     }),
   );
   group.add(sea);
 
   // ------------------------------------------------------------------- foam
+  // Ring UVs wrap u around the full circle and v across the ring's thin
+  // radial width — repeat the foam strip around the coastline, clamp across it.
+  const foamTex = loadAlbedoTexture(assetUrl(FOAM_TEX_URL));
+  foamTex.wrapS = THREE.RepeatWrapping;
+  foamTex.wrapT = THREE.ClampToEdgeWrapping;
+  foamTex.repeat.x = SEA_TEX.foamRepeatX;
   const foamMat = new THREE.MeshBasicMaterial({
+    map: foamTex,
     color: PALETTE.seaFoam,
     transparent: true,
-    opacity: 0.5,
+    alphaTest: 0.08,
+    opacity: 0.85,
     depthWrite: false,
     side: THREE.DoubleSide,
   });
@@ -83,7 +112,39 @@ export function buildSea(): Sea {
     foams.push(ring);
   }
 
+  // -------------------------------------------------------- shallow caustic
+  // Additive shimmer over the coastline shallows (ASSET-014) — a wider ring
+  // than the foam, sitting just above the sea surface, drifting slowly.
+  const causticTex = loadAlbedoTexture(assetUrl(CAUSTIC_TEX_URL));
+  causticTex.wrapS = THREE.RepeatWrapping;
+  causticTex.wrapT = THREE.RepeatWrapping;
+  const causticGeo = new THREE.RingGeometry(ISLAND.radius - 6, ISLAND.radius + 4, 128, 1);
+  causticGeo.rotateX(-Math.PI / 2);
+  wobbleRadially(causticGeo, islandRadiusFactor);
+  const causticReps = ((ISLAND.radius + 4) * Math.PI * 2) / SEA_TEX.causticTileMeters;
+  const causticUv = causticGeo.attributes.uv as THREE.BufferAttribute;
+  for (let i = 0; i < causticUv.count; i++) {
+    causticUv.setX(i, causticUv.getX(i) * causticReps);
+  }
+  const causticMat = new THREE.MeshBasicMaterial({
+    map: causticTex,
+    transparent: true,
+    opacity: SEA_TEX.causticOpacity,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    side: THREE.DoubleSide,
+  });
+  const caustic = new THREE.Mesh(causticGeo, causticMat);
+  caustic.position.y = 0.02;
+  group.add(caustic);
+
   // ----------------------------------------------------------- lagoon water
+  const lakeNormal = loadDataTexture(assetUrl(LAKE_NORMAL_URL));
+  lakeNormal.wrapS = THREE.RepeatWrapping;
+  lakeNormal.wrapT = THREE.RepeatWrapping;
+  const lakeReps = (LAGOON.radius * 2) / SEA_TEX.lakeNormalTileMeters;
+  lakeNormal.repeat.set(lakeReps, lakeReps);
+
   const lagoonGeo = new THREE.CircleGeometry(LAGOON.radius, 96, 0, Math.PI * 2);
   lagoonGeo.rotateX(-Math.PI / 2);
   wobbleRadially(lagoonGeo);
@@ -95,6 +156,8 @@ export function buildSea(): Sea {
       metalness: 0.3,
       transparent: true,
       opacity: 0.68,
+      normalMap: lakeNormal,
+      normalScale: new THREE.Vector2(SEA_TEX.lakeNormalStrength, SEA_TEX.lakeNormalStrength),
     }),
   );
   lagoon.position.set(LAGOON.center.x, LAGOON.waterY, LAGOON.center.z);
@@ -139,6 +202,9 @@ export function buildSea(): Sea {
         (f.material as THREE.MeshBasicMaterial).opacity = 0.22 + p * 0.45;
         f.scale.setScalar(1 + p * 0.012);
       });
+
+      causticTex.offset.set(t * SEA_TEX.causticScrollSpeed, t * SEA_TEX.causticScrollSpeed * 0.6);
+      causticMat.opacity = SEA_TEX.causticOpacity * (0.85 + Math.sin(t * 0.6) * 0.15);
 
       lagoon.position.y = LAGOON.waterY + Math.sin(t * 0.7) * 0.02;
     },

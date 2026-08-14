@@ -3,8 +3,13 @@ import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
-import { CAMERA, ISLAND, RENDER } from "../constants";
+import { CAMERA, ISLAND, RENDER, SKY_TEX } from "../constants";
 import { HazePass } from "./hazePass";
+import { assetUrl } from "../assets/paths";
+import { loadAlbedoTexture } from "../world/sprite";
+
+/** Golden-hour sky photo (ASSET-022) blended over the procedural gradient. */
+const SKY_TEX_URL = "assets/skybox/sky_goldenhour_01_albedo_2048.webp";
 
 export interface Stage {
   renderer: THREE.WebGLRenderer;
@@ -73,6 +78,27 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
   });
   scene.add(new THREE.Mesh(skyGeo, skyMat));
 
+  // Generated golden-hour sky (ASSET-022) as a second, slightly smaller
+  // sphere blended over the procedural gradient above — real skybox detail
+  // (horizon clouds) without losing the dynamic afternoon→dusk grading the
+  // gradient already drives (`setDayProgress` below). Invisible at t=0 (no
+  // regression from today's look), fades in toward dusk. Standard sphere UVs
+  // (equirectangular-ish) fit a sky photo directly; clamped edges (the photo
+  // is a single wide shot, not a seamless 360 pan) just stretch its plain
+  // gradient edge colour around the back, which reads fine for a sky.
+  const cloudTex = loadAlbedoTexture(assetUrl(SKY_TEX_URL));
+  cloudTex.wrapS = THREE.ClampToEdgeWrapping;
+  cloudTex.wrapT = THREE.ClampToEdgeWrapping;
+  const cloudMat = new THREE.MeshBasicMaterial({
+    map: cloudTex,
+    side: THREE.BackSide,
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+    fog: false,
+  });
+  scene.add(new THREE.Mesh(new THREE.SphereGeometry(SKY_TEX.cloudRadius, 24, 16), cloudMat));
+
   // ------------------------------------------------------------------ lights
   const ambient = new THREE.AmbientLight(RENDER.ambientColor, RENDER.ambientIntensity);
   scene.add(ambient);
@@ -127,6 +153,7 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
     renderer.setSize(w, h, false);
     composer.setSize(w, h);
     bloom.setSize(w, h);
+    haze.setResolution(w * renderer.getPixelRatio(), h * renderer.getPixelRatio());
   };
   resize();
   window.addEventListener("resize", resize);
@@ -158,6 +185,7 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
       tmpB.lerp(duskHorizon, t);
       (skyMat.uniforms.top.value as THREE.Color).copy(tmpA);
       (skyMat.uniforms.horizon.value as THREE.Color).copy(tmpB);
+      cloudMat.opacity = t * SKY_TEX.cloudMaxOpacity;
 
       sun.color.copy(sunColorDay).lerp(sunColorDusk, t * 0.85 + warn * 0.15);
       sun.intensity = THREE.MathUtils.lerp(RENDER.sunIntensity, 1.35, t);

@@ -85,7 +85,21 @@
       <div id="titleScreen" class="screen title-screen on">
         <div class="title-bg"></div>
         <div class="title-scrim"></div>
-        <div class="title-content">
+        <div class="title-motes" aria-hidden="true">
+          <span class="mote"></span>
+          <span class="mote"></span>
+          <span class="mote"></span>
+          <span class="mote"></span>
+          <span class="mote"></span>
+          <span class="mote"></span>
+          <span class="mote"></span>
+          <span class="mote"></span>
+          <span class="mote"></span>
+          <span class="mote"></span>
+          <span class="mote"></span>
+          <span class="mote"></span>
+        </div>
+        <div class="title-content parchment-panel">
           <h1 class="title-name">Lotophagoi</h1>
           <div class="title-sub">Odysseia</div>
           <div class="title-menu">
@@ -96,7 +110,7 @@
         </div>
 
         <div class="sub-panel" id="howPanel">
-          <div class="sub-panel-inner">
+          <div class="sub-panel-inner parchment-panel">
             <h2>Nasıl oynanır</h2>
             <ul class="how-list">
               <li><b>WASD</b> yürü</li>
@@ -111,7 +125,7 @@
         </div>
 
         <div class="sub-panel" id="aboutPanel">
-          <div class="sub-panel-inner">
+          <div class="sub-panel-inner parchment-panel">
             <h2>Hakkında</h2>
             <p>
               Lotus Yiyenler'in ülkesi Homeros'un <i>Odysseia</i>'sında geçer —
@@ -124,21 +138,37 @@
       </div>
 
       <div id="hubScreen" class="screen hub-screen">
-        <div class="hub-bg"></div>
         <div class="hub-content">
           <h2 class="hub-title">Doryseus'un Rotası</h2>
-          <div class="hub-cards">
-            <button type="button" class="hub-card" id="cardLotus">
-              <div class="hub-card-name">Lotus Adası</div>
-              <div class="hub-card-badge ready">Hazır</div>
-            </button>
-            <div class="hub-card locked" id="cardCyclops" aria-disabled="true">
-              <div class="hub-card-name">Kiklop Mağarası</div>
-              <div class="hub-card-badge locked-badge">🔒 Yakında</div>
-            </div>
-            <div class="hub-card locked" id="cardSirens" aria-disabled="true">
-              <div class="hub-card-name">Sirenler Geçidi</div>
-              <div class="hub-card-badge locked-badge">🔒 Yakında</div>
+          <div class="hub-map parchment-panel">
+            <div class="hub-route">
+              <svg class="hub-route-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                <path
+                  class="hub-route-path"
+                  d="M 17 72 C 30 58, 40 52, 51 41 C 63 32, 74 46, 83 57"
+                />
+              </svg>
+              <button type="button" class="hub-island" id="cardLotus" style="left: 17%; top: 72%">
+                <span class="hub-island-thumb">
+                  <img src="/assets/ui/ui_hubmap_lotus_01_albedo_512.png" alt="" />
+                </span>
+                <span class="hub-island-name">Lotus Adası</span>
+                <span class="hub-island-badge ready">Hazır</span>
+              </button>
+              <div class="hub-island locked" id="cardCyclops" style="left: 51%; top: 41%" aria-disabled="true">
+                <span class="hub-island-thumb">
+                  <img src="/assets/ui/ui_hubmap_cyclops_01_albedo_512.png" alt="" />
+                </span>
+                <span class="hub-island-name">Kiklop Mağarası</span>
+                <span class="hub-island-badge locked-badge">🔒 Yakında</span>
+              </div>
+              <div class="hub-island locked" id="cardSirens" style="left: 83%; top: 57%" aria-disabled="true">
+                <span class="hub-island-thumb">
+                  <img src="/assets/ui/ui_hubmap_sirens_01_albedo_512.png" alt="" />
+                </span>
+                <span class="hub-island-name">Sirenler Geçidi</span>
+                <span class="hub-island-badge locked-badge">🔒 Yakında</span>
+              </div>
             </div>
           </div>
           <button type="button" class="menu-btn ghost" id="btnHubMenu">Ana menü</button>

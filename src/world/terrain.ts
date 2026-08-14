@@ -1,6 +1,20 @@
 import * as THREE from "three";
-import { ISLAND, LAGOON, PALETTE, PLAYER } from "../constants";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import { ISLAND, LAGOON, PALETTE, PLAYER, SKY_TEX, TERRAIN_TEX } from "../constants";
 import { mulberry32 } from "./rng";
+import { assetUrl } from "../assets/paths";
+import { loadAlbedoTexture } from "./sprite";
+
+/**
+ * Generated ground/prop textures (`docs/art/asset-registry.md` P1 — Su ve
+ * kıyı / Gökyüzü ve uzak), shipped as WebP per `docs/art/pipeline.md` §6.
+ */
+const GRASS_TEX_URL = "assets/textures/flora_drygrass_01_albedo_1024.webp";
+const SAND_TEX_URL = "assets/textures/sand_gold_01_albedo_512.webp";
+const SAND_WET_TEX_URL = "assets/textures/sand_wet_01_albedo_1024.webp";
+const ROCK_TEX_URL = "assets/textures/rock_chalk_01_albedo_1024.webp";
+const REED_TEX_URL = "assets/textures/flora_reed_01_alpha_512.webp";
+const HILL_BACKDROP_TEX_URL = "assets/skybox/hill_backdrop_01_albedo_2048.webp";
 
 function smoothstep(a: number, b: number, x: number): number {
   const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
@@ -86,6 +100,84 @@ export interface Terrain {
   group: THREE.Group;
 }
 
+/**
+ * Ground material — three tileable textures (grass, dry sand, wet sand)
+ * splatted from the `aTint`/`aWeights` vertex attributes computed in
+ * `buildTerrain()`. Built on `MeshStandardMaterial.onBeforeCompile` so the
+ * ground keeps standard PBR lighting + shadow receiving; only the albedo
+ * (`diffuseColor`) is replaced. World-space XZ (not the plane's stretched
+ * UVs) drives the texture sampling so tile scale is a fixed meters-per-repeat
+ * value regardless of how large the terrain plane is (`TERRAIN_TEX`).
+ */
+function buildGroundMaterial(): THREE.MeshStandardMaterial {
+  const grassTex = loadAlbedoTexture(assetUrl(GRASS_TEX_URL));
+  const sandTex = loadAlbedoTexture(assetUrl(SAND_TEX_URL));
+  const sandWetTex = loadAlbedoTexture(assetUrl(SAND_WET_TEX_URL));
+  for (const t of [grassTex, sandTex, sandWetTex]) {
+    t.wrapS = THREE.RepeatWrapping;
+    t.wrapT = THREE.RepeatWrapping;
+  }
+
+  const material = new THREE.MeshStandardMaterial({
+    roughness: 0.95,
+    metalness: 0,
+    flatShading: true,
+  });
+
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.tGrass = { value: grassTex };
+    shader.uniforms.tSand = { value: sandTex };
+    shader.uniforms.tSandWet = { value: sandWetTex };
+    shader.uniforms.uGrassTile = { value: TERRAIN_TEX.grassTileMeters };
+    shader.uniforms.uSandTile = { value: TERRAIN_TEX.sandTileMeters };
+    shader.uniforms.uSandWetTile = { value: TERRAIN_TEX.sandWetTileMeters };
+
+    shader.vertexShader = shader.vertexShader
+      .replace(
+        "#include <common>",
+        `#include <common>
+attribute vec3 aTint;
+attribute vec2 aWeights;
+varying vec3 vTint;
+varying vec2 vWeights;
+varying vec2 vWorldXZ;`,
+      )
+      .replace(
+        "#include <begin_vertex>",
+        `#include <begin_vertex>
+vTint = aTint;
+vWeights = aWeights;
+vWorldXZ = position.xz;`,
+      );
+
+    shader.fragmentShader = shader.fragmentShader
+      .replace(
+        "#include <common>",
+        `#include <common>
+uniform sampler2D tGrass;
+uniform sampler2D tSand;
+uniform sampler2D tSandWet;
+uniform float uGrassTile;
+uniform float uSandTile;
+uniform float uSandWetTile;
+varying vec3 vTint;
+varying vec2 vWeights;
+varying vec2 vWorldXZ;`,
+      )
+      .replace(
+        "#include <color_fragment>",
+        `#include <color_fragment>
+vec3 groundGrass = texture2D(tGrass, vWorldXZ / uGrassTile).rgb * vTint;
+vec3 groundSandDry = texture2D(tSand, vWorldXZ / uSandTile).rgb;
+vec3 groundSandWet = texture2D(tSandWet, vWorldXZ / uSandWetTile).rgb;
+vec3 groundSand = mix(groundSandDry, groundSandWet, vWeights.y);
+diffuseColor.rgb = mix(groundGrass, groundSand, vWeights.x);`,
+      );
+  };
+
+  return material;
+}
+
 export function buildTerrain(): Terrain {
   const group = new THREE.Group();
   const rand = mulberry32(20260814);
@@ -99,10 +191,14 @@ export function buildTerrain(): Terrain {
   geo.rotateX(-Math.PI / 2);
 
   const pos = geo.attributes.position as THREE.BufferAttribute;
-  const colors = new Float32Array(pos.count * 3);
+  // Per-vertex ground-shader inputs (custom attributes, not the standard
+  // `color` slot — see the onBeforeCompile block below):
+  //  - aTint: grass hue-by-altitude gradient + speckle, multiplies the grass texture only.
+  //  - aWeights.x: sand vs. grass blend (shoreline + lagoon rim).
+  //  - aWeights.y: wet vs. dry sand blend, inside the sand portion only.
+  const tints = new Float32Array(pos.count * 3);
+  const weights = new Float32Array(pos.count * 2);
 
-  const cSand = new THREE.Color(PALETTE.sand);
-  const cSandWet = new THREE.Color(PALETTE.sandWet);
   const cDry = new THREE.Color(PALETTE.grassDry);
   const cGrass = new THREE.Color(PALETTE.grass);
   const cDeep = new THREE.Color(PALETTE.grassDeep);
@@ -118,38 +214,31 @@ export function buildTerrain(): Terrain {
     const r = Math.hypot(x, z);
     const ld = lagoonDist(x, z);
 
-    // Grass tone by altitude, then sand painted over the shore and lagoon rim.
+    // Grass hue by altitude — tints the grass texture (flora_drygrass_01).
     if (y < 1.6) tmp.copy(cDry);
     else if (y < 2.8) tmp.copy(cDry).lerp(cGrass, smoothstep(1.6, 2.8, y));
     else tmp.copy(cGrass).lerp(cDeep, smoothstep(2.8, 3.8, y));
+    // Subtle rocky fleck within the grass, same noise as before.
+    tmp.lerp(cRock, Math.max(0, hills(x * 2.4, z * 2.4)) * 0.09);
+    // Speckle so the flat-shaded facets read as ground, not plastic.
+    const n = 0.94 + rand() * 0.12;
+    tints[i * 3] = tmp.r * n;
+    tints[i * 3 + 1] = tmp.g * n;
+    tints[i * 3 + 2] = tmp.b * n;
 
     const lr = lagoonRadiusAt(x, z);
     const coast = islandRadiusAt(x, z);
     const beachT = smoothstep(coast - ISLAND.beachWidth, coast - 1.5, r);
     const lagoonT = smoothstep(lr + 3.8, lr - 0.5, ld);
-    const sandT = Math.max(beachT, lagoonT);
-    tmp.lerp(cSand, sandT);
-    tmp.lerp(cSandWet, smoothstep(0.45, -0.15, y) * 0.75);
-    // Speckle so the flat-shaded facets read as ground, not plastic.
-    const n = 0.94 + rand() * 0.12;
-    tmp.lerp(cRock, Math.max(0, hills(x * 2.4, z * 2.4)) * 0.09);
-    colors[i * 3] = tmp.r * n;
-    colors[i * 3 + 1] = tmp.g * n;
-    colors[i * 3 + 2] = tmp.b * n;
+    weights[i * 2] = Math.max(beachT, lagoonT);
+    weights[i * 2 + 1] = smoothstep(0.45, -0.15, y);
   }
 
-  geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+  geo.setAttribute("aTint", new THREE.BufferAttribute(tints, 3));
+  geo.setAttribute("aWeights", new THREE.BufferAttribute(weights, 2));
   geo.computeVertexNormals();
 
-  const ground = new THREE.Mesh(
-    geo,
-    new THREE.MeshStandardMaterial({
-      vertexColors: true,
-      roughness: 0.95,
-      metalness: 0,
-      flatShading: true,
-    }),
-  );
+  const ground = new THREE.Mesh(geo, buildGroundMaterial());
   ground.receiveShadow = true;
   group.add(ground);
 
@@ -169,12 +258,20 @@ export function buildTerrain(): Terrain {
     roughness: 0.85,
     flatShading: true,
   });
+  // Weathered chalk rock (ASSET-031) doubles as both the loose boulders and
+  // the shrine's marble — both read as pale cracked stone at this palette.
+  const rockTex = loadAlbedoTexture(assetUrl(ROCK_TEX_URL));
+  rockTex.wrapS = THREE.RepeatWrapping;
+  rockTex.wrapT = THREE.RepeatWrapping;
+  rockTex.repeat.set(1.4, 1.4);
   const rockMat = new THREE.MeshStandardMaterial({
+    map: rockTex,
     color: PALETTE.rock,
     roughness: 0.95,
     flatShading: true,
   });
   const marbleMat = new THREE.MeshStandardMaterial({
+    map: rockTex,
     color: PALETTE.marble,
     roughness: 0.6,
     flatShading: true,
@@ -260,52 +357,108 @@ export function buildTerrain(): Terrain {
 }
 
 /**
- * Hazy Aegean headlands across the water. Fog is disabled and the colour is
- * pre-mixed toward the sky so they read as atmospheric perspective.
+ * Hazy Aegean headlands across the water. The near layer stays procedural
+ * (cheap silhouette variety close to the coast); the far skyline is one
+ * textured ring using the generated hill backdrop (ASSET-023), which reads
+ * far better than a flat-colour cone at that distance.
  */
 function buildDistantHills(rand: () => number): THREE.Group {
   const group = new THREE.Group();
-  const layers = [
-    { dist: 128, height: 26, color: 0x8fa8bd, count: 12 },
-    { dist: 178, height: 34, color: 0xa9c4d6, count: 10 },
-    { dist: 232, height: 42, color: 0xbcd8e6, count: 8 },
-  ];
+  const nearLayer = { dist: 128, height: 26, color: 0x8fa8bd, count: 12 };
 
-  for (const layer of layers) {
-    const mat = new THREE.MeshBasicMaterial({ color: layer.color, fog: false });
-    for (let i = 0; i < layer.count; i++) {
-      const a = (i / layer.count) * Math.PI * 2 + rand() * 0.4;
-      const d = layer.dist * (0.9 + rand() * 0.25);
-      const h = layer.height * (0.55 + rand() * 0.7);
-      const hill = new THREE.Mesh(new THREE.ConeGeometry(h * 1.5, h, 5, 1), mat);
-      hill.position.set(Math.cos(a) * d, h * 0.5 - h * 0.42, Math.sin(a) * d);
-      hill.rotation.y = rand() * Math.PI;
-      hill.scale.z = 0.5 + rand() * 0.4;
-      group.add(hill);
-    }
+  const mat = new THREE.MeshBasicMaterial({ color: nearLayer.color, fog: false });
+  for (let i = 0; i < nearLayer.count; i++) {
+    const a = (i / nearLayer.count) * Math.PI * 2 + rand() * 0.4;
+    const d = nearLayer.dist * (0.9 + rand() * 0.25);
+    const h = nearLayer.height * (0.55 + rand() * 0.7);
+    const hill = new THREE.Mesh(new THREE.ConeGeometry(h * 1.5, h, 5, 1), mat);
+    hill.position.set(Math.cos(a) * d, h * 0.5 - h * 0.42, Math.sin(a) * d);
+    hill.rotation.y = rand() * Math.PI;
+    hill.scale.z = 0.5 + rand() * 0.4;
+    group.add(hill);
   }
+
+  group.add(buildHillBackdropRing());
   return group;
 }
 
-/** Dense reed clumps along the south-west lagoon pocket (tutorial zone). */
+/**
+ * Textured farthest skyline — an open cylinder wrapped in the hill backdrop
+ * photo, repeated a few times around the horizon (it is a single wide shot,
+ * not a seamless 360 pan, so we tile it like the existing cone layers do
+ * with silhouettes rather than pretending it is equirectangular). A tiny
+ * custom shader fades the top edge to transparent so it blends into the sky
+ * gradient instead of cutting a hard horizon line; `fog: false` matches the
+ * near cone layer so both stay crisp as atmospheric-perspective cutouts.
+ */
+function buildHillBackdropRing(): THREE.Mesh {
+  const tex = loadAlbedoTexture(assetUrl(HILL_BACKDROP_TEX_URL));
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.ClampToEdgeWrapping;
+  tex.repeat.x = SKY_TEX.hillRepeat;
+
+  const geo = new THREE.CylinderGeometry(
+    SKY_TEX.hillDistance,
+    SKY_TEX.hillDistance,
+    SKY_TEX.hillHeight,
+    48,
+    1,
+    true,
+  );
+  const mat = new THREE.ShaderMaterial({
+    uniforms: { map: { value: tex } },
+    side: THREE.BackSide,
+    fog: false,
+    transparent: true,
+    depthWrite: false,
+    vertexShader: /* glsl */ `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      uniform sampler2D map;
+      varying vec2 vUv;
+      void main() {
+        vec4 c = texture2D(map, vUv);
+        // v=0 is the cylinder's top edge (open into the sky) — fade it out.
+        float topFade = smoothstep(0.0, 0.5, vUv.y);
+        gl_FragColor = vec4(c.rgb, topFade);
+      }
+    `,
+  });
+  const ring = new THREE.Mesh(geo, mat);
+  ring.position.y = SKY_TEX.hillY;
+  return ring;
+}
+
+/**
+ * Dense reed clumps along the south-west lagoon pocket (tutorial zone).
+ * Each clump is a pair of crossed alpha-cutout billboards carrying the
+ * generated reed tuft (ASSET-010) — replaces the old procedural
+ * stem/tip cylinder+cone pairs (`docs/art/pipeline.md` §6: "sazlık billboard
+ * PlaneGeometry"). All clumps are merged into one draw call.
+ */
 function buildReedBeds(rand: () => number): THREE.Group {
   const group = new THREE.Group();
-  const reedMat = new THREE.MeshStandardMaterial({
-    color: 0x6a8a48,
-    roughness: 0.9,
-    flatShading: true,
-  });
-  const tipMat = new THREE.MeshStandardMaterial({
-    color: 0xc9b46a,
-    roughness: 0.85,
-    flatShading: true,
-  });
-  const stemGeo = new THREE.CylinderGeometry(0.025, 0.04, 1, 4);
-  const tipGeo = new THREE.ConeGeometry(0.06, 0.22, 4);
 
+  const reedTex = loadAlbedoTexture(assetUrl(REED_TEX_URL));
+  const reedAspect = 624 / 862; // cropped alpha-key pixel dimensions
+  const reedMat = new THREE.MeshStandardMaterial({
+    map: reedTex,
+    transparent: true,
+    alphaTest: 0.4,
+    depthWrite: true,
+    side: THREE.DoubleSide,
+    roughness: 0.85,
+  });
+
+  const clumpGeos: THREE.BufferGeometry[] = [];
   const cx = -5.5;
   const cz = 8.5;
-  for (let i = 0; i < 90; i++) {
+  for (let i = 0; i < 34; i++) {
     const a = rand() * Math.PI * 2;
     const r = 2.2 + rand() * 5.5;
     const x = cx + Math.cos(a) * r;
@@ -314,23 +467,29 @@ function buildReedBeds(rand: () => number): THREE.Group {
     if (y > LAGOON.waterY + 0.35 || y < LAGOON.floor + 0.05) continue;
     if (lagoonDist(x, z) > lagoonRadiusAt(x, z) + 0.8) continue;
 
-    const stem = new THREE.Mesh(stemGeo, reedMat);
-    const h = 0.7 + rand() * 1.1;
-    stem.scale.set(1, h, 1);
-    stem.position.set(x, LAGOON.waterY + h * 0.5, z);
-    stem.rotation.z = (rand() - 0.5) * 0.25;
-    stem.rotation.x = (rand() - 0.5) * 0.2;
-    stem.castShadow = true;
-    group.add(stem);
+    const h = 1.1 + rand() * 0.9;
+    const w = h * reedAspect;
+    const yaw = rand() * Math.PI;
+    for (const crossOffset of [0, Math.PI / 2]) {
+      const plane = new THREE.PlaneGeometry(w, h);
+      plane.translate(0, h * 0.5, 0);
+      plane.rotateY(yaw + crossOffset);
+      plane.translate(x, y, z);
+      clumpGeos.push(plane);
+    }
+  }
 
-    const tip = new THREE.Mesh(tipGeo, tipMat);
-    tip.position.set(x, LAGOON.waterY + h + 0.05, z);
-    tip.rotation.z = stem.rotation.z;
-    group.add(tip);
+  if (clumpGeos.length > 0) {
+    const merged = mergeGeometries(clumpGeos);
+    const reeds = new THREE.Mesh(merged, reedMat);
+    reeds.castShadow = true;
+    group.add(reeds);
   }
 
   // North cove stepping stones — marks the distant pocket.
+  const stoneTex = loadAlbedoTexture(assetUrl(ROCK_TEX_URL));
   const rockMat = new THREE.MeshStandardMaterial({
+    map: stoneTex,
     color: PALETTE.rock,
     roughness: 0.95,
     flatShading: true,
