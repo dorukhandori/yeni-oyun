@@ -6,10 +6,124 @@
 
 export const STEP = 1000 / 60;
 
+// -------------------------------------------------------------- world profile
+/**
+ * Two parallel presets, per sahip decision 2026-08-14 (resolves roadmap §4.1
+ * K1/K2/K3 as one decision):
+ *  - "test": the original hand-tuned prototype island — small, fast, on-screen
+ *    forgetting bar, soft respawn-at-ship on full forgetting. Values below are
+ *    the pre-existing constants, unchanged.
+ *  - "real": docs/design/tuning.md's documented island — full size, no
+ *    forgetting bar, hard "you forgot" loss on full forgetting.
+ * This is NOT the multi-island/"challenger" system sahip described for later
+ * (out of scope here, belongs to a future game-designer pass) — just one real
+ * island plus one test island, switched by a single dev flag.
+ */
+export type WorldProfileKey = "test" | "real";
+
+/**
+ * Default profile as of the Title/Hub screens shipping (2026-08-14): "real"
+ * is now the actual entry experience (Title -> Hub -> Lotus Adası uses the
+ * tuned scale, no on-screen memory bar, hard loss). "test" remains the small
+ * fast dev sandbox — reach it with `?profile=test` without touching code.
+ */
+const DEFAULT_PROFILE: WorldProfileKey = "real";
+
+/**
+ * Resolved once at module load (constants.ts is the first module every other
+ * module transitively imports, so this runs before anything else captures a
+ * profile-dependent value — reading the query param later, e.g. in main.ts,
+ * would be too late because ES module evaluation order already froze the
+ * exports below by then).
+ */
+function resolveProfileFromUrl(): WorldProfileKey {
+  if (typeof window === "undefined") return DEFAULT_PROFILE;
+  const q = new URLSearchParams(window.location.search).get("profile");
+  return q === "real" || q === "test" ? q : DEFAULT_PROFILE;
+}
+
+export const ACTIVE_PROFILE: WorldProfileKey = resolveProfileFromUrl();
+
+interface WorldProfileValues {
+  island: { radius: number };
+  player: { speed: number };
+  lotus: { count: number; carryCap: number };
+  ship: { pos: { x: number; z: number }; range: number };
+  /** Per-second rates in the engine's internal 0-1 memory scale. */
+  memory: {
+    islandGain: number;
+    perCarriedGain: number;
+    lagoonGain: number;
+    pickSpike: number;
+    shipRecover: number;
+    seaRecover: number;
+  };
+  hud: {
+    /** Whether the on-screen forgetting bar (#memory) is shown at all. */
+    showMemoryBar: boolean;
+  };
+  loss: {
+    /** "respawn" = soft loss, teleport to ship (test). "gameOver" = hard, run-ending loss (real). */
+    onFull: "respawn" | "gameOver";
+  };
+}
+
+const PROFILES: Record<WorldProfileKey, WorldProfileValues> = {
+  test: {
+    island: { radius: 26 },
+    player: { speed: 6.2 },
+    lotus: { count: 34, carryCap: 6 },
+    ship: { pos: { x: 11.5, z: 19.5 }, range: 7.4 },
+    memory: {
+      islandGain: 0.007,
+      perCarriedGain: 0.005,
+      lagoonGain: 0.009,
+      pickSpike: 0.04,
+      shipRecover: 0.22,
+      seaRecover: 0.12,
+    },
+    hud: { showMemoryBar: true },
+    loss: { onFull: "respawn" },
+  },
+  real: {
+    island: { radius: 70 },
+    player: { speed: 4.5 },
+    lotus: { count: 28, carryCap: 4 },
+    ship: { pos: { x: 0, z: -60 }, range: 4.0 },
+    // tuning.md §5.1/5.2 documents these as puan/s on a 0-100 scale
+    // (MEM_PASSIVE, MEM_PER_CARRIED, MEM_SCENT, MEM_ON_HARVEST is a one-shot
+    // spike not a rate but is scaled the same way, MEM_SHIP_AURA,
+    // MEM_SEA_RECOVER). The engine keeps memory as an internal 0-1 float
+    // (Faz 1.6 hasn't decided whether to convert the engine to 0-100 yet), so
+    // every value here is the tuning.md number divided by 100 — e.g. passive
+    // gain 0.25 puan/s -> 0.0025 /s. See tuning.md's engine-note near §5 for
+    // the same explanation kept in sync with the design doc.
+    memory: {
+      islandGain: 0.25 / 100,
+      perCarriedGain: 0.15 / 100,
+      lagoonGain: 0.35 / 100,
+      pickSpike: 4.0 / 100,
+      shipRecover: 2.0 / 100,
+      seaRecover: 6.0 / 100,
+    },
+    hud: { showMemoryBar: false },
+    loss: { onFull: "gameOver" },
+  },
+};
+
+const profile = PROFILES[ACTIVE_PROFILE];
+
+/** Profile-driven behaviour flags consumed outside the raw tuning numbers. */
+export const WORLD = {
+  profile: ACTIVE_PROFILE,
+  showMemoryBar: profile.hud.showMemoryBar,
+  lossMode: profile.loss.onFull,
+} as const;
+
 // ---------------------------------------------------------------- island shape
 export const ISLAND = {
   /** Radius where the land meets the sea. */
-  radius: 26,
+  radius: profile.island.radius,
   /** Sea level sits at y = 0; the shore ramps down to this. */
   shoreDrop: -0.55,
   /** Peak height of the inland dome. */
@@ -42,17 +156,17 @@ export const LAGOON = {
 
 export const SHIP = {
   /** Beached on the near shore, to the side of the spawn. */
-  pos: { x: 11.5, z: 19.5 },
+  pos: profile.ship.pos,
   /** Broadside to the shore so the sail and oars read from the beach. */
   rotY: -1.3,
   scale: 0.92,
   /** Delivery trigger radius. */
-  range: 7.4,
+  range: profile.ship.range,
 } as const;
 
 // -------------------------------------------------------------------- player
 export const PLAYER = {
-  speed: 6.2,
+  speed: profile.player.speed,
   /** Wading through the lagoon is slower. */
   waterSpeedMul: 0.62,
   /** Spring stiffness toward wish velocity (higher = snappier). */
@@ -100,7 +214,7 @@ export const FEEL = {
 
 // --------------------------------------------------------------------- lotus
 export const LOTUS = {
-  count: 34,
+  count: profile.lotus.count,
   /** Seconds spent in each stage before advancing. */
   budTime: 14,
   halfTime: 11,
@@ -113,7 +227,7 @@ export const LOTUS = {
   /** How close the player must be to harvest. */
   pickRange: 2.4,
   /** Inventory cap before a trip back to the ship is required. */
-  carryCap: 6,
+  carryCap: profile.lotus.carryCap,
   /** Ripe lotuses to deliver for the departure. */
   target: 12,
   /** Minimum spacing when scattering plants across the lagoon. */
@@ -132,17 +246,17 @@ export const LOTUS = {
 // ------------------------------------------------------------- memory system
 export const MEMORY = {
   /** 0 = clear headed, 1 = fully lotus-drunk. Rates are per second. */
-  islandGain: 0.007,
+  islandGain: profile.memory.islandGain,
   /** Extra drift per carried lotus — the scent works on you. */
-  perCarriedGain: 0.005,
+  perCarriedGain: profile.memory.perCarriedGain,
   /** Wading in the lotus lagoon accelerates the forgetting. */
-  lagoonGain: 0.009,
+  lagoonGain: profile.memory.lagoonGain,
   /** Instant hit when a ripe lotus is picked. */
-  pickSpike: 0.04,
+  pickSpike: profile.memory.pickSpike,
   /** Recovery near the ship. */
-  shipRecover: 0.22,
+  shipRecover: profile.memory.shipRecover,
   /** Recovery while standing in the sea shallows. */
-  seaRecover: 0.12,
+  seaRecover: profile.memory.seaRecover,
   /** Distance from the shoreline that still counts as "in the sea". */
   seaBand: 2.6,
   /** Above this the guiding arrow and part of the HUD fade away. */
@@ -191,7 +305,7 @@ export const LOTOPHAGOS = {
 /** Achaean fleet on the beach — twelve ships for twelve lotuses. */
 export const FLEET = {
   count: 12,
-  /** Index of Odysseus' ship (delivery + player spawn nearby). */
+  /** Index of Doryseus' ship (delivery + player spawn nearby). */
   playerIndex: 6,
   /** Spacing along the shore tangent. */
   spacing: 3.35,

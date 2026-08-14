@@ -3,7 +3,9 @@ import { LAGOON, LOTUS, PALETTE } from "../constants";
 import type { LotusStage } from "../types";
 import { heightAt, lagoonDist, lagoonRadiusAt } from "./terrain";
 import { mulberry32 } from "./rng";
-import { glowSprite } from "./sprite";
+import { glowSprite, loadAlbedoTexture } from "./sprite";
+
+type BloomStage = "bud" | "half" | "ripe" | "wilt";
 
 interface Plant {
   pos: THREE.Vector3;
@@ -11,10 +13,8 @@ interface Plant {
   timer: number;
   duration: number;
   group: THREE.Group;
-  flower: THREE.Group;
-  petals: THREE.Group[];
-  petalMeshes: THREE.Mesh[];
-  heart: THREE.Mesh;
+  /** Billboard sprite carrying the generated lotus still per stage (ASSET-002, `art-bible.md` §8). */
+  bloom: THREE.Sprite;
   halo: THREE.Sprite;
   phase: number;
   /** Collect punch scale residual. */
@@ -52,17 +52,30 @@ function baseDuration(stage: LotusStage): number {
   }
 }
 
-/** Per-stage look: petal spread, scale, height and material index. */
-const LOOK: Record<LotusStage, { open: number; scale: number; y: number; mat: number }> = {
-  bud: { open: 0.06, scale: 0.62, y: 0.34, mat: 0 },
-  half: { open: 0.44, scale: 0.86, y: 0.48, mat: 1 },
-  ripe: { open: 0.95, scale: 1.14, y: 0.6, mat: 2 },
-  wilt: { open: 1.65, scale: 0.92, y: 0.4, mat: 3 },
-  gone: { open: 0, scale: 0, y: 0.3, mat: 3 },
+/**
+ * Generated stage stills (ASSET-002, `docs/art/asset-registry.md`), cropped to
+ * flower-only billboards in `art-source/work/` and shipped from
+ * `public/assets/textures/` (`docs/art/pipeline.md` §6 naming). Aspect ratios
+ * are the cropped pixel dimensions baked in at build time — no async layout
+ * shift while the texture streams in.
+ */
+const STAGE_TEX: Record<BloomStage, { url: string; aspect: number }> = {
+  bud: { url: "/assets/textures/lotus_bud_01_albedo_512.png", aspect: 502 / 512 },
+  half: { url: "/assets/textures/lotus_half_02_albedo_512.png", aspect: 512 / 351 },
+  ripe: { url: "/assets/textures/lotus_bloom_03_albedo_512.png", aspect: 512 / 232 },
+  wilt: { url: "/assets/textures/lotus_wilt_04_albedo_512.png", aspect: 512 / 353 },
 };
 
-/** Outer ring opens wide, inner ring stays cupped — reads as a water lily. */
-const INNER_RING_FACTOR = 0.42;
+/** Per-stage billboard height (world units), anchor height above the pad, and texture. */
+const LOOK: Record<LotusStage, { height: number; y: number; tex: BloomStage }> = {
+  bud: { height: 0.32, y: 0.34, tex: "bud" },
+  half: { height: 0.42, y: 0.48, tex: "half" },
+  ripe: { height: 0.52, y: 0.6, tex: "ripe" },
+  wilt: { height: 0.4, y: 0.4, tex: "wilt" },
+  // Picked flowers pop and sink using the ripe silhouette but the wilt still —
+  // mirrors the previous procedural version's material choice during the fade.
+  gone: { height: 0.3, y: 0.3, tex: "wilt" },
+};
 
 export function buildLotusField(): LotusField {
   const group = new THREE.Group();
@@ -85,49 +98,26 @@ export function buildLotusField(): LotusField {
     roughness: 0.8,
     flatShading: true,
   });
-  const heartMat = new THREE.MeshStandardMaterial({
-    color: PALETTE.lotusHeart,
-    emissive: new THREE.Color(PALETTE.lotusHeart),
-    emissiveIntensity: 0.65,
-    roughness: 0.5,
-    flatShading: true,
-  });
 
-  const petalMats = [
-    new THREE.MeshStandardMaterial({
-      color: PALETTE.petalBud,
-      roughness: 0.65,
-      flatShading: true,
-      side: THREE.DoubleSide,
-    }),
-    new THREE.MeshStandardMaterial({
-      color: PALETTE.petalHalf,
-      roughness: 0.6,
-      flatShading: true,
-      side: THREE.DoubleSide,
-    }),
-    new THREE.MeshStandardMaterial({
-      color: PALETTE.petalRipe,
-      emissive: new THREE.Color(PALETTE.petalRipeTint),
-      emissiveIntensity: 0.55,
-      roughness: 0.45,
-      flatShading: true,
-      side: THREE.DoubleSide,
-    }),
-    new THREE.MeshStandardMaterial({
-      color: PALETTE.petalWilt,
-      roughness: 0.9,
-      flatShading: true,
-      side: THREE.DoubleSide,
-    }),
-  ];
+  // One shared cutout material per stage texture; each plant clones its
+  // current stage's material so sway/pulse animation can vary per-instance
+  // without fighting over shared state (`LOTUS.count` is small — cloning is cheap).
+  const stageMatTemplates: Record<BloomStage, THREE.SpriteMaterial> = {} as Record<
+    BloomStage,
+    THREE.SpriteMaterial
+  >;
+  for (const key of Object.keys(STAGE_TEX) as BloomStage[]) {
+    stageMatTemplates[key] = new THREE.SpriteMaterial({
+      map: loadAlbedoTexture(STAGE_TEX[key].url),
+      transparent: true,
+      alphaTest: 0.35,
+      depthWrite: true,
+    });
+  }
 
   const padGeo = new THREE.CircleGeometry(1, 14, 0.32, Math.PI * 2 - 0.64);
   padGeo.rotateX(-Math.PI / 2);
   const stemGeo = new THREE.CylinderGeometry(0.035, 0.05, 1, 6);
-  const petalGeo = new THREE.ConeGeometry(0.19, 0.52, 5, 1);
-  petalGeo.translate(0, 0.26, 0);
-  const heartGeo = new THREE.SphereGeometry(0.11, 10, 8);
 
   const plants: Plant[] = [];
   const spots: Array<{ x: number; z: number }> = [];
@@ -148,6 +138,11 @@ export function buildLotusField(): LotusField {
       placed++;
     }
   }
+
+  // Zone counts are fixed data (test-profile scale); a world profile with a
+  // smaller LOTUS.count (see constants.ts "real" profile) trims the surplus
+  // rather than redesigning zone placement, which is out of scope here.
+  if (spots.length > LOTUS.count) spots.length = LOTUS.count;
 
   // Top up if a zone undershot (terrain rejection).
   let guard = 0;
@@ -183,35 +178,9 @@ export function buildLotusField(): LotusField {
     stem.position.y = 0.27;
     g.add(stem);
 
-    const flower = new THREE.Group();
-    flower.position.y = 0.55;
-    g.add(flower);
-
-    const petals: THREE.Group[] = [];
-    const petalMeshes: THREE.Mesh[] = [];
-    const rings = [
-      { count: 10, radius: 0.1, scale: 1, inner: false },
-      { count: 7, radius: 0.05, scale: 0.68, inner: true },
-    ];
-    for (const ring of rings) {
-      for (let i = 0; i < ring.count; i++) {
-        const pivot = new THREE.Group();
-        pivot.rotation.y = (i / ring.count) * Math.PI * 2 + (ring.inner ? 0.4 : 0);
-        pivot.userData.inner = ring.inner;
-        const mesh = new THREE.Mesh(petalGeo, petalMats[0]);
-        mesh.scale.set(1.4 * ring.scale, 0.82 * ring.scale, 0.5 * ring.scale);
-        mesh.position.set(0, 0, ring.radius);
-        pivot.add(mesh);
-        flower.add(pivot);
-        petals.push(pivot);
-        petalMeshes.push(mesh);
-      }
-    }
-
-    const heart = new THREE.Mesh(heartGeo, heartMat);
-    heart.position.y = 0.1;
-    heart.visible = false;
-    flower.add(heart);
+    const bloom = new THREE.Sprite(stageMatTemplates.bud.clone());
+    bloom.center.set(0.5, 0.06); // near-bottom anchor: sprite grows up from the stem
+    g.add(bloom);
 
     const halo = new THREE.Sprite(
       new THREE.SpriteMaterial({
@@ -225,7 +194,7 @@ export function buildLotusField(): LotusField {
     );
     halo.scale.setScalar(1.1);
     halo.visible = false;
-    flower.add(halo);
+    g.add(halo);
 
     group.add(g);
 
@@ -236,10 +205,7 @@ export function buildLotusField(): LotusField {
       timer: rand() * baseDuration(stage),
       duration: baseDuration(stage) * (1 + (rand() - 0.5) * LOTUS.timeJitter),
       group: g,
-      flower,
-      petals,
-      petalMeshes,
-      heart,
+      bloom,
       halo,
       phase: rand() * 6.28,
       pop: 0,
@@ -250,16 +216,16 @@ export function buildLotusField(): LotusField {
 
   function applyStage(p: Plant): void {
     const look = LOOK[p.stage];
-    const mat = petalMats[look.mat];
-    for (let i = 0; i < p.petals.length; i++) {
-      const inner = p.petals[i].userData.inner === true;
-      p.petals[i].rotation.x = inner ? look.open * INNER_RING_FACTOR : look.open;
-      p.petalMeshes[i].material = mat;
+    const tmpl = stageMatTemplates[look.tex];
+    const current = p.bloom.material as THREE.SpriteMaterial;
+    if (current.map !== tmpl.map) {
+      current.dispose();
+      p.bloom.material = tmpl.clone();
     }
-    p.flower.scale.setScalar(look.scale);
-    p.flower.position.y = look.y;
-    p.flower.visible = p.stage !== "gone";
-    p.heart.visible = p.stage === "ripe";
+    const aspect = STAGE_TEX[look.tex].aspect;
+    p.bloom.scale.set(look.height * aspect, look.height, 1);
+    p.bloom.position.y = look.y;
+    p.bloom.visible = p.stage !== "gone";
     p.halo.visible = p.stage === "ripe";
   }
 
@@ -288,34 +254,39 @@ export function buildLotusField(): LotusField {
   return {
     group,
     update(dt: number, t: number) {
+      const ripeAspect = STAGE_TEX.ripe.aspect;
       for (const p of plants) {
         p.timer += dt;
         if (p.timer >= p.duration) advance(p);
         p.pop = Math.max(0, p.pop - dt * 4.5);
         const popScale = 1 + p.pop * 0.55;
+        const bloomMat = p.bloom.material as THREE.SpriteMaterial;
         if (p.stage === "ripe") {
-          p.flower.position.y = LOOK.ripe.y + Math.sin(t * 1.6 + p.phase) * 0.035;
-          p.flower.rotation.y = Math.sin(t * 0.5 + p.phase) * 0.12;
-          p.flower.scale.setScalar(LOOK.ripe.scale * popScale);
+          p.bloom.position.y = LOOK.ripe.y + Math.sin(t * 1.6 + p.phase) * 0.035;
+          bloomMat.rotation = Math.sin(t * 0.5 + p.phase) * 0.07;
+          const h = LOOK.ripe.height * popScale;
+          p.bloom.scale.set(h * ripeAspect, h, 1);
+          bloomMat.color.setScalar(1 + Math.sin(t * 2.4 + p.phase) * 0.06 + 0.05);
           p.halo.scale.setScalar(1.1 + Math.sin(t * 3 + p.phase) * 0.15 + p.pop * 0.8);
           (p.halo.material as THREE.SpriteMaterial).opacity = 0.28 + Math.sin(t * 2.4 + p.phase) * 0.1;
         } else if (p.stage === "half" || p.stage === "bud") {
-          p.flower.rotation.y = Math.sin(t * 0.4 + p.phase) * 0.08;
-          p.flower.scale.setScalar(LOOK[p.stage].scale * popScale);
+          bloomMat.rotation = Math.sin(t * 0.4 + p.phase) * 0.05;
+          const look = LOOK[p.stage];
+          const h = look.height * popScale;
+          p.bloom.scale.set(h * STAGE_TEX[look.tex].aspect, h, 1);
         } else if (p.stage === "gone") {
           if (p.pop > 0.01) {
-            p.flower.visible = true;
-            p.flower.scale.setScalar(LOOK.ripe.scale * (0.4 + p.pop) * popScale);
+            p.bloom.visible = true;
+            const h = LOOK.ripe.height * (0.4 + p.pop) * popScale;
+            p.bloom.scale.set(h * ripeAspect, h, 1);
             p.halo.visible = true;
             (p.halo.material as THREE.SpriteMaterial).opacity = p.pop * 0.6;
           } else {
-            p.flower.visible = false;
+            p.bloom.visible = false;
             p.halo.visible = false;
           }
         }
       }
-      petalMats[2].emissiveIntensity = 0.45 + Math.sin(t * 2.2) * 0.22;
-      heartMat.emissiveIntensity = 0.55 + Math.sin(t * 3.1) * 0.25;
       (highlight.material as THREE.MeshBasicMaterial).opacity = 0.55 + Math.sin(t * 5) * 0.3;
       highlight.scale.setScalar(1 + Math.sin(t * 5) * 0.05);
     },
@@ -345,7 +316,7 @@ export function buildLotusField(): LotusField {
       applyStage(p);
       // Keep halo for the pop flash; update() fades it out.
       p.halo.visible = true;
-      p.flower.visible = true;
+      p.bloom.visible = true;
       return true;
     },
     ripeCount() {

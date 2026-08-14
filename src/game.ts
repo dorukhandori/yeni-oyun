@@ -12,6 +12,7 @@ import {
   PLAYER,
   SHIP,
   STEP,
+  WORLD,
 } from "./constants";
 import { CameraRig } from "./render/cameraRig";
 import { createStage } from "./render/stage";
@@ -20,6 +21,7 @@ import { Bursts } from "./systems/burst";
 import { Input } from "./systems/input";
 import type { GameState } from "./types";
 import { Hud } from "./ui/hud";
+import { Menu } from "./ui/menu";
 import { buildLotophagoi } from "./world/lotophagos";
 import { buildLotusField } from "./world/lotus";
 import { buildSailor } from "./world/sailor";
@@ -108,7 +110,9 @@ export function startGame(canvas: HTMLCanvasElement): void {
   window.addEventListener("keydown", unlockAudio, { once: true });
 
   const st: GameState = {
-    phase: "play",
+    // Boots on Title (docs/ux/screens.md §1) — Oyna -> Hub -> Lotus card is
+    // the only way into "play" now, see goTitle/goHub/fullRestart below.
+    phase: "title",
     carried: 0,
     delivered: 0,
     memory: 0.08,
@@ -145,7 +149,9 @@ export function startGame(canvas: HTMLCanvasElement): void {
     rig.snap(pos);
   }
 
+  /** Full world reset + actually starts play. Only entry point into "play". */
   function fullRestart(): void {
+    menu.hideAll();
     hud.hideCard();
     ship.reset();
     field.reset();
@@ -174,9 +180,31 @@ export function startGame(canvas: HTMLCanvasElement): void {
     rig.snap(pos);
     stage.setDayProgress(0);
     hud.say("Yeni bir gün — on iki lotus");
+    hud.startHintTimer();
   }
 
-  hud.setRestartHandler(fullRestart);
+  /** Title -> Hub (docs/ux/screens.md §1 "Oyna"). */
+  function goHub(): void {
+    hud.hideCard();
+    st.phase = "hub";
+    menu.showHub();
+  }
+
+  /** Hub "Ana menü" -> Title. Also boot's initial state via menu.showTitle() below. */
+  function goTitle(): void {
+    hud.hideCard();
+    st.phase = "title";
+    menu.showTitle();
+  }
+
+  const menu = new Menu({
+    onPlay: goHub,
+    onSelectLotus: fullRestart,
+    onHubMenu: goTitle,
+  });
+  menu.showTitle();
+
+  hud.setRestartHandler(goHub);
 
   function deliver(): void {
     if (st.carried <= 0) return;
@@ -255,8 +283,12 @@ export function startGame(canvas: HTMLCanvasElement): void {
     if (st.memory >= 0.999) {
       st.lostTimer += dt;
       if (st.lostTimer >= MEMORY.loseHold && st.phase === "play") {
-        st.phase = "lost";
-        st.cardTimer = FLOW.lostCardSeconds;
+        if (WORLD.lossMode === "gameOver") {
+          st.phase = "gameover";
+        } else {
+          st.phase = "lost";
+          st.cardTimer = FLOW.lostCardSeconds;
+        }
         audio.lose();
       }
     } else {
@@ -265,6 +297,14 @@ export function startGame(canvas: HTMLCanvasElement): void {
   }
 
   function step(): void {
+    // Title/Hub freeze the world completely (multi-island-concept.md §9.1
+    // "Hub'da zaman donar") — no physics, camera, memory, day clock, or
+    // world-object animation runs; `time` itself doesn't advance either.
+    if (st.phase === "title" || st.phase === "hub") {
+      input.endFrame();
+      return;
+    }
+
     const dt = STEP / 1000;
     time += dt;
 
@@ -309,7 +349,19 @@ export function startGame(canvas: HTMLCanvasElement): void {
         `${st.delivered} lotus yetti, ${LOTUS.target} lazımdı. Filo kıyıda kaldı.`,
         { restart: true },
       );
-      if (input.interact || input.wantsRestart) fullRestart();
+      if (input.interact || input.wantsRestart) goHub();
+    }
+
+    if (st.phase === "gameover") {
+      // audio.lose() already fired once at the play -> gameover transition
+      // in updateMemory(), unlike "dusk" which needs a per-frame flag here.
+      hud.showCard(
+        "gameover",
+        "Unuttun.",
+        "Lotus kokusu belleğini tamamen sildi. Bu ada seni bıraktı — İthake'ye dönüş yok.",
+        { restart: true },
+      );
+      if (input.interact || input.wantsRestart) goHub();
     }
 
     // ------------------------------------------------------------- camera look
@@ -481,7 +533,7 @@ export function startGame(canvas: HTMLCanvasElement): void {
         `${st.delivered} olgun lotus ambarda. Unutuşu geride bıraktın.`,
         { restart: true },
       );
-      if (input.interact || input.wantsRestart) fullRestart();
+      if (input.interact || input.wantsRestart) goHub();
     }
 
     // ------------------------------------------------------------------ audio

@@ -1,4 +1,4 @@
-import { DAY, LOTUS, MEMORY } from "../constants";
+import { DAY, LOTUS, MEMORY, WORLD } from "../constants";
 import type { GameState } from "../types";
 
 const NOTES: Array<[number, string]> = [
@@ -15,6 +15,7 @@ export class Hud {
   private target = must("target");
   private carried = must("carried");
   private cap = must("cap");
+  private memory = must("memory");
   private memFill = must("memFill");
   private memNote = must("memNote");
   private prompt = must("prompt");
@@ -37,11 +38,15 @@ export class Hud {
   constructor(touch = false) {
     this.target.textContent = String(LOTUS.target);
     this.cap.textContent = String(LOTUS.carryCap);
+    // "real" world profile: the forgetting scale is the screen itself
+    // (haze/vignette), no numeric bar (gdd-memory-system.md §10, ux/hud.md).
+    // Never touched again after this — see the WORLD.showMemoryBar guard
+    // in update() below.
+    if (!WORLD.showMemoryBar) this.memory.style.display = "none";
     if (touch) {
       this.hint.textContent =
         "Sol çubuk yürü · sağ sürükle kamera · Topla düğmesi / çift dokunuş";
     }
-    setTimeout(() => (this.hint.style.opacity = "0"), 12000);
 
     this.cardRestart.addEventListener("click", (e) => {
       e.preventDefault();
@@ -51,6 +56,17 @@ export class Hud {
 
   setRestartHandler(fn: () => void): void {
     this.onRestart = fn;
+  }
+
+  /**
+   * Shows the control hint and fades it after 12s. Called when a stage
+   * actually starts (not at boot) — with Title/Hub now sitting in front of
+   * gameplay, a fixed from-boot timer would burn its 12s while the player is
+   * still on the menus and hide the hint before they ever see the world.
+   */
+  startHintTimer(): void {
+    this.hint.style.opacity = "1";
+    window.setTimeout(() => (this.hint.style.opacity = "0"), 12000);
   }
 
   setPrompt(text: string | null): void {
@@ -69,7 +85,7 @@ export class Hud {
   }
 
   showCard(
-    kind: "won" | "lost" | "dusk",
+    kind: "won" | "lost" | "dusk" | "gameover",
     title: string,
     body: string,
     opts?: { restart?: boolean },
@@ -81,7 +97,7 @@ export class Hud {
       return;
     }
     this.cardShown = true;
-    this.card.classList.toggle("lost", kind === "lost" || kind === "dusk");
+    this.card.classList.toggle("lost", kind === "lost" || kind === "dusk" || kind === "gameover");
     this.cardTitle.textContent = title;
     this.cardBody.textContent = body;
     this.cardRestart.classList.toggle("hidden", !allowRestart);
@@ -97,12 +113,14 @@ export class Hud {
   update(st: GameState, haze: number): void {
     this.delivered.textContent = String(st.delivered);
     this.carried.textContent = String(st.carried);
-    this.memFill.style.width = `${Math.round(st.memory * 100)}%`;
 
-    for (const [limit, note] of NOTES) {
-      if (st.memory < limit) {
-        if (this.memNote.textContent !== note) this.memNote.textContent = note;
-        break;
+    if (WORLD.showMemoryBar) {
+      this.memFill.style.width = `${Math.round(st.memory * 100)}%`;
+      for (const [limit, note] of NOTES) {
+        if (st.memory < limit) {
+          if (this.memNote.textContent !== note) this.memNote.textContent = note;
+          break;
+        }
       }
     }
 
@@ -148,7 +166,7 @@ export class Hud {
   }
 }
 
-function must(id: string): HTMLElement {
+export function must(id: string): HTMLElement {
   const el = document.getElementById(id);
   if (!el) throw new Error(`HUD element #${id} missing`);
   return el;

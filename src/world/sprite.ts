@@ -1,5 +1,22 @@
 import * as THREE from "three";
 
+const textureCache = new Map<string, THREE.Texture>();
+const loader = new THREE.TextureLoader();
+
+/**
+ * Load (and cache) a color-carrying texture from `public/assets/`.
+ * Always sRGB — per `docs/art/pipeline.md` §6, albedo/color maps use
+ * `SRGBColorSpace`, data maps (normal/rough/caustic) never do.
+ */
+export function loadAlbedoTexture(url: string): THREE.Texture {
+  const existing = textureCache.get(url);
+  if (existing) return existing;
+  const tex = loader.load(url);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  textureCache.set(url, tex);
+  return tex;
+}
+
 let cached: THREE.Texture | null = null;
 
 /** Soft round sprite so particle points do not read as hard squares. */

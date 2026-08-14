@@ -1,6 +1,15 @@
 export type LotusStage = "bud" | "half" | "ripe" | "wilt" | "gone";
 
-export type Phase = "play" | "departing" | "won" | "lost" | "dusk";
+/**
+ * "lost" = soft loss (test profile): timed card, auto-respawn at ship.
+ * "gameover" = hard loss (real profile): full forgetting ends the run, only
+ * a manual restart continues (see WORLD.lossMode in constants.ts).
+ * "title" = Welcome/menu screen, boot state. "hub" = island-select screen
+ * (docs/ux/screens.md §1/§3) — both freeze the world entirely (see the
+ * early-return guard in game.ts's step()); no movement, camera, memory, day
+ * clock, or world-object animation runs while in either.
+ */
+export type Phase = "title" | "hub" | "play" | "departing" | "won" | "lost" | "dusk" | "gameover";
 
 export interface GameState {
   phase: Phase;

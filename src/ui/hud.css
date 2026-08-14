@@ -217,6 +217,7 @@ canvas#game {
   font-size: 12.5px;
   color: rgba(255, 250, 240, 0.72);
   text-shadow: 0 1px 4px rgba(30, 40, 60, 0.75);
+  opacity: 0;
   transition: opacity 700ms ease;
 }
 
@@ -314,6 +315,299 @@ canvas#game {
   display: none;
 }
 
+/* --------------------------------------------------- Title / Hub (menus) */
+/* docs/ux/screens.md §1 (Title) and §3 (Hub). Both are opaque DOM overlays
+   stacked above #hud/#touch/canvas, same family as .card. */
+.screen {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.screen.on {
+  display: flex;
+  pointer-events: auto;
+}
+
+/* ------------------------------------------------------------ shared buttons */
+.menu-btn {
+  pointer-events: auto;
+  cursor: pointer;
+  border: 1px solid rgba(150, 116, 58, 0.65);
+  background: rgba(255, 246, 227, 0.92);
+  color: #6d4a16;
+  font: 600 15px/1.2 "Optima", "Palatino Linotype", "Georgia", serif;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 12px 26px;
+  border-radius: 4px;
+  box-shadow: 0 6px 16px rgba(40, 26, 10, 0.22);
+  min-width: 200px;
+  transition: background 150ms ease, transform 150ms ease;
+}
+
+.menu-btn:hover {
+  background: rgba(255, 230, 170, 0.98);
+}
+
+.menu-btn.primary {
+  background: linear-gradient(180deg, #f3d488, #c99a3c);
+  color: #3a2409;
+  border-color: rgba(120, 90, 30, 0.8);
+}
+
+.menu-btn.primary:hover {
+  filter: brightness(1.06);
+}
+
+.menu-btn.ghost {
+  background: rgba(255, 255, 255, 0.1);
+  color: #f3ead8;
+  border-color: rgba(255, 255, 255, 0.35);
+  min-width: 0;
+  padding: 9px 20px;
+}
+
+.menu-btn.ghost:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+/* -------------------------------------------------------------------- title */
+.title-screen {
+  flex-direction: column;
+}
+
+.title-bg {
+  position: absolute;
+  inset: 0;
+  background: url("/assets/ui/title_bg_key_art_1344.webp") center 38% / cover no-repeat;
+}
+
+.title-scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(18, 26, 34, 0.18) 0%,
+    rgba(18, 24, 32, 0.5) 58%,
+    rgba(10, 14, 20, 0.8) 100%
+  );
+}
+
+.title-content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+  padding: 24px;
+}
+
+.title-name {
+  margin: 0;
+  font-size: 52px;
+  letter-spacing: 9px;
+  text-transform: uppercase;
+  color: #fff6e0;
+  text-shadow: 0 3px 18px rgba(0, 0, 0, 0.55), 0 0 40px rgba(255, 210, 140, 0.35);
+}
+
+.title-sub {
+  font-size: 13px;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: rgba(255, 246, 227, 0.75);
+  margin-bottom: 20px;
+}
+
+.title-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+}
+
+/* ------------------------------------------------------- how-to / about panels */
+.sub-panel {
+  position: absolute;
+  inset: 0;
+  z-index: 21;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 14, 20, 0.72);
+}
+
+.sub-panel.on {
+  display: flex;
+  pointer-events: auto;
+}
+
+.sub-panel-inner {
+  background: var(--parchment);
+  border: 1px solid rgba(150, 116, 58, 0.55);
+  border-radius: 6px;
+  padding: 26px 30px;
+  max-width: 440px;
+  text-align: left;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+}
+
+.sub-panel-inner h2 {
+  margin: 0 0 14px;
+  font-size: 19px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #6d4a16;
+}
+
+.sub-panel-inner p {
+  margin: 0 0 10px;
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: #5c452a;
+}
+
+.how-list {
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-size: 15px;
+}
+
+.how-list b {
+  background: #7c4a12;
+  color: #fff6e0;
+  border-radius: 3px;
+  padding: 1px 7px;
+  margin-right: 6px;
+}
+
+.how-note {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-style: italic;
+  color: #5c452a;
+}
+
+.sub-panel-inner .menu-btn {
+  margin-top: 8px;
+  min-width: 0;
+  padding: 9px 20px;
+}
+
+/* --------------------------------------------------------------------- hub */
+.hub-screen {
+  background: radial-gradient(circle at 50% 30%, #2a4a5a 0%, #16232c 70%);
+}
+
+.hub-bg {
+  position: absolute;
+  inset: 0;
+  background: url("/assets/ui/title_bg_key_art_1344.webp") center 30% / cover no-repeat;
+  filter: blur(7px) brightness(0.5) saturate(0.8);
+  transform: scale(1.06);
+}
+
+.hub-content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 26px;
+  padding: 24px;
+}
+
+.hub-title {
+  margin: 0;
+  font-size: 19px;
+  letter-spacing: 5px;
+  text-transform: uppercase;
+  color: #fff6e0;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.6);
+}
+
+.hub-cards {
+  display: flex;
+  gap: 22px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.hub-card {
+  width: 200px;
+  min-height: 140px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 246, 227, 0.35);
+  background: rgba(20, 26, 34, 0.55);
+  color: #fff6e0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 18px;
+  font-family: inherit;
+}
+
+button.hub-card {
+  cursor: pointer;
+  pointer-events: auto;
+  transition: transform 150ms ease, background 150ms ease;
+}
+
+button.hub-card:hover {
+  transform: translateY(-3px);
+  background: rgba(40, 50, 62, 0.7);
+}
+
+.hub-card-name {
+  font-size: 16px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.hub-card-badge {
+  font-size: 12px;
+  letter-spacing: 1px;
+  padding: 4px 10px;
+  border-radius: 3px;
+  text-transform: uppercase;
+}
+
+.hub-card-badge.ready {
+  background: rgba(140, 200, 130, 0.24);
+  color: #cdeec2;
+  border: 1px solid rgba(140, 200, 130, 0.5);
+}
+
+.hub-card.locked {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.hub-card-badge.locked-badge {
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 246, 227, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+/* Title/Hub cover the canvas — hide the touch HUD behind them so virtual
+   stick/look-pad/action button don't intercept taps meant for menu buttons. */
+body[data-ui-phase="title"] #touch,
+body[data-ui-phase="hub"] #touch {
+  display: none !important;
+}
+
 #loading {
   position: absolute;
   inset: 0;
@@ -325,6 +619,7 @@ canvas#game {
   font-size: 15px;
   letter-spacing: 2px;
   transition: opacity 600ms ease;
+  z-index: 50;
 }
 
 #loading.gone {

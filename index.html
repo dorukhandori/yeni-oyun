@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
     />
-    <title>Lotus Adası — Odysseia IX</title>
+    <title>Lotophagoi — Lotus Adası</title>
     <link rel="stylesheet" href="/src/ui/hud.css" />
   </head>
   <body>
@@ -66,8 +66,8 @@
         <div class="card" id="card">
           <h1 id="cardTitle"></h1>
           <p id="cardBody"></p>
-          <button type="button" class="card-btn" id="cardRestart">Yeniden oyna</button>
-          <p class="card-key" id="cardKey">R · yeniden başlat</p>
+          <button type="button" class="card-btn" id="cardRestart">Hub'a dön</button>
+          <p class="card-key" id="cardKey">R · hub'a dön</p>
         </div>
       </div>
 
@@ -75,6 +75,69 @@
         <div id="stick" class="stick"><div id="knob" class="knob"></div></div>
         <div id="lookPad" class="look-pad"></div>
         <button type="button" id="btnAct" class="btn-act">Topla</button>
+      </div>
+
+      <div id="titleScreen" class="screen title-screen on">
+        <div class="title-bg"></div>
+        <div class="title-scrim"></div>
+        <div class="title-content">
+          <h1 class="title-name">Lotophagoi</h1>
+          <div class="title-sub">Odysseia</div>
+          <div class="title-menu">
+            <button type="button" class="menu-btn primary" id="btnPlay">Oyna</button>
+            <button type="button" class="menu-btn" id="btnHow">Nasıl oynanır</button>
+            <button type="button" class="menu-btn" id="btnAbout">Hakkında</button>
+          </div>
+        </div>
+
+        <div class="sub-panel" id="howPanel">
+          <div class="sub-panel-inner">
+            <h2>Nasıl oynanır</h2>
+            <ul class="how-list">
+              <li><b>WASD</b> yürü</li>
+              <li><b>Fare</b> bak</li>
+              <li><b>E</b> (basılı) olgun lotus topla</li>
+              <li><b>E</b> (kısa) gemiye bırak / dümenle ayrıl</li>
+            </ul>
+            <p class="how-note">Sadece pembe ve açık olanı kopar.</p>
+            <p class="how-note">Her durağın kendi tehlikesi var. Kontroller aynı kalır.</p>
+            <button type="button" class="menu-btn" id="btnHowBack">Geri</button>
+          </div>
+        </div>
+
+        <div class="sub-panel" id="aboutPanel">
+          <div class="sub-panel-inner">
+            <h2>Hakkında</h2>
+            <p>
+              Lotus Yiyenler'in ülkesi Homeros'un <i>Odysseia</i>'sında geçer —
+              dokuzuncu kitap. <i>İlyada</i>'da değil.
+            </p>
+            <p>On iki gemi, on iki çiçek. Tatmadan kopar.</p>
+            <button type="button" class="menu-btn" id="btnAboutBack">Geri</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="hubScreen" class="screen hub-screen">
+        <div class="hub-bg"></div>
+        <div class="hub-content">
+          <h2 class="hub-title">Doryseus'un Rotası</h2>
+          <div class="hub-cards">
+            <button type="button" class="hub-card" id="cardLotus">
+              <div class="hub-card-name">Lotus Adası</div>
+              <div class="hub-card-badge ready">Hazır</div>
+            </button>
+            <div class="hub-card locked" id="cardCyclops" aria-disabled="true">
+              <div class="hub-card-name">Kiklop Mağarası</div>
+              <div class="hub-card-badge locked-badge">🔒 Yakında</div>
+            </div>
+            <div class="hub-card locked" id="cardSirens" aria-disabled="true">
+              <div class="hub-card-name">Sirenler Geçidi</div>
+              <div class="hub-card-badge locked-badge">🔒 Yakında</div>
+            </div>
+          </div>
+          <button type="button" class="menu-btn ghost" id="btnHubMenu">Ana menü</button>
+        </div>
       </div>
 
       <div id="loading">Ada yükleniyor…</div>

@@ -4,7 +4,7 @@ import { heightAt } from "./terrain";
 
 export interface Ship {
   group: THREE.Group;
-  /** World position used for the delivery trigger (Odysseus' ship). */
+  /** World position used for the delivery trigger (Doryseus' ship). */
   anchor: THREE.Vector3;
   update(t: number, departing: number): void;
   /** Light a mast ribbon on the first n ships (visual progress). */
@@ -12,7 +12,7 @@ export interface Ship {
   reset(): void;
 }
 
-/** Twelve Achaean galleys on the beach — middle one is Odysseus' delivery ship. */
+/** Twelve Achaean galleys on the beach — middle one is Doryseus' delivery ship. */
 export function buildShip(): Ship {
   const group = new THREE.Group();
 
@@ -96,7 +96,7 @@ export function buildShip(): Ship {
         h.rotation.z = Math.sin(t * 0.8 + i * 0.4) * 0.035 * (0.25 + d);
       }
 
-      // Keep delivery trigger on Odysseus' hull while beached / departing.
+      // Keep delivery trigger on Doryseus' hull while beached / departing.
       anchor.set(playerHull.position.x, playerHull.position.y, playerHull.position.z);
     },
   };
