@@ -3,7 +3,9 @@
 > **Durum:** taslak — sahip onayı bekliyor
 > **Tarih:** 2026-08-14
 > **Motor:** Vite + TypeScript + Three.js (tarayıcı, 3D)
-> **Kardeş dokümanlar:** `gdd-lotus-collection.md` · `gdd-memory-system.md` · `scenario.md` · `level-lotus-island.md` · `tuning.md`
+> **Kardeş dokümanlar:** `gdd-lotus-collection.md` · `gdd-memory-system.md` · `scenario.md` · `level-lotus-island.md` · `tuning.md` · `multi-island-concept.md` (çoklu-ada karar dokümanı — M7 kapandı, 14 Ağu 2026)
+> **Çoklu-ada notu (14 Ağu 2026, sahip onayı):** bu doküman hâlâ büyük ölçüde **tek adalık** bir konsept metni. Proje artık 3 duraklı bir koşu (Lotus Adası → Kiklop Mağarası → Sirenler Geçidi, bkz. `multi-island-concept.md` M7). §2 ve §7 aşağıda bu yönde güncellendi; dokümanın geri kalanı (§4–§6, §8–§13) hâlâ yalnızca Lotus Adası'nı (artık 1. durak/çapa) tarif ediyor — Kiklop/Sirenler'in kendi konsept ayrıntıları `island-designer`'ın işi.
+> **⚠️ Hub'a dönüş notu (14 Ağu 2026, aynı gün):** sahip "hub yok" kararını tersine çevirdi — **gerçek bir hub var, oyuncu durağı serbest sırayla seçiyor** (bkz. `multi-island-concept.md` §9). §2 aşağıda buna göre güncellendi. Oturum süresi (~20–30 dk) **değişmedi.**
 > **Tek sayı kaynağı:** bütün sayısal değerler `docs/design/tuning.md` dosyasındadır. Buradaki sayılar oradan alıntıdır; çelişki olursa `tuning.md` kazanır.
 
 **Etiketler:** **[H]** Homeros'ta var (kaynak) · **[O]** oyun için icat · **[?]** sahip kararı bekliyor.
@@ -14,7 +16,7 @@
 
 ## 1. Tek cümlelik pitch
 
-**Odysseus'un on iki gemisi Lotus Adası'na oturmuşken, güneş batmadan her gemiye bir olgun lotus çiçeği taşımalısın — ama topladığın her çiçek senin de eve dönüş yolunu unutturur.**
+**Doryseus'un on iki gemisi Lotus Adası'na oturmuşken, güneş batmadan her gemiye bir olgun lotus çiçeği taşımalısın — ama topladığın her çiçek senin de eve dönüş yolunu unutturur.**
 
 ---
 
@@ -23,13 +25,13 @@
 | Alan | Değer |
 |---|---|
 | Çalışma adı | **Lotophagoi** (sahip kararı, 14 Ağu 2026). Eski taslak adı "Lotus Adası" bu dosyada geçebilir; ürün adı Lotophagoi. |
-| Tür | Birinci oturumluk 3D toplama / rota kurma oyunu (collectathon değil — tek harita, tek gün) |
+| Tür | 3D toplama / rota kurma oyunu, **3 duraklı bir koşu, hub'dan serbest sırayla seçilir** (collectathon değil — el yerleşimli duraklar, tek koşu) |
 | Bakış | Üçüncü şahıs, omuz üstü serbest yörünge kamera |
 | Platform | Tarayıcı (masaüstü, klavye + fare) |
-| Hedef oturum | **5–10 dakika.** Bir gün = 420 s (`DAY_LENGTH`). Usta oyuncu ~4,5 dk, ilk oyun tam süreyi doldurur. |
+| Hedef oturum | **~20–30 dakika, koşunun tamamı için** (14 Ağu 2026, `multi-island-concept.md` M7 sonucu — eski "5–10 dakika" tek adaydı, artık 3 durağın toplamı). Her durak kabaca eski tek-ada ölçeğinde (~5–10 dk); hub bir seçim ekranıdır, gezinme süresi ihmal edilebilir düzeyde tutulmalı — sayı hub eklenmesinden sonra da değişmedi (bkz. `multi-island-concept.md` §9.4). |
 | Tekrar oynanış | Aynı harita, aynı tohum (deterministik olgunlaşma) — tekrar oynayış rota optimizasyonudur, keşif değil |
 | Çekirdek fiil | **Toplamak** (ve toplamamaya karar vermek) |
-| Kapsam | Küçük. Tek ada, tek döngü, iki final, sıfır envanter ağacı, sıfır craft, sıfır diyalog ağacı |
+| Kapsam | **3 duraklı, elle tasarlanmış küçük bir Odysseia antolojisi**, **hub'lı** (14 Ağu 2026, `multi-island-concept.md` M7 sonucu, aynı gün hub kararıyla güncellendi — bkz. §9): Lotus Adası (1. durak/çapa, mevcut) → Kiklop Mağarası (2.) → Sirenler Geçidi (3.), gemi güvertesi/harita hub'ından serbest sırayla seçilir. Sıfır envanter ağacı, sıfır craft, sıfır diyalog ağacı. **Kayıp finalinin koşu mu durak mı bazlı olacağı henüz kapanmadı** (bkz. `multi-island-concept.md` §9.5). |
 
 ---
 
@@ -70,11 +72,11 @@ Homeros'ta bulunmayan, tamamen bizim eklediğimiz üç şey:
 
 | İcat | Ne | Neden gerekli |
 |---|---|---|
-| **Yenmemiş çiçek hatırlatır** | Koparılmış ama ağza değmemiş **olgun** lotus, gemi ambarındaki tuzlu suya konduğunda o geminin tayfasına yurdunu geri verir. Yenen lotus unutturur; yenmeyen hatırlatır. | Toplamak için Homerik olmayan ama Homeros'la çelişmeyen bir gerekçe yaratır. Odysseus lotus toplar çünkü lotus *ilaçtır*, ödül değil. |
+| **Yenmemiş çiçek hatırlatır** | Koparılmış ama ağza değmemiş **olgun** lotus, gemi ambarındaki tuzlu suya konduğunda o geminin tayfasına yurdunu geri verir. Yenen lotus unutturur; yenmeyen hatırlatır. | Toplamak için Homerik olmayan ama Homeros'la çelişmeyen bir gerekçe yaratır. Doryseus lotus toplar çünkü lotus *ilaçtır*, ödül değil. |
 | **Koku baskısı** | Açmış çiçeğin kokusu yemeden de etki eder, sadece daha yavaş. Taşıdığın çiçek seni sürekli kokutur. | "Topla" fiilini doğrudan riske bağlar. Tek mekanikle risk/ödül pompası. |
 | **Deniz tuzu hatırlatıcıdır** | Ayak bileğine kadar denize girmek zihni açar. | Oyuncuya kıyıyı, dolayısıyla gemiyi, dolayısıyla *dönüşü* mekanik olarak hatırlatır. Tema ve sistem aynı şey olur. |
 
-Ayrıca **[O]**: oyuncu Odysseus'tur (Homeros'ta bu bölümde kıyıya çıkan da odur — metinle çelişmez, ama metin onun lotus topladığını söylemez).
+Ayrıca **[O]**: oyuncu **Doryseus** — Homeros'un Odysseus'u değil, oyun için orijinal bir karakter (14 Ağu 2026, sahip kararı; eski varsayım "oyuncu Odysseus'tur" yerine geçti — bkz. Kapanan kararlar). Kıyıya çıkan Homeros'ta üç kişidir (ikisi tayfa, biri haberci) — bu, metinle çelişmez; sadece kıyıya çıkanın kimliği ve adı oyunun kendi icadı. Diğer denizciler/NPC'ler kolektif olarak **"unutulmuş tayfa"** (forgotten sailors) olarak anılıyor.
 
 ---
 
@@ -157,7 +159,7 @@ Oyunun tamamı iki karşıt baskının arasındadır. Tasarımın tek fikri budu
 - **Craft / envanter ağacı YOK** — P1'i bozar; toplamak tek fiil kalmalı.
 - **Düşman, savaş, can barı YOK** — Homeros'ta Lotophagoi düşman değildir; ayrıca P1'i bozar.
 - **Diyalog ağacı YOK** — Lotophagoi ile etkileşim tek tuşluk bir takastır, konuşma değil.
-- **Çoklu bölüm / ikinci ada YOK** — 5–10 dk hedefini ve P3'ü bozar.
+- ~~**Çoklu bölüm / ikinci ada YOK**~~ — **bu satır 14 Ağu 2026'da geçersiz kılındı** (`multi-island-concept.md` M7, sahip onayı). Proje artık 3 duraklı bir koşu. Gerekçe hâlâ kısmen geçerliydi (P3 "ada okunabilir" sütununü bozmamak için her durak **elle tasarlanmış ve deterministik** kalıyor, prosedürel değil — bkz. M1); asıl bozulan "5–10 dk" hedefiydi, o da koşunun tamamı için ~20–30 dk'ya güncellendi (yukarıdaki tablo). Bu satır kayıtta tutuluyor çünkü kararın **neden** değiştiğini gösteriyor.
 - **Gün/gece döngüsü, hava sistemi, mevsim YOK** — tek gün, tek batış.
 
 ---
@@ -249,6 +251,9 @@ Bu kararlar sahip tarafından verildi ve **kapalıdır** — yeniden açılmayac
 | Lotophagoi'nin oyuncunun kayıp adamları olduğu söylensin mi | **Hayır — ima kalacak.** Ne oyun içinde ne finalde doğrulanır. Bkz. `scenario.md` §6. | 14 Ağu 2026 |
 | Oyun adı | **Lotophagoi** | 14 Ağu 2026 |
 | Menü | **Sade başlık var** (Oyna / Nasıl oynanır). Bkz. `docs/ux/`. | 14 Ağu 2026 |
+| Tek ada mı, çoklu ada mı | **Çoklu — 3 duraklı bir koşu.** Lotus Adası (1. durak/çapa) + Kiklop Mağarası (2.) + Sirenler Geçidi (3.). Unutuş koşu boyunca taşınıyor. Ayrıntı: `multi-island-concept.md` M7 ve M1–M6. | 14 Ağu 2026 |
+| Hub var mı | **Var — gerçek hub, oyuncu durağı serbest sırayla seçiyor** (aynı gün, M7'nin "hub yok" alt-maddesini tersine çevirdi). Unutuş taşıma ve `RUN_TARGET_TOTAL` değişmedi, tetik "hub'a dönüş"e taşındı. Kayıp finalinin koşu mu durak mı bazlı olacağı **henüz kapanmadı.** Ayrıntı: `multi-island-concept.md` §9. | 14 Ağu 2026 |
+| Oyuncu Odysseus mu, isimsiz tayfa mı | **Doryseus** — Homeros'un Odysseus'u değil, oyun için orijinal bir karakter (tasarım niyeti Odysseia IX.82–104'ten mekanik/tema olarak ilham alıyor, karakteri birebir taşımıyor). Diğer denizciler/NPC'ler kolektif olarak **"unutulmuş tayfa"** olarak anılıyor. Destan adı ("Odysseia") değişmedi — yalnızca oynanan karakterin kişisel adı. | 14 Ağu 2026 |
 
 Ayrıca üç sayısal değer (`DAY_LENGTH`, `MEM_SEA_RECOVER`, eşik 2'deki muğlak sayaç) **playtest'e ertelendi** — oynanır sürüm elde olmadan tartışılmayacak. Ölçüm kriterleri: `tuning.md` §11.
 
@@ -256,7 +261,7 @@ Ayrıca üç sayısal değer (`DAY_LENGTH`, `MEM_SEA_RECOVER`, eşik 2'deki muğ
 
 ## Açık sorular
 
-1. **Oyuncu Odysseus mu, isimsiz bir tayfa mı?** Odysseus daha güçlü; isimsiz tayfa "sen de unutabilirsin" tehdidini daha inandırıcı kılar. Şu an **Odysseus** varsayıldı.
+1. ~~**Oyuncu Odysseus mu, isimsiz bir tayfa mı?**~~ **Kapandı (14 Ağu 2026, sahip kararı) — bkz. Kapanan kararlar.** Oyuncu **Doryseus** — Homeros'un Odysseus'u değil, oyun için orijinal bir karakter. Diğer denizciler/NPC'ler kolektif olarak "unutulmuş tayfa" olarak anılıyor.
 2. **Hedef 12 sabit mi, zorluk seçeneği olacak mı?** Şu an sabit ve anlatıya bağlı (12 gemi). Zorluk seçeneği eklenirse bu bağ kopar.
 3. **Oyun sonunda skor/süre gösterilsin mi?** Skor tekrar oynanışı destekler ama şiirsel finali bozar. Şu an **gösterilmiyor** varsayıldı.
 4. **Türkçe tek dil mi?** Tüm oyun içi metinler Türkçe yazıldı. İngilizce sürüm istenirse metinler `scenario.md` §7'de tek yerde toplu.

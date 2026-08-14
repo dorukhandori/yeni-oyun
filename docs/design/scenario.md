@@ -5,6 +5,7 @@
 > **Yöntem:** `scenario-engine` (mod: `feature`) kalite geçişi — beat sheet önce, prose sonra, tek eleştiri turu. Bkz. §8.
 > **Kanon:** Homeros, *Odysseia* IX.82–104 · *İlyada* II (Gemiler Kataloğu)
 > **Bağlı doküman:** `game-concept.md` · `gdd-memory-system.md` · `level-lotus-island.md`
+> **⚠️ İsimlendirme notu (14 Ağu 2026, sahip kararı):** oyuncu karakterinin adı **Doryseus** — Homeros'un Odysseus'u değil, oyun için orijinal bir karakter. Destan adı ("Odysseia") **değişmedi.** Bu dosyada **§1 "Kanon özeti"** bilerek "Odysseus" adını korur — o bölüm Homeros'un gerçek metninin ne dediğini özetler, disiplini (`[H]` etiketi) buna dayanır. Dosyanın geri kalanı (öncül, beat'ler, oyun içi metinler — `[O]` ve anlatı bölümleri) **Doryseus** kullanır, çünkü onlar bu oyunun kendi kurgusunu anlatır. Diğer denizciler/NPC'ler kolektif olarak **"unutulmuş tayfa"** (forgotten sailors) olarak anılıyor.
 
 **Etiketler:** **[H]** Homeros'ta var · **[O]** oyun için icat.
 
@@ -24,11 +25,11 @@ Bölümün tamamı bu kadardır. **Savaş yok. Canavar yok. Tanrı müdahalesi y
 
 | İcat | Neden var |
 |---|---|
-| **Yenmemiş çiçek hatırlatır.** Koparılmış ama ağza değmemiş **olgun** lotus, gemi ambarındaki tuzlu suya konduğunda o geminin tayfasına yurdunu geri verir. | Odysseus'a lotus toplamak için Homeros'la çelişmeyen bir sebep verir. Lotus ödül değil **ilaç** olur. |
+| **Yenmemiş çiçek hatırlatır.** Koparılmış ama ağza değmemiş **olgun** lotus, gemi ambarındaki tuzlu suya konduğunda o geminin tayfasına yurdunu geri verir. | Doryseus'a lotus toplamak için Homeros'la çelişmeyen bir sebep verir. Lotus ödül değil **ilaç** olur. |
 | **Koku yemeden de işler**, sadece daha yavaş. | Toplama fiilini doğrudan riske bağlar. Oyunun tek mekaniği buradan doğar. |
 | **Deniz tuzu zihni açar.** | Temayı mekaniğe çevirir: dönüşü hatırlamak için tuza dokunman gerekir. |
 | **On iki gemi kıyıda karaya oturmuş.** Homeros gemileri karaya çektiklerini söyler ama böyle bir mahsurluk anlatmaz. | Oyuncuya görünür, sayılabilir bir hedef verir: on iki direk, on iki boş ambar. |
-| **Odysseus tek başına kıyıda.** Homeros'ta yanında tayfa vardır. | Yalnızlık, unutuş sisteminin işlemesi için gerekli. Yanında biri olsa sana yolu o hatırlatırdı. |
+| **Doryseus tek başına kıyıda.** Homeros'ta Odysseus'un bu bölümde yanında tayfa vardır. | Yalnızlık, unutuş sisteminin işlemesi için gerekli. Yanında biri olsa sana yolu o hatırlatırdı. |
 
 ---
 
@@ -36,9 +37,9 @@ Bölümün tamamı bu kadardır. **Savaş yok. Canavar yok. Tanrı müdahalesi y
 
 Dokuz gün rüzgâr. Onuncu sabah kum.
 
-On iki gemi Lotus Adası'nın güney kıyısına oturmuş durumda. Odysseus üç adamını içeriye gönderdi; üçü de dönmedi. Üçü de hâlâ orada — sazlığın içinde, ayakta, gülümseyerek. Kim olduklarını sorduğunda cevap vermiyorlar. **Düşman değiller. Sadece artık gitmek istemiyorlar.**
+On iki gemi Lotus Adası'nın güney kıyısına oturmuş durumda. Doryseus üç adamını içeriye gönderdi; üçü de dönmedi. Üçü de hâlâ orada — sazlığın içinde, ayakta, gülümseyerek. Kim olduklarını sorduğunda cevap vermiyorlar. **Düşman değiller. Sadece artık gitmek istemiyorlar.**
 
-Havada çiçeğin kokusu var ve koku yemeden de işliyor: tayfa küreğe oturmuyor, yön soranın sesi kısılıyor, Odysseus kendi gemisinin hangisi olduğunu bir an unutuyor.
+Havada çiçeğin kokusu var ve koku yemeden de işliyor: tayfa küreğe oturmuyor, yön soranın sesi kısılıyor, Doryseus kendi gemisinin hangisi olduğunu bir an unutuyor.
 
 Tek çare eski bir denizci inancı: **yenmemiş çiçek hatırlatır.** Ağza değmeden koparılan olgun bir lotus, ambardaki tuzlu suya konursa o geminin tayfasına yurdunu geri verir. On iki gemi var. On iki çiçek gerek.
 

@@ -1,4 +1,6 @@
-# Şablon — Odysseus turnaround (`reference`) **[K]**
+# Şablon — Doryseus turnaround (`reference`) **[K]**
+
+> **İsim notu (2026-08-14):** Oyuncu karakteri **Doryseus** — orijinal tasarım, Homeros'un Odysseus'u değil (sahip kararı). ASSET-001 zaten "Odysseus" adıyla üretilip kabul edildi; o görsel hâlâ geçerli referanstır, dosya adı ve zaten üretilmiş still **yeniden üretilmedi**, yalnızca bu şablonun metni ve gelecekteki üretimler için isim güncellendi.
 
 > **Sınıf:** `reference` — makaledeki *"character turnarounds"*.
 > **Çıktı:** still, 16:9, tek kadrajda 4 açı · **Hedef:** `art-source/ref/` · **Registry:** ASSET-001
@@ -19,7 +21,7 @@ Using Higgsfield, generate this as an image — 16:9, high quality, character de
 
 Four views of the SAME character in one frame, evenly spaced left to right on a flat neutral warm-grey background: front view, three-quarter view, side profile, back view. Identical proportions, identical costume details, identical scale across all four. Flat even studio lighting so the design reads clearly — this is a reference sheet, not a scene.
 
-Character (fully original design, no resemblance to any existing game or film character): Odysseus — a lean weathered Bronze Age captain, a simple stylized figure with a small head and a readable shoulder line, sun-worn off-white linen tunic with a faded ochre band, a leather belt and sandals, short dark beard, weathered forearms, and a plain cloth satchel at his hip. In the front and three-quarter views a white-and-pink lotus blossom shows at the mouth of the satchel; in the side and back views the satchel is flat and empty so the body shape reads clearly. No armour, no weapon, no helmet — he is ashore, not at war. Readable silhouette at thumbnail size.
+Character (fully original design, no resemblance to any existing game or film character): Doryseus — a lean weathered Bronze Age captain, a simple stylized figure with a small head and a readable shoulder line, sun-worn off-white linen tunic with a faded ochre band, a leather belt and sandals, short dark beard, weathered forearms, and a plain cloth satchel at his hip. In the front and three-quarter views a white-and-pink lotus blossom shows at the mouth of the satchel; in the side and back views the satchel is flat and empty so the body shape reads clearly. No armour, no weapon, no helmet — he is ashore, not at war. Readable silhouette at thumbnail size.
 
 No background scenery, no HUD, no text, no labels, no arrows, no grid, no watermark.
 
@@ -28,7 +30,7 @@ Look: stylized-cartoon game character design, soft-shaded rounded forms, clean f
 
 ## Varyasyon
 
-4 üretim. Seçilen tek dosya `char_odysseus_turnaround_01_ref_2048.png` olarak kilitlenir; sonraki her prompt'ta karakter bloğu bu dosyaya bakılarak yazılır. `assets.csv` satırı zorunlu.
+4 üretim. Seçilen tek dosya `char_doryseus_turnaround_01_ref_2048.png` olarak kilitlenir (yeni üretimler için isim kuralı; zaten kabul edilmiş ASSET-001 dosyası `char_odysseus_turnaround_01_ref_1344.png` adını korur, yeniden üretilmez); sonraki her prompt'ta karakter bloğu bu dosyaya bakılarak yazılır. `assets.csv` satırı zorunlu.
 
 ## Türev — Lotophagos figürü (ASSET-034, MVP sonrası)
 

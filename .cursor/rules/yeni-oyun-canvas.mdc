@@ -1,5 +1,5 @@
 ---
-description: Vite + TypeScript + Three.js gameplay standards for Glowsprig
+description: Vite + TypeScript + Three.js gameplay standards for Lotophagoi (Lotus Adası)
 globs: src/**/*.ts, index.html, vite.config.ts
 alwaysApply: false
 ---

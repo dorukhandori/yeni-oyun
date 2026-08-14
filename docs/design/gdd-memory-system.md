@@ -5,6 +5,8 @@
 > **Uyguladığı sütun:** **P2** (unutma görülür, anlatılmaz) · **P4** (kıyı huzurdur)
 > **Sayılar:** hepsi `docs/design/tuning.md`'den. Bu dokümanda sayılar **sabit adıyla** anılır.
 > **Bağlı doküman:** `gdd-lotus-collection.md` (kardeş sistem), `scenario.md` (tema), `game-concept.md` (çerçeve)
+> **Çoklu-ada notu (14 Ağu 2026, sahip onayı, `multi-island-concept.md` M7):** proje artık **3 duraklı bir koşu** (Lotus Adası + Kiklop Mağarası + Sirenler Geçidi). Bu doküman aşağıda buna göre güncellendi: unutuş **ada başına sıfırlanmıyor**, koşu boyunca taşınıyor (§3.5). Kiklop/Sirenler'in kendi yerel unutuş kaynakları (`island-designer`'ın işi) henüz bu dosyaya yazılmadı; burada sadece **paylaşılan** mekanik (tek unutuş ölçeği, hub'a dönüş formülü) tanımlanıyor.
+> **Hub'a dönüş notu (14 Ağu 2026 — `multi-island-concept.md` §9):** sahip "hub yok" kararını tersine çevirdi — **gerçek bir hub var, oyuncu durak seçebiliyor.** §3.1 madde 1 ve §3.5 buna göre güncellendi (taşıma tetiği "hub'a dönüş", "adalar arası doğrudan geçiş" değil — sonuç aynı, çerçeve değişti). **§3.1 madde 9 ve §4.4'teki kayıp finali de sahip onayıyla kapandı (14 Ağu 2026, K27):** kayıp artık koşu bazlı değil, **durak bazlı** — bir durakta `MEM_GRACE` biterse yalnızca o durak biter, oyuncu hub'a döner.
 
 ---
 
@@ -34,7 +36,7 @@ Kaybetmek de kötü hissettirmemeli. Kayıp finali bir "game over" değil, adada
 
 ### 3.1 Çekirdek kurallar
 
-1. **Unutuş** `MEM_START`'tan başlayan, `0`–`MEM_MAX` arasına kenetlenmiş tek bir float değerdir.
+1. **Unutuş** `MEM_START`'tan başlayan, `0`–`MEM_MAX` arasına kenetlenmiş tek bir float değerdir. **`MEM_START` yalnızca koşunun ilk girişi için geçerlidir** (oyuncu hangi durağı ilk seçerse — hub serbest sıralı, bkz. `multi-island-concept.md` §9.1). Koşu boyunca tek bir unutuş değeri taşınır — **bir durağın kendisinde asla sıfırlanmaz, hub'a dönüşte de sıfırlanmaz.** Hub'dan bir sonraki durağa giriş değeri §3.5'teki hub-dönüşü formülünden türer.
 2. Her karede net değişim hesaplanır: `unutuş += (artış_oranı − azalış_oranı) × dt`, ardından tek seferlik olaylar (`+4`, `−10` gibi) eklenir.
 3. **Sürekli artışlar** (birbirine eklenir):
    - `MEM_PASSIVE` — adada olduğun sürece, her zaman, koşulsuz.
@@ -47,7 +49,7 @@ Kaybetmek de kötü hissettirmemeli. Kayıp finali bir "game over" değil, adada
 6. **Tek seferlik azalış:** `MEM_PER_DELIVERED`, teslim edilen her çiçek için.
 7. **İç göl iyileştirmez** (`MEM_LAKE_RECOVER` = 0). Yalnızca **tuzlu su** çalışır. Bu kural oyuncuya söylenmez; kendi denemesiyle öğrenir.
 8. Değer dört eşikten geçerken oyunun **sunumu** değişir (§3.2). Eşikler `MEM_THRESHOLD_HYSTERESIS` kadar histerezisle çalışır — sınırda yanıp sönme olmaz.
-9. `MEM_MAX`'a ulaşıldığında `MEM_GRACE` geri sayımı başlar. Bu sürede oyuncu denize girerse veya gemiye varırsa geri sayım iptal olur ve unutuş normal azalmaya devam eder. Girmezse **kayıp finali**.
+9. `MEM_MAX`'a ulaşıldığında `MEM_GRACE` geri sayımı başlar. Bu sürede oyuncu denize girerse veya gemiye varırsa geri sayım iptal olur ve unutuş normal azalmaya devam eder. Girmezse **kayıp finali** tetiklenir — **durak bazlı** (sahip kararı, 14 Ağu 2026, K27, `multi-island-concept.md` §9.5): oyuncu **sadece o durağı** kaybeder, hub'a döner (bağışlama uygulanmadan, bkz. §3.5) ve istediği durağı (aynısı dahil) tekrar seçebilir. Koşunun tamamı sıfırlanmaz, önceki durakların ilerlemesi/toplananları korunur. (Not: ilk taslakta "koşunun tamamı biter" önerilmişti — hub geri geldiğinde bu tersine çevrildi, güncel karar bu maddedir.)
 10. Unutuş **hiçbir zaman** şunları yapmaz: hız düşürmek, toplamayı engellemek, teslimi engellemek, hasar vermek, oyuncuyu hareketsiz bırakmak.
 
 ### 3.2 Eşikler ve etkileri
@@ -89,6 +91,21 @@ Kaybetmek de kötü hissettirmemeli. Kayıp finali bir "game over" değil, adada
 | **Arayüz** | Unutuş → HUD | Hangi öğelerin görünür olduğu, pusula durumu, sayaç muğlaklığı |
 | **Hareket** | Unutuş → Hareket | Sapma açısı (yalnızca eşik 3+) |
 | **Oyun durumu** | Unutuş → Oyun | Kayıp finali tetiği |
+| **Kiklop algılanma sistemi** (`gdd-detection-cyclops.md`, yalnızca 2. durak) | tek yönlü (o → bu) | `onCaught` → `CAUGHT_MEM_SPIKE` (tek seferlik ekleme). Bu sistem unutuşun tersine hiç okumaz — sadece besler. **Örnek desen:** her yeni durağın kendi yerel tehlikesi, ikinci bir ölçek yerine bu tek kaynağa beslenmeli (`multi-island-concept.md` §6/M3 ilkesi). |
+
+### 3.5 Hub'a dönüşte taşıma (14 Ağu 2026, `multi-island-concept.md` M4 sonucu; 14 Ağu 2026 aynı gün — hub bağlamına taşındı, `multi-island-concept.md` §9.2)
+
+Koşu boyunca **tek bir unutuş değeri** taşınır — hub bir sıfırlama noktası değildir (`multi-island-concept.md` §9.1: hub'da zaman donar, ama unutuş **değeri** hub'a girerken/çıkarken kendiliğinden değişmez, yalnızca aşağıdaki tek olayda değişir). Bir durak **başarıyla** bitirilip (o durağın kendi "AYRILIŞ" anı — örn. Lotus Adası'nda gemiye binip dümende E) hub'a dönülürken, unutuş **kısmen bağışlanır**, tam sıfırlanmaz:
+
+`unutuş_hub_dönüşü = unutuş_durak_bitişi × (1 − MEM_ISLAND_RELIEF_PCT)`
+
+`MEM_ISLAND_RELIEF_PCT` (öneri 🔬 `0.4`, bkz. `tuning.md` §5.2/§11.4) — sabit oran, tüm geçişlerde aynı. Oyuncu hub'dan hangi durağı sıradaki olarak seçerse seçsin (sıra serbest — bkz. `multi-island-concept.md` §9.1), bu bağışlanmış değerle girer.
+
+**Neden tam sıfırlama değil (hub varken bile):** tam sıfırlama hub'ı bir **kaçış valfine** çevirir — oyuncu bir durakta zorlanınca hub'a dönüp bedelsiz sıfırlanır, tekrar dener; "ilerlemek = iyileşmek" ilkesi (§3.3) anlamını yitirir ve unutuşun gerçek bir bedel olma özelliği (P2) hub'sız haline göre bile zayıflar. **Neden tam taşıma da değil:** oran `0` olsaydı bir durağı kıl payı biten oyuncu bir sonraki durağa neredeyse dolu unutuşla girer — bu, oyuncunun *bir durak boyunca* öğrendiği her şeyi anlamsızlaştırır ve orantısız bir ceza olur.
+
+**Örnek (`MEM_ISLAND_RELIEF_PCT = 0.4`):** Lotus Adası'nı unutuş 20 ile (temiz) bitiren oyuncu hub'a 12 ile döner. Lotus Adası'nı unutuş 90 ile (kıl payı) bitiren oyuncu hub'a 54 ile döner — zaten baskı altında, sıradaki durak çok daha az tolerans veriyor. Bu, hedeflenen his: **ne kadar ileri gidersen, dönüşü o kadar unutursun** — artık *durak sırasına* değil, *kaç kez temiz bitirdiğine* bağlı.
+
+**Bu formülün uygulandığı tek an:** başarılı durak tamamlanışı. Bir durak bitirilemeden (gün batımı sub-hedef karşılanmadan doldu veya `MEM_GRACE` tükendi) hub'a dönülürse **hiçbir bağışlama uygulanmaz** — oyuncu o anki (muhtemelen `MEM_MAX`'a yakın) değerle hub'a taşınır, ve sadece o durağı kaybetmiş olur (§3.1 madde 9, kapandı 14 Ağu 2026 — koşunun tamamı değil).
 
 ---
 
@@ -147,7 +164,7 @@ Eşikler arasında sıçrama değil **yumuşak geçiş** kullanılır. Her etki 
 
 `unutuş ≥ MEM_MAX` olduğu anda `grace = MEM_GRACE`. Her karede `grace −= dt`.
 `denizde || gemide` → `grace = MEM_GRACE` (tam sıfırlanır) ve normal azalma devreye girer.
-`grace ≤ 0` → **kayıp finali**.
+`grace ≤ 0` → **kayıp finali** tetiklenir, **durak bazlı** (kapandı 14 Ağu 2026, K27, bkz. §3.1 madde 9): sadece o durak biter, koşunun tamamı değil. Oyuncu hub'a döner, o durağı bağışlamasız (§3.5) unutuş değeriyle tekrar seçebilir; önceki duraklardan toplananlar/ilerleme korunur.
 
 **Erişilebilirlik kontrolü:** `MEM_GRACE × PLAYER_SPEED = 10 × 4,5 = 45 m`. Sazlıktan (gemi ~35 m) kurtulunur; iç gölden (deniz ~50 m) kurtulunamaz. Yani coğrafya kaderi belirler — oyuncu nereye kadar açıldığının bedelini öder.
 
@@ -263,6 +280,7 @@ Bu iki değer **oynanır sürüm elde olmadan değiştirilmeyecek.** Masa başı
 |---|---|---|---|
 | `MEM_SEA_RECOVER` 🔬 | −6.0 puan/s (sabit) | Tur başına deniz teması sayısı | Oyuncu her turdan sonra denize girme refleksi buluyorsa oran düşürülecek — **unutuş gerilim olmalı, vergi olmamalı.** Çare sırası: −4.0'a indir, gerekirse kademeli yap (ilk 3 s tam, sonrası yarım). |
 | `HUD_VAGUE_COUNTER` 🔬 (eşik 2'de muğlak sayaç) | `true` | Oyuncu eşik 2 sonrası kaç çiçek teslim ettiğini biliyor mu | Tamamen kaybediyor ve bunu haksızlık/bug olarak okuyorsa `false` yapılır. Gemi direklerindeki bezleri sayarak toparlıyorsa `true` kalır. |
+| `MEM_ISLAND_RELIEF_PCT` 🔬 (hub'a dönüş bağışlaması, §3.5, eklendi 14 Ağu 2026, hub bağlamına taşındı aynı gün) | `0.4` | Bir durağı bitirip hub'a dönen oyuncunun taşıdığı unutuşun sonraki durağı ne kadar zorlaştırdığı | Sistematik olarak adaletsiz bulunuyorsa (kıl payı biten bir sonraki durağı hiç tamamlayamıyorsa) yükseltilir; taşıma hiç hissedilmiyorsa düşürülür. Ayrıntı: `tuning.md` §11.4. |
 
 ---
 

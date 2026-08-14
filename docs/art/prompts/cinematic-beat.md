@@ -15,9 +15,9 @@ Odysseia IX'un dramatik çekirdeği: **lotusu yiyen adam eve dönmek istemez.** 
 ```text
 Using Higgsfield, generate this as a video — 16:9, ~7 seconds, high quality, cinematic. Pick the best model for stylized-cartoon next-gen game graphics (bright, glossy stylized 3D look — soft-shaded, rounded, colorful, NOT photoreal).
 
-Cinematic camera, not gameplay: a slow low push-in past broad green lily pads toward Odysseus sitting down in the ankle-deep turquoise shallows, an open lotus in his hands, his back to the ship. Shallow depth of field, foreground lotus blossoms slipping out of focus.
+Cinematic camera, not gameplay: a slow low push-in past broad green lily pads toward Doryseus sitting down in the ankle-deep turquoise shallows, an open lotus in his hands, his back to the ship. Shallow depth of field, foreground lotus blossoms slipping out of focus.
 
-Character (fully original design, no resemblance to any existing game or film character): Odysseus — a lean weathered Bronze Age captain, a simple stylized figure with a small head and readable shoulder line, sun-worn off-white linen tunic with a faded ochre band, leather belt and sandals, short dark beard, a plain cloth satchel set down beside him. No armour, no weapon. Slack and unhurried — a man who has stopped being in a hurry to leave.
+Character (fully original design, no resemblance to any existing game or film character): Doryseus — a lean weathered Bronze Age captain, a simple stylized figure with a small head and readable shoulder line, sun-worn off-white linen tunic with a faded ochre band, leather belt and sandals, short dark beard, a plain cloth satchel set down beside him. No armour, no weapon. Slack and unhurried — a man who has stopped being in a hurry to leave.
 
 Setting: the lotus shallows of the island at golden hour — clusters of white-and-pink lotus blossoms on lily pads, reed beds, golden sand beyond, and the sun-bleached beached ship far behind him, small in frame.
 

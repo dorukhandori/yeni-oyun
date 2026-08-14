@@ -4,6 +4,9 @@
 > **Motor tarafı için:** bu dosya `src/constants.ts`'in doğrudan kaynağıdır. Aşağıdaki her `SABİT_AD` **olduğu gibi** TypeScript sabit adı olarak kullanılabilir.
 > **Tarih:** 2026-08-14 · **Durum:** ilk pas · üç değer playtest'e ertelendi (bkz. §11)
 
+> **Çoklu-ada notu (14 Ağu 2026, sahip onayı):** proje artık **3 duraklı bir koşu** — Lotus Adası (1. durak/çapa) + Kiklop Mağarası (2.) + Sirenler Geçidi (3.). Karar `docs/design/multi-island-concept.md`'de M7 (Seçenek 3) olarak kapandı. Bu dosyadaki sayıların büyük çoğunluğu (§1, §2, §3'ün çoğu, §4, §6, §7, §8) **hâlâ yalnızca Lotus Adası'nı** tarif ediyor — Sirenler'in kendi `level-*.md` ve tuning satırları `island-designer` agent'ının işi, henüz yazılmadı. Kiklop Mağarası için **§3.0 (hedef dağılımı), §5 (unutuş taşıma) ve §12 (algılanma sistemi)** eklendi; Kiklop'un salt geometri sabitleri (mağara derinliği, oda-başı öğe sayıları) hâlâ yalnızca `level-cyclops-cave.md`'de, buraya taşınmadı.
+> **⚠️ Hub'a dönüş notu (14 Ağu 2026, aynı gün — `multi-island-concept.md` §9):** sahip "hub yok" kararını tersine çevirdi — **gerçek bir hub var, oyuncu durağı serbest sırayla seçiyor.** `RUN_TARGET_TOTAL` ve durak alt-hedefleri (§3.0) **değişmedi** — hub sıra özgürlüğü verir, hedefleri tek bir esnek havuza çevirmez. `MEM_ISLAND_RELIEF_PCT`'in tetik noktası (§5.2) artık "adalar arası doğrudan geçiş" değil, **"hub'a dönüş"** olarak okunmalı — formül/değer aynı. Ayrıntı ve gerekçe: `multi-island-concept.md` §9.2/§9.3.
+
 ---
 
 ## 0. Sözleşmeler (motor tarafı okusun)
@@ -62,11 +65,25 @@
 
 ## 3. Lotus — sayı ve olgunluk
 
+### 3.0 Koşu hedefi ve durak alt-hedefleri (14 Ağu 2026 — M7 sonucu; hub'a dönüşle birlikte doğrulandı, aynı gün)
+
+`LOTUS_TARGET` artık **koşunun tamamının** hedefi değil, **1. durağın (Lotus Adası'nın) kendi alt-hedefi.** "12 gemi" anlatısı tek ve bütün kalıyor ama artık koşu-seviyesinde toplanıyor. **Hub kararı bunu değiştirmiyor:** her durağın toplanabilir öğesi (lotus / Kiklop'un öğeleri / Sirenler'in öğesi) diegetik olarak o durağa kilitli — oyuncu hub'da sırayı seçer ama hangi durakların zorunlu olduğunu değil. Kazanmak hâlâ üçünün de kendi alt-hedefini tamamlamasını gerektirir, hangi sırayla olursa olsun. Ayrıntı: `multi-island-concept.md` §9.3.
+
 | İsim | Değer | Birim | Gerekçe |
 |---|---|---|---|
-| `LOTUS_TOTAL` | `28` | adet | Sazlık 12 + iç göl 10 + tepeler 6. Ortalama %25'i olgun → her an ~7 toplanabilir çiçek. Kıtlık değil, **rota** problemi yaratır. |
-| `LOTUS_TARGET` | `12` | adet | Odysseus'un on iki gemisi (İlyada, Gemiler Kataloğu). Kapasite 4 ile tam bölünür → minimum 3 tur → anlatının 3 beat'iyle birebir örtüşür. |
-| `CARRY_CAPACITY` | `4` | adet | 3 fazla küçük (5+ tur, tekrar), 6 fazla büyük (2 tur, gerilim yok). 4 → hedefi tam 3 tura böler ve dolu çantanın unutuş yükünü (+0.6 puan/s) anlamlı kılar. |
+| `RUN_TARGET_TOTAL` | `12` | adet | Koşu boyunca sabit — Odysseus'un on iki gemisi (İlyada, Gemiler Kataloğu). Her durak bu toplama kendi alt-hedefiyle katkı verir; anlatı tekliğini korur (bkz. `multi-island-concept.md` §4.2/M5). |
+| `LOTUS_TARGET` 🔬 | `5` (öneri, eski değer `12`) | adet | **1. durak (Lotus Adası) alt-hedefi.** Öneri sırası: Lotus 5 + Kiklop 4 + Sirenler 3 = 12. En uzun/öğretici durak olduğu için en büyük payı taşıyor. Kesin sayı `island-designer`'ın Kiklop/Sirenler level-spec'leri netleşince (durak uzunlukları karşılaştırılınca) doğrulanmalı — şimdilik **yön** kesin, **kesin sayı değil**. |
+| `CYCLOPS_ISLAND_TARGET` 🔬 | `4` (öneri) | adet | **2. durak (Kiklop Mağarası) alt-hedefi.** `island-designer`'ın level-spec'i henüz yazılmadı; bu bir yer tutucu öneri. |
+| `SIREN_ISLAND_TARGET` 🔬 | `3` (öneri) | adet | **3. durak (Sirenler Geçidi) alt-hedefi.** Aynı şekilde yer tutucu; en kısa/en yoğun durak olacağı varsayımıyla en düşük pay verildi. |
+
+**Bilinen tutarsızlık (henüz düzeltilmedi, kapsam dışı bırakıldı):** Lotus Adası'nın alt-hedefi 12'den 5'e düşerken `LOTUS_TOTAL` (28 çiçek), zon dağılımı (§7: sazlık 12 / göl 10 / tepe 6) ve §9'daki denge hesabı **hâlâ eski 12 hedefine göre yazılı.** Bunları 5'e göre yeniden dengelemek `level-lotus-island.md`'nin (ve `island-designer` agent'ının) işi — bu geçişte bilerek dokunulmadı, sadece işaretlendi. `gdd-lotus-collection.md` ve `scenario.md`'deki `LOTUS_TARGET`/"12 çiçek" referansları da aynı sebeple henüz güncellenmedi; bilinen bir sürüklenme olarak kayıtta.
+
+### 3.1 Lotus Adası'nın kendi sayıları
+
+| İsim | Değer | Birim | Gerekçe |
+|---|---|---|---|
+| `LOTUS_TOTAL` | `28` | adet | Sazlık 12 + iç göl 10 + tepeler 6. Ortalama %25'i olgun → her an ~7 toplanabilir çiçek. Kıtlık değil, **rota** problemi yaratır. **Not:** bu sayı hâlâ eski `LOTUS_TARGET=12` varsayımıyla dengelendi, yeni alt-hedef (5) için henüz yeniden dengelenmedi — bkz. §3.0. |
+| `CARRY_CAPACITY` | `4` | adet | 3 fazla küçük (5+ tur, tekrar), 6 fazla büyük (2 tur, gerilim yok). 4 → dolu çantanın unutuş yükünü (+0.6 puan/s) anlamlı kılar. Alt-hedef 12'den 5'e düşse de bu değer sabit kalmalı — P1 sütununun tutarlılığı ve "4'lük ritmin" tüm koşu boyunca öğrenilebilir kalması için (bkz. `multi-island-concept.md` §6/M5). |
 | `STAGE_BUD` | `45.0` | s | Tomurcuk. Döngünün en uzun evresi — oyuncu "bunu beklemeye değmez" diyebilmeli. |
 | `STAGE_HALF_OPEN` | `25.0` | s | Yarı açık. Olgunluğa geri sayım; oyuncunun planlama penceresi. Ada geçişine (31 s) az yetmez → "yakındakini bekle, uzaktakine yetişemezsin". |
 | `STAGE_RIPE` | `30.0` | s | **Hasat penceresi.** Ada geçiş süresine (~31 s) kasten eşitlendi: gördüğün tek bir çiçeğe her yerden yetişirsin, **ikisine birden asla.** Oyunun tek zor kararı buradan doğar. |
@@ -95,12 +112,25 @@
 
 Ölçek `0.0` – `MEM_MAX`. 0 = zihin açık, 100 = kayıp eşiği.
 
+> **Koşu-seviyesi not (14 Ağu 2026 — M7 sonucu; hub bağlamına taşındı aynı gün, `multi-island-concept.md` §9.2):** unutuş artık **ada başına sıfırlanmıyor, koşu boyunca taşınıyor** — hub'a dönüş de bir sıfırlama noktası değildir. Bir durak **başarıyla** bitirilip hub'a dönerken `MEM_ISLAND_RELIEF_PCT` kadar kısmi bir bağışlama uygulanır (§5.2); başarısız dönüşte (gün doldu ya da `MEM_GRACE` tükendi) bağışlama uygulanmaz. **⚠️ `MEM_MAX`'a ulaşıp `MEM_GRACE` dolduğunda ne olacağı flag'li, kapanmadı** — eski metin ("tüm koşu biter") hub'sız varsayımla yazıldı; bkz. `gdd-memory-system.md` §3.1 madde 9 ve `multi-island-concept.md` §9.5.
+
+> **Motor notu (14 Ağu 2026):** `src/constants.ts`'teki `real` world profile bu
+> bölümdeki puan/s oranlarını (`MEM_PASSIVE`, `MEM_SCENT`, `MEM_PER_CARRIED`,
+> `MEM_ON_HARVEST`, `MEM_SHIP_AURA`, `MEM_SEA_RECOVER`) motorun hâlâ 0–1 float
+> olan iç `memory` state'ine **100'e bölerek** çevirir — örn. pasif kazanç
+> `0.25` puan/s → dahili `0.0025`/s. Bu geçici, sadece motor-tarafı bir
+> dönüşümdür ve Faz 1.6'nın "unutuşu 0–1'den 0–100'e çevir mi" kararını
+> **öngörmez** — o ölçek kararı hâlâ açık (bkz. `docs/production/roadmap.md`
+> §4.1 eski K2, artık iki world profile ile kapandı). Playtest'e ertelenen
+> §11.2 `MEM_SEA_RECOVER` gibi değerler bu dönüşümden aynen etkilenir; `real`
+> profildeki `seaRecover` dahili değeri `0.06`/s'dir.
+
 ### 5.1 Artışlar
 
 | İsim | Değer | Birim | Gerekçe |
 |---|---|---|---|
 | `MEM_MAX` | `100.0` | puan | Yuvarlak ölçek; yüzde olarak da okunabilir. |
-| `MEM_START` | `0.0` | puan | Oyun açık zihinle başlar. |
+| `MEM_START` | `0.0` | puan | **Yalnızca koşunun ilk durağı (Lotus Adası) için geçerli.** Sonraki duraklar `MEM_ISLAND_RELIEF_PCT` formülünden türeyen bir değerle başlar — bkz. §5.2 ve `gdd-memory-system.md` §3.1. |
 | `MEM_PASSIVE` | `0.25` | puan/s | Sadece adada olmanın bedeli. Tek başına 400 s'de dolar ≈ bir gün. "Hiçbir şey yapmazsan da kaybedersin." |
 | `MEM_SCENT` | `0.35` | puan/s | Açmış bir çiçeğin `SCENT_RADIUS` yakınındayken **ek**. **Yığılmaz** — bir çiçek de yirmi çiçek de aynı oranı verir. |
 | `SCENT_RADIUS` | `12.0` | m | Tarlada neredeyse hep içindesin, kıyıda hiç değilsin. Bölgeleri mekanik olarak ayırır. |
@@ -120,8 +150,9 @@
 | `SEA_WATER_MIN_DEPTH` | `0.1` | m | `MEM_SEA_RECOVER` bu su derinliğinin üstünde tetiklenir. `SHORE_WET_BAND` içindeki ıslak kum da sayılır. |
 | `MEM_PER_DELIVERED` | `-10.0` | puan | Teslim edilen **her** çiçek. Dolu teslim = -40, bir turun tipik kazancını (~45) neredeyse sıfırlar → dikkatli oyun başabaş, açgözlü oyun tırmanır. |
 | `MEM_LAKE_RECOVER` | `0.0` | puan/s | İç göl **tatlı sudur, iyileştirmez.** Kasıtlı tuzak: oyuncu bir kez dener ve "tuz" kuralını öğrenir. |
+| `MEM_ISLAND_RELIEF_PCT` 🔬 | `0.4` | oran (0–1, birimsiz) | **Hub'a dönüş bağışlaması** (14 Ağu 2026'da "ada geçişi" olarak tanımlandı, aynı gün hub bağlamına taşındı — `multi-island-concept.md` §9.2). Bir durak **başarıyla** bitirilip hub'a dönülürken **tek seferlik** uygulanır: `unutuş_hub_dönüşü = unutuş_durak_bitişi × (1 − MEM_ISLAND_RELIEF_PCT)`. Başarısız dönüşte (gün doldu / `MEM_GRACE` tükendi) uygulanmaz — oyuncu ham değerle hub'a taşınır. Temiz biten oyuncu (düşük unutuşla ayrılan) gerçek bir avantajla başlar; kıl payı biten oyuncu zaten baskı altında devam eder — koşu boyunca **yükselen bir zemin baskısı** yaratır ("ne kadar ileri gidersen dönüşü o kadar unutursun"). Tam sıfırlama (`=1.0`) hub'ı bir kaçış valfine çevirip bedeli siler; tam taşıma (`=0.0`) sonraki durakları orantısız cezalandırır. **Playtest'te ölçülecek** — `MEM_SEA_RECOVER`/`HUD_VAGUE_COUNTER` gibi §11'e eklenmesi gereken yeni bir aday. |
 
-Adada başka hiçbir pasif iyileşme **yoktur**. Tek çare deniz ve gemi. `[SABİT DEĞİL]`
+Adada başka hiçbir pasif iyileşme **yoktur**. Tek çare deniz ve gemi. `[SABİT DEĞİL]` **Hub'a dönüşte** tek iyileşme kaynağı `MEM_ISLAND_RELIEF_PCT`'tir, yalnızca başarılı tamamlanışta; bkz. yukarı. `[SABİT DEĞİL]`
 
 ### 5.3 Eşikler
 
@@ -225,6 +256,9 @@ Tipik verimli tur — gemiden çıkış, 4 çiçek, dönüş:
 | Karar | Sonuç | Tarih |
 |---|---|---|
 | Zıplama olacak mı | **Hayır.** Kaldırıldı; `JUMP_*` sabiti tanımlanmayacak. Kontroller: WASD + fare + E + Esc. | 14 Ağu 2026 |
+| Çoklu-ada yapısı (roadmap eski K2'nin büyütülmüş hâli, `multi-island-concept.md` M7) | **Seçenek 3.** 3 durak (Lotus + Kiklop + Sirenler), ~~hub yok, tek kesintisiz koşu~~ **(aynı gün tersine çevrildi, aşağıdaki satıra bkz.)**, unutuş taşınıyor (`MEM_ISLAND_RELIEF_PCT`), hedef koşu-toplamında (`RUN_TARGET_TOTAL = 12`, durak başı: Lotus 5 / Kiklop 4 / Sirenler 3 — öneri, kesinleşmedi). | 14 Ağu 2026 |
+| Kiklop Mağarası'nın algılanma (tespit) sistemi — `island-designer`'ın `level-cyclops-cave.md`'de önerdiği | **Onaylandı.** Mevcut unutuş sistemleriyle çelişmiyor (tek besleme noktası, ikinci can barı değil). İstemsiz envanter kaybı (`CAUGHT_ITEM_LOSS`) yeni bir sözleşme ama **yalnızca bu durakla sınırlı** kalması şartıyla kabul edildi. Sabitler §12'de, ayrıntı `gdd-detection-cyclops.md`'de. | 14 Ağu 2026 |
+| Hub'a dönüş (M7'nin "hub yok" alt-maddesinin tersine çevrilmesi) | **Gerçek hub var** — oyuncu 3 durağı serbest sırayla seçer. Unutuş taşınmaya devam ediyor, tetik noktası "hub'a dönüş" (§5.2). `RUN_TARGET_TOTAL` ve durak alt-hedefleri değişmedi (§3.0). Oturum süresi (~20–30 dk) değişmedi, hub gezinme süresi ihmal edilebilir tutulmalı (hub = hafif seçim ekranı, dördüncü oynanabilir alan değil). **Kapanmayan tek soru:** koşu-bazlı kayıp (K27) — hub'sız varsayımla yazıldı, artık flag'li. Ayrıntı: `multi-island-concept.md` §9. | 14 Ağu 2026 (M7 ile aynı gün) |
 
 ---
 
@@ -247,6 +281,11 @@ Bu üç değer **oynanır sürüm elde olmadan değiştirilmeyecek.** Masa baş�
 - **Karar kriteri:** oyuncu ilerlemesini tamamen kaybediyor ve bunu "bug" ya da haksızlık olarak okuyorsa `false` yapılır. Direklerdeki bezleri sayarak kendini toparlıyorsa `true` kalır — tema açısından tercih edilen budur.
 - **Bağlı test:** gemi direklerine bağlanan bez ilerleme göstergesi uzaktan okunabiliyor mu (`level-lotus-island.md` açık soru 2). Bu ikisi **birlikte** test edilmeli.
 
+### 11.4 `MEM_ISLAND_RELIEF_PCT` = 0.4 🔬 (yeni, 14 Ağu 2026; hub bağlamına taşındı aynı gün)
+- **Ölçülecek:** bir durağı bitirip hub'a dönen oyuncunun taşıdığı unutuş değeri, sıradaki durağı ne kadar erken zorlaştırıyor (özellikle kıl payı biten oyuncular ikinci durağı hiç tamamlayamıyorsa).
+- **Karar kriteri:** oyuncular sistematik olarak hub'dan çıkışta "önceki turdan miras kalan" bir unutuşla başlayıp adil bulmuyorsa oran yükseltilir (daha çok bağışlama, `0.4` → `0.6`); tersine, taşıma hiç hissedilmiyorsa (duraklar birbirinden kopuk hissettiriyorsa) düşürülür (`0.4` → `0.2`).
+- **Uyarı:** bu değer henüz bir level-spec üstünde test edilmedi (Kiklop/Sirenler henüz yazılmadı) — ilk ölçüm bu iki durak oynanır hale gelince mümkün. Hub'ın kendisi de henüz uygulanmadı (`gameplay-programmer`'ın işi) — ölçüm hub UI'ı çalışır hale gelince mümkün.
+
 ### Playtest ölçüm listesi (kısa)
 
 | # | Ölçülen | Nasıl | Eşik |
@@ -257,6 +296,36 @@ Bu üç değer **oynanır sürüm elde olmadan değiştirilmeyecek.** Masa baş�
 | 4 | Anlık olgun çiçek sayısı | Otomatik örnekleme | 4'ün altına düzenli iniyorsa → `LOTUS_TOTAL` ↑ |
 | 5 | Tepeye çıkan oyuncu oranı | Otomatik log | %30'un altı → tepe yeniden değerlendirilir |
 | 6 | Kayıp finaline ulaşma oranı | Otomatik log | %0 ise unutuş etkisiz, %80+ ise çok sert |
+| 7 | Durak geçişinde taşınan unutuşun sonraki durağı ne kadar zorlaştırdığı | Otomatik log | Bkz. §11.4 |
+
+---
+
+## 12. Kiklop Mağarası (2. durak) — algılanma (tespit) sistemi (yeni, 14 Ağu 2026)
+
+> **Kaynak:** `island-designer`'ın `docs/design/level-cyclops-cave.md`'de önerdiği sistem, `game-designer` tarafından onaylandı ve karara bağlandı. Ayrıntı/gerekçe/formüller: `docs/design/gdd-detection-cyclops.md`. **Bu sistem yalnızca Kiklop Mağarası'nda geçerli** — Lotus Adası ve Sirenler Geçidi bu sabitleri okumaz.
+> **Ad uyuşmazlığı düzeltmesi:** `level-cyclops-cave.md` bu adanın toplama hedefini `CYCLOPS_ITEM_TARGET` olarak adlandırıyor; §3.0'da zaten tanımlanan `CYCLOPS_ISLAND_TARGET` ile **aynı değeri (4)** taşıyan aynı kavram. Bu dosyada tek isim (`CYCLOPS_ISLAND_TARGET`) kullanılıyor — kod tarafı da bunu tek isimle uygulamalı.
+
+| İsim | Değer | Birim | Gerekçe |
+|---|---|---|---|
+| `DETECT_MAX` | `100.0` | puan | Unutuş ölçeğiyle aynı büyüklük/model — ikinci bir zihinsel sözleşme öğrenilmesin. |
+| `DETECT_RATE_SHADOW_STILL` | `0.0` | puan/s | En güvenli hücre — "dur, gölgede kal" dersinin ödülü tam. |
+| `DETECT_RATE_SHADOW_MOVING` | `3.0` | puan/s | Gölgede hareket etmek sessiz ama sıfır risk değil — gölge dışına taşma ihtimali. |
+| `DETECT_RATE_LIT_STILL` | `4.0` | puan/s | Aydınlıkta durgun kalmak görünürsün ama sessizsin — orta risk. |
+| `DETECT_RATE_LIT_MOVING` | `12.0` | puan/s | **En riskli hücre.** PRESENT evresinde (×3.0 çarpanla, aşağıda) sıfırdan dolmaya ~2.8 s — kasıtlı olarak anlık cezalandırıcı. |
+| `DETECT_DECAY` | `8.0` | puan/s | Güvenli bölgede/evrede toparlanma; "gölge cebinde bekle" stratejisinin hissedilir ödülü. |
+| `CYCLOPS_PHASE_OUT` | `58.0` | s | Polyphemos DIŞARIDA — taban oranlar, çarpan yok. |
+| `CYCLOPS_PHASE_RETURN` | `7.0` | s | DÖNÜŞ telegrafı — `CYCLOPS_RETURN_MULTIPLIER` uygulanır, tepki payı verir (`MEM_GRACE` felsefesiyle aynı). |
+| `CYCLOPS_PHASE_PRESENT` | `30.0` | s | İÇERİDE — `CYCLOPS_PRESENT_MULTIPLIER` uygulanır (yalnızca ağıllar/iç nöy odalarında). |
+| `CYCLOPS_CYCLE` | `95.0` | s | `[TÜRETİLMİŞ]` = OUT + RETURN + PRESENT. Lotus'un 120 s'lik döngüsünden kısa — bu adanın oturum payı da kısa. |
+| `CYCLOPS_RETURN_MULTIPLIER` | `1.5` | çarpan | DÖNÜŞ evresinde tüm `DETECT_RATE_*`'e uygulanır. |
+| `CYCLOPS_PRESENT_MULTIPLIER` | `3.0` | çarpan | PRESENT evresinde, yalnızca ağıllar/iç nöy odalarında `DETECT_RATE_*`'e uygulanır; depo/mağara ağzı bu evrede de çarpansız kalır. |
+| `CAUGHT_ITEM_LOSS` | `true` | bool | Yakalanma anında çantadaki **tüm** azık sıfırlanır — istemsiz envanter kaybı, bu projede bir ilk ve **yalnızca bu durakla sınırlı** (bkz. `gdd-detection-cyclops.md` §1.1). |
+| `CAUGHT_MEM_SPIKE` | `30.0` | puan | Tek unutuş kaynağına tek seferlik ekleme. `MEM_WITHERED_PENALTY` (12) ve `MEM_LOTOPHAGOS_TRADE` (20) ile aynı aile, en büyüğü. |
+| `CAUGHT_RESPAWN_POINT` | `"cave_mouth"` (D≈4) | `[SABİT DEĞİL]` | **Karar (14 Ağu 2026, `game-designer`):** mağara ağzı — koşu-bazlı kayıp finaliyle (gemiye/dışarı ışınlama) karışmasın diye kasıtlı olarak daha yumuşak. Gerekçe: `gdd-detection-cyclops.md` §3.4 madde 4. |
+| `CYCLOPS_ITEM_TOTAL` 🔬 | `7.0` (öneri, aralık 6–8) | adet | 2 depo + 3 ağıllar + 2 iç nöy. Hedefin (`CYCLOPS_ISLAND_TARGET` = 4) 1.75 katı — Lotus'tan (28/12≈2.3×) daha dar tampon çünkü öğe yenilenmiyor. **Playtest'te ölçülecek** — yakalanma sonrası oyuncu hâlâ 4'e ulaşabiliyor mu. |
+| `CYCLOPS_LIGHT_RADIUS` 🔬 | `6.0` (öneri) | m | `SCENT_RADIUS` deseninin yeniden kullanımı — meşale/ocak/mağara ağzı çevresinde "aydınlık" bayrağı üreten sabit yarıçap. Kesin değer mağara geometrisi netleşince (`island-designer`'ın iş) doğrulanmalı. |
+
+**Kayıt dışı bırakılan (bilerek):** `CYCLOPS_CAVE_DEPTH` (65 m), `CYCLOPS_COVE_DEPTH` (15 m), oda-başı öğe sayıları (`CYCLOPS_ITEM_ANTECHAMBER_COUNT`=2, `CYCLOPS_ITEM_PENS_COUNT`=3, `CYCLOPS_ITEM_INNER_COUNT`=2) gibi salt-geometri sabitleri `level-cyclops-cave.md`'de kalıyor — bu dosyanın kapsamı yalnızca **algılanma sisteminin** paylaşılan/motor-genelinde sabitleri. Geometri sabitleri `island-designer`'ın level-spec'i netleştiğinde buraya taşınabilir (Lotus'un `LOTUS_MIN_SPACING` gibi §7'ye benzer bir yerleşim bölümü).
 
 ---
 

@@ -17,13 +17,13 @@ Using Higgsfield, generate this as a video — 9:16 vertical, ~8 seconds, high q
 
 Vertical third-person gameplay capture, over-the-shoulder camera close behind the player character, framed tall so the wide golden-hour sky above and the turquoise shallows below are both visible. Strongest visual hook in the first second.
 
-Player character (fully original design, no resemblance to any existing game or film character): Odysseus — a lean weathered Bronze Age captain, a simple stylized figure with a small head and readable shoulder line, sun-worn off-white linen tunic with a faded ochre band, leather belt and sandals, short dark beard, a plain cloth satchel at his hip. No armour, no weapon.
+Player character (fully original design, no resemblance to any existing game or film character): Doryseus — a lean weathered Bronze Age captain, a simple stylized figure with a small head and readable shoulder line, sun-worn off-white linen tunic with a faded ochre band, leather belt and sandals, short dark beard, a plain cloth satchel at his hip. No armour, no weapon.
 
 Gameplay HUD (vertical-safe, kept away from the top and bottom edges): top-left a satchel icon with four slots, top-right a delivery tally, a slim sun-arc indicator, and a compass arrow toward the ship — the compass fades out as the shot goes on. No health bar, no minimap.
 
 Setting: ankle-deep turquoise shallows with lotus blossoms on broad green lily pads, reed beds, golden sand, and the sun-bleached beached ship ahead.
 
-Motion (8s): open on a lotus snapping fully open right in front of the camera, its white-and-pink petals flaring to the brightest, most saturated color in frame (the hook), then Odysseus wades toward the ship as a milk-white vignette creeps in and drains the color out of everything except the ship itself.
+Motion (8s): open on a lotus snapping fully open right in front of the camera, its white-and-pink petals flaring to the brightest, most saturated color in frame (the hook), then Doryseus wades toward the ship as a milk-white vignette creeps in and drains the color out of everything except the ship itself.
 Camera stays close behind the shoulder, subtle micro-shake on steps.
 
 Look: sun-drenched Aegean island at golden hour — turquoise shallows shading into lapis blue, white foam, golden sand, white-and-pink lotus that looks faintly lit from within, green lily pads, sun-bleached wood. COOL BLUE shadows (never black), turquoise bounce off the water, soft bloom, warm color grade, rising milk-white haze. Original characters and world only — no logos, no brand marks, no real game titles, no on-screen text beyond the game HUD.

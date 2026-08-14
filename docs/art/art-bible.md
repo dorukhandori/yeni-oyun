@@ -1,7 +1,7 @@
 # Art Bible — Lotus Adası
 
 > **Oyun:** Homeros, *Odysseia* Kitap IX — **Lotus Yiyenler (Lotophagoi) Adası**. Olgun lotusları topla, kıyıdaki gemiye teslim et (hedef 12), unutuş dolmadan dön.
-> **Durum:** taslak — **sahip onayı bekliyor** (Intake kapısı, `pipeline.md` §1.1). Onaysız asset üretilmez.
+> **Durum:** **onaylandı — Intake kapısı geçildi (2026-08-14).** Üretim başlayabilir.
 > **Motor:** Vite + TypeScript + Three.js 3D.
 > **Tasarım otoritesi:** oynanış, karakter, HUD ve sistem davranışı `docs/design/` altındaki dokümanlara aittir (`game-concept.md`, `gdd-lotus-collection.md`, `gdd-memory-system.md`, `tuning.md`) — **çelişkide onlar kazanır.** Bu dosya yalnızca görsel dili sabitler. Sayılar `tuning.md`'den alıntıdır.
 > **Pipeline:** `docs/art/pipeline.md` · **Kayıt defteri:** `docs/art/asset-registry.md`
@@ -161,7 +161,7 @@ Katman sırası (post-process, `gdd-memory-system.md` §9'daki sıra):
 - **Gemi:** uzun, düz, insan yapımı; adanın organik formları arasında **tek doğrusal kütle** — bu yüzden uzaktan bulunur.
 - **Tepe/servi:** üçgen ve dikey silüetler, fog içinde katman katman.
 - **Kayalık:** tebeşir beyazı, parlak, keskin kırıklı. Adanın hiçbir yeri koyu değil — tehdit ışığın fazlalığıdır.
-- **Karakter (Odysseus):** basit stylized figür; küçük baş, okunur omuz hattı, kalçada bez çanta. Zırh yok, silah yok — kıyıya çıkmış bir kaptan, savaşta değil. Silüet 128 px'te tanınmalı.
+- **Karakter (Doryseus):** basit stylized figür; küçük baş, okunur omuz hattı, kalçada bez çanta. Zırh yok, silah yok — kıyıya çıkmış bir kaptan, savaşta değil. Silüet 128 px'te tanınmalı.
 - **Lotophagos figürü:** hareketsiz, dikey, uzatılmış tek kol. Düşman silüeti değil — **ikram** silüeti.
 - **Hero vs. destek [P]:** gözü **olgun lotus** ve **gemi** çeker. Kum, kaya ve su doku detayıyla dikkat çekmez.
 
@@ -172,7 +172,7 @@ Katman sırası (post-process, `gdd-memory-system.md` §9'daki sıra):
 - **Mekân:** açık kıyı — sığ turkuaz su, altın kum şeridi, lotus tarlaları, arkada zeytin/servi ve sisli tepeler. Gökyüzü geniş ve görünür.
 - **Katmanlar [P]:** ön plan (kum/su detayı) → oynanış düzlemi (lotus tarlası, gemi) → orta (sazlık, ağaçlar) → uzak (tepe backdrop + fog + gökyüzü). Detay bütçesi oynanış düzlemine harcanır.
 - **Lotus tarlası:** sığ suda kümeler; nilüfer yaprakları basamak, sazlık sınır. Kümeler eşit dağıtılmaz — okunur adacıklar halinde.
-- **Gemi:** kıyıda sabit, sahnenin çapası. Her açıdan bir parçası görünmeli **[P]** — oyuncu kaybolmasın. **[?]** Tek gemi mi kıyıda sıralı 12 gemi mi belirsiz (`asset-registry.md` ASSET-021 notu); şimdilik tek teslim gemisi + arkada filo silüeti varsayıldı.
+- **Gemi:** kıyıda sabit, sahnenin çapası. Her açıdan bir parçası görünmeli **[P]** — oyuncu kaybolmasın. **Kapandı:** tek teslim gemisi + kıyıda 12 gemilik filo silüeti (`asset-registry.md` ASSET-021 notu, `FLEET.count = 12`).
 - **Prop yoğunluğu:** lotus tarlasında yüksek, açık kumda düşük. Boş kum "nefes" alanıdır, doldurulmaz.
 - **İç göl [P]:** merkez-kuzeyde tatlı su. Denizden **görsel olarak ayrışmalı** — köpük yok, caustic zayıf, durgun yeşilimsi (`#5d8f86`). Oyuncu "burası deniz değil"i bakarak sezebilmeli, çünkü göl iyileştirmiyor (`gdd-memory-system.md` §3.3) ve bu kural ona söylenmiyor.
 - **Deniz her karede görünür [P]:** kamera hangi açıda olursa olsun turkuazın bir parçası kadraja girmeli (`game-concept.md` §11). Kaybolmak bilinçli bir hata olmalı.
@@ -250,12 +250,12 @@ Teknik ayrıntı ve isimlendirme `pipeline.md` §6'da. Görsel taraf:
 
 ---
 
-## Onay — Intake kapısı (`pipeline.md` §1.1)
+## Onay — Intake kapısı (`pipeline.md` §1.1) — ✅ kapandı 2026-08-14
 
-- [ ] Palet (§2) onayı — özellikle **olgun pembe `#f78fae`** adanın en doygun rengi olacak
-- [ ] Tebeşir beyazı kayalık + kavruk yeşil eklemesi (§2) — concept §9.3'ten geldi
-- [ ] Unutuş estetiğinin dört katmanı ve sırası (§4)
-- [ ] Ufuk renginin altın → kehribar → gül ilerleyişi (§2) **[?]**
-- [ ] İç gölün denizden görsel olarak ayrışması (§6) **[?]**
-- [ ] Higgsfield still'i oyun içi texture olarak kullanılacak mı (`pipeline.md` §2) **[?]**
-- [ ] Oyunun çalışma adı **Lotophagoi** mı (GDD'den gelecek) **[?]**
+- [x] Palet (§2) onayı — özellikle **olgun pembe `#f78fae`** adanın en doygun rengi olacak
+- [x] Tebeşir beyazı kayalık + kavruk yeşil eklemesi (§2) — concept §9.3'ten geldi
+- [x] Unutuş estetiğinin dört katmanı ve sırası (§4)
+- [x] Ufuk renginin altın → kehribar → gül ilerleyişi (§2)
+- [x] İç gölün denizden görsel olarak ayrışması (§6)
+- [x] Üretilen stiller (Gemini/Higgsfield fark etmez) oyun içi texture olarak da kullanılacak (`pipeline.md` §2) — kod-only değil, `scene-texture` sınıfı P1 kalemleri devrede
+- [x] Oyunun çalışma adı **Lotophagoi** — zaten `AGENTS.md`, `README.md`, `CLAUDE.md` genelinde tutarlı kullanımda

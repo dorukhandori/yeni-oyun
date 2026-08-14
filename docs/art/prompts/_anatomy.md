@@ -42,10 +42,10 @@ Pick the best model for stylized-cartoon next-gen game graphics (bright, glossy 
 
 ### CHARACTER (blok 4)
 
-**Oyuncu Odysseus'tur** (`docs/design/game-concept.md` §4.3). Tayfa değil.
+**Oyuncu Doryseus'tur** (orijinal tasarım — Homeros'un Odysseus'u değil, isim değişikliği sahip kararı 2026-08-14; `docs/design/game-concept.md` §4.3). Tayfa değil.
 
 ```text
-Player character (fully original design, no resemblance to any existing game or film character): Odysseus — a lean weathered Bronze Age captain, a simple stylized figure with a small head and a readable shoulder line, sun-worn off-white linen tunic with a faded ochre band, a leather belt and sandals, short dark beard, a plain cloth satchel at his hip holding white-and-pink lotus blossoms. Calm, deliberate, unhurried movement — a man used to command.
+Player character (fully original design, no resemblance to any existing game or film character): Doryseus — a lean weathered Bronze Age captain, a simple stylized figure with a small head and a readable shoulder line, sun-worn off-white linen tunic with a faded ochre band, a leather belt and sandals, short dark beard, a plain cloth satchel at his hip holding white-and-pink lotus blossoms. Calm, deliberate, unhurried movement — a man used to command.
 ```
 
 ### HUD (blok 5, yalnız gameplay çekimlerinde)

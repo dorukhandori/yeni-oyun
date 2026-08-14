@@ -6,8 +6,8 @@
 
 > **Sınıf:** `spritesheet` · **Çıktı:** video (ara ürün) → spritesheet (final)
 > **Hedef:** klip `art-source/raw/` → kareler `art-source/frames/` → final `public/assets/spritesheets/`
-> **Registry:** ASSET-008 (lotus açma), ASSET-024/025/026 (Odysseus döngüleri)
-> **Girdi:** onaylı `char_odysseus_turnaround_01_ref_2048.png` — bu dosya yoksa üretim başlamaz.
+> **Registry:** ASSET-008 (lotus açma), ASSET-024/025/026 (Doryseus döngüleri)
+> **Girdi:** onaylı turnaround still — bugün için kabul edilmiş `char_odysseus_turnaround_01_ref_1344.png` (ASSET-001, isim değişikliğinden önce üretildi, hâlâ geçerli); yeni bir turnaround üretilirse `char_doryseus_turnaround_01_ref_2048.png` adını alır. Bu dosya yoksa üretim başlamaz.
 > **Tasarım notu:** toplama animasyonu `HARVEST_HOLD` (1,2 s) süresini karşılamalı — oyuncunun tek savunmasız anı (`docs/design/gdd-lotus-collection.md` §2).
 > Ortak bloklar: `_anatomy.md`. Hat adımları: `pipeline.md` §5.
 
@@ -26,14 +26,14 @@
 
 ---
 
-## Prompt A — Tayfa yürüme döngüsü (ASSET-024)
+## Prompt A — Doryseus yürüme döngüsü (ASSET-024)
 
 ```text
 Using Higgsfield, generate this as a video — 1:1, ~3 seconds, high quality, SEAMLESS LOOP where the last frame matches the first. Pick the best model for stylized-cartoon next-gen game graphics (bright, glossy stylized 3D look — soft-shaded, rounded, colorful, NOT photoreal).
 
 Full-body side profile view, locked-off camera, character walking in place at the center of frame. The camera does NOT move, does NOT zoom, and does NOT orbit. The character does not travel across frame — it walks on the spot so the cycle loops cleanly.
 
-Character (fully original design, no resemblance to any existing game or film character): Odysseus — a lean weathered Bronze Age captain, a simple stylized figure with a small head and readable shoulder line, sun-worn off-white linen tunic with a faded ochre band, leather belt and sandals, short dark beard, a plain cloth satchel at his hip. No armour, no weapon. Calm, deliberate walk with a small natural bounce.
+Character (fully original design, no resemblance to any existing game or film character): Doryseus — a lean weathered Bronze Age captain, a simple stylized figure with a small head and readable shoulder line, sun-worn off-white linen tunic with a faded ochre band, leather belt and sandals, short dark beard, a plain cloth satchel at his hip. No armour, no weapon. Calm, deliberate walk with a small natural bounce.
 
 Plain flat neutral background, single flat color, no scenery, no shadow on the ground, no HUD, no text, no watermark. Flat even lighting with no moving highlights.
 
@@ -45,13 +45,13 @@ Look: stylized-cartoon game character, soft-shaded rounded forms, clean flat col
 Aynı iskelet; hareket bloğu değişir:
 
 ```text
-Motion: Odysseus bends down at the waist, closes his hand around a lotus blossom at ground level, holds for a beat, plucks it, and straightens back up to the starting pose — a single complete action that returns exactly to the first frame.
+Motion: Doryseus bends down at the waist, closes his hand around a lotus blossom at ground level, holds for a beat, plucks it, and straightens back up to the starting pose — a single complete action that returns exactly to the first frame.
 ```
 
 ## Prompt C — Teslim hareketi (ASSET-026)
 
 ```text
-Motion: Odysseus lifts the lotus blossoms out of the satchel at his hip, extends both arms forward to set them down at waist height, then lowers his arms back to the starting pose — a single complete action that returns exactly to the first frame.
+Motion: Doryseus lifts the lotus blossoms out of the satchel at his hip, extends both arms forward to set them down at waist height, then lowers his arms back to the starting pose — a single complete action that returns exactly to the first frame.
 ```
 
 ## Prompt D — Lotus açma (ASSET-008)
@@ -84,5 +84,5 @@ Döngü başına 3 üretim. Kriter tek: **başı-sonu birleşen** klip. Birleşm
 - [ ] Quantize sonrası palet `art-bible.md` §2'de
 - [ ] **Elle temizlikten geçti** **[A]**
 - [ ] Spritesheet kare oranı sabit, `NearestFilter` ile bulanıklaşmıyor
-- [ ] Dosya ≤ 500 KB, isim kuralına uygun (`ör. char_odysseus_walk_01_sheet_1024.png`)
+- [ ] Dosya ≤ 500 KB, isim kuralına uygun (`ör. char_doryseus_walk_01_sheet_1024.png`)
 - [ ] `assets.csv` satırı yazıldı: prompt + model + seed **[A]**

@@ -16,14 +16,14 @@ Using Higgsfield, generate this as a video — 16:9, ~12 seconds, high quality. 
 
 Third-person gameplay capture, over-the-shoulder camera trailing the player character. Sun-drenched Aegean island at golden hour. Turquoise shallows, golden sand, white-and-pink lotus blossoms that look faintly lit from within, a sun-bleached wooden ship beached at the shoreline. High sky light plus a warm low sun, cool blue shadows, turquoise bounce light off the water. Soft bloom, warm grade. Inviting and a little unsettling.
 
-Player character (fully original design, no resemblance to any existing game or film character): Odysseus — a lean weathered Bronze Age captain, a simple stylized figure with a small head and readable shoulder line, sun-worn off-white linen tunic with a faded ochre band, leather belt and sandals, short dark beard, a plain cloth satchel at his hip holding white-and-pink lotus blossoms. Calm, deliberate movement. No armour, no weapon.
+Player character (fully original design, no resemblance to any existing game or film character): Doryseus — a lean weathered Bronze Age captain, a simple stylized figure with a small head and readable shoulder line, sun-worn off-white linen tunic with a faded ochre band, leather belt and sandals, short dark beard, a plain cloth satchel at his hip holding white-and-pink lotus blossoms. Calm, deliberate movement. No armour, no weapon.
 
 Detailed gameplay HUD (clean, cartoon-crisp, thin gold line-work on sun-bleached pale wood): top-left a small satchel icon with four slots showing carried blossoms, top-right a delivery tally counting toward twelve, a slim sun-arc indicator tracking the sun's descent, and a compass arrow pointing toward the ship. No health bar, no enemies, no minimap. As the sequence goes on the HUD quietly RETREATS — the compass arrow fades out first, then the rest of the HUD dissolves entirely.
 
 Setting: the shore of the Lotus-Eaters' island — ankle-deep turquoise shallows dotted with lotus blossoms on broad green lily pads, reed beds, golden sand, the beached ship with its sail furled, olive trees and dark cypresses behind, hazy blue-grey hills on the horizon.
 
 Motion (12s — straight into gameplay from frame one):
-0–3s — Odysseus wades through ankle-deep turquoise shallows, foam breaking around his legs, and picks a fully open white-and-pink lotus (he pauses, bends, plucks it); the delivery tally sits low.
+0–3s — Doryseus wades through ankle-deep turquoise shallows, foam breaking around his legs, and picks a fully open white-and-pink lotus (he pauses, bends, plucks it); the delivery tally sits low.
 3–7s — he moves between lily pads gathering more blossoms; a soft milk-white vignette creeps in from the edges, saturation drains toward pale, the distant haze crawls closer, and the compass arrow in the HUD fades away.
 7–12s — almost everything has dissolved into warm white haze and the HUD is gone; only the sun-bleached ship stays cool and readable ahead of him. He reaches it and sets the blossoms into the hold — the haze pulls back fast, saturation floods in, the HUD returns, and the island reads sharply again.
 Camera stays behind the shoulder throughout, snappy game-feel, subtle squash-and-stretch and micro-shake on the pick and deliver beats.

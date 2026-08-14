@@ -1,17 +1,26 @@
 ---
-description: yeni-oyun (Glowsprig) + CCGS studio identity
+description: yeni-oyun (Lotophagoi / Lotus Adası) + CCGS studio identity
 alwaysApply: true
 ---
 
-# yeni-oyun — Glowsprig
+# yeni-oyun — Lotophagoi (Lotus Adası)
 
 Sahiple Türkçe. Kod/commit İngilizce.
 
-Oyun: tarayıcıda oynanan Glowsprig tarzı **3D** kristal-mağara çiftlik prototipi (third-person, omuz-arkası kamera).
-Stack: **Vite + TypeScript + Three.js (r160)** (Phaser yok, Unity yok). Render `EffectComposer` + `UnrealBloomPass`; sabit 60 Hz timestep (`STEP = 1000/60`). HUD DOM overlay. Juice (camera shake, squash-stretch, spark burst).
+Oyun: tarayıcıda oynanan **Odysseia** uyarlaması. Third-person, omuz-arkası kamera, WASD + fare. Oyuncu karakteri **Doryseus** (Homeros'un Odysseus'u değil, orijinal tasarım); tayfası "unutulmuş tayfa". Doryseus adada olgunlaşmış lotusları toplar, kıyıdaki gemisine teslim eder; hedef **12 olgun lotus**, güneş batmadan (`DAY.length`, bkz. `src/constants.ts`). Çekirdek mekanik **unutuş (memory)**: lotus toplamak / lagünde kalmak `memory`'i yükseltir, gemiye ya da deniz kıyısına yakınlık düşürür; 1.0'da birkaç saniye kilitli kalırsan "yurdunu unuttun" ile kayıp sayılır ve gemiye geri taşınırsın.
 
-Görsel referans pazarlıksız: karanlık mağara, tavandan sarkan emissive mor kristaller, karakterin elindeki turuncu fener (tek sıcak point light), tahta iskele yolu, turkuaz su, bloom + vignette, sol üst 4 kalp + sağ üst altın madalyon.
+Lotus Yiyenler Adası artık tek başına bir oyun değil — 3 duraklu bir Odysseia antolojisinin ilk/çapa durağı (Kiklop Mağarası, sonra Sirenler Geçidi izliyor), **gerçek bir hub'dan (ada seçim ekranı) seçiliyor** — önceki hub'sız karar 2026-08-14'te tersine çevrildi. Unutuşun duraklar arası nasıl taşınacağı ve hub'ın tam davranışı yeniden tasarlanıyor; bkz. `docs/design/multi-island-concept.md` ve `docs/design/level-cyclops-cave.md`. **Henüz kodlanmadı** — bugünkü build tek adayı `test`/`real` world-profile anahtarıyla oynatıyor (`?profile=real` = tuning.md ölçeği, barsız, sert kayıp; varsayılan `?profile=test` = küçük/hızlı dev sandbox, bar açık, yumuşak respawn). Koşu/hub yapısının kendisi henüz tasarım aşamasında.
 
-Kaynak stüdyo kit: Desktop `game-project` (CCGS). Canopy’ye özel kurallar `.cursor/rules/reference-canopy/` altında arşiv; bu ürüne uygulanmaz.
+Stack: **Vite + TypeScript + Three.js (r160)** (Phaser yok, Unity yok). Render `EffectComposer` + `UnrealBloomPass`; sabit 60 Hz timestep (`STEP = 1000/60`). HUD DOM overlay. Juice (camera shake, squash-stretch, spark burst, dust).
 
-Bir seans = bir oynanır dilim. Skill adı söyle veya ajan çağır (`help`, `producer`, `game-designer`, `prototyper`, …). Commit ancak sahip derse.
+Görsel referans: Ege altın saat paleti — altın kum, turkuaz sığ su / lacivert derin su, sisli uzak tepeler, olgunlaştıkça açık pembeye dönen lotus çiçekleri. Unutuş arttıkça doygunluk düşer, süt beyazı vinyet ve sis mesafesi kısalır — ekran **karartılmaz**, bilgi azalır. Detay: `docs/art/art-bible.md`.
+
+Tasarım otoritesi: `docs/design/` (`game-concept.md`, `gdd-lotus-collection.md`, `gdd-memory-system.md`, `tuning.md`) — oynanış, sayılar, HUD çelişkide kazanır; `docs/art/` yalnızca görsel dili sabitler.
+
+`variants/cave-farm/` ayrı, eski bir prototip (Glowsprig — kristal mağara çiftlik konsepti) — ana oyuna dokunmaz, arşiv olarak duruyor. Bu proje **Lotophagoi**'dir, Glowsprig değil.
+
+Kaynak stüdyo kit: Desktop `game-project` (CCGS) — `.cursor/` içindeki ajan/skill/rule/hook seti oradan kopyalandı; eşlik eden `.claude/hooks/`, `production/`, `design/gdd/` iskeleti bu depoya taşınmadı, bu yüzden bazı skiller (`help`, `start`) ve hook'lar (session-start, validate-commit/push) bu projede eksik bağlamla çalışır. Claude Code tarafı için ayrı, bu depoya özel bir kurulum var: kök `CLAUDE.md` + `.claude/agents/`.
+
+Canopy'ye özel kurallar `.cursor/rules/reference-canopy/` altında arşiv; bu ürüne uygulanmaz.
+
+Bir seans = bir oynanır dilim. Cursor'da skill adı söyle veya ajan çağır (`help`, `producer`, `game-designer`, `prototyper`, …). Claude Code'da `.claude/agents/` altındaki isimle çağır. Commit ancak sahip derse.

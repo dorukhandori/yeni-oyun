@@ -1,6 +1,6 @@
 # Asset & medya pipeline — Lotus Adası
 
-> **Oyun:** Homeros, *Odysseia* Kitap IX — **Lotus Yiyenler (Lotophagoi) Adası**. Oyuncu (Odysseus) adada olgunlaşmış lotusları toplar, kıyıdaki gemisine teslim eder; hedef 12. Lotus yurdu unutturur; **unutuş mekaniği oyunun kalbidir.**
+> **Oyun:** Homeros, *Odysseia* Kitap IX — **Lotus Yiyenler (Lotophagoi) Adası**. Oyuncu (Doryseus — orijinal tasarım, Homeros'un Odysseus'u değil; isim değişikliği sahip kararı 2026-08-14) adada olgunlaşmış lotusları toplar, kıyıdaki gemisine teslim eder; hedef 12. Lotus yurdu unutturur; **unutuş mekaniği oyunun kalbidir.**
 > **Motor:** Vite + TypeScript + **Three.js 3D**.
 > **Tasarım otoritesi:** `docs/design/` (`game-concept.md`, `gdd-lotus-collection.md`, `gdd-memory-system.md`, `tuning.md`). Oynanış, karakter, HUD ve sayılar oradan gelir — **çelişkide onlar kazanır**, `docs/art/` yalnızca görsel dili sabitler. Bu hat o dokümanlara yazmaz.
 > **Kaynak sistem:** ZEUS⚡️ (@zeuuss_01), *"How to Run a Game Studio Solo with Claude Code + Higgsfield MCP"*, 5 Ağustos 2026 — <https://x.com/zeuuss_01/article/2085112087605342552> (tam metin okundu ve doğrulandı).
@@ -84,6 +84,8 @@ Arada kalan her şey (design, media, build) modellerin işidir. **[K]** *"You we
 
 **Durum: Higgsfield BAĞLI DEĞİL.** Erişim gelene kadar üretim çağrısı yapılmaz, görsel indirilmez.
 
+**[P] Paralel yol — Gemini API doğrudan bağlantısı (2026-08-14 kuruldu).** Higgsfield'ın görsel modellerinden biri (**Nano Banana Pro**) zaten Google Gemini'nin native görsel üretimi; sahibin `game-project` deposunda çalışan bir Gemini API key'i mevcut. `scripts/gen-assets.mjs` bu key'i kullanarak (öncelik sırası: yerel `.env.local` → `../game-project/.env.local` fallback) doğrudan görsel üretir; video (Veo) tarafı henüz doğrulanmamış, ilk gerçek çalıştırmada düzeltme gerekebilir. Bu yol Higgsfield'ın 43 modelli çeşitliliğini, karakter tutarlılığı (Soul 2.0) hattını ve tek-URL MCP kolaylığını vermez — yalnızca stills (ve deneysel olarak video) için bir kısayol. **Key hiçbir zaman sohbete yapıştırılmaz veya bir agent'a elle verilmez** — script kendi ortamından okur, çalıştırma sahibe aittir.
+
 **[K]** Bağlantı bir kez kurulur: ajan ayarlarında **custom connector** + tek URL, **OAuth** ile giriş, **API key yönetimi yok**.
 
 ```yaml
@@ -148,7 +150,7 @@ Higgsfield mesh vermediği için hareketli yaratık/karakter şöyle çıkarıl�
 
 **Three.js tarafı [P]:** spritesheet `Sprite` + `SpriteMaterial` ile ya da `PlaneGeometry` üzerinde UV kaydırmayla oynatılır; kare oranı sabit tutulur, `magFilter = NearestFilter` (quantize edilmiş görüntü bulanıklaşmasın).
 
-**Bu oyunda yöntemi hak eden kalemler:** Odysseus yürüme/toplama/teslim döngüsü, lotusun açma anı (yarı açık → olgun geçişi, `gdd-lotus-collection.md` §3.2 "kısa bir açılma animasyonu"), dalga köpüğü döngüsü. Statik olan hiçbir şey bu hattan geçmez — pahalıdır.
+**Bu oyunda yöntemi hak eden kalemler:** Doryseus yürüme/toplama/teslim döngüsü, lotusun açma anı (yarı açık → olgun geçişi, `gdd-lotus-collection.md` §3.2 "kısa bir açılma animasyonu"), dalga köpüğü döngüsü. Statik olan hiçbir şey bu hattan geçmez — pahalıdır.
 
 ---
 
@@ -208,8 +210,8 @@ hill_backdrop_01_albedo_2048.png       # uzak sisli tepeler
 sky_goldenhour_01_albedo_2048.png      # altın saat gökyüzü
 ui_satchel_01_albedo_256.png           # çanta ikonu (HUD_CARRY, 4 yuva)
 ui_compass_01_albedo_128.png           # pusula oku — eşik 50'de solar
-char_odysseus_walk_01_sheet_1024.png   # Odysseus yürüme spritesheet'i
-char_odysseus_turnaround_01_ref_2048.png  # sadece referans — oyuna girmez
+char_doryseus_walk_01_sheet_1024.png   # Doryseus yürüme spritesheet'i (isim kuralı 2026-08-14'ten sonra üretilen dosyalar için)
+char_odysseus_turnaround_01_ref_2048.png  # sadece referans — oyuna girmez. NOT: ASSET-001 zaten "odysseus" adıyla üretildi ve kabul edildi (isim değişikliğinden önce); dosya yeniden üretilmedi, sadece etiket metni güncellendi (asset-registry.md ASSET-001 notu)
 ```
 
 `_ref_` kanallı dosya **oyuna girmez**, yalnızca stil hedefidir.
@@ -296,5 +298,5 @@ Hiçbir çıktı bunların hepsini geçmeden `public/assets/` altına girmez:
 
 1. **KAPI 1 — Intake:** art bible §2 paletini ve §4 unutuş estetiğini onayla; sondaki onay listesindeki **[?]** maddeleri kapat. `docs/design/` dokümanları da onay bekliyor.
 2. Higgsfield MCP'yi bağla (§3).
-3. `asset-registry.md` **P0** satırlarını üret: Odysseus turnaround → lotus 4 aşama sayfası → ada key art.
+3. `asset-registry.md` **P0** satırlarını üret: Doryseus turnaround → lotus 4 aşama sayfası → ada key art.
 4. Her çıktıyı §8 kapısından geçir, `assets.csv` satırını yaz, registry durumunu güncelle.

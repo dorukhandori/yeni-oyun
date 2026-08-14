@@ -4,7 +4,7 @@ Sahiple Türkçe. Kod/commit İngilizce. Stüdyo işletim sistemi: **Claude Code
 
 ## Oyun
 
-**Lotophagoi** (Lotus Adası) — Vite + TypeScript + **Three.js (r160)** 3D prototipi. Odysseus’un filosu Lotus Adası’nda: güneş batmadan 12 olgun lotus teslim et; her çiçek unutuşu büyütür.
+**Lotophagoi** (Lotus Adası) — Vite + TypeScript + **Three.js (r160)** 3D prototipi. Doryseus’un filosu Lotus Adası’nda: güneş batmadan 12 olgun lotus teslim et; her çiçek unutuşu büyütür.
 
 - Çalıştır: `npm run dev` → http://localhost:5173/
 - Build: `npm run build`

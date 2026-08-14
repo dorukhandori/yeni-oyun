@@ -2,10 +2,11 @@
 
 > **Durum:** taslak — sahip onayı bekliyor
 > **Tarih:** 2026-08-14
-> **Sayılar:** `docs/design/tuning.md` §2, §7
-> **Bağlı doküman:** `gdd-lotus-collection.md` · `gdd-memory-system.md` · `scenario.md`
+> **Sayılar:** `docs/design/tuning.md` §2, §3.0, §7
+> **Bağlı doküman:** `gdd-lotus-collection.md` · `gdd-memory-system.md` · `scenario.md` · `multi-island-concept.md`
+> **Çoklu-ada notu (14 Ağu 2026, sahip onayı, `multi-island-concept.md` M7 + K27–K29):** bu ada artık tek harita değil, **3 duraklı bir koşunun 1. durağı/çapası** — Kiklop Mağarası (2.) ve Sirenler Geçidi (3.) izliyor, hub yok, tek kesintisiz koşu. Bu adanın kendi hedefi (`LOTUS_TARGET`) 12'den **5**'e indi (kesin sayı henüz netleşmedi — bkz. `tuning.md` §3.0); toplam koşu hedefi (`RUN_TARGET_TOTAL = 12`) diğer iki durakla paylaşılıyor. **Bu doküman aşağıda yeniden tasarlanmadı** — kroki, bölge dağılımı (28 çiçek, 12/10/6), denge hesabı hâlâ eski 12-hedefli tasarımı yansıtıyor. Yeni hedefe göre yeniden dengeleme `island-designer` agent'ının ve Faz 2.6'nın işi.
 
-Tek harita. Tek gün. Yükleme ekranı, geçit, kilitli kapı, ikinci alan yoktur.
+Tek harita değil — 3 duraklı bir koşunun ilk durağı. Yükleme ekranı, geçit, kilitli kapı yoktur; bir sonraki durağa (Kiklop Mağarası) geçiş kesintisizdir.
 
 ---
 
@@ -70,7 +71,7 @@ Koordinat sistemi: **+X doğu, +Z kuzey**, orijin adanın merkezi. Deniz seviyes
 ### 3.1 Kıyı ve gemiler — **güven**
 **Konum:** güney, z = −70 … −50 · **Çiçek: 0**
 
-On iki gemi kumun içine gömülü, yan yana, pruvaları denize dönük. Ortadaki Odysseus'un gemisidir; iskelesi indirilmiş ve teslim noktası orasıdır (`DELIVER_RANGE` 4 m). Her teslimde bir ambar dolar ve o geminin direğine küçük bir bez bağlanır — **oyuncu ilerlemesini HUD'suz, gemilere bakarak sayabilir.** Unutuş eşik 2'de sayaç muğlaklaşınca kalan tek kesin bilgi budur.
+On iki gemi kumun içine gömülü, yan yana, pruvaları denize dönük. Ortadaki Doryseus'un gemisidir; iskelesi indirilmiş ve teslim noktası orasıdır (`DELIVER_RANGE` 4 m). Her teslimde bir ambar dolar ve o geminin direğine küçük bir bez bağlanır — **oyuncu ilerlemesini HUD'suz, gemilere bakarak sayabilir.** Unutuş eşik 2'de sayaç muğlaklaşınca kalan tek kesin bilgi budur.
 
 `SHORE_WET_BAND` (3 m) ıslak kum şeridi tüm ada çevresini sarar ve `MEM_SEA_RECOVER` burada çalışır. Yani **kıyının her noktası** iyileştirir, sadece gemi değil. Oyuncu bunu adanın batı veya doğu kıyısına düştüğünde keşfeder ve o an sütun P4'ü öğrenir.
 
