@@ -5,5 +5,4 @@ asset_id,file,category,class,prompt_file,model,seed,aspect,resolution,date,statu
 # model = uretimi yapan model (ajan sectigi icin sonradan yazilir, bos birakilamaz)
 # seed  = varsa deger, yoksa "none" (tahmin edilmez)
 # status = generated | accepted | integrated
-# Ornek satir (uretim baslayinca bu yorum silinir):
-# ASSET-006,textures/lotus_bloom_03_albedo_512.png,lotus,scene-texture,prompts/style-reference-still.md,MODEL_ADI,none,1:1,512,2026-08-14,generated,olgun lotus - altin gobek gorunur
+ASSET-001,preview/selected/char_odysseus_turnaround_01_ref_2048.png,char,reference,prompts/character-turnaround.md,gemini-2.5-flash-image,none,16:9,2048,2026-08-14,accepted,sahip selected raw variant 04; canonical lock name 01

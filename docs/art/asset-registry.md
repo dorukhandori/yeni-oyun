@@ -1,6 +1,6 @@
 # Asset kayıt defteri — Lotus Adası
 
-> **Son güncelleme:** 2026-08-14 · **Durum:** hiçbir asset üretilmedi (Higgsfield bağlı değil)
+> **Son güncelleme:** 2026-08-14 · **Durum:** Gemini medya motoru aktif · **ASSET-001 kilitlendi** (sahip: ham varyant **04** → `char_odysseus_turnaround_01_ref_2048.png`)
 > **Oyun:** Odysseia IX — Lotus Yiyenler Adası · **Motor:** Three.js 3D
 > **Tasarım otoritesi:** `docs/design/` (`game-concept.md`, `gdd-lotus-collection.md`, `gdd-memory-system.md`, `tuning.md`). Bu liste onlarla eşitlendi 2026-08-14; `level-lotus-island.md` gelince tarla/bölge kalemleri gözden geçirilecek.
 > **Pipeline:** `docs/art/pipeline.md` · **Görsel dil:** `docs/art/art-bible.md` · **Shipping manifest:** `public/assets/assets.csv`
@@ -35,7 +35,7 @@ CCGS `asset-spec` karşılıkları: `planned`=Needed · `generated`=In Progress 
 
 | Toplam | planned | generated | accepted | integrated |
 |---|---|---|---|---|
-| 34 | 34 | 0 | 0 | 0 |
+| 34 | 33 | 0 | 1 | 0 |
 
 ---
 
@@ -43,7 +43,7 @@ CCGS `asset-spec` karşılıkları: `planned`=Needed · `generated`=In Progress 
 
 | ID | Ad | Sınıf | Tip | Şablon | Durum | Not |
 |---|---|---|---|---|---|---|
-| ASSET-001 | **Odysseus** turnaround | `reference` **[K]** | still, 4 açı | `prompts/character-turnaround.md` | planned | Her şeyin çapası; **[K]** character training bunun üstüne kurulur, animasyon hattı (`pipeline.md` §5) bunu girdi alır. Zırh/silah yok (`game-concept.md` §4.3) |
+| ASSET-001 | **Odysseus** turnaround | `reference` **[K]** | still, 4 açı | `prompts/character-turnaround.md` (Gemini §) | **accepted** | Sahip **varyant 04** seçti (2026-08-14). Kilit: `art-source/ref/char_odysseus_turnaround_01_ref_2048.png` · git yedeği: `public/preview/selected/`. Model: `gemini-2.5-flash-image`. Sırada ASSET-002. |
 | ASSET-002 | Lotus 4 olgunluk aşaması sayfası | `reference` **[K]** → `scene-texture` **[?]** | still, yan yana 4 | `prompts/concept-sheet.md` | planned | Oyunun çekirdek okuma problemi. Evre adları ve görünüşleri `gdd-lotus-collection.md` §3.2'den: tomurcuk / yarı açık / olgun / solmuş (kahverengi) |
 | ASSET-003 | Ada key art — kıyı + gemi | `media` **[K]** | still 16:9 | `prompts/key-art.md` | planned | Palet doğrulaması: art bible §2 hex'leri tutuyor mu |
 
