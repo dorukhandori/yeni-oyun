@@ -31,36 +31,22 @@ import { buildSteppingStones } from "./world/steppingStones";
 import { buildHillPuzzle, updateHillPuzzleVisuals } from "./world/hillPuzzle";
 import { buildTerrain, heightAt, inLagoon, islandRadiusAt, wadeLimitAt } from "./world/terrain";
 import { glowSprite } from "./world/sprite";
-import { loadHorizontalSheet } from "./assets/sheetTexture";
-import { REF_ASSETS } from "./assets/paths";
-
 /** Surface the sailor and camera stand on: land, or wading depth in water. */
 function standY(x: number, z: number): number {
   return Math.max(heightAt(x, z), PLAYER.wadeFloor);
 }
 
-export async function startGame(canvas: HTMLCanvasElement, session?: SessionChoice): Promise<void> {
-  let lotusStages: THREE.Texture[] | null = null;
-  let odysseusViews: THREE.Texture[] | null = null;
-  try {
-    [lotusStages, odysseusViews] = await Promise.all([
-      loadHorizontalSheet(REF_ASSETS.lotusStages, 4),
-      loadHorizontalSheet(REF_ASSETS.odysseusTurnaround, 4),
-    ]);
-  } catch (err) {
-    console.warn("Reference assets failed to load; procedural fallback.", err);
-  }
-
+export function startGame(canvas: HTMLCanvasElement, session?: SessionChoice): void {
   const stage = createStage(canvas);
 
   const terrain = buildTerrain();
   const sea = buildSea();
-  const field = buildLotusField(lotusStages);
+  const field = buildLotusField();
   const stones = buildSteppingStones();
   const hill = buildHillPuzzle();
   const ship = buildShip();
   const lotophagoi = buildLotophagoi();
-  const sailor = buildSailor(odysseusViews);
+  const sailor = buildSailor();
   const bursts = new Bursts();
   const audio = new GameAudio();
 
@@ -561,14 +547,7 @@ export async function startGame(canvas: HTMLCanvasElement, session?: SessionChoi
     if (st.phase === "departing" || st.phase === "won") {
       focus.set(ship.anchor.x, ship.anchor.y + 2, ship.anchor.z);
     }
-    sailor.update(
-      time,
-      dt,
-      Math.min(1, speed / PLAYER.speed),
-      stage.camera.position,
-      vel.x,
-      vel.z,
-    );
+    sailor.update(time, dt, Math.min(1, speed / PLAYER.speed), vel.x, vel.z);
     rig.update(focus, dt);
     sea.update(time);
     field.update(dt, time);

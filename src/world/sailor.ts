@@ -4,26 +4,17 @@ import { springStep } from "../systems/spring";
 
 export interface Sailor {
   root: THREE.Group;
-  update(
-    t: number,
-    dt: number,
-    moving: number,
-    camera?: THREE.Vector3,
-    velX?: number,
-    velZ?: number,
-  ): void;
+  update(t: number, dt: number, moving: number, velX?: number, velZ?: number): void;
   setCarried(n: number): void;
   pulse(strength: number): void;
   land(strength: number): void;
 }
 
-/** ASSET-001 turnaround v04 — sheet billboard + hip satchel; procedural fallback if no textures. */
-export function buildSailor(views?: THREE.Texture[] | null): Sailor {
+/** ASSET-001 turnaround v04 — ashore Odysseus: linen tunic, ochre bands, hip satchel, no cloak/armour. */
+export function buildSailor(): Sailor {
   const root = new THREE.Group();
   const body = new THREE.Group();
   root.add(body);
-
-  const useSheet = !!(views && views.length >= 4);
 
   const skin = new THREE.MeshStandardMaterial({
     color: 0xd8a074,
@@ -139,25 +130,6 @@ export function buildSailor(views?: THREE.Texture[] | null): Sailor {
   strapMesh.rotation.z = 0.2;
   satchel.add(strapMesh);
 
-  let billboard: THREE.Sprite | null = null;
-  if (useSheet) {
-    for (const m of [tunicSkirt, torso, head, cap, beard, belt, ...arms]) m.visible = false;
-    for (const c of body.children) {
-      if (c instanceof THREE.Mesh && c.material === ochre) c.visible = false;
-    }
-    const sm = new THREE.SpriteMaterial({
-      map: views![1],
-      transparent: true,
-      alphaTest: 0.06,
-      depthWrite: true,
-    });
-    billboard = new THREE.Sprite(sm);
-    billboard.center.set(0.5, 0.06);
-    billboard.scale.set(2.15, 2.15, 1);
-    billboard.position.y = 1.02;
-    body.add(billboard);
-  }
-
   const bloomMat = new THREE.MeshStandardMaterial({
     color: PALETTE.petalRipe,
     emissive: new THREE.Color(PALETTE.petalRipeTint),
@@ -185,23 +157,6 @@ export function buildSailor(views?: THREE.Texture[] | null): Sailor {
   let stretch = 0;
   let landSquash = 0;
   const satchelSwing = { value: 0, velocity: 0 };
-  const camScratch = new THREE.Vector3();
-
-  function pickView(facingY: number, camera: THREE.Vector3): number {
-    root.getWorldPosition(camScratch);
-    const toCamX = camera.x - camScratch.x;
-    const toCamZ = camera.z - camScratch.z;
-    const len = Math.hypot(toCamX, toCamZ) || 1;
-    const tx = toCamX / len;
-    const tz = toCamZ / len;
-    const fx = Math.sin(facingY);
-    const fz = Math.cos(facingY);
-    const dot = fx * tx + fz * tz;
-    const cross = fx * tz - fz * tx;
-    if (dot > 0.55) return 0;
-    if (dot < -0.55) return 3;
-    return cross >= 0 ? 1 : 2;
-  }
 
   return {
     root,
@@ -215,7 +170,7 @@ export function buildSailor(views?: THREE.Texture[] | null): Sailor {
     land(strength: number) {
       landSquash = Math.max(landSquash, strength);
     },
-    update(t, dt, moving, camera, velX = 0, velZ = 0) {
+    update(t, dt, moving, velX = 0, velZ = 0) {
       phase += dt * (4.4 + moving * 6.2);
       squash *= Math.exp(-10 * dt);
       stretch *= Math.exp(-8 * dt);
@@ -236,19 +191,8 @@ export function buildSailor(views?: THREE.Texture[] | null): Sailor {
       legs[0].position.y = 0.44 + Math.max(0, Math.sin(phase)) * 0.08 * moving;
       legs[1].position.y = 0.44 + Math.max(0, -Math.sin(phase)) * 0.08 * moving;
 
-      if (!useSheet) {
-        arms[0].rotation.x = 0.15 + Math.sin(phase) * 0.12 * moving;
-        arms[1].rotation.x = 0.15 - Math.sin(phase) * 0.12 * moving;
-      }
-
-      if (billboard && views && camera) {
-        const idx = pickView(root.rotation.y, camera);
-        const mat = billboard.material as THREE.SpriteMaterial;
-        if (mat.map !== views[idx]) {
-          mat.map = views[idx];
-          mat.needsUpdate = true;
-        }
-      }
+      arms[0].rotation.x = 0.15 + Math.sin(phase) * 0.12 * moving;
+      arms[1].rotation.x = 0.15 - Math.sin(phase) * 0.12 * moving;
 
       const swingTarget = -velX * 0.055 + velZ * 0.028 + moving * Math.sin(phase) * 0.04;
       springStep(

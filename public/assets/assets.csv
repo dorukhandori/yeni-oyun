@@ -5,5 +5,5 @@ asset_id,file,category,class,prompt_file,model,seed,aspect,resolution,date,statu
 # model = uretimi yapan model (ajan sectigi icin sonradan yazilir, bos birakilamaz)
 # seed  = varsa deger, yoksa "none" (tahmin edilmez)
 # status = generated | accepted | integrated
-ASSET-001,assets/ref/char_odysseus_turnaround_01_ref_2048.png,char,reference,prompts/character-turnaround.md,gemini-2.5-flash-image,none,16:9,2048,2026-08-14,accepted,sahip selected raw variant 04; integrated as sheet billboard
-ASSET-002,assets/ref/lotus_stages_01_ref_2048.png,lotus,reference,prompts/concept-sheet.md,gemini-2.5-flash-image,none,16:9,2048,2026-08-14,accepted,sahip selected raw variant 02; integrated as stage sprites
+ASSET-001,assets/ref/char_odysseus_turnaround_01_ref_2048.png,char,reference,prompts/character-turnaround.md,gemini-2.5-flash-image,none,16:9,2048,2026-08-14,accepted,sahip selected raw variant 04; ref only — not runtime sprite (pipeline §6)
+ASSET-002,assets/ref/lotus_stages_01_ref_2048.png,lotus,reference,prompts/concept-sheet.md,gemini-2.5-flash-image,none,16:9,2048,2026-08-14,accepted,sahip selected raw variant 02; ref only — not runtime sprite (pipeline §6)
