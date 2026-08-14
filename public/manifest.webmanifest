@@ -1,0 +1,11 @@
+{
+  "name": "Lotophagoi",
+  "short_name": "Lotophagoi",
+  "description": "Lotus Adası — Odysseia IX",
+  "start_url": "./",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#bfe3ef",
+  "theme_color": "#c99a3c",
+  "lang": "tr"
+}

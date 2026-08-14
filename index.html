@@ -6,11 +6,19 @@
       name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
     />
+    <meta name="theme-color" content="#c99a3c" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="manifest" href="/manifest.webmanifest" />
     <title>Lotus Adası — Odysseia IX</title>
     <link rel="stylesheet" href="/src/ui/hud.css" />
+    <link rel="stylesheet" href="/src/ui/shell.css" />
   </head>
   <body>
-    <div id="app">
+    <div id="shell" aria-label="Ana menü"></div>
+
+    <div id="app" class="hidden">
       <canvas id="game"></canvas>
 
       <div id="hud">

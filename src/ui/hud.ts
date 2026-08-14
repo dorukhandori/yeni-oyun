@@ -1,5 +1,6 @@
 import { DAY, LOTUS, MEMORY } from "../constants";
 import type { GameState } from "../types";
+import type { UserProfile } from "./profile";
 
 const NOTES: Array<[number, string]> = [
   [0.2, "Aklın yerinde"],
@@ -34,7 +35,11 @@ export class Hud {
   private onRestart: (() => void) | null = null;
   private warnedDusk = false;
 
-  constructor(touch = false) {
+  constructor(touch = false, profile?: UserProfile) {
+    if (profile) {
+      const label = `${profile.title} ${profile.name}`;
+      this.quest.querySelector(".quest-title")!.textContent = label;
+    }
     this.target.textContent = String(LOTUS.target);
     this.cap.textContent = String(LOTUS.carryCap);
     if (touch) {

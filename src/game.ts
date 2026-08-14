@@ -21,6 +21,7 @@ import { Bursts } from "./systems/burst";
 import { Input } from "./systems/input";
 import type { GameState } from "./types";
 import { Hud } from "./ui/hud";
+import type { SessionChoice } from "./ui/profile";
 import { buildLotophagoi } from "./world/lotophagos";
 import { buildLotusField, type LotusGateState } from "./world/lotus";
 import { buildSailor } from "./world/sailor";
@@ -36,7 +37,7 @@ function standY(x: number, z: number): number {
   return Math.max(heightAt(x, z), PLAYER.wadeFloor);
 }
 
-export function startGame(canvas: HTMLCanvasElement): void {
+export function startGame(canvas: HTMLCanvasElement, session?: SessionChoice): void {
   const stage = createStage(canvas);
 
   const terrain = buildTerrain();
@@ -108,7 +109,7 @@ export function startGame(canvas: HTMLCanvasElement): void {
 
   const input = new Input();
   input.attach(canvas);
-  const hud = new Hud(input.touchActive);
+  const hud = new Hud(input.touchActive, session?.profile);
 
   const unlockAudio = () => audio.unlock();
   window.addEventListener("pointerdown", unlockAudio, { once: true });
