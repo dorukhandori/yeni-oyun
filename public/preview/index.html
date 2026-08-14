@@ -148,6 +148,33 @@
         background: var(--panel);
         cursor: pointer;
       }
+      .nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        justify-content: center;
+        margin-bottom: 1rem;
+      }
+      .nav a {
+        color: #e8dcc8;
+        text-decoration: none;
+        font-size: 0.88rem;
+        padding: 0.35rem 0.75rem;
+        border: 1px solid rgba(232, 220, 200, 0.35);
+        border-radius: 999px;
+      }
+      .nav a:hover {
+        border-color: var(--gold);
+        color: var(--gold);
+      }
+      .section-title {
+        font-family: "Cormorant Garamond", Georgia, serif;
+        font-size: 1.5rem;
+        color: #e8dcc8;
+        margin: 2rem 0 0.75rem;
+        padding-top: 0.5rem;
+        border-top: 1px solid rgba(232, 220, 200, 0.2);
+      }
       footer {
         text-align: center;
         color: rgba(232, 220, 200, 0.65);
@@ -158,17 +185,22 @@
   <body>
     <div class="wrap">
       <header>
-        <h1>Asset önizleme — ASSET-001</h1>
+        <h1>Asset önizleme</h1>
         <p>
-          Odysseus turnaround · Gemini <code>gemini-2.5-flash-image</code> ·
+          Gemini <code>gemini-2.5-flash-image</code> ·
           <a href="../">← Oyuna dön</a>
         </p>
+        <nav class="nav" aria-label="Bölümler">
+          <a href="#turnaround">ASSET-001 Odysseus</a>
+          <a href="#lotus">ASSET-002 Lotus</a>
+        </nav>
       </header>
 
       <p class="notice">
-        Ham üretim galerisi — <strong>henüz onaylı değil</strong>, oyuna girmez.
-        Varyant seçimi için sahip’e hangi numarayı (01–04) tercih ettiğini söyle.
+        Ham üretim galerisi. Odysseus <strong>04 seçildi</strong>. Lotus için hangi varyantı (01–04) istediğini söyle.
       </p>
+
+      <h2 class="section-title" id="turnaround">ASSET-001 — Odysseus turnaround</h2>
 
       <section class="sheet" id="v01">
         <h2>Varyant 01</h2>
@@ -215,9 +247,9 @@
         <p class="pick">Seçim için: <strong>“03’ü seç”</strong></p>
       </section>
 
-      <section class="sheet" id="v04">
-        <h2>Varyant 04</h2>
-        <p class="meta"><code>char_odysseus_turnaround_04_ref_2048.png</code></p>
+      <section class="sheet selected" id="v04">
+        <h2>Varyant 04 <span class="badge">SEÇİLDİ</span></h2>
+        <p class="meta"><code>char_odysseus_turnaround_04_ref_2048.png</code> → kilit: <code>char_odysseus_turnaround_01_ref_2048.png</code></p>
         <figure>
           <img
             src="./turnaround/char_odysseus_turnaround_04_ref_2048.png"
@@ -227,10 +259,72 @@
             loading="lazy"
           />
         </figure>
-        <p class="pick">Seçim için: <strong>“04’ü seç”</strong></p>
+        <p class="pick">Sahip onayı: <strong>04 kilitlendi</strong> — sonraki asset’ler buna nişan alınır.</p>
       </section>
 
-      <footer>Pipeline: docs/art/prompts/character-turnaround.md · noindex</footer>
+      <h2 class="section-title" id="lotus">ASSET-002 — Lotus 4 olgunluk evresi</h2>
+
+      <section class="sheet" id="lotus-v01">
+        <h2>Lotus varyant 01</h2>
+        <p class="meta"><code>lotus_stages_01_ref_2048.png</code></p>
+        <figure>
+          <img
+            src="./lotus/lotus_stages_01_ref_2048.png"
+            alt="Lotus 4 evre varyant 01"
+            width="2048"
+            height="1152"
+            loading="lazy"
+          />
+        </figure>
+        <p class="pick">Seçim için: <strong>“lotus 01”</strong></p>
+      </section>
+
+      <section class="sheet" id="lotus-v02">
+        <h2>Lotus varyant 02</h2>
+        <p class="meta"><code>lotus_stages_02_ref_2048.png</code></p>
+        <figure>
+          <img
+            src="./lotus/lotus_stages_02_ref_2048.png"
+            alt="Lotus 4 evre varyant 02"
+            width="2048"
+            height="1152"
+            loading="lazy"
+          />
+        </figure>
+        <p class="pick">Seçim için: <strong>“lotus 02”</strong></p>
+      </section>
+
+      <section class="sheet" id="lotus-v03">
+        <h2>Lotus varyant 03</h2>
+        <p class="meta"><code>lotus_stages_03_ref_2048.png</code></p>
+        <figure>
+          <img
+            src="./lotus/lotus_stages_03_ref_2048.png"
+            alt="Lotus 4 evre varyant 03"
+            width="2048"
+            height="1152"
+            loading="lazy"
+          />
+        </figure>
+        <p class="pick">Seçim için: <strong>“lotus 03”</strong></p>
+      </section>
+
+      <section class="sheet" id="lotus-v04">
+        <h2>Lotus varyant 04</h2>
+        <p class="meta"><code>lotus_stages_04_ref_2048.png</code></p>
+        <figure>
+          <img
+            src="./lotus/lotus_stages_04_ref_2048.png"
+            alt="Lotus 4 evre varyant 04"
+            width="2048"
+            height="1152"
+            loading="lazy"
+          />
+        </figure>
+        <p class="pick">Seçim için: <strong>“lotus 04”</strong></p>
+      </section>
+
+      <footer>Pipeline: character-turnaround.md · concept-sheet.md · noindex</footer>
     </div>
 
     <dialog id="zoom">

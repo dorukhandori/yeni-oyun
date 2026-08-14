@@ -35,7 +35,7 @@ CCGS `asset-spec` karşılıkları: `planned`=Needed · `generated`=In Progress 
 
 | Toplam | planned | generated | accepted | integrated |
 |---|---|---|---|---|
-| 34 | 33 | 0 | 1 | 0 |
+| 34 | 32 | 1 | 1 | 0 |
 
 ---
 
@@ -44,7 +44,7 @@ CCGS `asset-spec` karşılıkları: `planned`=Needed · `generated`=In Progress 
 | ID | Ad | Sınıf | Tip | Şablon | Durum | Not |
 |---|---|---|---|---|---|---|
 | ASSET-001 | **Odysseus** turnaround | `reference` **[K]** | still, 4 açı | `prompts/character-turnaround.md` (Gemini §) | **accepted** | Sahip **varyant 04** seçti (2026-08-14). Kilit: `art-source/ref/char_odysseus_turnaround_01_ref_2048.png` · git yedeği: `public/preview/selected/`. Model: `gemini-2.5-flash-image`. Sırada ASSET-002. |
-| ASSET-002 | Lotus 4 olgunluk aşaması sayfası | `reference` **[K]** → `scene-texture` **[?]** | still, yan yana 4 | `prompts/concept-sheet.md` | planned | Oyunun çekirdek okuma problemi. Evre adları ve görünüşleri `gdd-lotus-collection.md` §3.2'den: tomurcuk / yarı açık / olgun / solmuş (kahverengi) |
+| ASSET-002 | Lotus 4 olgunluk aşaması sayfası | `reference` **[K]** → `scene-texture` **[?]** | still, yan yana 4 | `prompts/concept-sheet.md` (Gemini §) | **generated** | 4 varyant `public/preview/lotus/` — sahip seçimi bekliyor. Tomurcuk / yarı açık / olgun / solmuş (`gdd-lotus-collection.md` §3.2). |
 | ASSET-003 | Ada key art — kıyı + gemi | `media` **[K]** | still 16:9 | `prompts/key-art.md` | planned | Palet doğrulaması: art bible §2 hex'leri tutuyor mu |
 
 ---

@@ -2,7 +2,7 @@
 /**
  * Generate a still via Gemini native image models.
  * Usage:
- *   GEMINI_API_KEY=... node scripts/gen-gemini-image.mjs --prompt-file docs/art/prompts/character-turnaround.md --variant 01
+ *   GEMINI_API_KEY=... node scripts/gen-gemini-image.mjs --prompt-file docs/art/prompts/concept-sheet.md --section "Gemini (ASSET-002)" --prefix lotus_stages --variant 01
  *   GEMINI_API_KEY=... node scripts/gen-gemini-image.mjs --text "..." --out art-source/raw/test.png
  */
 
@@ -18,6 +18,7 @@ function parseArgs(argv) {
     out: null,
     promptFile: null,
     text: null,
+    prefix: 'char_odysseus_turnaround',
     section: 'Gemini',
   };
   for (let i = 2; i < argv.length; i++) {
@@ -28,12 +29,15 @@ function parseArgs(argv) {
     else if (a === '--prompt-file') opts.promptFile = argv[++i];
     else if (a === '--text') opts.text = argv[++i];
     else if (a === '--section') opts.section = argv[++i];
+    else if (a === '--prefix') opts.prefix = argv[++i];
   }
   return opts;
 }
 
 function extractPromptFromMarkdown(md, sectionTag) {
-  const header = `## Prompt — ${sectionTag}`;
+  const header = sectionTag.startsWith('##')
+    ? sectionTag
+    : `## Prompt — ${sectionTag}`;
   const start = md.indexOf(header);
   if (start === -1) throw new Error(`Section not found: ${header}`);
   const fenceStart = md.indexOf('```text', start);
@@ -90,7 +94,7 @@ if (!prompt) {
 
 const out =
   opts.out ??
-  join('art-source', 'raw', `char_odysseus_turnaround_${opts.variant}_ref_2048.png`);
+  join('art-source', 'raw', `${opts.prefix}_${opts.variant}_ref_2048.png`);
 
 mkdirSync(dirname(out), { recursive: true });
 

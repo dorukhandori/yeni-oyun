@@ -9,6 +9,8 @@
 
 ## A) Lotus — 4 olgunluk aşaması (ASSET-002)
 
+### Prompt — Higgsfield
+
 ```text
 Using Higgsfield, generate this as an image — 16:9, high quality, game asset concept sheet. Pick the best model for stylized-cartoon next-gen game graphics (bright, glossy stylized 3D look — soft-shaded, rounded, colorful, NOT photoreal).
 
@@ -22,6 +24,27 @@ Stage 4 — WITHERED: petals sag and droop down past the lily pad, silhouette co
 Each stage must be readable by silhouette ALONE, with color removed: stage 1 narrow and upright, stage 2 a cup, stage 3 wide open and flat, stage 4 collapsed and drooping downward.
 
 No HUD, no text, no numbers, no labels, no arrows, no watermark.
+
+Look: stylized-cartoon game asset, soft-shaded rounded forms, clean flat colors, white and pink petals, broad green lily pad, turquoise water. The ripe stage is the most saturated white-pink on the sheet; the withered stage is the least saturated and browner. Cool blue shadows, never black. Original plant design only — no logos, no brand marks, no text.
+```
+
+### Prompt — Gemini (ASSET-002) **[P]**
+
+> **API:** `gemini-2.5-flash-image` · `responseModalities: ["TEXT","IMAGE"]`
+
+```text
+Using Gemini, generate this as an image — 16:9 landscape, high quality, game asset concept sheet. Stylized-cartoon next-gen game graphics (bright, glossy stylized 3D look — soft-shaded, rounded, colorful, NOT photoreal, NOT photographic).
+
+Four growth stages of the SAME lotus blossom in one frame, evenly spaced left to right, each sitting on a broad green lily pad in ankle-deep turquoise water, identical camera angle and identical scale reference across all four. Flat even lighting on a plain neutral warm-grey background — this is a reference sheet, not a scenic environment.
+
+Stage 1 — BUD: tightly closed, a narrow upright spear, pale green-cream, desaturated. Nothing pink is visible.
+Stage 2 — HALF-OPEN: petals part and the pink interior becomes visible for the first time, silhouette widening into a cup.
+Stage 3 — RIPE: fully open, the widest silhouette of the four, petals fanned flat and wide in the most saturated and brightest white-and-pink of the whole set — it looks faintly lit from within, as if carrying a little light. This is the one stage that says "pick me", and it says it with COLOR and SILHOUETTE, not with an icon or a marker.
+Stage 4 — WITHERED: petals sag and droop down past the lily pad, silhouette collapsed, saturation gone, color fallen toward dull BROWN.
+
+Each stage must be readable by silhouette ALONE, with color removed: stage 1 narrow and upright, stage 2 a cup, stage 3 wide open and flat, stage 4 collapsed and drooping downward.
+
+No HUD, no text, no numbers, no labels, no arrows, no stage captions, no watermark.
 
 Look: stylized-cartoon game asset, soft-shaded rounded forms, clean flat colors, white and pink petals, broad green lily pad, turquoise water. The ripe stage is the most saturated white-pink on the sheet; the withered stage is the least saturated and browner. Cool blue shadows, never black. Original plant design only — no logos, no brand marks, no text.
 ```
