@@ -1,0 +1,18 @@
+---
+description: One visual asset = one slice — bible, spec, senaryo motoru, Unity import
+alwaysApply: false
+---
+
+> **Referans (Canopy / game-project).** Bu kural yeni-oyun (Glowsprig) için alwaysApply=false; ürün kimliği `.cursor/rules/project.mdc`.
+
+# Canopy asset pipeline
+
+New **visual production** (textures, meshes, AI prompts, Meshy/Cursor gen) **must** follow `production/process/asset-pipeline.md`. This is not the screen/HUD pipeline.
+
+- **One asset = one slice:** inventory row → spec in `design/assets/specs/` → `scenario-engine` mode `asset` on the generation prompt → generate → Unity import under `Assets/_Game/Art/{Primitives,Generated,Characters,UI}/` → Play or look-dev → park in `design/assets/asset-manifest.md`.
+- **Two cameras:** world/prop = ortho ~30° or tileable albedo. Character concept for image-to-3D = **flat front T-pose**, never 30°. Props stay primitive; do not Meshy a pot.
+- **Do not** install ComfyUI / Hunyuan / TRELLIS as the studio default. Gemini image 429 → Cursor `GenerateImage` or wait for billed AI Studio. Meshy is a **sahip click**.
+- Art bible hex only. Names: `Mesh_` / `Tex_` / `Mat_` / `UI_` / `Sfx_`. No `.unity` / `.prefab` YAML rewrite.
+- Quaternius is look-dev, not identity. Do not swap another store pack to “fix” Create. Grower T-pose PNG only when sahip asks.
+- Farm 3D may stay primitive while a **screen** slice is in flight. Do not block Create/Shop Play on patio kit production.
+- Do not restyle Farm HUD or Welcome here — that is `production/process/screen-pipeline.md`.

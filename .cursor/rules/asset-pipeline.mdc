@@ -1,0 +1,59 @@
+---
+description: Higgsfield medya/asset pipeline — Lotus Adası (Three.js, Unity değil)
+globs: docs/art/**, public/assets/**, art-source/**, scripts/**
+alwaysApply: false
+---
+
+# Asset & medya pipeline — Lotus Adası
+
+Oyun: Odysseia IX, Lotus Yiyenler Adası — Odysseus olgun lotus toplar, gemiye teslim eder (hedef 12), unutuş dolmadan döner. Three.js 3D.
+Tam doküman: `docs/art/pipeline.md` · Görsel dil: `docs/art/art-bible.md` · Defter: `docs/art/asset-registry.md`
+
+**Tasarım otoritesi:** oynanış, karakter, HUD ve sayılar `docs/design/` altındaki dokümanlara aittir (`game-concept.md`, `gdd-lotus-collection.md`, `gdd-memory-system.md`, `tuning.md`) — **çelişkide onlar kazanır**, `docs/art/` yalnızca görsel dili sabitler. O klasöre bu hattan yazılmaz.
+
+Kaynak sistem: *"How to Run a Game Studio Solo with Claude Code + Higgsfield MCP"* (@zeuuss_01, 5 Ağustos 2026)
+<https://x.com/zeuuss_01/article/2085112087605342552> — **"Paid partnership"**, Higgsfield sponsorlu playbook. Yöntemi alıyoruz, maliyet/performans iddialarını satıcı kaynaklı sayıyoruz.
+
+**[K]** makalede var · **[A]** araştırmada doğrulanmış pratik (`docs/research/ai-pipeline-games.md`) · **[P]** proje kararı · **[?]** onay bekliyor.
+
+## Üç katman **[K]**
+
+**Opus 5 / Fable 5** = tasarım motoru (pitch, beat sheet, shot list, art direction) · **Claude Code** = build motoru (mekanik, kontrol, HUD, state, deploy) · **Higgsfield MCP** = medya motoru (trailer, key art, karakter turnaround).
+
+## İki insan kapısı **[K]**
+
+- **Intake (~20 dk, sahip):** fikri sıkı spec'e çevir — vizyon, beat'ler, art direction. Bu kapı kapanmadan asset üretimi başlamaz.
+- **QA + handoff (~25 dk, sahip):** *"Review against the spec, not your taste."* Eksik state veya bozuk kontrol = geri prompt, elle patch değil.
+- Arada kalan her şey modellerin işidir. Ajan bu iki kapıyı kendi kendine kapatamaz.
+
+## Bağlayıcı maddeler
+
+- **[K] Higgsfield medya motorudur** — trailer, gameplay-tarzı görüntü, key art, karakter turnaround, sinematik beat, sosyal cutdown. **3D mesh üretmez.** Çıktı ancak texture / billboard / skybox / UI sprite / trailer / stil referansı olur.
+- **[K] Hattın sınırı:** bu hat AAA çıkarmaz, **"concept-to-trailer-to-prototype"** çıkarır. Kapsam bunun üstüne büyütülmez.
+- **[K] Oyun içi görsel koddan çıkar** — *"without a single hand-modeled asset"*. Still'i `public/assets/` altına texture olarak sokmak **[P]** uzantıdır ve **[?]** sahip onayı olmadan yapılmaz; onay yoksa çıktı `art-source/ref/` altında stil referansı kalır.
+- **[K] Model adı sabitlenmez** — prompt `Pick the best model for …` der; seçim ajana bırakılır. Tek connector URL `https://mcp.higgsfield.ai/mcp`, OAuth, API key yok; 30+ model (Sora 2, Veo 3.1, Kling 3.0 …).
+- **[K] Negatifler cümle içinde** yazılır (`NOT photoreal`, `no logos`); ayrı "negative prompt" bloğu icat edilmez.
+- **[K] Her prompt IP satırıyla kapanır**: orijinal karakter/dünya, logo yok, marka izi yok, gerçek oyun adı yok, HUD dışında ekran yazısı yok. *Odysseia* kamu malıdır ama mevcut uyarlamalara görsel atıf yapılmaz.
+- **[K] Karakter tutarlılığı** turnaround + *"train a consistent character across shots"* ile çözülür. **İlk üretilecek asset turnaround'dur.**
+- **[A] ASSET MANİFEST SHIPPING ARTIFACT'TİR.** `public/assets/assets.csv` build ile birlikte yayına çıkar. `public/assets/` altındaki **her** dosyanın burada satırı olur ve satırda **prompt dosyası + model + seed** bulunur (`seed` yoksa `none`, tahmin edilmez). Manifest satırı olmayan dosya kabul edilmez. Gerekçe: yeniden üretilebilirlik olmadan AI asset hattı ikinci iterasyonda çöker.
+- **[A] Animasyon hattı:** hareketli karakter/yaratık **still → AI video → frame extraction → palette quantize → elle temizlik → spritesheet** ile üretilir (`pipeline.md` §5). Elle temizlik atlanamaz; döngü başı-sonu birleşmeyen klip düzeltilmez, atılır.
+- **[A] AI kullanımı gizlenmez, belgelenir.** Manifest bu beyanın altyapısıdır.
+- **[P] Art bible kapısı:** `art-bible.md` §2 paletinden ve §3 ışık felsefesinden geçmeyen çıktı oyuna girmez. Palet dışı hex getiren asset ya bible'ı güncelletir ya reddedilir.
+- **[P] Registry zorunlu:** `asset-registry.md` içinde satırı olmayan asset üretilmez; durum `planned → generated → accepted → integrated`.
+- **[P] İsimlendirme zorunlu:** `kategori_ad_varyant_kanal_çözünürlük.uzantı` (`pipeline.md` §6). `_ref_` kanallı dosya oyuna girmez.
+- **[P] Ham dosyalar git'e girmez:** `art-source/**` gitignore'da. Oyuna girenler `public/assets/` altında ve git'e girer.
+- **[P] Doku ışık taşımaz:** gölge/highlight albedo'ya boyanmaz; ışık motordan gelir. Gölge tonu **mavi**, siyah değil.
+- **[P] Unutuş efekti asset'e gömülmez:** doygunluk kaybı + süt beyazı vinyet + sis + ≤3 px bulanıklık **çalışma zamanı** katmanıdır (`art-bible.md` §4). Asset'ler her zaman "unutuş = 0" halinde üretilir.
+- **Unutuşun göstergesi ÜRETİLMEZ.** `docs/design/gdd-memory-system.md` §10: bar, sayı, yüzde, ikon yok — ölçek ekranın kendisidir. HUD'ın işi sırayla **kaybolmaktır** (pusula 50, tümü 75), bu yüzden her HUD öğesi ayrı dosyadır.
+- **Ekran karartılmaz, can barı çizilmez, olgunluk ikonla gösterilmez.** Işık azalmaz, bilgi azalır; olgunluk renk + silüetle okunur.
+
+## Yasak
+
+- Kaynakta olmayan bir kuralı **[P] etiketi olmadan** dokümana yazmak.
+- Higgsfield'dan mesh/glTF beklemek.
+- Registry, art bible veya `assets.csv` atlayıp `public/assets/` altına dosya koymak.
+- Karanlık mağara / fener / mor kristal paletine dönmek — iptal edildi.
+- Tehdidi karanlıkla anlatmak; bu oyunda tehdit ışıktır.
+- `src/` altındaki oyun kodunu bu hattan değiştirmek — 3D agent'ın işi.
+- `docs/design/` ve `docs/research/` altına yazmak — başka agent'ların alanı.
+- Sahip demeden commit.

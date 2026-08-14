@@ -1,0 +1,17 @@
+---
+description: yeni-oyun (Glowsprig) + CCGS studio identity
+alwaysApply: true
+---
+
+# yeni-oyun — Glowsprig
+
+Sahiple Türkçe. Kod/commit İngilizce.
+
+Oyun: tarayıcıda oynanan Glowsprig tarzı **3D** kristal-mağara çiftlik prototipi (third-person, omuz-arkası kamera).
+Stack: **Vite + TypeScript + Three.js (r160)** (Phaser yok, Unity yok). Render `EffectComposer` + `UnrealBloomPass`; sabit 60 Hz timestep (`STEP = 1000/60`). HUD DOM overlay. Juice (camera shake, squash-stretch, spark burst).
+
+Görsel referans pazarlıksız: karanlık mağara, tavandan sarkan emissive mor kristaller, karakterin elindeki turuncu fener (tek sıcak point light), tahta iskele yolu, turkuaz su, bloom + vignette, sol üst 4 kalp + sağ üst altın madalyon.
+
+Kaynak stüdyo kit: Desktop `game-project` (CCGS). Canopy’ye özel kurallar `.cursor/rules/reference-canopy/` altında arşiv; bu ürüne uygulanmaz.
+
+Bir seans = bir oynanır dilim. Skill adı söyle veya ajan çağır (`help`, `producer`, `game-designer`, `prototyper`, …). Commit ancak sahip derse.

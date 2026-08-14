@@ -1,0 +1,16 @@
+---
+description: One screen = one slice — UX spec, logic, Play, park
+alwaysApply: false
+---
+
+> **Referans (Canopy / game-project).** Bu kural yeni-oyun (Glowsprig) için alwaysApply=false; ürün kimliği `.cursor/rules/project.mdc`.
+
+# Canopy screen pipeline
+
+New UI work **must** follow `production/process/screen-pipeline.md`. Roster and order: Create → Site → Shop → Farm (overlays on `Farm.unity`).
+
+- **One screen = one slice:** UX spec `design/ux/[screen].md` → Runtime/SO/`EC_*` logic → play-case + sahip Play → **park**. Do not keep mixing a parked canvas (bugs only).
+- **Do not** dump more Farm HUD buttons, Buy rows, or chrome without a spec. Shared tokens live in `design/ux/ui-kit.md`. If that file is missing, treat kit as **HUD kit in progress** — do not invent a second kit, do not restyle Farm HUD in a parallel session.
+- Do not UX-design eight screens before any Play. At most one spec ahead of the screen being wired. Farm 3D may stay primitive while UI language exists.
+- Wallet / save / grower / inventory / clock are **Runtime** (thin Core for save). Do not duplicate per canvas. No god manager. Shop door beat ≠ HUD Buy N/P/K (both stay).
+- Next lock after HUD kit parks: **Create** (`design/ux/grower-create.md`, backlog `F1-SCR-CREATE`). Do not also write `design/ux/hud.md` — Canopy HUD spec is `farm-hud.md`.

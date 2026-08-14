@@ -1,0 +1,19 @@
+---
+description: Keep NPK/shop/mix/calendar learnings + PC-08 in sync
+globs: production/learnings/**,production/qa/**,design/quick-specs/watering*.md,grow-sim/Canopy/Assets/_Game/Scripts/Runtime/{FeedMix,Inventory,Shop,PotBed,GrowCalendar}*,grow-sim/Canopy/Assets/_Game/Scripts/UI/FarmTapHud.cs,grow-sim/Canopy/Assets/_Game/Scripts/View/{FarmWorld,PotInteract}.cs,grow-sim/Canopy/Assets/_Game/Data/Items/Item_Feed*
+alwaysApply: false
+---
+
+> **Referans (Canopy / game-project).** Bu kural yeni-oyun (Glowsprig) için alwaysApply=false; ürün kimliği `.cursor/rules/project.mdc`.
+
+# Living learnings
+
+Canonical NPK memory: `production/learnings/npk-loop.md`.
+
+When **NPK / shop / mix / watering calendar** changes (code, SO, HUD, or spec):
+
+1. Update `production/learnings/npk-loop.md` in the **same slice** (how it works, pass, edges, not-built).
+2. Update `production/qa/play-cases/PC-08-npk-shop.md` and the playbook row if Play meaning changed.
+3. Do not create a second NPK memory file. Do not persist HUD mix toggles as “save fix” unless sahip locks a recipe card.
+
+New playable slice: play-case **and** learnings if the loop changed. See `production/qa/README.md`.

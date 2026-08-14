@@ -1,0 +1,247 @@
+/**
+ * Single tuning surface for the whole game. Anything a designer might want to
+ * change lives here — never inline a gameplay number anywhere else.
+ * Mirrors docs/design/tuning.md once that document lands.
+ */
+
+export const STEP = 1000 / 60;
+
+// ---------------------------------------------------------------- island shape
+export const ISLAND = {
+  /** Radius where the land meets the sea. */
+  radius: 26,
+  /** Sea level sits at y = 0; the shore ramps down to this. */
+  shoreDrop: -0.55,
+  /** Peak height of the inland dome. */
+  domeHeight: 2.1,
+  /** How far inland the dome reaches its full height. */
+  domeFalloff: 13,
+  hillAmp: 1.6,
+  hillFreq: 0.14,
+  /** Width of the golden sand ring at the shoreline. */
+  beachWidth: 8,
+  /** Angular wobble so the coast is a set of bays, not a circle. */
+  wobbleA: 0.07,
+  wobbleB: 0.035,
+  /** Terrain mesh extent and resolution. */
+  planeSize: 96,
+  planeSegments: 132,
+} as const;
+
+export const LAGOON = {
+  center: { x: 0, z: 1.5 },
+  radius: 12,
+  /** Basin floor depth relative to sea level. */
+  floor: -0.75,
+  /** Still water surface height. */
+  waterY: -0.06,
+  /** Angular wobble so the shoreline is not a perfect circle. */
+  wobbleA: 0.15,
+  wobbleB: 0.08,
+} as const;
+
+export const SHIP = {
+  /** Beached on the near shore, to the side of the spawn. */
+  pos: { x: 11.5, z: 19.5 },
+  /** Broadside to the shore so the sail and oars read from the beach. */
+  rotY: -1.3,
+  scale: 0.92,
+  /** Delivery trigger radius. */
+  range: 7.4,
+} as const;
+
+// -------------------------------------------------------------------- player
+export const PLAYER = {
+  speed: 6.2,
+  /** Wading through the lagoon is slower. */
+  waterSpeedMul: 0.62,
+  /** Spring stiffness toward wish velocity (higher = snappier). */
+  accel: 18,
+  /** Velocity damping when no wish input (spring settle). */
+  drag: 9,
+  radius: 0.45,
+  turnLerp: 0.22,
+  spawn: { x: 5.5, z: 22.5 },
+  /** Deepest the sailor sinks while wading. */
+  wadeFloor: -0.42,
+  /** How far past the shoreline he may wade before being held back. */
+  shoreLimit: 1,
+} as const;
+
+export const CAMERA = {
+  fov: 55,
+  dist: 8.2,
+  height: 3.6,
+  lookHeight: 1.5,
+  lerp: 0.11,
+  yawStart: 0,
+  pitchStart: 0.16,
+  pitchMin: -0.1,
+  pitchMax: 0.62,
+  mouseSens: 0.0032,
+  keySens: 0.035,
+  touchSens: 0.0044,
+  /** Never let the camera dip closer than this to the ground/sea. */
+  minClearance: 1.1,
+  /** Camera kick decay and frequency for juice shakes. */
+  shakeDecay: 7.5,
+  shakeHz: 18,
+} as const;
+
+export const FEEL = {
+  /** Footstep / splash dust cadence while moving. */
+  dustInterval: 0.16,
+  dustMinSpeed: 1.2,
+  landImpactSpeed: 2.4,
+  collectBloomPulse: 0.55,
+  deliverBloomPulse: 0.75,
+  bloomPulseDecay: 2.8,
+} as const;
+
+// --------------------------------------------------------------------- lotus
+export const LOTUS = {
+  count: 34,
+  /** Seconds spent in each stage before advancing. */
+  budTime: 14,
+  halfTime: 11,
+  ripeTime: 26,
+  wiltTime: 16,
+  /** Regrow delay after a bloom is taken. */
+  goneTime: 12,
+  /** Randomised +/- factor applied to every stage duration. */
+  timeJitter: 0.45,
+  /** How close the player must be to harvest. */
+  pickRange: 2.4,
+  /** Inventory cap before a trip back to the ship is required. */
+  carryCap: 6,
+  /** Ripe lotuses to deliver for the departure. */
+  target: 12,
+  /** Minimum spacing when scattering plants across the lagoon. */
+  minSpacing: 1.75,
+  /**
+   * Three harvest pockets (reed shore / deep lagoon / north cove).
+   * Counts should sum to `count`.
+   */
+  zones: [
+    { name: "reed", cx: -5.5, cz: 8.5, radius: 5.2, count: 12, spacing: 1.55 },
+    { name: "deep", cx: 1.2, cz: -1.5, radius: 6.4, count: 14, spacing: 1.85 },
+    { name: "cove", cx: 6.8, cz: -6.2, radius: 4.4, count: 8, spacing: 1.7 },
+  ],
+} as const;
+
+// ------------------------------------------------------------- memory system
+export const MEMORY = {
+  /** 0 = clear headed, 1 = fully lotus-drunk. Rates are per second. */
+  islandGain: 0.007,
+  /** Extra drift per carried lotus — the scent works on you. */
+  perCarriedGain: 0.005,
+  /** Wading in the lotus lagoon accelerates the forgetting. */
+  lagoonGain: 0.009,
+  /** Instant hit when a ripe lotus is picked. */
+  pickSpike: 0.04,
+  /** Recovery near the ship. */
+  shipRecover: 0.22,
+  /** Recovery while standing in the sea shallows. */
+  seaRecover: 0.12,
+  /** Distance from the shoreline that still counts as "in the sea". */
+  seaBand: 2.6,
+  /** Above this the guiding arrow and part of the HUD fade away. */
+  blindThreshold: 0.8,
+  /** Seconds pinned at full memory before the run is lost. */
+  loseHold: 6,
+  /** Memory left after a lost run. */
+  resetTo: 0.45,
+  /** Visual haze curve mapped from memory. */
+  hazeGamma: 1.85,
+  hazeMax: 0.95,
+} as const;
+
+export const FLOW = {
+  /** Seconds the departure animation runs before the win card settles. */
+  departSeconds: 7,
+  /** Seconds the "you forgot" card stays up before respawning at the ship. */
+  lostCardSeconds: 3.4,
+} as const;
+
+/** One in-game day — sun height is the clock (tuning.md §2). */
+export const DAY = {
+  length: 420,
+  /** Sun elevation at t=0 (degrees above horizon). */
+  sunStartDeg: 55,
+  /** Sun elevation at dusk (degrees). */
+  sunEndDeg: 2,
+  /** Remaining seconds when light turns rose / warn toast. */
+  warnRemaining: 90,
+} as const;
+
+/** Silent lotus-eaters who offer a one-shot gift (tuning.md §6). */
+export const LOTOPHAGOS = {
+  count: 3,
+  gift: 2,
+  memCost: 0.2,
+  range: 3.2,
+  /** World spots near the three harvest pockets. */
+  spots: [
+    { name: "reed", x: -4.6, z: 7.2, faceY: 0.4 },
+    { name: "deep", x: 0.4, z: 2.8, faceY: Math.PI },
+    { name: "cove", x: 5.8, z: -4.8, faceY: -2.2 },
+  ],
+} as const;
+
+/** Achaean fleet on the beach — twelve ships for twelve lotuses. */
+export const FLEET = {
+  count: 12,
+  /** Index of Odysseus' ship (delivery + player spawn nearby). */
+  playerIndex: 6,
+  /** Spacing along the shore tangent. */
+  spacing: 3.35,
+} as const;
+
+// ------------------------------------------------------------------- visuals
+export const RENDER = {
+  exposure: 1.02,
+  bloomStrength: 0.42,
+  bloomRadius: 0.45,
+  bloomThreshold: 0.86,
+  fogColor: 0xc2e0ea,
+  fogDensity: 0.0092,
+  skyTop: 0x2f86c9,
+  skyHorizon: 0xffe6c2,
+  sunColor: 0xfff0cc,
+  sunIntensity: 3.1,
+  ambientColor: 0xa8c8f0,
+  ambientIntensity: 0.4,
+  bounceSky: 0x8ecbff,
+  bounceGround: 0xd9b478,
+  bounceIntensity: 0.36,
+} as const;
+
+export const PALETTE = {
+  sand: 0xe9cf98,
+  sandWet: 0xc7a468,
+  grassDry: 0xa8b566,
+  grass: 0x7f9c56,
+  grassDeep: 0x5e7f45,
+  rock: 0xa8a091,
+  marble: 0xeee6d6,
+  seaShallow: 0x63d7d2,
+  seaDeep: 0x0f6f9e,
+  seaFoam: 0xf4ffff,
+  lagoon: 0x38b8bb,
+  pad: 0x4e7f44,
+  padLight: 0x74a355,
+  stem: 0x5f8a4a,
+  petalBud: 0xbcd98f,
+  petalHalf: 0xf7c9dc,
+  petalRipe: 0xfff2f7,
+  petalRipeTint: 0xff9ec4,
+  petalWilt: 0x8f8577,
+  lotusHeart: 0xffd45e,
+  hull: 0x8f5d33,
+  hullDark: 0x5e3a1e,
+  hullTrim: 0xb03a2e,
+  sail: 0xf2e4c9,
+  cypress: 0x3f5f3a,
+  olive: 0x7d9464,
+  trunk: 0x6b5136,
+} as const;

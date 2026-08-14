@@ -1,0 +1,9 @@
+asset_id,file,category,class,prompt_file,model,seed,aspect,resolution,date,status,notes
+# Shipping manifest — build ile birlikte yayina cikar. Bkz. docs/art/pipeline.md §7
+# Higgsfield resmi game-generation skill'i design/assets.csv'yi oyunla gonderiyor; bu onun karsiligi.
+# ZORUNLU: public/assets/ altindaki her dosyanin burada bir satiri olacak.
+# model = uretimi yapan model (ajan sectigi icin sonradan yazilir, bos birakilamaz)
+# seed  = varsa deger, yoksa "none" (tahmin edilmez)
+# status = generated | accepted | integrated
+# Ornek satir (uretim baslayinca bu yorum silinir):
+# ASSET-006,textures/lotus_bloom_03_albedo_512.png,lotus,scene-texture,prompts/style-reference-still.md,MODEL_ADI,none,1:1,512,2026-08-14,generated,olgun lotus - altin gobek gorunur

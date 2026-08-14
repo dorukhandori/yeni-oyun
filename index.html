@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <title>Lotus Adası — Odysseia IX</title>
+    <link rel="stylesheet" href="/src/ui/hud.css" />
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="game"></canvas>
+
+      <div id="hud">
+        <div class="panel quest" id="quest">
+          <div class="quest-title">Lotophagoi</div>
+          <div class="quest-line">
+            Gemiye teslim: <b id="delivered">0</b> / <b id="target">12</b>
+          </div>
+          <div class="quest-line dim">
+            Sepet: <b id="carried">0</b> / <b id="cap">6</b>
+          </div>
+        </div>
+
+        <div class="memory" id="memory">
+          <div class="mem-label">Unutuş</div>
+          <div class="mem-bar"><div class="mem-fill" id="memFill"></div></div>
+          <div class="mem-note" id="memNote">Aklın yerinde</div>
+        </div>
+
+        <div class="sun" id="sun" aria-label="Güneş">
+          <svg viewBox="0 0 120 56" width="120" height="56">
+            <path
+              class="sun-arc"
+              d="M 10 48 A 50 50 0 0 1 110 48"
+              fill="none"
+              stroke="rgba(150,116,58,0.35)"
+              stroke-width="3"
+            />
+            <path
+              id="sunArcFill"
+              class="sun-arc-fill"
+              d="M 10 48 A 50 50 0 0 1 110 48"
+              fill="none"
+              stroke="#c99a3c"
+              stroke-width="3.5"
+              stroke-linecap="round"
+              pathLength="100"
+              stroke-dasharray="100"
+              stroke-dashoffset="0"
+            />
+            <circle id="sunDot" class="sun-dot" cx="10" cy="48" r="5" />
+          </svg>
+          <div class="sun-label" id="sunLabel">Öğleden sonra</div>
+        </div>
+
+        <div class="prompt" id="prompt"></div>
+        <div class="toast" id="toast"></div>
+
+        <div class="hint" id="hint">
+          WASD yürü · fare kamera · <b>E</b> topla / teslim et
+        </div>
+
+        <div class="card" id="card">
+          <h1 id="cardTitle"></h1>
+          <p id="cardBody"></p>
+          <button type="button" class="card-btn" id="cardRestart">Yeniden oyna</button>
+          <p class="card-key" id="cardKey">R · yeniden başlat</p>
+        </div>
+      </div>
+
+      <div id="touch" class="touch" aria-hidden="true">
+        <div id="stick" class="stick"><div id="knob" class="knob"></div></div>
+        <div id="lookPad" class="look-pad"></div>
+        <button type="button" id="btnAct" class="btn-act">Topla</button>
+      </div>
+
+      <div id="loading">Ada yükleniyor…</div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,12 @@
+node_modules
+dist
+.DS_Store
+*.local
+
+# Ham asset/medya çıktıları — git'e girmez (docs/art/pipeline.md §6)
+# Klasör iskeleti .gitkeep ile korunur.
+art-source/**
+!art-source/**/
+!art-source/**/.gitkeep
+
+.env

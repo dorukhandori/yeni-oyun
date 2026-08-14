@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <title>Glowsprig — Kristal Mağara Çiftliği</title>
+    <link rel="stylesheet" href="./src/ui/hud.css" />
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="game"></canvas>
+
+      <div id="grade"></div>
+      <div id="vignette"></div>
+
+      <div id="hud">
+        <div class="hearts" id="hearts"></div>
+
+        <div class="medallion" id="medallion">
+          <div class="med-ring">
+            <div class="med-core"></div>
+            <div class="med-glyph"></div>
+          </div>
+          <div class="med-count" id="coinCount">0</div>
+        </div>
+
+        <div class="prompt" id="prompt"></div>
+        <div class="toast" id="toast"></div>
+
+        <div class="bottom">
+          <div class="tools" id="tools"></div>
+          <div class="pouch">
+            <span class="chip"><i class="ic seed"></i><b id="seedCount">0</b></span>
+            <span class="chip"><i class="ic crop"></i><b id="cropCount">0</b></span>
+          </div>
+        </div>
+
+        <div class="hint" id="hint">
+          WASD · fare kamera · <b>E</b> kullan · <b>1-4</b> araç · <b>B</b> tohum
+        </div>
+      </div>
+
+      <div id="loading">Mağara yükleniyor…</div>
+    </div>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>
