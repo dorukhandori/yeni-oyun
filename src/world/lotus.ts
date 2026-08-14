@@ -1,9 +1,16 @@
 import * as THREE from "three";
-import { LAGOON, LOTUS, PALETTE } from "../constants";
+import { LAGOON, LOTUS, PALETTE, PUZZLE } from "../constants";
 import type { LotusStage } from "../types";
 import { heightAt, lagoonDist, lagoonRadiusAt } from "./terrain";
 import { mulberry32 } from "./rng";
 import { glowSprite } from "./sprite";
+
+export type LotusGate = "stones" | "hill" | null;
+
+export interface LotusGateState {
+  stonesOpen: boolean;
+  hillOpen: boolean;
+}
 
 interface Plant {
   pos: THREE.Vector3;
@@ -19,16 +26,20 @@ interface Plant {
   phase: number;
   /** Collect punch scale residual. */
   pop: number;
+  zone: string;
+  gate: LotusGate;
 }
 
 export interface LotusField {
   group: THREE.Group;
   /** Advance growth; returns nothing. */
   update(dt: number, t: number): void;
-  /** Nearest ripe plant within range of a point, or null. */
-  findRipe(x: number, z: number): number | null;
+  /** Nearest harvestable ripe plant within range, or null. */
+  findRipe(x: number, z: number, gates: LotusGateState): number | null;
+  /** Nearest gated ripe plant (blocked) for prompt feedback. */
+  findGatedRipe(x: number, z: number, gates: LotusGateState): LotusGate | null;
   positionOf(index: number): THREE.Vector3;
-  pick(index: number): boolean;
+  pick(index: number, gates: LotusGateState): boolean;
   ripeCount(): number;
   setHighlight(index: number | null): void;
   /** Reseed growth stages for a fresh run. */
@@ -130,7 +141,7 @@ export function buildLotusField(): LotusField {
   const heartGeo = new THREE.SphereGeometry(0.11, 10, 8);
 
   const plants: Plant[] = [];
-  const spots: Array<{ x: number; z: number }> = [];
+  const spots: Array<{ x: number; z: number; zone: string; indexInZone: number }> = [];
 
   // Three harvest pockets: reed shore (near ship), deep lagoon, north cove.
   for (const zone of LOTUS.zones) {
@@ -144,7 +155,7 @@ export function buildLotusField(): LotusField {
       if (heightAt(x, z) > LAGOON.waterY - 0.05) continue;
       if (lagoonDist(x, z) > lagoonRadiusAt(x, z) - 0.6) continue;
       if (spots.some((s) => Math.hypot(s.x - x, s.z - z) < zone.spacing)) continue;
-      spots.push({ x, z });
+      spots.push({ x, z, zone: zone.name, indexInZone: placed });
       placed++;
     }
   }
@@ -158,10 +169,21 @@ export function buildLotusField(): LotusField {
     const z = LAGOON.center.z + Math.sin(a) * r;
     if (heightAt(x, z) > LAGOON.waterY - 0.08) continue;
     if (spots.some((s) => Math.hypot(s.x - x, s.z - z) < LOTUS.minSpacing)) continue;
-    spots.push({ x, z });
+    spots.push({ x, z, zone: "fallback", indexInZone: spots.length });
   }
 
+  const coveCount = spots.filter((s) => s.zone === "cove").length;
+  let coveGatedLeft = Math.ceil(coveCount * PUZZLE.coveGatedRatio);
+
   for (const s of spots) {
+    let gate: LotusGate = null;
+    if (s.zone === "deep" && s.indexInZone >= PUZZLE.deepGatedFromIndex) {
+      gate = "stones";
+    } else if (s.zone === "cove" && coveGatedLeft > 0) {
+      gate = "hill";
+      coveGatedLeft -= 1;
+    }
+
     const g = new THREE.Group();
     g.position.set(s.x, LAGOON.waterY, s.z);
     g.rotation.y = rand() * Math.PI * 2;
@@ -243,6 +265,8 @@ export function buildLotusField(): LotusField {
       halo,
       phase: rand() * 6.28,
       pop: 0,
+      zone: s.zone,
+      gate,
     };
     plants.push(plant);
     applyStage(plant);
@@ -285,6 +309,34 @@ export function buildLotusField(): LotusField {
   highlight.visible = false;
   group.add(highlight);
 
+  function gateOpen(p: Plant, gates: LotusGateState): boolean {
+    if (!p.gate) return true;
+    if (p.gate === "stones") return gates.stonesOpen;
+    if (p.gate === "hill") return gates.hillOpen;
+    return true;
+  }
+
+  function nearestRipe(
+    x: number,
+    z: number,
+    gates: LotusGateState,
+    blockedOnly: boolean,
+  ): number | null {
+    let best: number | null = null;
+    let bestD: number = LOTUS.pickRange;
+    for (let i = 0; i < plants.length; i++) {
+      if (plants[i].stage !== "ripe") continue;
+      const open = gateOpen(plants[i], gates);
+      if (blockedOnly !== !open) continue;
+      const d = Math.hypot(plants[i].pos.x - x, plants[i].pos.z - z);
+      if (d < bestD) {
+        bestD = d;
+        best = i;
+      }
+    }
+    return best;
+  }
+
   return {
     group,
     update(dt: number, t: number) {
@@ -319,25 +371,20 @@ export function buildLotusField(): LotusField {
       (highlight.material as THREE.MeshBasicMaterial).opacity = 0.55 + Math.sin(t * 5) * 0.3;
       highlight.scale.setScalar(1 + Math.sin(t * 5) * 0.05);
     },
-    findRipe(x: number, z: number) {
-      let best: number | null = null;
-      let bestD: number = LOTUS.pickRange;
-      for (let i = 0; i < plants.length; i++) {
-        if (plants[i].stage !== "ripe") continue;
-        const d = Math.hypot(plants[i].pos.x - x, plants[i].pos.z - z);
-        if (d < bestD) {
-          bestD = d;
-          best = i;
-        }
-      }
-      return best;
+    findRipe(x, z, gates) {
+      return nearestRipe(x, z, gates, false);
+    },
+    findGatedRipe(x, z, gates) {
+      const i = nearestRipe(x, z, gates, true);
+      return i === null ? null : plants[i].gate;
     },
     positionOf(index: number) {
       return plants[index].pos;
     },
-    pick(index: number) {
+    pick(index, gates) {
       const p = plants[index];
       if (p.stage !== "ripe") return false;
+      if (!gateOpen(p, gates)) return false;
       p.stage = "gone";
       p.timer = 0;
       p.duration = LOTUS.goneTime * (1 + (Math.random() - 0.5) * LOTUS.timeJitter);

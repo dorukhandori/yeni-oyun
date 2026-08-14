@@ -10,6 +10,7 @@ import {
   MEMORY,
   PALETTE,
   PLAYER,
+  PUZZLE,
   SHIP,
   STEP,
 } from "./constants";
@@ -21,10 +22,12 @@ import { Input } from "./systems/input";
 import type { GameState } from "./types";
 import { Hud } from "./ui/hud";
 import { buildLotophagoi } from "./world/lotophagos";
-import { buildLotusField } from "./world/lotus";
+import { buildLotusField, type LotusGateState } from "./world/lotus";
 import { buildSailor } from "./world/sailor";
 import { buildSea } from "./world/sea";
 import { buildShip } from "./world/ship";
+import { buildSteppingStones } from "./world/steppingStones";
+import { buildHillPuzzle, updateHillPuzzleVisuals } from "./world/hillPuzzle";
 import { buildTerrain, heightAt, inLagoon, islandRadiusAt, wadeLimitAt } from "./world/terrain";
 import { glowSprite } from "./world/sprite";
 
@@ -39,6 +42,8 @@ export function startGame(canvas: HTMLCanvasElement): void {
   const terrain = buildTerrain();
   const sea = buildSea();
   const field = buildLotusField();
+  const stones = buildSteppingStones();
+  const hill = buildHillPuzzle();
   const ship = buildShip();
   const lotophagoi = buildLotophagoi();
   const sailor = buildSailor();
@@ -49,6 +54,8 @@ export function startGame(canvas: HTMLCanvasElement): void {
     terrain.group,
     sea.group,
     field.group,
+    stones.group,
+    hill.group,
     ship.group,
     lotophagoi.group,
     sailor.root,
@@ -145,10 +152,16 @@ export function startGame(canvas: HTMLCanvasElement): void {
     rig.snap(pos);
   }
 
+  function lotusGates(): LotusGateState {
+    return { stonesOpen: stones.isOpen(), hillOpen: hill.isOpen() };
+  }
+
   function fullRestart(): void {
     hud.hideCard();
     ship.reset();
     field.reset();
+    stones.reset();
+    hill.reset();
     lotophagoi.reset();
     st.phase = "play";
     st.carried = 0;
@@ -204,7 +217,7 @@ export function startGame(canvas: HTMLCanvasElement): void {
       hud.say("Sepet dolu — gemiye götür");
       return;
     }
-    if (!field.pick(index)) return;
+    if (!field.pick(index, lotusGates())) return;
     st.carried += 1;
     sailor.setCarried(st.carried);
     st.memory = Math.min(1, st.memory + MEMORY.pickSpike);
@@ -382,6 +395,8 @@ export function startGame(canvas: HTMLCanvasElement): void {
     sailor.root.position.copy(pos);
     sailor.root.rotation.y = facing;
 
+    stones.touch(pos);
+
     const movingHard = speed > FEEL.dustMinSpeed;
     if (movingHard && canMove) {
       dustTimer -= dt;
@@ -409,10 +424,22 @@ export function startGame(canvas: HTMLCanvasElement): void {
     wasMoving = movingHard;
 
     // ------------------------------------------------------------ interaction
-    const ripe = st.phase === "play" ? field.findRipe(pos.x, pos.z) : null;
+    const gates = lotusGates();
+    const ripe = st.phase === "play" ? field.findRipe(pos.x, pos.z, gates) : null;
+    const gatedKind =
+      st.phase === "play" && ripe === null ? field.findGatedRipe(pos.x, pos.z, gates) : null;
     const nearShip = shipDist() < SHIP.range;
     const offer = st.phase === "play" ? lotophagoi.findOffer(pos.x, pos.z) : null;
-    field.setHighlight(nearShip || offer !== null ? null : ripe);
+    const cairn = st.phase === "play" ? hill.findCairn(pos.x, pos.z) : null;
+
+    let highlightIndex: number | null = null;
+    if (ripe !== null && !nearShip && offer === null) {
+      const p = field.positionOf(ripe);
+      const close = Math.hypot(p.x - pos.x, p.z - pos.z) <= PUZZLE.highlightCloseRange;
+      const clearHead = st.memory <= PUZZLE.highlightMemoryMax;
+      if (close || clearHead) highlightIndex = ripe;
+    }
+    field.setHighlight(highlightIndex);
 
     if (st.phase === "play") {
       if (nearShip) {
@@ -423,6 +450,12 @@ export function startGame(canvas: HTMLCanvasElement): void {
               : `<b>E</b> ${st.carried} lotusu gemiye ver`
             : "Gemi burada — olgun lotus getir",
         );
+      } else if (cairn !== null) {
+        hud.setPrompt(
+          input.touchActive
+            ? "Topla · rüzgâr taşına dokun"
+            : "<b>E</b> rüzgâr taşı — rüzgârın sırasını izle",
+        );
       } else if (offer !== null) {
         const room = LOTUS.carryCap - st.carried;
         hud.setPrompt(
@@ -432,6 +465,10 @@ export function startGame(canvas: HTMLCanvasElement): void {
               ? `Topla · ikramı al (${Math.min(LOTOPHAGOS.gift, room)} lotus)`
               : `<b>E</b> ikramı al (${Math.min(LOTOPHAGOS.gift, room)} lotus)`,
         );
+      } else if (gatedKind === "stones") {
+        hud.setPrompt("Yaprak yolunu sona kadar izle");
+      } else if (gatedKind === "hill") {
+        hud.setPrompt("Kuzeydeki rüzgâr taşlarını çöz");
       } else if (ripe !== null) {
         hud.setPrompt(input.touchActive ? "Topla · olgun lotusu kopar" : "<b>E</b> olgun lotusu topla");
       } else {
@@ -440,7 +477,20 @@ export function startGame(canvas: HTMLCanvasElement): void {
 
       if (input.interact) {
         if (nearShip) deliver();
-        else if (offer !== null) acceptGift(offer);
+        else if (cairn !== null) {
+          const out = hill.interact(cairn);
+          if (out === "done") {
+            hud.say("Rüzgâr yolu açıldı — kuzey lotusları serbest");
+            bursts.spawnPop(
+              new THREE.Vector3(pos.x, pos.y + 1.2, pos.z),
+              PALETTE.lotusHeart,
+              22,
+            );
+            pulseBloom(0.45);
+          } else if (out === "wrong") {
+            hud.say("Rüzgâr başka taşı işaret ediyor");
+          }
+        } else if (offer !== null) acceptGift(offer);
         else if (ripe !== null) pick(ripe);
       }
     } else {
@@ -501,6 +551,7 @@ export function startGame(canvas: HTMLCanvasElement): void {
     rig.update(focus, dt);
     sea.update(time);
     field.update(dt, time);
+    updateHillPuzzleVisuals(hill, time);
     ship.update(time, st.depart);
     lotophagoi.update(time);
     bursts.update(dt);

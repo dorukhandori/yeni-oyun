@@ -99,6 +99,24 @@ export const FEEL = {
 } as const;
 
 // --------------------------------------------------------------------- lotus
+/** Puzzle gates — docs/design/level-lotus-island.md (sahip onayı: A1, B3, tepe, C2). */
+export const PUZZLE = {
+  /** Torus highlight only when memory is below this. */
+  highlightMemoryMax: 0.35,
+  /** Torus highlight only within this distance of the ripe plant. */
+  highlightCloseRange: 1.15,
+  /** Stepping-stone chain — player must visit pads in order. */
+  stoneStepRadius: 0.95,
+  stonePickGateIndex: 4,
+  /** Hill wind cairns — interact in wind order to unlock cove lotuses. */
+  cairnRange: 2.35,
+  cairnSolveOrder: [0, 2, 1] as readonly number[],
+  /** Fraction of cove-zone plants that stay gated until hill puzzle clears. */
+  coveGatedRatio: 0.55,
+  /** Deep-zone plants behind the lily-pad chain (by index within zone). */
+  deepGatedFromIndex: 9,
+} as const;
+
 export const LOTUS = {
   count: 34,
   /** Seconds spent in each stage before advancing. */
