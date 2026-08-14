@@ -1,0 +1,9 @@
+# Per-project orchestrator overrides (optional)
+engine: three.js
+code_roots:
+  main: src/
+  cave-farm: variants/cave-farm/src/
+default_target: main
+max_parallel_agents: 4
+auto_smoke_after_implement: true
+review_mode: lean  # full | lean | solo — passed to team-* skills when delegated

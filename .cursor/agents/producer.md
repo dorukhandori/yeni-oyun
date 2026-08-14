@@ -161,6 +161,9 @@ sense but has authority to:
 - Assign tasks to any agent within that agent's domain
 - Escalate blockers to the relevant director
 
+**Execution layer:** For multi-agent delivery, defer spawning to **`orchestrator`**
+/`orchestrate` — producer plans scope and sprint; orchestrator runs the task board.
+
 Escalation target for:
 - Any scheduling conflict
 - Resource contention between departments
