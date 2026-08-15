@@ -6,15 +6,15 @@ Converse with sahip (the owner) in Turkish. Keep code, comments, and commit mess
 
 ## What this is
 
-An Odyssey adaptation: **Doryseus**'s fleet lands on the Island of the Lotus Eaters — the player character is an original design (not Homer's Odysseus), his crew are "the forgotten sailors" (unutulmuş tayfa). Third-person, shoulder camera, WASD + mouse. Pick 12 ripe lotus flowers, deliver them to the beached ship, before the sun sets. Core mechanic — **forgetting (`memory`, 0–1)**: harvesting lotus and lingering in the lagoon raises it; standing near the ship or in the sea shallows lowers it. Pinned at 1.0 for a few seconds = "you forgot your home," a soft loss that respawns you at the ship. No health bar, no forgetting meter drawn on screen — the effect is the screen itself (desaturation, vignette, fog, guiding arrow fading in).
+An Odyssey adaptation: **Doryseus**'s fleet lands on the Island of the Lotus Eaters — the player character is an original design (not Homer's Odysseus), his crew are "the forgotten sailors" (unutulmuş tayfa). Third-person, shoulder camera, WASD + mouse. Pick 12 ripe lotus flowers, deliver them to the beached ship, before the sun sets. Core mechanic — **forgetting (`memory`, 0–1)**: harvesting lotus and lingering in the lagoon raises it; standing near the ship or in the sea shallows lowers it. No health bar, no forgetting meter drawn on screen by default — the effect is the screen itself (desaturation, vignette, fog, guiding arrow fading in). A second mechanic layered on top: **hallucination figures** (sanrı figürleri, `src/world/hallucination.ts`, `docs/design/gdd-lotus-hallucination.md`) spawn/fade/wander once memory crosses a threshold — not enemies, "a symptom of forgetting" (gdd §1); contact only triggers a one-time memory spike and a temporary walk-drift, never touches inventory or speed directly.
 
-Lotus Adası is no longer a standalone game on its own — it's the first/anchor stop of a planned 3-stop Odyssey anthology run (Cyclops' Cave, then the Sirens' Strait follow), picked from a **real hub** (island-select screen) rather than played back-to-back — reversed from an earlier hub-less decision, 2026-08-14. Forgetting carry-over between stops and the exact hub semantics are being re-specced; see `docs/design/multi-island-concept.md` and `docs/design/level-cyclops-cave.md`. **Not yet built** — today's code plays exactly one island under a `test`/`real` world-profile switch (`?profile=real` for the tuned scale, no on-screen memory bar, hard loss; default `?profile=test` is the small/fast dev sandbox with the bar and a soft respawn). The run/hub structure itself is still design-only.
+Lotus Adası is no longer a standalone game on its own — it's the first/anchor stop of a planned 3-stop Odyssey anthology run (Cyclops' Cave, then the Sirens' Strait follow). The **Title → Hub (island-select) → play** flow is now built (`src/ui/menu.ts`'s `Menu` class, `Phase` = `title | hub | play | departing | won | lost | dusk | gameover` in `src/types.ts`) — reversed from an earlier hub-less decision, 2026-08-14. Only Lotus Adası is actually playable; the Cyclops' Cave and Sirens' Strait hub cards render with a "Yakında" (coming soon) badge and are inert by construction (no listener wired). Forgetting carry-over between stops and the rest of the hub semantics are still being re-specced; see `docs/design/multi-island-concept.md` and `docs/design/level-cyclops-cave.md`. Today's code plays that one island under a `test`/`real` world-profile switch (`src/constants.ts`'s `WorldProfileKey`) — **`real` is the default since the Title/Hub ship (2026-08-14)**: tuned scale, no on-screen memory bar, hard "you forgot" loss that ends the run (`phase = "gameover"`, only a manual restart continues). `?profile=test` opts back into the original small/fast dev sandbox: on-screen memory bar, soft loss that auto-respawns at the ship (`phase = "lost"`).
 
 `variants/cave-farm/` is a separate, earlier prototype (Glowsprig — crystal-cave farm concept). It is archived, not the active game. Do not touch it while working on Lotophagoi unless explicitly asked.
 
 ## Stack & commands
 
-Vite + TypeScript + **Three.js r160**. No Phaser, no Unity/Godot/Unreal APIs — this is a from-scratch WebGL prototype.
+Vite + TypeScript + **Three.js r185**. No Phaser, no Unity/Godot/Unreal APIs — this is a from-scratch WebGL prototype.
 
 ```bash
 npm run dev      # http://localhost:5173/
@@ -27,13 +27,13 @@ Don't kill the dev server needlessly if it's already running.
 ## Source layout
 
 - `src/main.ts` — entry, kicks off `startGame`
-- `src/game.ts` — the whole game loop: fixed 60 Hz timestep (`STEP = 1000/60`), state machine (`play → dusk/lost → won`), input → movement → interaction → memory → render each `step()`
+- `src/game.ts` — the whole game loop: fixed 60 Hz timestep (`STEP = 1000/60`), state machine (`title → hub → play → dusk/lost/gameover → won`), input → movement → interaction → memory → render each `step()`
 - `src/constants.ts` — **single tuning surface**. Every gameplay number (island shape, player speed, lotus timings, memory rates, day length, palette, render settings) lives here. Never hardcode a gameplay value elsewhere — add or reuse a constant.
 - `src/render/` — renderer, camera rig, `EffectComposer` + `UnrealBloomPass`, haze/forgetting post pass
-- `src/world/` — scene content builders (terrain, sea, lotus field, ship, lotophagoi NPCs, sailor, geometry helpers); each returns `{ group, update(t) }`
-- `src/systems/` — input, audio, particle bursts
-- `src/ui/` — DOM overlay HUD (`hud.ts`, `hud.css`), not WebGL UI
-- `src/types.ts` — shared `GameState` etc.
+- `src/world/` — scene content builders (terrain, sea, lotus field, ship, lotophagoi NPCs, sailor, geometry helpers), plus: `hallucination.ts` (sanrı figürleri lifecycle), `hillPuzzle.ts` (wind-cairn ritual gating the north cove), `steppingStones.ts` (lily-pad chain gating the northern lotus cluster), `sprite.ts` (cached albedo/data texture loaders, `docs/art/pipeline.md` §6 colorspace rules); each returns `{ group, update(t) }`
+- `src/systems/` — input, audio, particle bursts, `spring.ts` (spring physics helper)
+- `src/ui/` — DOM overlay HUD (`hud.ts`, `hud.css`), `menu.ts` (Title + Hub screens, `docs/ux/screens.md` §1/§3), `orientation.ts` (mobile landscape-lock gate) — not WebGL UI
+- `src/types.ts` — shared `GameState`, `Phase` etc.
 
 ## Gameplay code standards
 
@@ -44,7 +44,7 @@ Don't kill the dev server needlessly if it's already running.
 
 ## Design authority
 
-`docs/design/` (`game-concept.md`, `gdd-lotus-collection.md`, `gdd-memory-system.md`, `tuning.md`) owns gameplay, numbers, and HUD — it wins over `docs/art/` in any conflict. `docs/art/` (`art-bible.md`, `asset-registry.md`, `pipeline.md`) fixes visual language and the Higgsfield media pipeline only; it does not change mechanics. `docs/ux/` covers screens/HUD/flow at the UX layer.
+`docs/design/` (`game-concept.md`, `gdd-lotus-collection.md`, `gdd-memory-system.md`, `gdd-lotus-hallucination.md`, `tuning.md`) owns gameplay, numbers, and HUD — it wins over `docs/art/` in any conflict. `hallucination-reframe-concept.md` is the design-decision record behind `gdd-lotus-hallucination.md`, not a tuning source itself. `docs/art/` (`art-bible.md`, `asset-registry.md`, `pipeline.md`) fixes visual language and the Higgsfield media pipeline only; it does not change mechanics. `docs/ux/` covers screens/HUD/flow at the UX layer. `docs/production/roadmap.md` is the living "where are we, what's next" status doc — it doesn't decide anything itself, just points at the doc that does; `webgpu-migration-assessment.md` sits next to it as a standing technical-director assessment, not an active migration.
 
 ## The `.cursor/` studio kit — what applies here and what doesn't
 
