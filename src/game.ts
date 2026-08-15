@@ -123,6 +123,7 @@ export function startGame(canvas: HTMLCanvasElement): void {
   let harvestT = 0;
   let harvestX = 0;
   let harvestZ = 0;
+  let runHoldT = 0;
 
   const rig = new CameraRig(stage.camera, (x, z) => Math.max(heightAt(x, z), 0));
   rig.snap(pos);
@@ -601,7 +602,18 @@ export function startGame(canvas: HTMLCanvasElement): void {
     }
     if (driftTimer > 0) driftTimer = Math.max(0, driftTimer - dt);
     const wading = inLagoon(pos.x, pos.z);
-    const topSpeed = PLAYER.speed * (wading ? PLAYER.waterSpeedMul : 1);
+    const wishLen = Math.hypot(wish.x, wish.z);
+    const forwardAmt = wishLen > 0.001 ? wish.dot(fwd) / wishLen : 0;
+    if (canMove && harvestT < 0.08 && (input.forwardHeld() || forwardAmt > 0.2)) {
+      runHoldT += dt;
+    } else {
+      runHoldT = 0;
+    }
+    const running = runHoldT >= PLAYER.runHold;
+    const topSpeed =
+      PLAYER.speed *
+      (wading ? PLAYER.waterSpeedMul : 1) *
+      (running ? PLAYER.runSpeedMul : 1);
     if (wish.lengthSq() > 0.001) wish.normalize().multiplyScalar(topSpeed);
 
     const accel = PLAYER.accel * (wish.lengthSq() > 0.001 ? 1 : 0.55);
@@ -941,14 +953,18 @@ export function startGame(canvas: HTMLCanvasElement): void {
       camLift = CAMERA.pickRevealLift * pull;
       camPullback = CAMERA.pickRevealPullback * pull;
     }
+    const topGait = PLAYER.speed * (running ? PLAYER.runSpeedMul : 1);
+    const wishGait = wish.lengthSq() > 0.001 ? 1 : 0;
+    const speedGait = Math.min(1, speed / Math.max(0.001, topGait));
     sailor.update(
       time,
       dt,
-      Math.min(1, speed / PLAYER.speed),
+      Math.max(wishGait, speedGait),
       vel.x,
       vel.z,
       rig.yaw,
       harvestT,
+      running,
     );
     rig.update(focus, dt, camLift, camPullback);
     sea.update(time);
@@ -973,13 +989,15 @@ export function startGame(canvas: HTMLCanvasElement): void {
   let acc = 0;
   let last = performance.now();
   const loop = (now: number) => {
-    acc += Math.min(now - last, 250);
+    const frameMs = Math.min(now - last, 250);
+    acc += frameMs;
     last = now;
     let guard = 0;
     while (acc >= STEP && guard++ < 5) {
       acc -= STEP;
       step();
     }
+    sailor.faceCamera(stage.camera, Math.min(frameMs / 1000, 0.05));
     stage.render();
     requestAnimationFrame(loop);
   };

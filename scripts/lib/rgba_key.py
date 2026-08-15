@@ -151,6 +151,36 @@ def fit_canvas(src: Image.Image, size: int, pad: int = 8) -> Image.Image:
     return canvas
 
 
+def normalize_feet(frames: list[Image.Image], size: int, pad: int = 8) -> list[Image.Image]:
+    """Same painted height, soles on the bottom pad — kills Veo zoom pops."""
+    heights: list[int] = []
+    crops: list[tuple[Image.Image, tuple[int, int, int, int]]] = []
+    for im in frames:
+        a = im.split()[3]
+        bbox = a.getbbox()
+        if not bbox:
+            crops.append((im, (0, 0, im.size[0], im.size[1])))
+            heights.append(im.size[1])
+            continue
+        crops.append((im, bbox))
+        heights.append(bbox[3] - bbox[1])
+    heights.sort()
+    target = heights[len(heights) // 2]
+    target = min(target, size - pad * 2)
+    out: list[Image.Image] = []
+    for im, bbox in crops:
+        crop = im.crop(bbox)
+        h = max(1, bbox[3] - bbox[1])
+        scale = target / h
+        nw, nh = max(1, int(crop.size[0] * scale)), max(1, int(crop.size[1] * scale))
+        nw = min(nw, size - pad * 2)
+        resized = crop.resize((nw, nh), Image.Resampling.LANCZOS)
+        canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+        canvas.paste(resized, ((size - nw) // 2, size - pad - nh), resized)
+        out.append(canvas)
+    return out
+
+
 def save_png(im: Image.Image, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     im.save(path, "PNG")

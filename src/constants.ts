@@ -264,6 +264,10 @@ export const PLAYER = {
    */
   turnSmooth: 0.1,
   spawn: profile.player.spawn,
+  /** Hold W / stick-forward this many seconds to start running. */
+  runHold: 10,
+  /** Sprint multiplier on PLAYER.speed once runHold elapses. */
+  runSpeedMul: 1.45,
   /** Deepest the sailor sinks while wading. */
   wadeFloor: -0.42,
   /** How far past the shoreline he may wade before being held back. */
@@ -327,10 +331,6 @@ export const SAILOR = {
   height: 1.82,
   /** Empty rows under the soles in the 512 canvas (measured 10px). */
   feetPad: 10 / 512,
-  /**
-   * Weight squash at foot-plant. No upward hop — a still A-pose lifted off
-   * the ground reads as floating (playtest: "karakter havada uçuyor").
-   */
   /** Fallback squash if no walk sheet is loaded. Sheet playback must not add this. */
   walkStepSquash: 0.03,
   walkStepStretch: 0.01,
@@ -350,21 +350,28 @@ export const SAILOR = {
   harvestHip: 0.46,
   /** Extra reach toward the bloom while bent (metres, local Z). */
   harvestReach: 0.05,
-  /** Crossfade seconds when the 4-view billboard changes facing (smoothstep). */
-  viewFade: 0.18,
-  /** Extra radians past a 90° sector before the view actually switches (hysteresis). */
+  /** Crossfade seconds when the 8-way billboard changes facing (smoothstep). */
+  viewFade: 0.16,
+  /**
+   * Extra radians past an octant centre before switching. Profile (D/A) sits
+   * next to diagonal octants — a short hold stopped W+D flicker; a bit more
+   * stops left↔frontLeft chatter while strafing.
+   */
   viewHold: Math.PI * 0.09,
+  /** Play a walk/run sheet once moving (or wish) exceeds this (0–1). */
+  gaitMin: 0.04,
   /**
    * Warm linen multiply so the studio still sits in the Aegean sun
    * (`art-bible.md` §2 sand / sail / skin) instead of reading as unlit plastic.
    */
   sunTint: 0xf0e0c4,
-  /** Cloth/skin: high roughness, no metal (three.js MeshStandardMaterial). */
   roughness: 0.88,
   metalness: 0,
-  /** Fill so a camera-facing plane is not black when backlit by the island sun. */
-  emissive: 0x3a2814,
-  emissiveIntensity: 0.18,
+  /** Warm fill — wrap lighting keeps this from reading as a sticker. */
+  emissive: 0x6e4e28,
+  emissiveIntensity: 0.38,
+  /** Half-Lambert wrap (0.5 = NdotL remapped to 0.5–1). Never fully dark. */
+  wrapLight: 0.5,
   /**
    * Metres ahead (along facing) to sample ground. A vertical billboard
    * intersects the uphill mesh; we lift by that delta so calves don't clip
@@ -373,19 +380,15 @@ export const SAILOR = {
   slopeProbe: 0.42,
   /** How much of the uphill delta becomes extra root height. */
   slopeLift: 0.85,
-  /** Walk cycle (ASSET-024). Horizontal strip, 8 frames. */
-  walkFrames: 8,
-  walkFps: 10,
-  /** Fraction of max PLAYER.speed at which the run cycle takes over. */
-  runThreshold: 0.72,
-  runFps: 14,
   /**
-   * Camera-facing card thickness (metres). Twin parallel planes + a slim
-   * core box — never yawed off-camera, so turning does not flash a paper edge.
+   * Fallback column count before a sheet's image reports its size.
+   * Live playback uses width/height (square cells).
    */
-  thickness: 0.16,
-  /** Torso slab width, kept inside the silhouette. */
-  coreWidth: 0.26,
+  walkFrames: 8,
+  /** Seconds for one two-step walk cycle. Dense sheets + blend hide the seam. */
+  walkCycle: 1.12,
+  /** Seconds for one two-step run cycle. */
+  runCycle: 0.78,
 } as const;
 
 // --------------------------------------------------------------------- lotus

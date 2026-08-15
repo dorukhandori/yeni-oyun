@@ -220,6 +220,10 @@ export class Input {
   get interactHeld(): boolean {
     return this.held.has("KeyE") || this.held.has("Space") || this.actHeld;
   }
+  /** W / stick with a camera-forward component (strafe+forward still counts). */
+  forwardHeld(): boolean {
+    return this.moveZ() > 0.2;
+  }
   get wantsRestart(): boolean {
     return this.pressed.has("KeyR");
   }
