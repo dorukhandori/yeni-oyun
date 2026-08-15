@@ -60,6 +60,27 @@ Saha araştırması: `docs/research/ai-pipeline-games.md` (okunur, değiştirilm
 Agent/rule/skill kopyası: `/Users/dori/Desktop/game-project/.cursor/`  
 Canopy-kilitli kurallar: `.cursor/rules/reference-canopy/` (alwaysApply kapalı)
 
+## Çoklu-ajan koordinasyonu (Claude Code + Grok + Cursor aynı repo'da)
+
+Bu repoda aynı anda birden fazla AI oturumu çalışabiliyor — hepsi aynı `origin/master`'a push atıyor, kimi zaman aynı yerel makinede bile. 15 Ağu 2026'da bunun bedelini gördük: eşzamanlı yoğun yazma trafiği yerel dosya sistemini bozdu (dosyalar 0 byte okundu, `tsc` "is not a module" hatası verdi — temiz `git clone` ile düzeltildi), ve iki ayrı oturum habersizce aynı işi (ada ölçek büyütme, karakter fizik düzeltmesi) paralel yaptı.
+
+**Kural — her oturum, her iş öncesi:**
+
+1. `git pull origin master` — en güncel hali al.
+2. `docs/production/ACTIVE_WORK.md`'yi oku — biri aynı dosyalarda/alanda mı çalışıyor kontrol et.
+3. Kendi satırını ekle (kim/ne zaman/hangi dosyalar/ne yapıyor) → commit + push **sadece bu dosya**, hemen.
+4. İşe başla. Küçük/sık commit tercih et — bir özelliği bitirmeden saatlerce yerelde tutma.
+5. Bitince: `ACTIVE_WORK.md`'deki satırını sil → commit + push. Asıl işi de `git pull --rebase` sonrası push et; çakışma çıkarsa elle çöz, kör kör üzerine yazma.
+
+**Kaçınılacaklar (bugünden ders):**
+
+- Aynı anda 2. bir `npm run dev`/`vite preview` başlatma — önce `lsof -i :5173` ile portu kontrol et.
+- `git worktree` kullandıysan iş bitince `git worktree remove` yap; arkasında process (özellikle `vite preview`) bırakma — silinen bir worktree'ye bağlı process paylaşılan `node_modules`'a yazmaya devam edip bozulmaya yol açabiliyor.
+- Disk doluluğu (`df -h`) — %90 üstü riskli, uzun/paralel oturum öncesi kontrol et.
+- `docs/production/roadmap.md`'ye K-numaralı kararları **silmeden**, sonuç+tarihle ekleyerek yaz — bu, herkesin okuduğu tek doğruluk kaynağı; K-madde numarasını asla tekrar kullanma, hep yeni numara aç.
+
+**Grok'a özel not:** `AGENTS.md` + `docs/production/roadmap.md` + `docs/production/ACTIVE_WORK.md` — sahibin her Grok oturumu başında link/paste ile vermesi gereken minimum üç dosya. Claude Code oturumları `CLAUDE.md`'yi otomatik okuyor; Grok'un böyle bir mekanizması yok, sahip hatırlatmazsa bu protokolden habersiz kalır.
+
 ## Yasak
 
 Commit ancak sahip isterse. Dev server’ı (`npm run dev`) gereksiz yere öldürme.

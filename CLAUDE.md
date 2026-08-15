@@ -4,6 +4,8 @@ This file is Claude Code's project memory — loaded automatically every session
 
 Converse with sahip (the owner) in Turkish. Keep code, comments, and commit messages in English. Never commit unless sahip asks.
 
+**Multiple AI sessions (Claude Code, Grok, Cursor) work on this same repo, sometimes concurrently.** Before starting substantive work: `git pull`, read `docs/production/ACTIVE_WORK.md` (claim board — is someone already in these files?), add your own claim line and push it, then proceed. Full protocol: `AGENTS.md` § Çoklu-ajan koordinasyonu. This isn't optional politeness — concurrent unclaimed writes corrupted the local filesystem once already (15 Aug 2026).
+
 ## What this is
 
 An Odyssey adaptation: **Doryseus** (original, not Homer's Odysseus), crew = "forgotten sailors". Third-person, WASD + mouse.
