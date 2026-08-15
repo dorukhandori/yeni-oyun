@@ -438,6 +438,15 @@ canvas#game {
   background: linear-gradient(180deg, rgba(20, 16, 10, 0.05) 0%, rgba(20, 16, 10, 0.22) 100%);
 }
 
+/* `--panel-w` is the single source of truth for the panel's own shrink
+   (mirrors the old fixed `min(300px, 78vw)`, now also vh-aware for short
+   landscape viewports). Custom properties inherit to descendants, so
+   `.title-name`/`.title-sub`/the padding below all derive their size from
+   this one value via calc() — whichever branch of the min() is active, the
+   title scales down in lockstep with the frame instead of a separately
+   guessed clamp() drifting out of sync with it (that was the previous
+   attempt's bug: font-size shrank far slower than the panel itself, so it
+   still overflowed at 480x320/568x320). */
 .title-content {
   position: relative;
   display: flex;
@@ -445,25 +454,32 @@ canvas#game {
   align-items: center;
   gap: 8px;
   text-align: center;
-  width: min(300px, 78vw);
-  padding: 50px 28px 40px;
+  --panel-w: min(300px, 78vw, 92vh);
+  width: var(--panel-w);
+  max-height: 92vh;
+  padding: calc(var(--panel-w) * 0.167) calc(var(--panel-w) * 0.093) calc(var(--panel-w) * 0.133);
+  overflow: hidden;
 }
 
 .title-name {
   margin: 0;
-  font-size: 32px;
-  letter-spacing: 6px;
+  max-width: 100%;
+  font-size: calc(var(--panel-w) * 0.082);
+  letter-spacing: calc(var(--panel-w) * 0.012);
   text-transform: uppercase;
   color: #6d4a16;
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.55);
+  white-space: nowrap;
 }
 
 .title-sub {
-  font-size: 11.5px;
-  letter-spacing: 3.5px;
+  max-width: 100%;
+  font-size: calc(var(--panel-w) * 0.03);
+  letter-spacing: calc(var(--panel-w) * 0.009);
   text-transform: uppercase;
   color: rgba(90, 64, 28, 0.75);
-  margin-bottom: 18px;
+  margin-bottom: calc(var(--panel-w) * 0.06);
+  white-space: nowrap;
 }
 
 .title-menu {
@@ -471,6 +487,20 @@ canvas#game {
   flex-direction: column;
   gap: 10px;
   align-items: center;
+}
+
+/* ------------------------------------------------------------- app version
+   Bottom-left corner tag, build-time git hash — never a hand-bumped counter. */
+.app-version {
+  position: absolute;
+  left: 10px;
+  bottom: 8px;
+  font: 500 11px/1.2 "Optima", "Palatino Linotype", "Georgia", serif;
+  letter-spacing: 0.5px;
+  color: rgba(255, 255, 255, 0.55);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  z-index: 5;
 }
 
 /* ------------------------------------------------------------ floating motes
