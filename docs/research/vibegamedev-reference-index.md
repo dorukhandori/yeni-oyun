@@ -190,4 +190,4 @@ curl -fsSL -o "$BASE/cheatsheets/vgd-06-pixel-snap.png" \
 
 ---
 
-*İlgili:* `docs/research/ai-pipeline-games.md` · `docs/art/pipeline.md` · `AGENTS.md` çoklu-ajan protokolü
+*İlgili:* `docs/research/ai-pipeline-games.md` · `docs/art/pipeline.md` · `docs/research/high-star-pipeline-scan.md` · `AGENTS.md` çoklu-ajan protokolü
