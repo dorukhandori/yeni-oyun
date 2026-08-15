@@ -131,10 +131,22 @@ Sahip'in talebi "oyuncu 3 duraktan hangisini oynayacağını seçebiliyor" — b
 
 ### 3.5 Erişilebilirlik
 
-- Tab/ok tuşlarıyla 3 kart arası gezinme, Enter/Space ile seçim, görünür odak halkası.
+- Tab/ok tuşlarıyla kenar görev + 3 kart arası gezinme, Enter/Space ile seçim, görünür odak halkası.
 - Kilitli/Açık/Tamamlandı durumu **ikon + metin** ile, yalnızca renkle değil (Hub'un tek görsel-durum yeri olduğu için bu proje genelindeki "renk körlüğü kuralı"nın en kritik uygulama noktası).
 - Dokunmatik: MVP'de dokunmatik genel olarak kapsam dışı (`hud.md` "Platform Notes"); yine de kart hedef boyutu ≥ 44 px tutulmalı, ileride touch açılırsa ekstra iş çıkmasın.
 - Metin kontrastı ≥ 4.5:1 (Hub arkaplanı ne olursa olsun — art-director kararı, kontrast gereksinimi benim).
+
+### 3.6 Kenar görev (K35, 15 Ağu 2026)
+
+Lotus Adası’nın **uydusu**, dördüncü durak değil. Haritada ada düğümünün sol-üstüne kesik çizgiyle bağlı **küçük daire + iç nokta**. Metin: `Beş yeter` (`scenario.md` A3).
+
+| | Ada kartı | Kenar görev |
+|---|---|---|
+| Ne | Durak (antoloji) | Aynı adanın adlandırılmış senaryosu |
+| Tıklanınca | Lotus koşusu | Aynı koşu (K35 kuralları kodlanınca buradan da girilir) |
+| Kiklop kilidi | 5 teslim + dümen | Aynı — ayrı sayaç yok |
+
+Kiklop/Sirenler’e kenar görev yok. Tab sırası: kenar görev → Lotus → (kilitliler) → Ana menü.
 
 ### Wireframe — Hub
 
@@ -142,6 +154,8 @@ Sahip'in talebi "oyuncu 3 duraktan hangisini oynayacağını seçebiliyor" — b
 ┌─────────────────────────────────────────┐
 │                  ROTA                    │
 │                                          │
+│  (•) Beş yeter                           │
+│     ↘                                    │
 │   [ Lotus Adası ]  [ Kiklop ]  [Sirenler]│
 │      Hazır          Kilitli    Kilitli   │
 │                                          │
@@ -159,7 +173,7 @@ Dünya görünür, kontrol yok. Üç satır, fade, 3 sn — **her durağın kend
 
 > Dokuz gün rüzgâr. Onuncu sabah kum.
 > Üç adam gönderdim. Üçü de burada. Üçü de gülümsüyor.
-> Yenmemiş çiçek hatırlatır. On iki gemi, on iki çiçek. Güneş batana kadar.
+> Yenmemiş çiçek hatırlatır. Bu kıyıda beş yeter.
 
 **Kiklop Mağarası, Sirenler Geçidi:** kendi satırları henüz yazılmadı — `island-designer`'ın işi (`level-cyclops-cave.md`/gelecek `level-sirens-strait.md` ile birlikte, `scenario.md` §7 formatında). Bu doküman şablonun **her durakta tekrarlandığını**, içeriğin kilitli olmadığını belirtiyor.
 

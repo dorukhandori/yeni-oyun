@@ -1,0 +1,20 @@
+---
+description: K35 Lotus real run — do not reopen old 12/dusk/K27-on-Lotus rules
+alwaysApply: true
+---
+
+# K35 — Lotus `real` koşusu (kodlandı, 15 Ağu 2026)
+
+Otorite: `docs/design/gdd-lotus-island-run.md`. Anlatı: `docs/design/scenario.md`. Hub: `docs/ux/screens.md` §3.6.
+
+## Kilitler (yeniden açma)
+
+- Hedef **5**, tarla **5**, spawn rastgele. Solma/hasat → başka yer.
+- Gün döner; `dusk` / güneş kaybı **yok**.
+- Unutuş durak bitirmez: `carried = 0`, `delivered` aynı, oyuncu yerinde, kahraman gemi kıyı değiştirir. Filo güneyde sabit.
+- İkram: gezen 3 tayfa + kadın, `gift = 1`, max 4 < 5. Kadın + çelenk. Sanrı vermez.
+- Hub: Lotus kartı + kenar görev **Beş yeter** (aynı koşu). Dördüncü durak değil.
+- Kiklop: 5 teslim + dümen. Abandon açmaz.
+- `?profile=test` bu GDD’yi okumaz.
+
+Çelişen eski cümleler (12, gün-kaybı, 28’li küme, K27 Lotus kaybı) `real`’de geçersiz.

@@ -1,17 +1,21 @@
 import * as THREE from "three";
 import {
+  BEAUTY,
   CAMERA,
   DAY,
   FEEL,
   FLOW,
   HALLUCINATION,
+  ISLAND,
   LAGOON,
+  LANDMARK,
   LOTOPHAGOS,
   LOTUS,
   MEMORY,
   PALETTE,
   PLAYER,
   PUZZLE,
+  SAILOR,
   SHIP,
   STEP,
   WORLD,
@@ -113,6 +117,10 @@ export function startGame(canvas: HTMLCanvasElement): void {
   let boundaryHintTimer = 0;
   /** Seconds remaining on the hallucination contact drift-spike (see updateDrift). */
   let driftTimer = 0;
+  let harvestIndex: number | null = null;
+  let harvestT = 0;
+  let harvestX = 0;
+  let harvestZ = 0;
 
   const rig = new CameraRig(stage.camera, (x, z) => Math.max(heightAt(x, z), 0));
   rig.snap(pos);
@@ -131,8 +139,9 @@ export function startGame(canvas: HTMLCanvasElement): void {
     phase: "title",
     carried: 0,
     delivered: 0,
-    memory: 0.08,
+    memory: 0,
     lostTimer: 0,
+    forgetIframes: 0,
     depart: 0,
     cardTimer: 0,
     dayTime: 0,
@@ -164,6 +173,8 @@ export function startGame(canvas: HTMLCanvasElement): void {
     st.lostTimer = 0;
     st.phase = "play";
     driftTimer = 0;
+    harvestIndex = null;
+    harvestT = 0;
     prevGroundY = pos.y;
     sailor.setCarried(0);
     sailor.root.visible = true;
@@ -172,7 +183,98 @@ export function startGame(canvas: HTMLCanvasElement): void {
   }
 
   function lotusGates(): LotusGateState {
+    if (WORLD.k35) return { stonesOpen: true, hillOpen: true };
     return { stonesOpen: stones.isOpen(), hillOpen: hill.isOpen() };
+  }
+
+  let hillVistaSeen = false;
+  let beatM1 = false;
+  let beatM2 = false;
+  let forgetLinesLeft = 3;
+  const opening = [
+    "Dokuz gün rüzgâr. Onuncu sabah kum.",
+    "Üç adam gönderdim. Üçü de burada. Üçü de gülümsüyor.",
+    "Yenmemiş çiçek hatırlatır. Bu kıyıda beş yeter.",
+  ];
+
+  function queueOpening(): void {
+    if (!WORLD.k35) return;
+    opening.forEach((line, i) => {
+      window.setTimeout(() => {
+        if (st.phase === "play") hud.say(line);
+      }, i * 3200);
+    });
+  }
+
+  function vagueDelivered(): string {
+    if (st.delivered <= 0) return "";
+    if (st.delivered <= 2) return "birkaç";
+    if (st.delivered <= 4) return "yarısından çok";
+    return "yeter";
+  }
+
+  function isNight(): boolean {
+    const p = st.dayTime / DAY.length;
+    return p >= 0.8 || p < 0.1;
+  }
+
+  function pickHeroBerth(): { x: number; z: number; rotY: number } {
+    const oldX = ship.anchor.x;
+    const oldZ = ship.anchor.z;
+    const tryOne = (a: number, slack: number): { x: number; z: number } | null => {
+      const rMin = ISLAND.radius - 22;
+      const rMax = ISLAND.radius - 8;
+      const r = rMin + Math.random() * (rMax - rMin) * slack;
+      const x = Math.cos(a) * r;
+      const z = Math.sin(a) * r;
+      const h = heightAt(x, z);
+      if (h < 0 || h > 2.5) return null;
+      if (Math.hypot(x - oldX, z - oldZ) < SHIP.relocateMin * slack) return null;
+      if (Math.hypot(x - pos.x, z - pos.z) < SHIP.relocatePlayerMin * slack) return null;
+      const rr = Math.hypot(x, z);
+      const north = Math.max(0, z / Math.max(rr, 1));
+      if (LANDMARK.northSpikes.height > 0 && north >= 0.35 && rr >= LANDMARK.northSpikes.startR) {
+        return null;
+      }
+      return { x, z };
+    };
+    for (let i = 0; i < 80; i++) {
+      const hit = tryOne(Math.random() * Math.PI * 2, 1);
+      if (hit) return { ...hit, rotY: Math.atan2(hit.z, hit.x) + Math.PI / 2 };
+    }
+    for (let i = 0; i < 80; i++) {
+      const hit = tryOne(Math.random() * Math.PI * 2, 1.2);
+      if (hit) return { ...hit, rotY: Math.atan2(hit.z, hit.x) + Math.PI / 2 };
+    }
+    for (let k = 0; k < 12; k++) {
+      const hit = tryOne((k / 12) * Math.PI * 2, 1.4);
+      if (hit) return { ...hit, rotY: Math.atan2(hit.z, hit.x) + Math.PI / 2 };
+    }
+    const a = Math.atan2(pos.z, pos.x) + Math.PI;
+    const x = Math.cos(a) * (ISLAND.radius - 12);
+    const z = Math.sin(a) * (ISLAND.radius - 12);
+    return { x, z, rotY: a + Math.PI / 2 };
+  }
+
+  function runForgetEvent(): void {
+    st.carried = 0;
+    sailor.setCarried(0);
+    st.lostTimer = 0;
+    st.memory = MEMORY.forgetFloor;
+    st.forgetIframes = MEMORY.forgetIframes;
+    const berth = pickHeroBerth();
+    ship.relocateHero(berth.x, berth.z, berth.rotY);
+    if (forgetLinesLeft > 0) {
+      forgetLinesLeft -= 1;
+      hud.say("Denizin hangi yönde olduğunu bilmiyorum.");
+      window.setTimeout(() => {
+        if (st.phase === "play") hud.say("Sorun değil.");
+      }, 1600);
+      window.setTimeout(() => {
+        if (st.phase === "play") hud.say("Buradan güzel görünüyor.");
+      }, 3200);
+    }
+    audio.lose();
   }
 
   /** Full world reset + actually starts play. Only entry point into "play". */
@@ -180,7 +282,15 @@ export function startGame(canvas: HTMLCanvasElement): void {
     menu.hideAll();
     hud.hideCard();
     ship.reset();
-    field.reset();
+    const runSeed = (Math.random() * 1e9) | 0;
+    if (WORLD.k35) console.debug("[lotus-run] seed", runSeed);
+    field.reset({
+      seed: runSeed,
+      playerX: PLAYER.spawn.x,
+      playerZ: PLAYER.spawn.z,
+      shipX: SHIP.pos.x,
+      shipZ: SHIP.pos.z,
+    });
     stones.reset();
     hill.reset();
     lotophagoi.reset();
@@ -188,8 +298,13 @@ export function startGame(canvas: HTMLCanvasElement): void {
     st.phase = "play";
     st.carried = 0;
     st.delivered = 0;
-    st.memory = 0.08;
+    st.memory = 0;
     st.lostTimer = 0;
+    st.forgetIframes = 0;
+    hillVistaSeen = false;
+    beatM1 = false;
+    beatM2 = false;
+    forgetLinesLeft = 3;
     st.depart = 0;
     st.cardTimer = 0;
     st.dayTime = 0;
@@ -198,6 +313,8 @@ export function startGame(canvas: HTMLCanvasElement): void {
     warnSoundPlayed = false;
     boundaryHintTimer = 0;
     driftTimer = 0;
+    harvestIndex = null;
+    harvestT = 0;
     pos.set(PLAYER.spawn.x, 0, PLAYER.spawn.z);
     pos.y = standY(pos.x, pos.z);
     vel.set(0, 0, 0);
@@ -212,8 +329,9 @@ export function startGame(canvas: HTMLCanvasElement): void {
     rig.yaw = CAMERA.yawStart;
     rig.snap(pos);
     stage.setDayProgress(0);
-    hud.say("Yeni bir gün — on iki lotus");
+    hud.say(WORLD.k35 ? "Bu kıyıda beş yeter." : "Yeni bir gün — on iki lotus");
     hud.startHintTimer();
+    queueOpening();
   }
 
   /** Title -> Hub (docs/ux/screens.md §1 "Oyna"). */
@@ -237,6 +355,7 @@ export function startGame(canvas: HTMLCanvasElement): void {
   /** Hub "Ana menü" -> Title. Also boot's initial state via menu.showTitle() below. */
   function goTitle(): void {
     hud.hideCard();
+    menu.setCyclopsReady(false);
     st.phase = "title";
     menu.showTitle();
   }
@@ -244,6 +363,7 @@ export function startGame(canvas: HTMLCanvasElement): void {
   const menu = new Menu({
     onPlay,
     onSelectLotus: fullRestart,
+    onSelectLotusEdge: fullRestart,
     onHubMenu: goTitle,
   });
   menu.showTitle();
@@ -265,15 +385,24 @@ export function startGame(canvas: HTMLCanvasElement): void {
     rig.kick(0.22);
     sailor.pulse(0.55);
     pulseBloom(FEEL.deliverBloomPulse);
-    if (st.delivered >= LOTUS.target) {
+    if (!WORLD.k35 && st.delivered >= LOTUS.target) {
       st.phase = "departing";
       hud.say("Yeter bu kadar — yelken aç!");
+    } else if (WORLD.k35 && st.delivered >= LOTUS.target) {
+      hud.say("Yeter. Dümene geç.");
     }
+  }
+
+  function startDepart(): void {
+    if (st.delivered < LOTUS.target) return;
+    menu.setCyclopsReady(true);
+    st.phase = "departing";
+    hud.say("Ağlayarak kürek çektiler. Bağladım onları sıraların altına.");
   }
 
   function pick(index: number): void {
     if (st.carried >= LOTUS.carryCap) {
-      hud.say("Sepet dolu — gemiye götür");
+      hud.say(WORLD.k35 ? "Elin dolu" : "Sepet dolu — gemiye götür");
       return;
     }
     if (!field.pick(index, lotusGates())) return;
@@ -288,16 +417,20 @@ export function startGame(canvas: HTMLCanvasElement): void {
     sailor.pulse(0.48);
     pulseBloom(FEEL.collectBloomPulse);
     audio.pick();
+    if (WORLD.k35 && !beatM1) {
+      beatM1 = true;
+      hud.say("Ağzıma götürmedim. Yine de dilimde bir tat var.");
+    }
   }
 
   function acceptGift(index: number): void {
     const room = LOTUS.carryCap - st.carried;
-    const n = lotophagoi.accept(index, room);
-    if (n <= 0) {
-      if (room <= 0) hud.say("Sepet dolu — ikram alınamaz");
+    const out = lotophagoi.accept(index, room);
+    if (out.n <= 0) {
+      if (room <= 0) hud.say("Elin dolu");
       return;
     }
-    st.carried += n;
+    st.carried += out.n;
     sailor.setCarried(st.carried);
     st.memory = Math.min(1, st.memory + LOTOPHAGOS.memCost);
     const fig = lotophagoi.group.children[index] as THREE.Object3D | undefined;
@@ -306,7 +439,15 @@ export function startGame(canvas: HTMLCanvasElement): void {
       : pos.clone();
     bursts.spawnPop(at, PALETTE.petalRipeTint, 20);
     bursts.spawn(at, PALETTE.lotusHeart, 8, 1.4);
-    hud.say(`İkram: ${n} olgun lotus`);
+    if (out.woman) {
+      ship.addKeepsake("wreath");
+      hud.say("Kal demiyor. Kalmamı bekliyor.");
+    } else if (WORLD.k35 && !beatM2) {
+      beatM2 = true;
+      hud.say("Adım söylemiyor. Sadece uzatıyor. Elini indirmiyor.");
+    } else {
+      hud.say(`İkram: ${out.n} olgun lotus`);
+    }
     audio.gift();
     sailor.pulse(0.4);
     pulseBloom(0.35);
@@ -317,23 +458,34 @@ export function startGame(canvas: HTMLCanvasElement): void {
     const nearShip = shipDist() < SHIP.range;
     const inSea = r > islandRadiusAt(pos.x, pos.z) - MEMORY.seaBand;
 
+    if (st.forgetIframes > 0) st.forgetIframes = Math.max(0, st.forgetIframes - dt);
+
     let rate = MEMORY.islandGain + st.carried * MEMORY.perCarriedGain;
     if (inLagoon(pos.x, pos.z)) rate += MEMORY.lagoonGain;
+    if (WORLD.k35 && isNight()) rate += MEMORY.islandGain * (MEMORY.nightMul - 1);
     if (nearShip) rate = -MEMORY.shipRecover;
     else if (inSea) rate = -MEMORY.seaRecover;
+    if (st.forgetIframes > 0 && rate > 0) rate = 0;
 
     st.memory = Math.min(1, Math.max(0, st.memory + rate * dt));
 
     if (st.memory >= 0.999) {
+      if (WORLD.k35 && (nearShip || inSea)) {
+        st.lostTimer = 0;
+        return;
+      }
       st.lostTimer += dt;
       if (st.lostTimer >= MEMORY.loseHold && st.phase === "play") {
-        if (WORLD.lossMode === "gameOver") {
+        if (WORLD.k35) {
+          runForgetEvent();
+        } else if (WORLD.lossMode === "gameOver") {
           st.phase = "gameover";
+          audio.lose();
         } else {
           st.phase = "lost";
           st.cardTimer = FLOW.lostCardSeconds;
+          audio.lose();
         }
-        audio.lose();
       }
     } else {
       st.lostTimer = 0;
@@ -356,13 +508,21 @@ export function startGame(canvas: HTMLCanvasElement): void {
 
     // Day clock — only ticks while actively sailing the island.
     if (st.phase === "play") {
-      st.dayTime = Math.min(DAY.length, st.dayTime + dt);
+      st.dayTime += dt;
+      if (WORLD.k35) {
+        if (st.dayTime >= DAY.length) {
+          st.dayTime -= DAY.length;
+          warnSoundPlayed = false;
+        }
+      } else {
+        st.dayTime = Math.min(DAY.length, st.dayTime);
+      }
       const remain = DAY.length - st.dayTime;
       if (!warnSoundPlayed && remain <= DAY.warnRemaining) {
         warnSoundPlayed = true;
         audio.warn();
       }
-      if (st.dayTime >= DAY.length && st.delivered < LOTUS.target) {
+      if (!WORLD.k35 && st.dayTime >= DAY.length && st.delivered < LOTUS.target) {
         st.phase = "dusk";
       }
     }
@@ -492,7 +652,16 @@ export function startGame(canvas: HTMLCanvasElement): void {
     pos.z = nz;
     const groundY = standY(pos.x, pos.z);
     const drop = prevGroundY - groundY;
-    pos.y += (groundY - pos.y) * Math.min(1, 14 * dt);
+    // Climb: snap up. The old 14/s lerp lagged ~16 cm below a 30° slope at
+    // run speed, so the billboard's calves sat inside the hill. Descend still
+    // eases, so land squash has a moment to read.
+    const probeY = standY(
+      pos.x + Math.sin(facing) * SAILOR.slopeProbe,
+      pos.z + Math.cos(facing) * SAILOR.slopeProbe,
+    );
+    const wantY = groundY + Math.max(0, probeY - groundY) * SAILOR.slopeLift;
+    if (wantY >= pos.y) pos.y = wantY;
+    else pos.y += (wantY - pos.y) * Math.min(1, 14 * dt);
     if (drop > 0.12 && Math.hypot(vel.x, vel.z) > FEEL.landImpactSpeed * 0.4) {
       sailor.land(Math.min(0.7, drop * 1.4));
       rig.kick(Math.min(0.12, drop * 0.25));
@@ -506,15 +675,7 @@ export function startGame(canvas: HTMLCanvasElement): void {
     prevGroundY = groundY;
 
     const speed = Math.hypot(vel.x, vel.z);
-    if (speed > 0.4) {
-      const want = Math.atan2(vel.x, vel.z);
-      let d = want - facing;
-      while (d > Math.PI) d -= Math.PI * 2;
-      while (d < -Math.PI) d += Math.PI * 2;
-      facing += d * PLAYER.turnLerp;
-    }
     sailor.root.position.copy(pos);
-    sailor.root.rotation.y = facing;
     // GameState.playerX/playerZ — read by ui-programmer's minimap via
     // hud.update(st, haze); kept in lockstep with the physics position above.
     st.playerX = pos.x;
@@ -566,14 +727,50 @@ export function startGame(canvas: HTMLCanvasElement): void {
     }
     field.setHighlight(highlightIndex);
 
+    const canHarvest =
+      st.phase === "play" &&
+      ripe !== null &&
+      !nearShip &&
+      offer === null &&
+      cairn === null &&
+      st.carried < LOTUS.carryCap;
+
+    if (canHarvest && ripe !== null && input.interactHeld) {
+      if (harvestIndex !== ripe) {
+        harvestIndex = ripe;
+        harvestT = 0;
+        harvestX = pos.x;
+        harvestZ = pos.z;
+      }
+      if (Math.hypot(pos.x - harvestX, pos.z - harvestZ) > LOTUS.cancelMove) {
+        harvestIndex = null;
+        harvestT = 0;
+      } else {
+        harvestT = Math.min(1, harvestT + dt / LOTUS.hold);
+        if (harvestT >= 1) {
+          pick(ripe);
+          harvestIndex = null;
+          harvestT = 0;
+        }
+      }
+    } else {
+      harvestIndex = null;
+      harvestT = 0;
+    }
+
     if (st.phase === "play") {
       if (nearShip) {
+        const vague = WORLD.k35 && st.delivered > 0 ? ` · ${vagueDelivered()}` : "";
         hud.setPrompt(
           st.carried > 0
             ? input.touchActive
               ? `Topla · ${st.carried} lotusu gemiye ver`
-              : `<b>E</b> ${st.carried} lotusu gemiye ver`
-            : "Gemi burada — olgun lotus getir",
+              : `<b>E</b> teslim et`
+            : WORLD.k35 && st.delivered >= LOTUS.target
+              ? input.touchActive
+                ? "Topla · ayrıl"
+                : "<b>E</b> ayrıl"
+              : `Gemi burada${vague}`,
         );
       } else if (cairn !== null) {
         hud.setPrompt(
@@ -585,31 +782,56 @@ export function startGame(canvas: HTMLCanvasElement): void {
         const room = LOTUS.carryCap - st.carried;
         hud.setPrompt(
           room <= 0
-            ? "Sepet dolu — önce gemiye git"
+            ? "Elin dolu"
             : input.touchActive
-              ? `Topla · ikramı al (${Math.min(LOTOPHAGOS.gift, room)} lotus)`
-              : `<b>E</b> ikramı al (${Math.min(LOTOPHAGOS.gift, room)} lotus)`,
+              ? "Topla · uzatılanı tut"
+              : "<b>E</b> uzatılanı tut",
         );
       } else if (gatedKind === "stones") {
         hud.setPrompt("Yaprak yolunu sona kadar izle");
       } else if (gatedKind === "hill") {
         hud.setPrompt("Kuzeydeki rüzgâr taşlarını çöz");
       } else if (ripe !== null) {
-        hud.setPrompt(input.touchActive ? "Topla · olgun lotusu kopar" : "<b>E</b> olgun lotusu topla");
-      } else if (stones.hintNear(pos.x, pos.z)) {
+        if (st.carried >= LOTUS.carryCap) {
+          hud.setPrompt("Sepet dolu — gemiye götür");
+        } else if (harvestIndex !== null) {
+          const filled = Math.round(harvestT * 5);
+          const bar = "●".repeat(filled) + "○".repeat(5 - filled);
+          hud.setPrompt(`Koparıyor ${bar}`);
+        } else {
+          hud.setPrompt(
+            input.touchActive
+              ? "Topla basılı tut · olgun lotusu kopar"
+              : "<b>E</b> — topla",
+          );
+        }
+      } else if (stones.hintNear(pos.x, pos.z) && !WORLD.k35) {
         hud.setPrompt("Taşlara basarak sırayla geç");
       } else if (hill.hintNear(pos.x, pos.z)) {
-        hud.setPrompt("Rüzgârın işaret ettiği taşa dokun");
+        hud.setPrompt(WORLD.k35 ? "<b>E</b> — bak" : "Rüzgârın işaret ettiği taşa dokun");
       } else {
-        hud.setPrompt(null);
+        const look = WORLD.k35 ? lotophagoi.findLook(pos.x, pos.z) : null;
+        hud.setPrompt(look !== null && lotophagoi.isWoman(look) ? "<b>E</b> — bak" : null);
+      }
+
+      if (WORLD.k35 && !hillVistaSeen && pos.y >= BEAUTY.hillViewHeight) {
+        hillVistaSeen = true;
+        hud.say("On iki direk. Beşi uyanırsa kalkarız.");
       }
 
       if (input.interact) {
-        if (nearShip) deliver();
-        else if (cairn !== null) {
+        if (nearShip) {
+          if (st.carried > 0) deliver();
+          else if (WORLD.k35 && st.delivered >= LOTUS.target) startDepart();
+        } else if (cairn !== null) {
           const out = hill.interact(cairn);
           if (out === "done") {
-            hud.say("Rüzgâr yolu açıldı — kuzey lotusları serbest");
+            if (WORLD.k35) {
+              ship.addKeepsake("cairn");
+              hud.say("Taş güvertede duracak.");
+            } else {
+              hud.say("Rüzgâr yolu açıldı — kuzey lotusları serbest");
+            }
             bursts.spawnPop(
               new THREE.Vector3(pos.x, pos.y + 1.2, pos.z),
               PALETTE.lotusHeart,
@@ -620,11 +842,25 @@ export function startGame(canvas: HTMLCanvasElement): void {
             hud.say("Rüzgâr başka taşı işaret ediyor");
           }
         } else if (offer !== null) acceptGift(offer);
-        else if (ripe !== null) pick(ripe);
       }
     } else {
       hud.setPrompt(null);
     }
+
+    const turnK = 1 - Math.exp(-dt / PLAYER.turnSmooth);
+    if (harvestIndex !== null && ripe !== null) {
+      const p = field.positionOf(ripe);
+      let d = Math.atan2(p.x - pos.x, p.z - pos.z) - facing;
+      while (d > Math.PI) d -= Math.PI * 2;
+      while (d < -Math.PI) d += Math.PI * 2;
+      facing += d * turnK;
+    } else if (wish.lengthSq() > 0.001) {
+      let d = Math.atan2(wish.x, wish.z) - facing;
+      while (d > Math.PI) d -= Math.PI * 2;
+      while (d < -Math.PI) d += Math.PI * 2;
+      facing += d * turnK;
+    }
+    sailor.root.rotation.y = facing;
 
     if (st.phase === "play") {
       // Lotus Adası only — gdd-lotus-hallucination.md. Contact is a one-shot
@@ -669,7 +905,9 @@ export function startGame(canvas: HTMLCanvasElement): void {
       hud.showCard(
         "won",
         "İthake'ye doğru",
-        `${st.delivered} olgun lotus ambarda. Unutuşu geride bıraktın.`,
+        WORLD.k35
+          ? "Ada arkamızda küçüldü. Kimse dönüp bakmadı. Bakmamak için."
+          : `${st.delivered} olgun lotus ambarda. Unutuşu geride bıraktın.`,
         { restart: true },
       );
       if (input.interact || input.wantsRestart) goHub();
@@ -696,16 +934,30 @@ export function startGame(canvas: HTMLCanvasElement): void {
     if (ripe !== null) {
       const p = field.positionOf(ripe);
       const closeness = Math.max(0, 1 - Math.hypot(p.x - pos.x, p.z - pos.z) / CAMERA.pickRevealRange);
-      camLift = CAMERA.pickRevealLift * closeness;
-      camPullback = CAMERA.pickRevealPullback * closeness;
+      const pull = Math.max(closeness, harvestT);
+      camLift = CAMERA.pickRevealLift * pull;
+      camPullback = CAMERA.pickRevealPullback * pull;
     }
-    sailor.update(time, dt, Math.min(1, speed / PLAYER.speed), vel.x, vel.z);
+    sailor.update(
+      time,
+      dt,
+      Math.min(1, speed / PLAYER.speed),
+      vel.x,
+      vel.z,
+      rig.yaw,
+      harvestT,
+    );
     rig.update(focus, dt, camLift, camPullback);
     sea.update(time);
-    field.update(dt, time);
+    field.update(dt, time, {
+      playerX: pos.x,
+      playerZ: pos.z,
+      shipX: ship.anchor.x,
+      shipZ: ship.anchor.z,
+    });
     updateHillPuzzleVisuals(hill, time);
     ship.update(time, st.depart);
-    lotophagoi.update(time);
+    lotophagoi.update(dt, time, pos, ship.anchor);
     bursts.update(dt);
 
     stage.haze.amount = haze;

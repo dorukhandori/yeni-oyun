@@ -146,7 +146,9 @@ Higgsfield mesh vermediği için hareketli yaratık/karakter şöyle çıkarıl�
 | 5 | **Elle temizlik** | `art-source/work/` | **[A]** Zorunlu adım — o projede Volt hariç her sprite elle temizlenmiş |
 | 6 | **Spritesheet** | `public/assets/spritesheets/` | İsim kuralı §6 |
 
-**[A]** Bu altı adım tek komuta indirilmelidir — referans projede `pixelize.gd` idi, bizde bir Node script'i olur. Yeri `scripts/` **[P][?]**, henüz yazılmadı.
+**[A]** Bu altı adım tek komuta indirilmelidir — referans projede `pixelize.gd` idi, bizde bir Node script'i olur. Yeri `scripts/` **[P]**:
+- `scripts/sheet-from-still.mjs` — onaylı turnaround → 4 yönlü idle sprite (ASSET-041..044). Kenar flood-fill; global chroma-key yok.
+- `scripts/sheet-from-video.mjs` — clip → kare → taslak sheet. **Adım 5 (elle temizlik) sahip kapısıdır**; `--ship` olmadan `public/assets/`'e yazmaz. Veo klipleri (`ASSET-024/025/026`) bu repoda yok.
 
 **Three.js tarafı [P]:** spritesheet `Sprite` + `SpriteMaterial` ile ya da `PlaneGeometry` üzerinde UV kaydırmayla oynatılır; kare oranı sabit tutulur, `magFilter = NearestFilter` (quantize edilmiş görüntü bulanıklaşmasın).
 
@@ -178,7 +180,7 @@ yeni-oyun/
     art-bible.md           # görsel dil
     asset-registry.md      # ne gerekiyor, hangi durumda
     prompts/               # Higgsfield prompt şablonları
-  scripts/                 # §5 quantize hattı + olası toplu üretim (şu an boş)
+  scripts/                 # §5: sheet-from-still.mjs + sheet-from-video.mjs
 ```
 
 **İsimlendirme [P]:** `kategori_ad_varyant_kanal_çözünürlük.uzantı` — küçük harf, ayraç `_`, varyant iki hane.

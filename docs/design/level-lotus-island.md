@@ -4,7 +4,8 @@
 > **Tarih:** 2026-08-14
 > **Sayılar:** `docs/design/tuning.md` §2, §3.0, §7
 > **Bağlı doküman:** `gdd-lotus-collection.md` · `gdd-memory-system.md` · `scenario.md` · `multi-island-concept.md`
-> **Çoklu-ada notu (14 Ağu 2026, sahip onayı, `multi-island-concept.md` M7 + K27–K29):** bu ada artık tek harita değil, **3 duraklı bir koşunun 1. durağı/çapası** — Kiklop Mağarası (2.) ve Sirenler Geçidi (3.) izliyor, hub yok, tek kesintisiz koşu. Bu adanın kendi hedefi (`LOTUS_TARGET`) 12'den **5**'e indi (kesin sayı henüz netleşmedi — bkz. `tuning.md` §3.0); toplam koşu hedefi (`RUN_TARGET_TOTAL = 12`) diğer iki durakla paylaşılıyor. **Bu doküman aşağıda yeniden tasarlanmadı** — kroki, bölge dağılımı (28 çiçek, 12/10/6), denge hesabı hâlâ eski 12-hedefli tasarımı yansıtıyor. Yeni hedefe göre yeniden dengeleme `island-designer` agent'ının ve Faz 2.6'nın işi.
+> **⚠️ K35 (15 Ağu 2026):** 28’li cep, faz eşleşmesi, “çekirdek küme” **düştü.** 5 rastgele lotus + kahraman gemi kayması: `gdd-lotus-island-run.md`. Bu dosya **peyzajı** tutar (160 m, tepe, koy, kuzey kaya, güney filo). Kroki çiçek sayıları arşiv.
+> **Ölçek büyütme önerisi (15 Ağu 2026, playtest geri bildirimi — sahip onayı bekliyor 🔬):** sahip playtest sonrası "ada küçük, profesyonel tasarlanmış bir peyzaj gibi durmuyor — Diablo zindanları gibi" geri bildirimi verdi. **Ton değişmiyor** (`art-bible.md`'ye dokunulmadı), **sadece ölçek/üretim değeri.** Aşağıdaki §1/§2/§3.4/§3.5/§7 bu öneriye göre güncellendi: `ISLAND_RADIUS` 70→**160 m** (öneri), gemi+sazlık+göl kümesi bir blok olarak yeni güney kıyısına kaydı (aralarındaki mesafeler **değişmedi**), tepe çok daha uzağa/yükseğe taşındı, kuzey kayalığı genişleyip bir sivri-kaya landmark'ı kazandı, gemi kıyısına küçük bir koy burnu eklendi. Gerekçe ve denge etkisi: `tuning.md` §2.1. Kesin koordinatlar hâlâ Faz 2.6'nın (`islandLayout.ts`) işi — burada verilenler yön/mesafe/boyut hedefidir.
 
 Tek harita değil — 3 duraklı bir koşunun ilk durağı. Yükleme ekranı, geçit, kilitli kapı yoktur; bir sonraki durağa (Kiklop Mağarası) geçiş kesintisizdir.
 
@@ -12,19 +13,77 @@ Tek harita değil — 3 duraklı bir koşunun ilk durağı. Yükleme ekranı, ge
 
 ## 1. Ölçüler
 
+**🔬 Bu tablo 15 Ağu 2026 ölçek büyütme önerisiyle güncellendi — sahip onayı bekliyor. Gerekçe: `tuning.md` §2.1.**
+
 | Değer | Sabit | Ne demek |
 |---|---|---|
-| Ada yarıçapı | `ISLAND_RADIUS` = 70 m | Çap 140 m, oynanabilir alan ~15.400 m² |
-| Boydan boya geçiş | ~31 s | `PLAYER_SPEED` 4,5 m/s ile. **`STAGE_RIPE` (30 s) ile kasten eşit.** |
-| Gemi konumu | `SHIP_POSITION_X` = 0.0, `SHIP_POSITION_Z` = -60.0 | Güney kıyı, merkeze 60 m |
-| En yüksek nokta | 18 m | Kuzeydoğu tepesi; manzara noktası `HILL_VIEW_HEIGHT` = 14 m |
+| Ada yarıçapı | `ISLAND_RADIUS` = **160 m** (öneri, eski `70 m`) | Çap 320 m. Uniform daire — ama gemi+sazlık+göl kümesi yeni güney kıyısına yakın bir blokta kalıyor (aşağıya bkz.), sadece kuzey yarısı büyüyor. |
+| Boydan boya geçiş (ada dış hattı) | ~71 s | `PLAYER_SPEED` 4,5 m/s ile, güney kıyıdan kuzey kıyıya. **`STAGE_RIPE`'i (30 s) artık kasıtlı olarak aşıyor** — bu pillar hiç "adanın tamamını uçtan uca koş" değildi, bkz. aşağıdaki not. |
+| Çekirdek/yerleşik alan geçişi | ~19 s (gemi↔göl, tek yön) | Gemi + sazlık + göl üçgeni içindeki gerçek oynanış mesafeleri — **değişmedi.** `STAGE_RIPE`'in gerçek karşılığı budur: bir kümenin içindeki çiçekten çiçeğe yetişme süresi, adanın tüm dış hattı değil. |
+| Gemi konumu | `SHIP_POSITION_X` = 0.0, `SHIP_POSITION_Z` = **-140.0** (öneri, eski `-60.0`) | Güney kıyı, yeni kıyı çizgisine ~20 m kala (eski oranla aynı). |
+| En yüksek nokta (tepe zirvesi) | **48 m** (öneri, eski `18 m`) | Kuzey landmark'ı — adanın her yerinden görünen ana silüet ("weenie"). Manzara noktası `HILL_VIEW_HEIGHT` = **22 m** (öneri, eski `14 m`). |
 | Sınır | Derin su | Duvar yok — derin lacivert su oyuncuyu yavaşça geri iter |
+
+**Neden "boydan boya 31 s = STAGE_RIPE" pillar'ı bozulmuyor:** o denklik hiçbir zaman "adanın tamamını uçtan uca koşarak bir çiçeğe yetişirsin" anlamına gelmedi — pratikte hiç kimse tek bir çiçek için ada çapını aşan bir mesafe koşmaz. Gerçek anlamı, bir **kümenin içinde** gördüğün bir çiçeğe her yerden (o küme sınırları içinde) yetişebilmendi. Ada büyürken bu kümeler (sazlık, göl) yerlerinde ve mesafelerinde sabit kaldığı için pillar'ın **gerçek mekanik karşılığı hiç değişmedi** — sadece adanın dış hattının artık bu denklikle bire bir örtüşmediği açıkça not edildi. Tepe kümesi zaten "verimlilik değil manzara" olarak tasarlanmıştı (§3.4); artık bu daha da belirgin.
 
 Koordinat sistemi: **+X doğu, +Z kuzey**, orijin adanın merkezi. Deniz seviyesi y = 0.
 
 ---
 
 ## 2. Kroki
+
+**🔬 15 Ağu 2026 ölçek önerisiyle güncellendi — sahip onayı bekliyor.** Değişen: `ISLAND_RADIUS` 70→160 m, gemi/sazlık/göl kümesi yeni güney kıyısına kaydı (mesafeler birbirine göre **değişmedi**), tepe çok uzağa/yükseğe taşındı, kuzey kayalığı genişleyip sivri-kaya landmark'ı kazandı, gemi kıyısına küçük bir koy burnu eklendi. Eski kroki (70 m, gemi (0,−60)) kayıt için altta korunuyor.
+
+```
+                                    K U Z E Y
+   ═════════════════════════════════════════════════════════════════════
+                              derin lacivert su
+   ─────────────────────────────────────────────────────────────────────
+                    ▲▲▲  sivri kayalıklar (55–75 m) ▲▲▲
+              ░░░░░░░░░░░ genişleyen kuzey kayalığı ░░░░░░░░░░░
+                       (görkemli arka plan silüeti — hiç yürünmez)
+                                                          ╱▲╲
+                                                        ╱  █  ╲    ← TEPE (landmark)
+                                                      ╱ (~70,60) ╲    "weenie" — adanın
+                                                    ╱   zirve 48 m ╲   her yerinden görünür
+                                                   │   ◆ Λ3          │   6 çiçek, manzara: 22 m
+   B                                                ╲   patika      ╱   gemiden ~200 m / ~44 s
+   A                                                 ╲____________╱    (isteğe bağlı, uzak)
+   T
+   I                        (5,−55)
+                       ╭──────────────╮
+                      ╱   İÇ  GÖL      ╲
+                     │   ~~~~~~~~~~~    │
+                     │  ~~ 10 çiçek ~~  │             D
+                     │   ~~ ◆ Λ2 ~~~~   │             O
+                      ╲   tatlı su     ╱              Ğ
+                       ╰──────┬───────╯               U
+                              │ patika
+             ╭────────────────┴──────────╮
+            ╱     N İ L Ü F E R           ╲
+           │        S A Z L I Ğ I          │
+           │     (−25,−100) 12 çiçek       │
+           │    ▒▒▒ ◆ Λ1 ▒▒▒▒▒▒▒▒▒          │
+            ╲     en yoğun koku            ╱
+             ╰──────────┬────────────────╯
+                        │
+     ▲                 │
+   koy burnu    ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+   (~10 m)      ▓  altın kum · ıslak şerit 3 m       ▓
+    ▲▲          ▓   ║ ║ ║ ║ ║ ⛵ ║ ║ ║ ║ ║ ║          ▓   ← 12 GEMİ  (0,−140)
+                ▓   on iki direk, orta gemi = senin  ▓      teslim + iyileşme
+                ═════════════════════════════════════════
+                      turkuaz sığ su  (iyileştirir)
+                ─────────────────────────────────────────
+                          derin lacivert su
+                                     G Ü N E Y
+
+   ◆ = Lotophagos (Λ1 sazlık · Λ2 göl kıyısı · Λ3 tepe eteği)
+   ▒ = sazlık zemini   ~ = tatlı su   ░ = kaya   ▓ = kum   ▲ = kayalık landmark
+```
+
+<details>
+<summary>Eski kroki (70 m yarıçap, gemi (0,−60)) — kayıt için</summary>
 
 ```
                               K U Z E Y
@@ -64,6 +123,8 @@ Koordinat sistemi: **+X doğu, +Z kuzey**, orijin adanın merkezi. Deniz seviyes
    ▒ = sazlık zemini   ~ = tatlı su   ░ = kaya   ▓ = kum
 ```
 
+</details>
+
 ---
 
 ## 3. Bölgeler
@@ -77,8 +138,10 @@ On iki gemi kumun içine gömülü, yan yana, pruvaları denize dönük. Ortadak
 
 **Burada asla:** çiçek, Lotophagos, tehdit, sürpriz. Kıyı kutsaldır.
 
+**Koy burnu (yeni, 15 Ağu 2026 ölçek önerisi — landmark 3/3):** gemi filosunun bir yanına (öneri: batı, ~25–30 m), küçük bir kayalık burun uzanıyor — yükseklik ~10–12 m, `HILL_LANDMARK_HEIGHT` (48 m) veya kuzey kayalığının yanında mütevazı. İşlevi büyüklük değil **çerçeveleme**: bugün düz/açık bir kum şeridine bakan gemi, artık bir yanında somut bir kaya kütlesiyle "bir yere demirlemiş" hissi veriyor — art-bible §11'in "deniz her karede görünür" kuralını bozmamak için burun **gemiyi arkadan kapatmıyor**, yalnızca bir yanını çerçeveliyor. P4 ("kıyı huzurdur") ile çelişmez — tehdit değil, sadece bir yer imi.
+
 ### 3.2 Nilüfer sazlığı — **kolay ve pahalı**
-**Konum:** güneybatı-merkez, ~(−25, −20) · **Çiçek: `ZONE_REED_COUNT` = 12** · **Gemiye:** ~35 m (8 s)
+**Konum:** güneybatı-merkez, ~(−25, −100) 🔬 *(15 Ağu 2026 ölçek önerisiyle kaydı — gemiye göre konumu/mesafesi değişmedi, bkz. `tuning.md` §2.1)* · **Çiçek: `ZONE_REED_COUNT` = 12** · **Gemiye:** ~35 m (8 s)
 
 En yakın, en yoğun tarla. Sığ bataklık suyu (tatlı — iyileştirmez), boyu diz hizasında sazlar, aralarında yükselen lotuslar. Çiçekler üç kümede: 5 + 4 + 3, kümeler arası 15–20 m.
 
@@ -87,7 +150,7 @@ En yakın, en yoğun tarla. Sığ bataklık suyu (tatlı — iyileştirmez), boy
 **Λ1 Lotophagos** kümelerin ortasında durur. Oyuncu buradan geçmeden diğer kümeye ulaşamaz — karşılaşma garanti, kabul zorunlu değil.
 
 ### 3.3 İç göl — **zengin, uzak, yalancı**
-**Konum:** merkez-kuzey, ~(5, 25) · **Çiçek: `ZONE_LAKE_COUNT` = 10** · **Gemiye:** ~85 m (19 s)
+**Konum:** merkez-kuzey, ~(5, −55) 🔬 *(15 Ağu 2026 ölçek önerisiyle kaydı — gemiye göre konumu/mesafesi değişmedi, bkz. `tuning.md` §2.1)* · **Çiçek: `ZONE_LAKE_COUNT` = 10** · **Gemiye:** ~85 m (19 s)
 
 Adanın ortasındaki tatlı su gölü. Çiçekler kıyı çizgisi boyunca ve sığ suda yüzen yapraklar üzerinde. En zengin bölge ve **en uzak** bölge.
 
@@ -97,27 +160,33 @@ Adanın ortasındaki tatlı su gölü. Çiçekler kıyı çizgisi boyunca ve sı
 
 **Λ2 Lotophagos** gölün güney kıyısında, suya bakarak durur.
 
-### 3.4 Tepeler — **bilgi**
-**Konum:** kuzeydoğu, ~(35, 40) · **Çiçek: `ZONE_HILL_COUNT` = 6** · **Gemiye:** ~110 m (24 s) · **Yükseklik:** 18 m
+### 3.4 Tepeler — **bilgi ve büyüklük hissi** (15 Ağu 2026 ölçek önerisiyle güncellendi 🔬 — landmark 1/3, birincil "weenie")
+**Konum:** kuzey, ~(70, 60) *(öneri, eski `(35,40)`)* · **Çiçek: `ZONE_HILL_COUNT` = 6** · **Gemiye:** ~200 m (~44 s) *(öneri, eski `~110 m / 24 s`)* · **Zirve yüksekliği:** `HILL_LANDMARK_HEIGHT` = 48 m *(öneri, eski `18 m`)*
 
-Kavruk otlu, taşlık yamaçlar. Çiçek seyrek (aralarında 15–25 m) ve tırmanmak zaman yer. Saf verim hesabıyla **buraya gelmemek doğrudur.**
+Kavruk otlu, taşlık yamaçlar. Çiçek seyrek (aralarında 15–25 m) ve tırmanmak zaman yer. Saf verim hesabıyla **buraya gelmemek doğrudur** — ve mesafe artık eskisinden çok daha keskin biçimde bunu söylüyor: bir teslim turunun (~36 s, `tuning.md` §9) neredeyse iki katı tek yön yürüyüş. Bu bilinçli bir tasarım tercihi: tepe hâlâ isteğe bağlı ve alt-hedefi (5 çiçek, sazlık+göl'den zaten ulaşılabilir) tehdit etmiyor — ama artık gerçek bir "büyük gezi" oluyor, küçük bir sapma değil.
 
-**Ama:** `HILL_VIEW_HEIGHT` (14 m) üstünde tüm ada görünür ve **olgun çiçekler beyaz-pembe olduğu için tepeden ayırt edilir.** Tepenin ödülü çiçek değil, sonraki iki turun rotasıdır. Ayrıca Beat 3 burada tetiklenir.
+**Ama:** `HILL_VIEW_HEIGHT` (22 m) üstünde tüm ada görünür ve **olgun çiçekler beyaz-pembe olduğu için tepeden ayırt edilir.** Tepenin ödülü çiçek değil, sonraki iki turun rotasıdır. Ayrıca Beat 3 burada tetiklenir.
+
+**Yeni işlev — adanın "weenie"si:** 48 m'lik zirve artık adanın **her yerinden** görünen tek dominant silüet olmalı — sazlıktan da, göl kıyısından da, hatta gemiden bile ufukta görünen bir referans noktası. Bu görsel/oynanış aracı literatürde "weenie" olarak bilinir: oyuncu haritayı okumadan "işte ada burada bitiyor, işte en yüksek nokta" der. Terazi eteğindeki eski mermer sütun kalıntısı (`terrain.ts`'teki "abandoned shrine" — şu an düz zeminde, ~(−13,−15)) zirveye taşınırsa (öneri, `art-director`/`gameplay-programmer` kararı) silüet daha da güçlenir — kırık bir tapınağın gökyüzüne karşı siluet vermesi, "Lotophagoi'nin terk edilmiş tapınağı" temasını da pekiştirir.
 
 Tepede koku baskısı düşüktür (çiçekler seyrek, `SCENT_RADIUS` sık sık boş kalır) — yani tepe **yarı-güvenli** bir düşünme alanıdır. Kıyı kadar değil, sazlık kadar da değil.
 
-**Λ3 Lotophagos** tepeye çıkan patikanın başında durur; tırmanmadan önce son ikram.
+**Λ3 Lotophagos** tepeye çıkan patikanın başında durur; tırmanmadan önce son ikram. Konumu tepenin taşınmasıyla birlikte kayar.
 
-### 3.5 Kuzey kayalığı — **boşluk**
-**Konum:** kuzey kıyı · **Çiçek: 0**
+### 3.5 Kuzey kayalığı — **boşluk ve ufuk** (15 Ağu 2026 ölçek önerisiyle genişledi 🔬 — landmark 2/3, negatif alan)
+**Konum:** kuzey kıyı, tepenin ötesi (~90–155 m bandı) · **Çiçek: 0**
 
 Kayalık, sarp, geçilebilir ama işe yaramaz. Var olma sebebi: adanın her yeri dolu olmamalı. Oyuncu buraya bir kez gider, hiçbir şey bulamaz ve **bir daha gitmez** — bu, haritayı öğrenmenin bir parçasıdır. Ayrıca kıyı olduğu için ıslak şerit burada da iyileştirir; kaybolmuş bir oyuncu için kuzeye koşmak da geçerli bir kurtuluştur.
+
+**Genişleme (ölçek önerisi):** `ISLAND_RADIUS`'un 160 m'ye çıkmasıyla açılan alanın büyük kısmı **bilerek buraya** gidiyor — araştırmanın "negatif alan" ilkesi tam olarak bu: geniş, boş bir vista oyuncuyu küçük/mütevazı hissettirir, her santimetrekarenin dolu olması gerekmez. Bu bandın kuzey ucuna (adanın en uzak noktası, hiç yürünmeyecek biçimde tasarlanmış) **sivri, tebeşir-beyazı kaya kütleleri** ekleniyor — yükseklik ~55–75 m, art-bible'ın zaten onaylı paleti (`#e6e2d4` tebeşir beyazı, `#b9b6ab` kaya gölgesi) kullanılıyor, **yeni bir renk ailesi yok.** Bu, adanın ikinci landmark'ı: tepenin aksine **asla ziyaret edilmiyor**, sadece gemiden/sazlıktan/gölden bakıldığında ufukta görülüyor — mevcut `buildDistantHills`/`buildHillBackdropRing` sisteminin (bkz. `terrain.ts`) daha dramatik, daha yüksek bir versiyonu. Sis (`gdd-memory-system.md` §9) bu silüeti mesafeyle yumuşatır; unutuş arttıkça sis yaklaşırken bu kayalıklar ilk kaybolan şeylerden biri olur — art-bible'ın "gemi son direnen şeydir" kuralıyla aynı aile.
 
 ---
 
 ## 4. Yerleşim mantığı
 
-**El yerleşimi, rastgele değil** (sütun P3). Tüm 28 konum sabittir ve `LOTUS_PHASE_SEED` ile faz kaymaları da sabittir → **her oyun aynı, öğrenilebilir.**
+> **K35:** bu §4 çiçek yerleşimi **arşiv.** `real` spawn: `gdd-lotus-island-run.md` §3.3 (5 rastgele). Peyzaj kuralları (tepe, kıyı, negatif alan) durur.
+
+~~**El yerleşimi, rastgele değil** (sütun P3). Tüm 28 konum sabittir…~~ **Düştü.** P3 artık peyzaj okunur; çiçek yeri sürpriz.
 
 Yerleşim beş kurala uyar:
 
@@ -167,12 +236,23 @@ Gemi → sazlık kuzey kümesi 4 → gemi (−40) → göl güney kümesi 4, faz
 - **Sis:** atmosferik sis unutuşla oyuncuya yaklaşır (bkz. `gdd-memory-system.md` §9). Temel sis mesafesi 120 m, eşik 3'te 45 m'ye iner — o mesafede gemi 60 m'den görünmez olur.
 - **Ses yayılımı:** dalga sesi kıyıdan uzaklaştıkça alçalır (0 m'de tam, 70 m'de %25). Unutuş eşik 3'te tek yön ipucu budur; **alçak geçiren filtreden muaftır.**
 
+### 7.1 Ölçek önerisinin uygulama notları (15 Ağu 2026, `game-designer` bulguları — `gameplay-programmer`'a)
+
+Bu ölçek önerisi kodlanırken (Faz 2.6) `src/world/terrain.ts`'te bugün var olan iki boşluk fark edildi — **radius kararından bağımsız olarak** zaten mevcutlar ve muhtemelen sahip'in "küçük/düz" hissinin bir kısmının kaynağı, sadece `ISLAND_RADIUS`'u büyütmek bunları çözmez:
+
+1. **`ISLAND.planeSize` (şu an sabit `96`) `real` profilin bugünkü `ISLAND.radius` (`70`) değerini bile tam kapsamıyor** — `PlaneGeometry(96,96,...)` merkezden ±48 birim uzanıyor, oysa gemi zaten `z=-60`'ta, zeminin dışında kalıyor olabilir. `ISLAND_RADIUS` 160'a çıkarsa bu daha da belirginleşir — `planeSize` (ve muhtemelen `planeSegments`, çözünürlüğü korumak için) `ISLAND.radius`'a **bağlı türetilmiş bir değer** olmalı (ör. `radius * 2.4` gibi bir pay bırakan çarpan), sabit bir sayı değil.
+2. **Tepenin 18 m'lik (şimdi 48 m önerilen) yüksekliği kodda hiç üretilmiyor.** `heightAt()` tüm adaya **tek bir global** sinüs gürültüsü (`hills()`, `ISLAND.hillAmp=1.6` + `domeHeight=2.1`, toplam rölyef ~3.7 m) uyguluyor — yerel bir "tepe kütlesi" yok. `HILL_LANDMARK_HEIGHT` (48 m, öneri) gerçekleşecekse **tepe merkezli, radyal düşüşlü ayrı bir yükselti terimi** gerekiyor (ör. `heightAt()`'e eklenen `hillBump(x,z)` — tepe merkezine `smoothstep` ile yakınlaştıkça yükselen, geri kalan adayı etkilemeyen bir terim), global `hillAmp`'ı büyütmek **tüm adayı** tümsekli yapar, tek bir dominant zirve yaratmaz. Bu muhtemelen sahip'in "düz/küçük" hissinin **radius'tan bile önce gelen** asıl nedeni — 70 m'lik mevcut ada zaten yalnızca ~3.7 m rölyefle neredeyse düz.
+
+### 7.2 Kamera/sunum notu (kapsam dışı — flag)
+
+Daha büyük vistalar ve 48 m'lik bir zirve, mevcut kamera ayarlarının (`CAMERA_DISTANCE` 9 m, `CAMERA_ZOOM_MAX` 13 m, `CAMERA_PITCH` -22°) tepe zirvesindeyken yeterince geniş bir manzara gösterip göstermeyeceğini sorgulatıyor. Bu doküman kamera sabitlerine dokunmuyor (kamera `game-designer`'ın sahiplendiği bir alan değil, çekirdek döngü dışı) — sadece `art-director`/`technical-director`'a bir "tepe zirvesinde özel bir kamera davranışı (geçici geniş açı/pull-back) gerekebilir mi?" sorusu olarak flag'leniyor.
+
 ---
 
 ## Açık sorular
 
-1. **Tepe gerçekten değer mi?** 6 çiçek + manzara, 24 saniyelik yürüyüşe karşılık. Playtest'te kimse tepeye çıkmıyorsa ya çiçek sayısı 8'e çıkmalı ya tepe gemiye yaklaştırılmalı.
+1. **Tepe gerçekten değer mi?** 6 çiçek + manzara, artık **~44 saniyelik** (eski 24 s) yürüyüşe karşılık. **15 Ağu 2026 güncellemesi:** ölçek önerisi bu soruyu şiddetlendiriyor değil, netleştiriyor — tepe artık açıkça "verim için değil, manzara için" bir sapma; kimse çıkmasa da alt-hedef (5) tehlikeye girmiyor. Playtest'te hâlâ kimse çıkmıyorsa çözüm artık "çiçek sayısını artır" değil, "manzaranın/silüetin kendisinin çekiciliğini artır" (48 m zirve + tapınak kalıntısı silüeti bunun bir denemesi).
 2. **Direğe bez bağlama ilerleme göstergesi yeterince okunur mu?** 12 direk uzaktan ayırt edilebilir mi, yoksa oyuncu hiç fark etmez mi? Fark etmezse unutuş eşik 2'de oyuncu tamamen kör kalır.
-3. **Kuzey kayalığı boş kalmalı mı?** "Bir kez git, bir daha gitme" kasıtlı; ama bazı oyuncular bunu eksiklik olarak okur. Oraya tek bir çiçek koymak fikri bozar mı?
+3. **Kuzey kayalığı boş kalmalı mı?** "Bir kez git, bir daha gitme" kasıtlı; ama bazı oyuncular bunu eksiklik olarak okur. Oraya tek bir çiçek koymak fikri bozar mı? **15 Ağu 2026 notu:** ölçek önerisiyle bu bölge büyüdü ve artık kendi landmark'ını (sivri kayalıklar) taşıyor — "boş ama görkemli" cevabı daha güçlü bir seçenek olarak öne çıkıyor, "tek çiçek ekle" fikri hâlâ P3/negatif-alan ilkesiyle geriliyor.
 4. **Faz eşleştirmesi (kural 4) oyuncunun keşfedebileceği bir şey mi, yoksa fazla ince mi?** Keşfedilmezse tasarımın en güzel katmanı ölü kalır. Tepeden bakınca görünür olması yeterli mi?
-5. **Ada 140 m çap doğru mu?** Küçültmek turu hızlandırır ve unutuş baskısını düşürür; büyütmek tersini yapar. `DAY_LENGTH` ile birlikte ayarlanmalı — ikisi aynı anda değiştirilmemeli.
+5. ~~**Ada 140 m çap doğru mu?**~~ **15 Ağu 2026'da yeniden açıldı, kodlandı, sahip playtest onayı bekliyor 🔬.** Playtest geri bildirimi ("küçük, Diablo zindanı gibi") üzerine `ISLAND_RADIUS` **160 m** (çap 320 m) `real` profile yazıldı; çekirdek turlama mesafeleri (gemi↔sazlık↔göl) `LAYOUT_SHIFT_Z` ile korundu. Tepe 48 m weenie + kuzey kayalığı + koy burnu `heightAt()`'te. Sayı kilitli değil. Ayrıntı: `tuning.md` §2.1, karar kaydı: `docs/production/roadmap.md` K34.

@@ -8,7 +8,9 @@
     "build": "tsc && vite build",
     "build:pages": "GITHUB_PAGES=true npm run build",
     "preview": "vite preview",
-    "gen:assets": "node scripts/gen-assets.mjs"
+    "gen:assets": "node scripts/gen-assets.mjs",
+    "sheet:still": "node scripts/sheet-from-still.mjs",
+    "sheet:video": "node scripts/sheet-from-video.mjs"
   },
   "devDependencies": {
     "@types/three": "^0.185.0",

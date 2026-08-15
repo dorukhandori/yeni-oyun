@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { PALETTE, PUZZLE } from "../constants";
+import { BEAUTY, PALETTE, PUZZLE } from "../constants";
 import { heightAt } from "./terrain";
 import { glowSprite } from "./sprite";
 
@@ -21,11 +21,7 @@ export interface HillPuzzle {
  */
 export function buildHillPuzzle(): HillPuzzle {
   const group = new THREE.Group();
-  const spots = [
-    { x: 4.2, z: -3.4 },
-    { x: 8.6, z: -7.8 },
-    { x: 6.1, z: -9.6 },
-  ];
+  const spots = BEAUTY.cairnSpots.map((s) => ({ x: s.x, z: s.z }));
 
   const rockMat = new THREE.MeshStandardMaterial({
     color: PALETTE.marble,

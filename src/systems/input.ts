@@ -8,6 +8,7 @@ export class Input {
   private stickX = 0;
   private stickZ = 0;
   private tapInteract = false;
+  private actHeld = false;
   locked = false;
   touchActive = false;
 
@@ -20,7 +21,10 @@ export class Input {
       if (blocked.includes(e.code)) e.preventDefault();
     });
     window.addEventListener("keyup", (e) => this.held.delete(e.code));
-    window.addEventListener("blur", () => this.held.clear());
+    window.addEventListener("blur", () => {
+      this.held.clear();
+      this.actHeld = false;
+    });
 
     canvas.addEventListener("mousedown", () => {
       this.dragging = true;
@@ -113,18 +117,25 @@ export class Input {
       stick.addEventListener("pointercancel", endStick);
     }
 
-    // Action button — tap to pick / deliver.
+    // Action button — tap delivers / starts a hold for harvest.
     btnAct?.addEventListener(
       "pointerdown",
       (e) => {
         e.preventDefault();
         this.tapInteract = true;
+        this.actHeld = true;
+        btnAct.setPointerCapture?.(e.pointerId);
         btnAct.classList.add("lit");
       },
       { passive: false },
     );
-    btnAct?.addEventListener("pointerup", () => btnAct.classList.remove("lit"));
-    btnAct?.addEventListener("pointercancel", () => btnAct.classList.remove("lit"));
+    const endAct = () => {
+      this.actHeld = false;
+      btnAct?.classList.remove("lit");
+    };
+    btnAct?.addEventListener("pointerup", endAct);
+    btnAct?.addEventListener("pointercancel", endAct);
+    btnAct?.addEventListener("lostpointercapture", endAct);
 
     // Look pad (right) + canvas fallback drag.
     const lookTarget = lookPad ?? canvas;
@@ -204,6 +215,10 @@ export class Input {
   }
   get interact(): boolean {
     return this.pressed.has("KeyE") || this.pressed.has("Space") || this.tapInteract;
+  }
+  /** Held E / Space / Topla — lotus harvest (`HARVEST_HOLD`). */
+  get interactHeld(): boolean {
+    return this.held.has("KeyE") || this.held.has("Space") || this.actHeld;
   }
   get wantsRestart(): boolean {
     return this.pressed.has("KeyR");

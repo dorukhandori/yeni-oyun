@@ -94,6 +94,8 @@ function parseArgs(argv) {
     else if (a === "--seconds") opts.seconds = Number(rest[++i]);
     else if (a === "-o" || a === "--output") opts.output = rest[++i];
     else if (a === "--prompt-file") prompt = readFileSync(resolve(rest[++i]), "utf-8").trim();
+    else if (a === "--image") opts.image = resolve(rest[++i]);
+    else if (a === "--last-frame") opts.lastFrame = resolve(rest[++i]);
     else if (prompt === undefined) prompt = a;
   }
   return { mode, prompt, opts };
@@ -122,13 +124,26 @@ async function generateImage(prompt, apiKey, model, aspect) {
   throw new Error(`No image returned. Try --model ${ALT_IMAGE_MODEL}`);
 }
 
-async function generateVideo(prompt, apiKey, model, aspect, seconds) {
-  // UNVERIFIED PATH — Veo generation is async (long-running operation).
-  // Adjust field names here against the real error body if this fails.
+function inlineImage(path) {
+  const buf = readFileSync(path);
+  const mime = path.toLowerCase().endsWith(".jpg") || path.toLowerCase().endsWith(".jpeg")
+    ? "image/jpeg"
+    : "image/png";
+  // Veo predictLongRunning rejects `inlineData`; JS SDK sends imageBytes.
+  return { bytesBase64Encoded: buf.toString("base64"), mimeType: mime };
+}
+
+async function generateVideo(prompt, apiKey, model, aspect, seconds, imagePath, lastFramePath) {
+  // Veo is async (long-running). Image-to-video / last-frame interpolation
+  // requires durationSeconds = 8 and aspect 16:9 or 9:16 (1:1 is rejected).
   const startUrl = `${API_BASE}/models/${model}:predictLongRunning`;
+  const instance = { prompt };
+  if (imagePath) instance.image = inlineImage(imagePath);
+  const parameters = { aspectRatio: aspect, durationSeconds: seconds };
+  if (lastFramePath) parameters.lastFrame = inlineImage(lastFramePath);
   const startBody = {
-    instances: [{ prompt }],
-    parameters: { aspectRatio: aspect, durationSeconds: seconds },
+    instances: [instance],
+    parameters,
   };
   const startRes = await fetch(startUrl, {
     method: "POST",
@@ -141,16 +156,20 @@ async function generateVideo(prompt, apiKey, model, aspect, seconds) {
   const op = await startRes.json();
   const opName = op.name;
   if (!opName) throw new Error(`No operation name returned: ${JSON.stringify(op).slice(0, 400)}`);
+  console.error(`Veo operation ${opName}`);
 
   const pollUrl = `${API_BASE}/${opName}`;
-  for (let i = 0; i < 60; i++) {
-    await new Promise((r) => setTimeout(r, 5000));
+  for (let i = 0; i < 90; i++) {
+    await new Promise((r) => setTimeout(r, 8000));
     const pollRes = await fetch(pollUrl, { headers: { "x-goog-api-key": apiKey } });
     if (!pollRes.ok) {
       throw new Error(`Veo poll ${pollRes.status}: ${(await pollRes.text()).slice(0, 800)}`);
     }
     const status = await pollRes.json();
     if (status.done) {
+      if (status.error) {
+        throw new Error(`Veo error: ${JSON.stringify(status.error).slice(0, 800)}`);
+      }
       const sample = status.response?.generateVideoResponse?.generatedSamples?.[0]?.video;
       const uri = sample?.uri;
       if (!uri) throw new Error(`Operation done but no video uri: ${JSON.stringify(status).slice(0, 800)}`);
@@ -158,8 +177,9 @@ async function generateVideo(prompt, apiKey, model, aspect, seconds) {
       if (!videoRes.ok) throw new Error(`Video download ${videoRes.status}`);
       return Buffer.from(await videoRes.arrayBuffer());
     }
+    if (i % 4 === 3) console.error(`Veo still running (${(i + 1) * 8}s)`);
   }
-  throw new Error("Timed out waiting for Veo generation (5 min).");
+  throw new Error("Timed out waiting for Veo generation (12 min).");
 }
 
 async function main() {
@@ -167,7 +187,7 @@ async function main() {
   if (!mode || !prompt || !["image", "video"].includes(mode)) {
     console.error(
       'Usage: node scripts/gen-assets.mjs <image|video> "prompt" [--aspect 16:9] [--model id] [--seconds 8] [-o path]\n' +
-        "   or: node scripts/gen-assets.mjs <image|video> --prompt-file path.txt [same flags]",
+        "   or: node scripts/gen-assets.mjs <image|video> --prompt-file path.txt [--image start.png] [--last-frame end.png] [same flags]",
     );
     process.exit(1);
   }
@@ -194,7 +214,15 @@ async function main() {
       const bytes =
         mode === "image"
           ? await generateImage(prompt, key, model, opts.aspect)
-          : await generateVideo(prompt, key, model, opts.aspect, opts.seconds);
+          : await generateVideo(
+              prompt,
+              key,
+              model,
+              opts.aspect,
+              opts.seconds,
+              opts.image,
+              opts.lastFrame,
+            );
       writeFileSync(outPath, bytes);
       if (i > 0) console.error(`Used fallback Gemini key ${tag(key)}`);
       console.log(`Wrote ${outPath} (${bytes.length} bytes) key=${tag(key)} model=${model}`);

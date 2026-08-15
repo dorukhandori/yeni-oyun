@@ -45,10 +45,16 @@ function resolveProfileFromUrl(): WorldProfileKey {
 export const ACTIVE_PROFILE: WorldProfileKey = resolveProfileFromUrl();
 
 interface WorldProfileValues {
-  island: { radius: number };
-  player: { speed: number };
+  island: { radius: number; planeSize: number; planeSegments: number };
+  player: { speed: number; spawn: { x: number; z: number } };
   lotus: { count: number; carryCap: number };
   ship: { pos: { x: number; z: number }; range: number };
+  /**
+   * Southward shift of the core loop (reed / lagoon / cove / NPCs) so those
+   * pockets stay next to the ship when the island grows. 0 on the test island.
+   */
+  layoutShiftZ: number;
+  fogDensity: number;
   /** Per-second rates in the engine's internal 0-1 memory scale. */
   memory: {
     islandGain: number;
@@ -70,10 +76,12 @@ interface WorldProfileValues {
 
 const PROFILES: Record<WorldProfileKey, WorldProfileValues> = {
   test: {
-    island: { radius: 26 },
-    player: { speed: 6.2 },
+    island: { radius: 26, planeSize: 96, planeSegments: 132 },
+    player: { speed: 6.2, spawn: { x: 5.5, z: 22.5 } },
     lotus: { count: 34, carryCap: 6 },
     ship: { pos: { x: 11.5, z: 19.5 }, range: 7.4 },
+    layoutShiftZ: 0,
+    fogDensity: 0.0092,
     memory: {
       islandGain: 0.007,
       perCarriedGain: 0.005,
@@ -86,10 +94,14 @@ const PROFILES: Record<WorldProfileKey, WorldProfileValues> = {
     loss: { onFull: "respawn" },
   },
   real: {
-    island: { radius: 70 },
-    player: { speed: 4.5 },
-    lotus: { count: 28, carryCap: 4 },
-    ship: { pos: { x: 0, z: -60 }, range: 4.0 },
+    // 15 Aug 2026 scale proposal (tuning.md §2.1, level-lotus-island.md §1):
+    // island grows, core loop (ship↔reed↔lake) keeps its old distances.
+    island: { radius: 160, planeSize: 384, planeSegments: 196 },
+    player: { speed: 4.5, spawn: { x: 3.2, z: -146 } },
+    lotus: { count: 5, carryCap: 4 },
+    ship: { pos: { x: 0, z: -140 }, range: 4.0 },
+    layoutShiftZ: -80,
+    fogDensity: 0.0044,
     // tuning.md §5.1/5.2 documents these as puan/s on a 0-100 scale
     // (MEM_PASSIVE, MEM_PER_CARRIED, MEM_SCENT, MEM_ON_HARVEST is a one-shot
     // spike not a rate but is scaled the same way, MEM_SHIP_AURA,
@@ -118,7 +130,16 @@ export const WORLD = {
   profile: ACTIVE_PROFILE,
   showMemoryBar: profile.hud.showMemoryBar,
   lossMode: profile.loss.onFull,
+  /** K35 Lotus `real` run — `gdd-lotus-island-run.md`. */
+  k35: ACTIVE_PROFILE === "real",
 } as const;
+
+/**
+ * Southward block-shift of the core loop (reed / lagoon / cove / NPCs) so
+ * those pockets stay next to the ship when `real` grows to 160 m.
+ * `tuning.md` §2.1 — distances inside the block do not change.
+ */
+export const LAYOUT_SHIFT_Z = profile.layoutShiftZ;
 
 // ---------------------------------------------------------------- island shape
 export const ISLAND = {
@@ -126,24 +147,39 @@ export const ISLAND = {
   radius: profile.island.radius,
   /** Sea level sits at y = 0; the shore ramps down to this. */
   shoreDrop: -0.55,
-  /** Peak height of the inland dome. */
-  domeHeight: 2.1,
+  /** Peak height of the inland dome (soft rise; the weenie is LANDMARK.hill). */
+  domeHeight: ACTIVE_PROFILE === "real" ? 3.4 : 2.1,
   /** How far inland the dome reaches its full height. */
-  domeFalloff: 13,
-  hillAmp: 1.6,
+  domeFalloff: ACTIVE_PROFILE === "real" ? 28 : 13,
+  hillAmp: ACTIVE_PROFILE === "real" ? 1.8 : 1.6,
   hillFreq: 0.14,
   /** Width of the golden sand ring at the shoreline. */
   beachWidth: 8,
   /** Angular wobble so the coast is a set of bays, not a circle. */
   wobbleA: 0.07,
   wobbleB: 0.035,
-  /** Terrain mesh extent and resolution. */
-  planeSize: 96,
-  planeSegments: 132,
+  /** Terrain mesh extent and resolution — derived from radius (level-lotus-island.md §7.1). */
+  planeSize: profile.island.planeSize,
+  planeSegments: profile.island.planeSegments,
+} as const;
+
+/**
+ * Local relief that the global sine `hills()` must not fake — a single
+ * dominant peak, a cove headland framing the fleet, and a northern spike
+ * skyline. Heights are 0 on the test island so the sandbox silhouette stays put.
+ */
+export const LANDMARK = {
+  hill: { x: 70, z: 60, height: ACTIVE_PROFILE === "real" ? 48 : 0, radius: 44 },
+  headland: { x: -30, z: -136, height: ACTIVE_PROFILE === "real" ? 11 : 0, radius: 16 },
+  northSpikes: {
+    height: ACTIVE_PROFILE === "real" ? 58 : 0,
+    startR: 132,
+    endR: 172,
+  },
 } as const;
 
 export const LAGOON = {
-  center: { x: 0, z: 1.5 },
+  center: { x: 0, z: 1.5 + LAYOUT_SHIFT_Z },
   radius: 12,
   /** Basin floor depth relative to sea level. */
   floor: -0.75,
@@ -174,6 +210,24 @@ export const SHIP = {
   scale: 0.92,
   /** Delivery trigger radius. */
   range: profile.ship.range,
+  /** K35 forget: min metres from the previous berth. */
+  relocateMin: 40,
+  /** K35 forget: min metres from the player. */
+  relocatePlayerMin: 25,
+} as const;
+
+/** Hidden beauties + offer wander (K35, `gdd-lotus-island-run.md` §3.12–3.13). */
+export const BEAUTY = {
+  hillViewHeight: 22,
+  womanPos: { x: -18, z: -64 },
+  wanderR: 22,
+  wanderSpeedMul: 0.35,
+  range: 3.2,
+  cairnSpots: [
+    { x: 4.2, z: -3.4 + LAYOUT_SHIFT_Z },
+    { x: 8.6, z: -7.8 + LAYOUT_SHIFT_Z },
+    { x: 6.1, z: -9.6 + LAYOUT_SHIFT_Z },
+  ],
 } as const;
 
 // -------------------------------------------------------------------- player
@@ -189,8 +243,13 @@ export const PLAYER = {
   satchelStiffness: 24,
   satchelDamping: 7,
   radius: 0.45,
-  turnLerp: 0.22,
-  spawn: { x: 5.5, z: 22.5 },
+  /**
+   * Seconds for facing to catch the wish direction (`PLAYER_TURN_SMOOTH`).
+   * Face input, not velocity — double-smoothing against `accel` reads as a
+   * sideways slide in the old sprite.
+   */
+  turnSmooth: 0.1,
+  spawn: profile.player.spawn,
   /** Deepest the sailor sinks while wading. */
   wadeFloor: -0.42,
   /** How far past the shoreline he may wade before being held back. */
@@ -245,6 +304,70 @@ export const FEEL = {
   bloomPulseDecay: 2.8,
 } as const;
 
+/**
+ * Doryseus billboard (ASSET-041..044). Y-axis only — a full THREE.Sprite
+ * tilts toward the shoulder camera and reads as floating.
+ */
+export const SAILOR = {
+  /** World height of the 512² canvas (feet on the bottom pad). */
+  height: 1.82,
+  /** Empty rows under the soles in the 512 canvas (measured 10px). */
+  feetPad: 10 / 512,
+  /**
+   * Weight squash at foot-plant. No upward hop — a still A-pose lifted off
+   * the ground reads as floating (playtest: "karakter havada uçuyor").
+   */
+  walkStepSquash: 0.12,
+  walkStepStretch: 0.04,
+  /**
+   * Lateral hip shift toward the planted foot (metres). Polygon Treehouse /
+   * SIGGRAPH walk notes: weight must sit over the stance leg. Billboard
+   * cannot yaw (that shows the card edge) so we translate in X instead.
+   */
+  walkHipShift: 0.045,
+  /** Small roll toward the stance leg (radians). Shoulders would oppose; one plane can only roll. */
+  walkHipRoll: 0.06,
+  /** Extra Y-squash while holding a harvest (knees compress before the hinge). */
+  harvestBend: 0.1,
+  /** Forward hip hinge while picking (radians). Pivot at harvestHip. Never pitch the camera-facing plane. */
+  harvestLean: 0.38,
+  /**
+   * When the harvest sheet already draws the pose, keep only a whisper of
+   * hinge so we do not double-bend (sheet + card pitch).
+   */
+  harvestSheetLean: 0.07,
+  /** Hip height as a fraction of billboard height. */
+  harvestHip: 0.46,
+  /** Extra reach toward the bloom while bent (metres, local Z). */
+  harvestReach: 0.05,
+  /** Crossfade seconds when the 4-view billboard changes facing (smoothstep). */
+  viewFade: 0.18,
+  /** Extra radians past a 90° sector before the view actually switches (hysteresis). */
+  viewHold: Math.PI * 0.09,
+  /**
+   * Warm linen multiply so the studio still sits in the Aegean sun
+   * (`art-bible.md` §2 sand / sail / skin) instead of reading as unlit plastic.
+   */
+  sunTint: 0xf0e0c4,
+  /** Cloth/skin: high roughness, no metal (three.js MeshStandardMaterial). */
+  roughness: 0.88,
+  metalness: 0,
+  /** Fill so a camera-facing plane is not black when backlit by the island sun. */
+  emissive: 0x3a2814,
+  emissiveIntensity: 0.18,
+  /**
+   * Metres ahead (along facing) to sample ground. A vertical billboard
+   * intersects the uphill mesh; we lift by that delta so calves don't clip
+   * (playtest: "yokuş çıkarken bacaklar zemine gömülüyor").
+   */
+  slopeProbe: 0.42,
+  /** How much of the uphill delta becomes extra root height. */
+  slopeLift: 0.85,
+  /** Walk cycle (ASSET-024). Horizontal strip, 8 frames. */
+  walkFrames: 8,
+  walkFps: 10,
+} as const;
+
 // --------------------------------------------------------------------- lotus
 /** Puzzle gates — docs/design/level-lotus-island.md (sahip onayı: A1, B3, tepe, C2). */
 export const PUZZLE = {
@@ -280,25 +403,29 @@ export const LOTUS = {
   ripeTime: 26,
   wiltTime: 16,
   /** Regrow delay after a bloom is taken. */
-  goneTime: 12,
+  goneTime: ACTIVE_PROFILE === "real" ? 0 : 12,
   /** Randomised +/- factor applied to every stage duration. */
-  timeJitter: 0.45,
+  timeJitter: ACTIVE_PROFILE === "real" ? 0 : 0.45,
   /** How close the player must be to harvest. */
   pickRange: 2.4,
+  /** Seconds E must be held (`HARVEST_HOLD`). Instant tap does not pick. */
+  hold: 1.2,
+  /** Metres moved while holding before harvest progress resets. */
+  cancelMove: 0.3,
   /** Inventory cap before a trip back to the ship is required. */
   carryCap: profile.lotus.carryCap,
   /** Ripe lotuses to deliver for the departure. */
-  target: 12,
+  target: ACTIVE_PROFILE === "real" ? 5 : 12,
   /** Minimum spacing when scattering plants across the lagoon. */
-  minSpacing: 1.75,
+  minSpacing: ACTIVE_PROFILE === "real" ? 18 : 1.75,
   /**
    * Three harvest pockets (reed shore / deep lagoon / north cove).
    * Counts should sum to `count`.
    */
   zones: [
-    { name: "reed", cx: -5.5, cz: 8.5, radius: 5.2, count: 12, spacing: 1.55 },
-    { name: "deep", cx: 1.2, cz: -1.5, radius: 6.4, count: 14, spacing: 1.85 },
-    { name: "cove", cx: 6.8, cz: -6.2, radius: 4.4, count: 8, spacing: 1.7 },
+    { name: "reed", cx: -5.5, cz: 8.5 + LAYOUT_SHIFT_Z, radius: 5.2, count: 12, spacing: 1.55 },
+    { name: "deep", cx: 1.2, cz: -1.5 + LAYOUT_SHIFT_Z, radius: 6.4, count: 14, spacing: 1.85 },
+    { name: "cove", cx: 6.8, cz: -6.2 + LAYOUT_SHIFT_Z, radius: 4.4, count: 8, spacing: 1.7 },
   ],
 } as const;
 
@@ -344,6 +471,12 @@ export const MEMORY = {
   loseHold: 6,
   /** Memory left after a lost run. */
   resetTo: 0.45,
+  /** After a K35 forget event — not pinned at 1.0. */
+  forgetFloor: 0.4,
+  /** Seconds of no memory *gain* after forget (recover still works). */
+  forgetIframes: 2.0,
+  /** Night multiplies islandGain (last 20% + first 10% of the day). */
+  nightMul: 1.25,
   /** Visual haze curve mapped from memory. */
   hazeGamma: 1.85,
   hazeMax: 0.95,
@@ -440,14 +573,14 @@ export const DAY = {
 /** Silent lotus-eaters who offer a one-shot gift (tuning.md §6). */
 export const LOTOPHAGOS = {
   count: 3,
-  gift: 2,
+  gift: ACTIVE_PROFILE === "real" ? 1 : 2,
   memCost: 0.2,
   range: 3.2,
   /** World spots near the three harvest pockets. */
   spots: [
-    { name: "reed", x: -4.6, z: 7.2, faceY: 0.4 },
-    { name: "deep", x: 0.4, z: 2.8, faceY: Math.PI },
-    { name: "cove", x: 5.8, z: -4.8, faceY: -2.2 },
+    { name: "reed", x: -4.6, z: 7.2 + LAYOUT_SHIFT_Z, faceY: 0.4 },
+    { name: "deep", x: 0.4, z: 2.8 + LAYOUT_SHIFT_Z, faceY: Math.PI },
+    { name: "cove", x: 5.8, z: -4.8 + LAYOUT_SHIFT_Z, faceY: -2.2 },
   ],
 } as const;
 
@@ -467,7 +600,7 @@ export const RENDER = {
   bloomRadius: 0.45,
   bloomThreshold: 0.86,
   fogColor: 0xc2e0ea,
-  fogDensity: 0.0092,
+  fogDensity: profile.fogDensity,
   skyTop: 0x2f86c9,
   skyHorizon: 0xffe6c2,
   sunColor: 0xfff0cc,
@@ -517,8 +650,8 @@ export const SHIP_TEX = {
 
 export const SKY_TEX = {
   /** hill_backdrop_01 (ASSET-023) — textured ring replacing the two farthest procedural cone layers. */
-  hillDistance: 205,
-  hillHeight: 46,
+  hillDistance: ACTIVE_PROFILE === "real" ? 280 : 205,
+  hillHeight: ACTIVE_PROFILE === "real" ? 62 : 46,
   hillY: 4,
   /** Times the backdrop image repeats around the horizon (it is a single wide shot, not a 360 pan). */
   hillRepeat: 4,

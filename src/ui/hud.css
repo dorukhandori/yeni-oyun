@@ -858,6 +858,75 @@ button.hub-island:hover .hub-island-thumb {
   border: 1px solid rgba(120, 96, 60, 0.35);
 }
 
+/* K35 edge quest — satellite of Lotus (screens.md §3.6). Small circle + inner
+   point; dashed spur off the island, not a fourth stop. */
+.hub-quest-path {
+  fill: none;
+  stroke: rgba(140, 100, 40, 0.7);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-dasharray: 3 5;
+  vector-effect: non-scaling-stroke;
+}
+
+.hub-quest {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  border: none;
+  background: none;
+  padding: 4px;
+  font-family: inherit;
+  color: #6d4a16;
+  cursor: pointer;
+  min-width: 44px;
+  min-height: 44px;
+  transition: transform 150ms ease;
+}
+
+.hub-quest:hover,
+.hub-quest:focus-visible {
+  transform: translate(-50%, -50%) translateY(-2px);
+}
+
+.hub-quest:focus-visible {
+  outline: none;
+}
+
+.hub-quest-node {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid rgba(180, 138, 60, 0.85);
+  background: rgba(255, 246, 227, 0.82);
+  box-shadow: 0 3px 10px rgba(40, 26, 10, 0.28);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hub-quest:hover .hub-quest-node,
+.hub-quest:focus-visible .hub-quest-node {
+  box-shadow: 0 0 0 2px rgba(109, 74, 22, 0.45), 0 6px 14px rgba(40, 26, 10, 0.36);
+}
+
+.hub-quest-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #6d4a16;
+}
+
+.hub-quest-name {
+  font-size: 10px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
 /* Title/Hub cover the canvas — hide the touch HUD behind them so virtual
    stick/look-pad/action button don't intercept taps meant for menu buttons. */
 body[data-ui-phase="title"] #touch,

@@ -41,6 +41,9 @@ export interface Ship {
   update(t: number, departing: number): void;
   /** Light a mast ribbon on the first n ships (visual progress). */
   setDelivered(n: number): void;
+  /** Move only the hero hull (K35 forget). Fleet sisters stay put. */
+  relocateHero(x: number, z: number, rotY: number): void;
+  addKeepsake(kind: "cairn" | "wreath"): void;
   reset(): void;
 }
 
@@ -97,7 +100,14 @@ export function buildShip(): Ship {
   }
 
   const playerHull = hulls[FLEET.playerIndex];
-  const anchor = homePos[FLEET.playerIndex].clone();
+  const heroBerth = homePos[FLEET.playerIndex].clone();
+  let heroRot = homeRot[FLEET.playerIndex];
+  const keepsakeRoot = new THREE.Group();
+  keepsakeRoot.position.set(0, 1.55, 0.4);
+  playerHull.add(keepsakeRoot);
+  const kept = new Set<string>();
+
+  const anchor = heroBerth.clone();
 
   return {
     group,
@@ -105,12 +115,54 @@ export function buildShip(): Ship {
     setDelivered(n: number) {
       for (let i = 0; i < ribbons.length; i++) ribbons[i].visible = i < n;
     },
+    relocateHero(x, z, rotY) {
+      const y = heightAt(x, z);
+      heroBerth.set(x, y, z);
+      heroRot = rotY;
+      playerHull.position.copy(heroBerth);
+      playerHull.rotation.y = heroRot;
+      anchor.copy(heroBerth);
+    },
+    addKeepsake(kind) {
+      if (kept.has(kind)) return;
+      kept.add(kind);
+      const mesh =
+        kind === "cairn"
+          ? new THREE.Mesh(
+              new THREE.IcosahedronGeometry(0.16, 0),
+              new THREE.MeshStandardMaterial({
+                color: PALETTE.marble,
+                roughness: 0.65,
+                flatShading: true,
+              }),
+            )
+          : new THREE.Mesh(
+              new THREE.TorusGeometry(0.18, 0.045, 6, 12),
+              new THREE.MeshStandardMaterial({
+                color: PALETTE.petalRipeTint,
+                roughness: 0.5,
+                flatShading: true,
+              }),
+            );
+      mesh.position.set(kept.size === 1 ? -0.35 : 0.35, 0.12, 0);
+      if (kind === "wreath") mesh.rotation.x = Math.PI / 2;
+      keepsakeRoot.add(mesh);
+    },
     reset() {
+      heroBerth.copy(homePos[FLEET.playerIndex]);
+      heroRot = homeRot[FLEET.playerIndex];
+      kept.clear();
+      while (keepsakeRoot.children.length) {
+        const c = keepsakeRoot.children[0];
+        keepsakeRoot.remove(c);
+      }
       for (let i = 0; i < hulls.length; i++) {
-        hulls[i].position.copy(homePos[i]);
-        hulls[i].rotation.y = homeRot[i];
+        const home = i === FLEET.playerIndex ? heroBerth : homePos[i];
+        hulls[i].position.copy(i === FLEET.playerIndex ? heroBerth : homePos[i]);
+        hulls[i].rotation.y = i === FLEET.playerIndex ? heroRot : homeRot[i];
         hulls[i].rotation.z = 0;
         ribbons[i].visible = false;
+        void home;
       }
     },
     update(t: number, departing: number) {
@@ -119,13 +171,15 @@ export function buildShip(): Ship {
 
       for (let i = 0; i < hulls.length; i++) {
         const h = hulls[i];
-        const home = homePos[i];
+        const home = i === FLEET.playerIndex ? heroBerth : homePos[i];
         const stagger = i * 0.035;
         const d = Math.max(0, departing - stagger);
-        h.position.x = home.x + Math.cos(beachAngle) * d * 22;
-        h.position.z = home.z + Math.sin(beachAngle) * d * 22;
+        const leaveA = i === FLEET.playerIndex ? Math.atan2(home.z, home.x) : beachAngle;
+        h.position.x = home.x + Math.cos(leaveA) * d * 22;
+        h.position.z = home.z + Math.sin(leaveA) * d * 22;
         h.position.y = home.y + d * 0.3 + Math.sin(t * 0.9 + i) * 0.05 * d;
         h.rotation.z = Math.sin(t * 0.8 + i * 0.4) * 0.035 * (0.25 + d);
+        if (i === FLEET.playerIndex && d <= 0) h.rotation.y = heroRot;
       }
 
       // Keep delivery trigger on Doryseus' hull while beached / departing.

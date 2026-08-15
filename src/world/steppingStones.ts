@@ -30,14 +30,16 @@ export function buildSteppingStones(): SteppingStones {
   const padGeo = new THREE.CircleGeometry(0.72, 12);
   padGeo.rotateX(-Math.PI / 2);
 
-  // Shore → deep pocket (curved hop path).
+  // Shore → deep pocket (curved hop path), relative to the lagoon centre.
+  const oz = LAGOON.center.z - 1.5;
+  const ox = LAGOON.center.x;
   const nodes: Array<{ x: number; z: number; mesh: THREE.Mesh }> = [
-    { x: -2.2, z: 4.8 },
-    { x: -0.4, z: 2.6 },
-    { x: 1.6, z: 0.4 },
-    { x: 2.8, z: -2.2 },
-    { x: 3.4, z: -4.8 },
-    { x: 2.0, z: -6.6 },
+    { x: ox - 2.2, z: oz + 4.8 },
+    { x: ox - 0.4, z: oz + 2.6 },
+    { x: ox + 1.6, z: oz + 0.4 },
+    { x: ox + 2.8, z: oz - 2.2 },
+    { x: ox + 3.4, z: oz - 4.8 },
+    { x: ox + 2.0, z: oz - 6.6 },
   ].map((n) => {
     const mesh = new THREE.Mesh(padGeo, padMat);
     mesh.position.set(n.x, LAGOON.waterY + 0.04, n.z);

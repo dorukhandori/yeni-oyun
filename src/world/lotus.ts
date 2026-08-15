@@ -1,11 +1,12 @@
 import * as THREE from "three";
-import { LAGOON, LOTUS, LOTUS_FX, LOTUS_PHYSICS, PALETTE, PUZZLE } from "../constants";
+import { LAGOON, LOTUS, LOTUS_FX, LOTUS_PHYSICS, PALETTE, PUZZLE, WORLD } from "../constants";
 import type { LotusStage } from "../types";
 import { springStep, type SpringState } from "../systems/spring";
 import { assetUrl } from "../assets/paths";
 import { heightAt, lagoonDist, lagoonRadiusAt } from "./terrain";
 import { mulberry32 } from "./rng";
 import { glowSprite, loadAlbedoTexture } from "./sprite";
+import { plantGroundY, sampleLotusCell, type SpawnCtx } from "./lotusSpawn";
 
 type BloomStage = "bud" | "half" | "ripe" | "wilt";
 
@@ -39,7 +40,7 @@ interface Plant {
 export interface LotusField {
   group: THREE.Group;
   /** Advance growth; returns nothing. */
-  update(dt: number, t: number): void;
+  update(dt: number, t: number, ctx?: SpawnCtx): void;
   /** Nearest harvestable ripe plant within range, or null. */
   findRipe(x: number, z: number, gates: LotusGateState): number | null;
   /** Nearest gated ripe plant (blocked) for prompt feedback. */
@@ -49,7 +50,7 @@ export interface LotusField {
   ripeCount(): number;
   setHighlight(index: number | null): void;
   /** Reseed growth stages for a fresh run. */
-  reset(): void;
+  reset(ctx?: SpawnCtx & { seed?: number }): void;
 }
 
 const STAGE_ORDER: LotusStage[] = ["bud", "half", "ripe", "wilt", "gone"];
@@ -151,8 +152,18 @@ export function buildLotusField(): LotusField {
   const plants: Plant[] = [];
   const spots: Array<{ x: number; z: number; zone: string; indexInZone: number }> = [];
 
+  function placeReal(rand: () => number, ctx: SpawnCtx): void {
+    spots.length = 0;
+    for (let i = 0; i < LOTUS.count; i++) {
+      const c = sampleLotusCell(rand, spots, ctx);
+      spots.push({ x: c.x, z: c.z, zone: "scatter", indexInZone: i });
+    }
+  }
+
   // Three harvest pockets: reed shore (near ship), deep lagoon, north cove.
-  for (const zone of LOTUS.zones) {
+  if (WORLD.k35) {
+    placeReal(rand, { playerX: 0, playerZ: -140, shipX: 0, shipZ: -140 });
+  } else for (const zone of LOTUS.zones) {
     let placed = 0;
     let guard = 0;
     while (placed < zone.count && guard++ < 2500) {
@@ -171,11 +182,11 @@ export function buildLotusField(): LotusField {
   // Zone counts are fixed data (test-profile scale); a world profile with a
   // smaller LOTUS.count (see constants.ts "real" profile) trims the surplus
   // rather than redesigning zone placement, which is out of scope here.
-  if (spots.length > LOTUS.count) spots.length = LOTUS.count;
+  if (!WORLD.k35 && spots.length > LOTUS.count) spots.length = LOTUS.count;
 
   // Top up if a zone undershot (terrain rejection).
   let guard = 0;
-  while (spots.length < LOTUS.count && guard++ < 4000) {
+  while (!WORLD.k35 && spots.length < LOTUS.count && guard++ < 4000) {
     const a = rand() * Math.PI * 2;
     const r = Math.sqrt(rand()) * (LAGOON.radius - 1.4);
     const x = LAGOON.center.x + Math.cos(a) * r;
@@ -190,15 +201,16 @@ export function buildLotusField(): LotusField {
 
   for (const s of spots) {
     let gate: LotusGate = null;
-    if (s.zone === "deep" && s.indexInZone >= PUZZLE.deepGatedFromIndex) {
+    if (!WORLD.k35 && s.zone === "deep" && s.indexInZone >= PUZZLE.deepGatedFromIndex) {
       gate = "stones";
-    } else if (s.zone === "cove" && coveGatedLeft > 0) {
+    } else if (!WORLD.k35 && s.zone === "cove" && coveGatedLeft > 0) {
       gate = "hill";
       coveGatedLeft -= 1;
     }
 
     const g = new THREE.Group();
-    g.position.set(s.x, LAGOON.waterY, s.z);
+    const gy = WORLD.k35 ? plantGroundY(s.x, s.z) : LAGOON.waterY;
+    g.position.set(s.x, gy, s.z);
     g.rotation.y = rand() * Math.PI * 2;
 
     const padCount = 2 + Math.floor(rand() * 3);
@@ -240,7 +252,7 @@ export function buildLotusField(): LotusField {
 
     const stage: LotusStage = STAGE_ORDER[Math.floor(rand() * 4)];
     const plant: Plant = {
-      pos: new THREE.Vector3(s.x, LAGOON.waterY, s.z),
+      pos: new THREE.Vector3(s.x, gy, s.z),
       stage,
       timer: rand() * baseDuration(stage),
       duration: baseDuration(stage) * (1 + (rand() - 0.5) * LOTUS.timeJitter),
@@ -273,7 +285,26 @@ export function buildLotusField(): LotusField {
     p.halo.visible = p.stage === "ripe";
   }
 
+  let spawnCtx: SpawnCtx = { playerX: 0, playerZ: -140, shipX: 0, shipZ: -140 };
+
+  function relocate(p: Plant, rand = Math.random): void {
+    const others = plants.filter((q) => q !== p).map((q) => ({ x: q.pos.x, z: q.pos.z }));
+    const c = sampleLotusCell(rand, others, spawnCtx);
+    const y = plantGroundY(c.x, c.z);
+    p.pos.set(c.x, y, c.z);
+    p.group.position.set(c.x, y, c.z);
+    p.stage = "bud";
+    p.timer = 0;
+    p.duration = baseDuration("bud");
+    p.pop = 0;
+    applyStage(p);
+  }
+
   function advance(p: Plant): void {
+    if (WORLD.k35 && (p.stage === "wilt" || p.stage === "gone")) {
+      relocate(p);
+      return;
+    }
     const i = STAGE_ORDER.indexOf(p.stage);
     p.stage = STAGE_ORDER[(i + 1) % STAGE_ORDER.length];
     p.timer = 0;
@@ -325,7 +356,8 @@ export function buildLotusField(): LotusField {
 
   return {
     group,
-    update(dt: number, t: number) {
+    update(dt: number, t: number, ctx?: SpawnCtx) {
+      if (ctx) spawnCtx = ctx;
       const ripeAspect = STAGE_TEX.ripe.aspect;
       for (const p of plants) {
         p.timer += dt;
@@ -411,6 +443,11 @@ export function buildLotusField(): LotusField {
       const p = plants[index];
       if (p.stage !== "ripe") return false;
       if (!gateOpen(p, gates)) return false;
+      if (WORLD.k35) {
+        p.pop = 1;
+        relocate(p);
+        return true;
+      }
       p.stage = "gone";
       p.timer = 0;
       p.duration = LOTUS.goneTime * (1 + (Math.random() - 0.5) * LOTUS.timeJitter);
@@ -431,10 +468,42 @@ export function buildLotusField(): LotusField {
       }
       const p = plants[index];
       highlight.visible = true;
-      highlight.position.set(p.pos.x, LAGOON.waterY + 0.06, p.pos.z);
+      highlight.position.set(p.pos.x, p.pos.y + 0.06, p.pos.z);
     },
-    reset() {
-      const re = mulberry32(77002);
+    reset(ctx) {
+      if (ctx) spawnCtx = ctx;
+      const re = mulberry32(ctx?.seed ?? 77002);
+      if (WORLD.k35) {
+        const placed: Array<{ x: number; z: number }> = [];
+        for (const p of plants) {
+          const c = sampleLotusCell(re, placed, spawnCtx);
+          placed.push(c);
+          const y = plantGroundY(c.x, c.z);
+          p.pos.set(c.x, y, c.z);
+          p.group.position.set(c.x, y, c.z);
+        }
+        const stages: LotusStage[] = ["ripe", "half", "bud", "bud", "half"];
+        for (let i = stages.length - 1; i > 0; i--) {
+          const j = Math.floor(re() * (i + 1));
+          const tmp = stages[i];
+          stages[i] = stages[j];
+          stages[j] = tmp;
+        }
+        plants.forEach((p, i) => {
+          p.stage = stages[i] ?? "bud";
+          p.timer = re() * baseDuration(p.stage) * 0.4;
+          p.duration = baseDuration(p.stage);
+          p.pop = 0;
+          p.bob.value = 0;
+          p.bob.velocity = 0;
+          p.roll.value = 0;
+          p.roll.velocity = 0;
+          p.group.rotation.z = 0;
+          applyStage(p);
+        });
+        highlight.visible = false;
+        return;
+      }
       for (const p of plants) {
         p.stage = STAGE_ORDER[Math.floor(re() * 4)];
         p.timer = re() * baseDuration(p.stage);

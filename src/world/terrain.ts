@@ -1,6 +1,17 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import { ISLAND, LAGOON, PALETTE, PLAYER, SKY_TEX, TERRAIN_TEX } from "../constants";
+import {
+  ISLAND,
+  LAGOON,
+  LANDMARK,
+  LAYOUT_SHIFT_Z,
+  LOTUS,
+  PALETTE,
+  PLAYER,
+  SHIP,
+  SKY_TEX,
+  TERRAIN_TEX,
+} from "../constants";
 import { mulberry32 } from "./rng";
 import { assetUrl } from "../assets/paths";
 import { loadAlbedoTexture } from "./sprite";
@@ -58,6 +69,43 @@ export function islandRadiusAt(x: number, z: number): number {
   return ISLAND.radius * islandRadiusFactor(Math.atan2(z, x));
 }
 
+/** Radial bump — 1 at the centre, 0 at `radius`, smooth falloff. */
+function radialBump(dx: number, dz: number, radius: number): number {
+  const d = Math.hypot(dx, dz);
+  if (d >= radius || radius <= 0) return 0;
+  const t = 1 - d / radius;
+  return t * t * (3 - 2 * t);
+}
+
+/** Dominant north-east weenie — does not lift the rest of the island. */
+function hillLandmark(x: number, z: number): number {
+  const { x: hx, z: hz, height, radius } = LANDMARK.hill;
+  if (height <= 0) return 0;
+  const t = radialBump(x - hx, z - hz, radius);
+  // Sharper peak so the 48 m summit reads as a silhouette, not a plateau.
+  return height * t * t;
+}
+
+/** Small rocky nose west of the fleet — frames the beach, does not wall it. */
+function headlandLandmark(x: number, z: number): number {
+  const { x: hx, z: hz, height, radius } = LANDMARK.headland;
+  if (height <= 0) return 0;
+  return height * radialBump(x - hx, z - hz, radius);
+}
+
+/** Northern spike skyline — coastal band, walkable only at the feet. */
+function northSpikeLandmark(x: number, z: number): number {
+  const { height, startR, endR } = LANDMARK.northSpikes;
+  if (height <= 0) return 0;
+  const r = Math.hypot(x, z);
+  const north = Math.max(0, z / Math.max(r, 1));
+  if (north < 0.35) return 0;
+  const ring = smoothstep(startR, startR + 10, r) * smoothstep(endR, endR - 8, r);
+  if (ring <= 0) return 0;
+  const spike = Math.abs(Math.sin(x * 0.21) * Math.cos(z * 0.17));
+  return north * ring * (0.28 + spike * 0.72) * height;
+}
+
 /** Ground height at a world position. Sea level is y = 0. */
 export function heightAt(x: number, z: number): number {
   const r = Math.hypot(x, z);
@@ -66,11 +114,17 @@ export function heightAt(x: number, z: number): number {
   // Dome rising from the shoreline inward.
   const inland = smoothstep(coast, coast - ISLAND.domeFalloff, r);
   let h = inland * ISLAND.domeHeight + hills(x, z) * ISLAND.hillAmp * inland;
+  h += (hillLandmark(x, z) + headlandLandmark(x, z)) * inland;
 
-  // Beyond the shoreline the sea floor drops away.
+  const spike = northSpikeLandmark(x, z);
+
+  // Beyond the shoreline the sea floor drops away — northern rocks may pierce it.
   if (r > coast) {
     const out = r - coast;
     h = ISLAND.shoreDrop - out * 0.09;
+    h = Math.max(h, spike * smoothstep(22, 0, out));
+  } else {
+    h += spike;
   }
 
   // Lagoon basin carved into the island.
@@ -215,9 +269,11 @@ export function buildTerrain(): Terrain {
     const ld = lagoonDist(x, z);
 
     // Grass hue by altitude — tints the grass texture (flora_drygrass_01).
+    // Above ~8 m the weenie / north rocks fade to chalk so the 48 m peak reads.
     if (y < 1.6) tmp.copy(cDry);
     else if (y < 2.8) tmp.copy(cDry).lerp(cGrass, smoothstep(1.6, 2.8, y));
-    else tmp.copy(cGrass).lerp(cDeep, smoothstep(2.8, 3.8, y));
+    else if (y < 8) tmp.copy(cGrass).lerp(cDeep, smoothstep(2.8, 8, y));
+    else tmp.copy(cDeep).lerp(cRock, smoothstep(8, 22, y));
     // Subtle rocky fleck within the grass, same noise as before.
     tmp.lerp(cRock, Math.max(0, hills(x * 2.4, z * 2.4)) * 0.09);
     // Speckle so the flat-shaded facets read as ground, not plastic.
@@ -290,15 +346,17 @@ export function buildTerrain(): Terrain {
     group.add(o);
   };
 
-  for (let i = 0; i < 60; i++) {
+  const floraCount = ISLAND.radius > 80 ? 140 : 60;
+  for (let i = 0; i < floraCount; i++) {
     const a = rand() * Math.PI * 2;
     const r = 6 + rand() * (ISLAND.radius * islandRadiusFactor(a) - 7);
     const x = Math.cos(a) * r;
     const z = Math.sin(a) * r;
     const y = heightAt(x, z);
-    if (y < 0.9 || lagoonDist(x, z) < lagoonRadiusAt(x, z) + 2.2) continue;
+    if (y < 0.9 || y > 16 || lagoonDist(x, z) < lagoonRadiusAt(x, z) + 2.2) continue;
     // Keep the shoreline in front of the ship clear.
-    if (z > 15 && Math.abs(x - 4) < 7) continue;
+    if (Math.hypot(x - SHIP.pos.x, z - SHIP.pos.z) < 18) continue;
+    if (LAYOUT_SHIFT_Z === 0 && z > 15 && Math.abs(x - 4) < 7) continue;
 
     const kind = rand();
     if (kind < 0.42) {
@@ -334,9 +392,10 @@ export function buildTerrain(): Terrain {
 
   group.add(buildDistantHills(rand));
   group.add(buildReedBeds(rand));
+  group.add(buildNorthSpikeRocks(rand));
 
   // Weathered columns hint at the Lotophagoi's abandoned shrine.
-  const shrine = { x: -13, z: -15 };
+  const shrine = { x: -13, z: -15 + LAYOUT_SHIFT_Z };
   for (let i = 0; i < 5; i++) {
     const a = (i / 5) * Math.PI * 2;
     const x = shrine.x + Math.cos(a) * 3.6;
@@ -357,6 +416,43 @@ export function buildTerrain(): Terrain {
 }
 
 /**
+ * Extra chalk spikes on the north coast so the heightmap's soft band still
+ * reads as a jagged skyline from the south beach.
+ */
+function buildNorthSpikeRocks(rand: () => number): THREE.Group {
+  const group = new THREE.Group();
+  if (LANDMARK.northSpikes.height <= 0) return group;
+
+  const rockTex = loadAlbedoTexture(assetUrl(ROCK_TEX_URL));
+  rockTex.wrapS = THREE.RepeatWrapping;
+  rockTex.wrapT = THREE.RepeatWrapping;
+  const mat = new THREE.MeshStandardMaterial({
+    map: rockTex,
+    color: PALETTE.rock,
+    roughness: 0.95,
+    flatShading: true,
+  });
+
+  const { startR, endR } = LANDMARK.northSpikes;
+  for (let i = 0; i < 14; i++) {
+    const a = Math.PI * 0.5 + (rand() - 0.5) * 1.15;
+    const r = startR + 8 + rand() * (endR - startR - 16);
+    const x = Math.cos(a) * r;
+    const z = Math.sin(a) * r;
+    const y = heightAt(x, z);
+    const h = 7 + rand() * 16;
+    const spike = new THREE.Mesh(new THREE.ConeGeometry(1.6 + rand() * 2.4, h, 5, 1), mat);
+    spike.position.set(x, y + h * 0.35, z);
+    spike.rotation.y = rand() * Math.PI;
+    spike.rotation.z = (rand() - 0.5) * 0.25;
+    spike.scale.z = 0.45 + rand() * 0.35;
+    spike.castShadow = true;
+    group.add(spike);
+  }
+  return group;
+}
+
+/**
  * Hazy Aegean headlands across the water. The near layer stays procedural
  * (cheap silhouette variety close to the coast); the far skyline is one
  * textured ring using the generated hill backdrop (ASSET-023), which reads
@@ -364,7 +460,12 @@ export function buildTerrain(): Terrain {
  */
 function buildDistantHills(rand: () => number): THREE.Group {
   const group = new THREE.Group();
-  const nearLayer = { dist: 128, height: 26, color: 0x8fa8bd, count: 12 };
+  const nearLayer = {
+    dist: ISLAND.radius + 68,
+    height: 26,
+    color: 0x8fa8bd,
+    count: 12,
+  };
 
   const mat = new THREE.MeshBasicMaterial({ color: nearLayer.color, fog: false });
   for (let i = 0; i < nearLayer.count; i++) {
@@ -456,8 +557,9 @@ function buildReedBeds(rand: () => number): THREE.Group {
   });
 
   const clumpGeos: THREE.BufferGeometry[] = [];
-  const cx = -5.5;
-  const cz = 8.5;
+  const reedZone = LOTUS.zones[0];
+  const cx = reedZone.cx;
+  const cz = reedZone.cz;
   for (let i = 0; i < 34; i++) {
     const a = rand() * Math.PI * 2;
     const r = 2.2 + rand() * 5.5;
@@ -497,7 +599,7 @@ function buildReedBeds(rand: () => number): THREE.Group {
   for (let i = 0; i < 7; i++) {
     const t = i / 6;
     const x = 3 + t * 5.5;
-    const z = 4 - t * 9;
+    const z = 4 - t * 9 + LAYOUT_SHIFT_Z;
     const y = heightAt(x, z);
     if (y < -0.2) continue;
     const stone = new THREE.Mesh(new THREE.IcosahedronGeometry(0.35 + rand() * 0.25, 0), rockMat);

@@ -16,12 +16,13 @@ Bu dosyanın tek işi şu soruyu tek bakışta cevaplamak: **şu an neredeyiz, s
 
 | Doküman | Beyan edilen durum | Gerçek |
 |---|---|---|
-| `game-concept.md` | taslak — sahip onayı bekliyor | 4 karar kapalı (ad, zıplama yok, menü var, Lotophagoi kimliği ima), 4 açık soru duruyor |
-| `gdd-lotus-collection.md` | tasarlandı — onay + playtest bekliyor | eksiksiz; 5 açık soru |
-| `gdd-memory-system.md` | tasarlandı — onay + playtest bekliyor | eksiksiz; 3 açık soru + 2 playtest'e ertelenmiş değer |
-| `level-lotus-island.md` | taslak — onay bekliyor | 28 çiçeğin el yerleşimi, 12 gemi, kroki hazır; 5 açık soru |
-| `scenario.md` | taslak — onay bekliyor | beat'ler + tüm oyun içi metin hazır; 4 açık soru |
-| `tuning.md` | ilk pas | **tam sayı listesi hazır** (artık §12 Kiklop algılanma sistemi dahil); 4+ değer playtest'e ertelenmiş (bkz. §11, §11.4, §12) |
+| `gdd-lotus-island-run.md` *(yeni, K35)* | uygulama-hazır — kod yok | Lotus `real` otoritesi. Challenge matrisi + [P] kilitler kapalı. |
+| `scenario.md` | K35 uygulama-hazır | Beat + metin bütçesi; kayıp cinematic yok |
+| `game-concept.md` | taslak; Lotus K35 damgalı | Pitch/döngü/P3 Lotus’ta güncel |
+| `gdd-lotus-collection.md` | fiiller durur; 28/`real` düştü | Hasat/teslim; sayı GDD koşusunda |
+| `gdd-memory-system.md` | oranlar durur; Lotus §3.1.9 düştü | Forget event Lotus’ta |
+| `level-lotus-island.md` | peyzaj durur; 28’li cep arşiv | 160 m, tepe, koy, filo |
+| `tuning.md` | `LOTUS_TARGET=5` kilit; `DAY` kayıp değil | 28 / evre 45s satırları `test`/arşiv |
 | `multi-island-concept.md` *(yeni)* | M7 + K27–K29 kapandı | 3 duraklı koşu kararı verildi ve gerçek dokümanlara yazıldı; kendisi hâlâ bir karar kaydı, tuning kaynağı değil |
 | `level-cyclops-cave.md` *(yeni, `island-designer`)* | taslak — sahip onayı bekliyor, **kilitli** (dokunulmuyor) | Kiklop Mağarası'nın kroki + bölgeleri + algılanma sistemi önerisi hazır; 6 açık soru (1 tanesi — respawn konumu — `gdd-detection-cyclops.md` ile kapandı) |
 | `gdd-detection-cyclops.md` *(yeni, `game-designer`)* | onaylandı (kavramsal), sayılar 🔬 | Kiklop'un algılanma sistemi karara bağlandı; sabitler `tuning.md` §12'de |
@@ -43,7 +44,7 @@ Bu dosyanın tek işi şu soruyu tek bakışta cevaplamak: **şu an neredeyiz, s
 
 ### 1.3 Kod
 
-`npm run build` / `tsc --noEmit` **temiz geçiyor.** Oyun oynanır: yürü, topla, taşı, teslim et, 12'de ayrıl, gün dolarsa dusk, unutuş dolarsa gemide yeniden doğ.
+`npm run build` / `tsc --noEmit` **temiz geçiyor.** Oyun oynanır — **hâlâ eski kural:** 12 teslim, gün dolunca dusk, `real` unutuşta `gameover`. K35 spec yazıldı, kod §9 bekliyor.
 
 **Var olan:** 3. şahıs kamera rig, prosedürel ada + lagün + deniz, 34 lotus (4 aşama + gone), 12 gemili filo (direk bezi = ilerleme göstergesi), 3 Lotophagos + tek seferlik ikram, gün saati + güneş yayı, haze post-process (vinyet + doygunluk + kenar erimesi), web-audio dalga + lowpass, parçacık burst'leri, dokunmatik kontroller, final kartları.
 
@@ -66,6 +67,7 @@ Bu dosyanın tek işi şu soruyu tek bakışta cevaplamak: **şu an neredeyiz, s
 | Dalga sesinin lowpass'tan muafiyeti | memory GDD §9 | **İhlal:** `waveGain → filter → master`, dalga da filtreleniyor |
 | Bayılma katmanı (`FX_GHOST_OFFSET`, `FX_BREATH_*`) *(yeni, 14 Ağu 2026)* | memory GDD §9.1, `tuning.md` §5.4 | Yok — bkz. Faz 3.7 |
 | Sanrı figürleri (Lotus Adası) *(yeni, 14 Ağu 2026)* | `gdd-lotus-hallucination.md`, `tuning.md` §13 | Yok — bkz. Faz 2.10/3.8, henüz sahnede hiçbir sanrı figürü, spawn sistemi ya da temas çarpışması yok |
+| Gerçek dikey rölyef / tepe landmark'ı *(K34, 15 Ağu 2026)* | `level-lotus-island.md` §1/§3.4/§7.1 | **Kısmen uygulandı (15 Ağu 2026):** `heightAt()` artık tepe-merkezli bir bump (`LANDMARK.hill`, 48 m), koy burnu ve kuzey sivri-kaya bandı ekliyor; `planeSize` `real`'de 384 (radius×2.4). El yerleşimli 28 çiçek ve `islandLayout.ts` hâlâ Faz 2.6. |
 
 **Tasarımda YOK, kodda VAR (çelişki):**
 
@@ -77,7 +79,7 @@ Bu dosyanın tek işi şu soruyu tek bakışta cevaplamak: **şu an neredeyiz, s
 
 | Değer | `tuning.md` | `constants.ts` | Kat |
 |---|---|---|---|
-| Ada yarıçapı | 70 m | 26 | **0,37×** |
+| Ada yarıçapı | 70 m → **160 m öneri (15 Ağu, kodlandı)** | 26 (`test`) / **160 (`real`)** | `test` 0,37×; `real` öneri uygulandı |
 | Oyuncu hızı | 4.5 m/s | 6.2 | 1,38× |
 | Çanta kapasitesi | 4 | 6 | 1,5× |
 | Lotus sayısı | 28 | 34 | 1,2× |
@@ -98,11 +100,13 @@ Bu dosyanın tek işi şu soruyu tek bakışta cevaplamak: **şu an neredeyiz, s
 
 ### 1.4a K1/K2/K3 çözümü: iki world profile (14 Ağu 2026)
 
-Sahip'in tek karar olarak verdiği cevap: yukarıdaki sapma tablosu "ya doc ya kod" değil, **iki paralel world profile** ile çözüldü. `src/constants.ts` artık `ACTIVE_PROFILE: "test" | "real"` (varsayılan `"test"`, `?profile=real` URL parametresiyle boot'ta ezilebilir — geçici dev switch, Faz 4'te gerçek ada-seçim UI'ı gelene kadar) ile seçilen bir `PROFILES` tablosundan `ISLAND.radius`, `PLAYER.speed`, `LOTUS.count`/`carryCap`, `SHIP.pos`/`range` ve `MEMORY`'nin altı oranını (`islandGain`, `perCarriedGain`, `lagoonGain`, `pickSpike`, `shipRecover`, `seaRecover`) besliyor. `real` profilin oranları `tuning.md` §5'in puan/s değerlerinin 100'e bölünmüş hâli (bkz. `tuning.md`'deki motor notu). Davranış farkları: `WORLD.showMemoryBar` (`hud.ts` `#memory` panelini `real`'de hiç güncellemiyor/gizliyor) ve `WORLD.lossMode` (`test` = mevcut yumuşak respawn; `real` = yeni `"gameover"` fazı — sert kayıp, sadece "Yeniden oyna").
+Sahip'in tek karar olarak verdiği cevap: yukarıdaki sapma tablosu "ya doc ya kod" değil, **iki paralel world profile** ile çözüldü. `src/constants.ts` artık `ACTIVE_PROFILE: "test" | "real"` (varsayılan **`"real"`** — Title/Hub gemisi, 14 Ağu 2026; `?profile=test` eski sandbox) ile seçilen bir `PROFILES` tablosundan `ISLAND.radius`, `PLAYER.speed`/`spawn`, `LOTUS.count`/`carryCap`, `SHIP.pos`/`range`, `LAYOUT_SHIFT_Z`, sis yoğunluğu ve `MEMORY`'nin altı oranını besliyor. `real` profilin unutuş oranları `tuning.md` §5'in puan/s değerlerinin 100'e bölünmüş hâli. Davranış farkları: `WORLD.showMemoryBar` ve `WORLD.lossMode` (`test` = yumuşak respawn; `real` = `"gameover"`).
+
+**K34 (15 Ağu 2026):** `real` radius 70→160, gemi (0,−60)→(0,−140), spawn kıyıya taşındı, çekirdek küme `LAYOUT_SHIFT_Z = −80` ile gemiyle birlikte kaydı. Çiçekler hâlâ küçük yarıçaplı üç cebe kümelenmiş (el yerleşimi Faz 2.6); ada büyüdü, tarla büyümedi. Kamera hâlâ test mesafesinde.
 
 **Bu çözüm kapsam dışı bıraktığı şey — artık ayrı bir kararla çözüldü:** çoklu-ada/"challenger" sistemi (sahip'in ayrıca istediği, dungeon-tasarımcısı-ajanı benzeri bir kavram) bu placeholder'ın üstüne oturacaktı. **`docs/design/multi-island-concept.md`'de M7 kapandı (2026-08-14, Seçenek 3), sonrasında K27–K29 ile üç bağımlı onay da kapandı:** **3 durak** (Lotus Adası + Kiklop Mağarası + Sirenler Geçidi — Kirke Adası şimdilik kapsam dışı), unutuş duraklar arası taşınıyor (`MEM_ISLAND_RELIEF_PCT = 0.4` öneri, kısmi iyileşme payıyla). M1–M6 (üretim biçimi, oturum uzunluğu, hangi duraklar, unutuş taşıma formülü, hedef dağılımı, `island-designer` agent'ı) `multi-island-concept.md` §6'da sonuca bağlandı; sonuçlar artık **gerçek dokümanlara da yazıldı**: `gdd-memory-system.md` (§3.1 madde 1/9, §3.5, §4.4), `tuning.md` (§3.0, §5, §10, §11.4), `game-concept.md` (§2, §7, Kapanan kararlar), `level-lotus-island.md` (üstbilgi notu). **Yeni `.claude/agents/island-designer.md` oluşturuldu**, `producer.md` routing tablosuna eklendi. **⚠️ Aynı gün, "hub yok" alt-maddesi tersine çevrildi:** sahip gerçek bir hub istedi (bkz. K2'nin ek notu, K27/K30, `multi-island-concept.md` §9). Unutuş taşıma ve hedef dağılımı **değişmedi**, sadece tetik "hub'a dönüş"e taşındı; koşu-bazlı kayıp (eski cümle: "kayıp finali koşu bazlı") **yeniden açık, kapanmadı** — bkz. K27. **Hâlâ yazılmayan:** Kiklop ve Sirenler'in kendi `level-*.md` dosyaları (bkz. Faz 2.6b/2.6c), hub'ın kendisi (Faz 4.9) ve buradaki `real` world-profile'ın 3 durak için ayrı ayrı örneklenmesi (kod tarafı, `gameplay-programmer`'ın işi).
 
-**Bilinen sınırlama (kapsam dışı bırakıldı, izlenmeli):** `real` profil sadece yukarıdaki sayıları değiştiriyor; `LAGOON`, `LOTUS.zones` (34'e göre el/prosedürel yerleşim, `real`de 28'e **kırpılıyor**, yeniden yerleşmiyor), `PLAYER.spawn`, `FLEET`, `LOTOPHAGOS.spots` ve `CAMERA` hâlâ test-ölçekli koordinatlar/mesafeler. Sonuç: `real` profilde oyuncu (5.5, 22.5)'te doğuyor ama gemi artık (0, −60)'ta — ilk turda uzun bir yürüyüş. Bu, Faz 2.6'nın (el yerleşimli 28 çiçek + tam seviye tasarımı) kapsamı; şimdilik dokunulmadı.
+**Bilinen sınırlama (kısmen kapandı, 15 Ağu 2026 / K34):** spawn artık geminin yanında (`real`: (3.2, −146), gemi (0, −140)). `LAGOON` / `LOTUS.zones` / `LOTOPHAGOS.spots` `LAYOUT_SHIFT_Z` ile kayıyor — ilk tur yürüyüşü düzeltildi. **Kalan:** zon yarıçapları hâlâ 4–6 m (çiçekler kümelenmiş), kamera test mesafesinde, 28 çiçek el yerleşimi yok. Faz 2.6.
 
 | Değişen dosya | Ne değişti |
 |---|---|
@@ -343,6 +347,8 @@ Tek liste. Numaralar kalıcı; karar verilince satır silinmez, **sonuç ve tari
 | **K31** *(14 Ağu 2026)* | **Bayılma/sanrı yeniden çerçevelemesi** — playtest sonrası sahip geri bildirimi ("bayılmaya doğru, sanrılar arttıkça teslim zorlaşsın, yaratıklar kovalasın"). `hallucination-reframe-concept.md`'de 3 kritik soru soruldu. | **kapandı (14 Ağu 2026):** sahip üçünü de cevapladı — (1) **ikisi de**: hem his değişikliği (bayılma/bilinç gevşemesi sunumu) hem gerçek mekanik (sanrı figürleri) isteniyor. (2) **İlke korunuyor**: temas can/envanter kaybı değil, unutuş sıçraması + geçici `DRIFT` şiddetlenmesi — Kiklop'un `CAUGHT` diliyle aynı aile. (3) **Yalnızca Lotus Adası** — Kiklop'un kendi `DETECT`/`CAUGHT` sistemiyle çakışmasın. Sonuçlar yazıldı: `gdd-memory-system.md` (§2, §3.4, §9.1), `gdd-lotus-hallucination.md` (yeni dosya), `tuning.md` (§5.4, §13, §10, §11.5), `art-bible.md` (§4.1, yeni). Uygulama: Faz 2.10 + Faz 3.7/3.8. | (kapandı) |
 | **K32** *(14 Ağu 2026)* | **WebGPU/TSL migration** — sahip Poseidon (GPU okyanus, WebGPU-only) ve EZ-Tree/Gaia/Dryad (prosedürel doğa) buldu, `technical-director`'a fizibilite çıkarttırıldı (`docs/production/webgpu-migration-assessment.md`). Bulgular: WebGL fallback var ama compute shader'lar (Poseidon) fallback'te çalışmıyor (~%18 kullanıcı okyanus göremez); `hazePass.ts` (unutuş efekti) TSL'de sıfırdan yazılmalı; EZ-Tree npm paketi 3MB gzip bundle şişirdiği için diskalifiye (GLB export önerildi); Three.js r160→r185 yükseltmesi neredeyse bedava. | **kapandı (14 Ağu 2026):** sahip "olsa iyi olur" dedi — **tam migration ertelendi** (Faz 7+ sonrasına). Şimdi yapılacak: (1) Three.js r185'e yükselt, (2) EZ-Tree'den GLB ağaç export et (npm paketi değil). Gaia/Dryad alınmıyor (ağır `onBeforeCompile` bağımlılığı). Poseidon/tam WebGPU spike'ı bu karara dahil değil, ileride ayrı değerlendirilecek. **Uygulandı (14 Ağu 2026):** Three.js r185'e yükseltildi (`gameplay-programmer`, sıfır tip hatası). EZ-Tree GLB export'u sandbox tarayıcısında editör güvenilir yüklenmediği için henüz yapılamadı — sahip kendi tarayıcısında deneyebilir ya da headless bir yol aranacak. | (kod tarafı büyük ölçüde uygulandı, EZ-Tree GLB bekliyor) |
 | **K33** *(14 Ağu 2026)* | **Minimap** — sahip playtest geri bildiriminde "sağ üst köşeye mini ada haritası" istedi. `ui-programmer` uygulamadan önce `ux/hud.md`, `ux/ia.md`, `ux/design-lines.md`, `art-bible.md`'nin **dördünün de** minimap'i açıkça yasakladığını buldu (unutuş barı yasağıyla aynı ağırlıkta — "yön gemi+dalga sesiyle bulunur, haritayla değil"), uygulamadan flag'ledi. | **kapandı (14 Ağu 2026):** sahip ilkeyi korumayı seçti — **minimap eklenmiyor**, dört doküman değişmedi. `GameState.playerX`/`playerZ` (gameplay-programmer'ın eklediği) kullanılmadan kalıyor, zararsız — ileride başka bir ihtiyaç çıkarsa hazır duruyor. | (kapandı) |
+| **K34** *(15 Ağu 2026)* | **Ada ölçek büyütme + tepe rölyefi.** Playtest: ada "küçük, Diablo zindanı gibi." `game-designer` önerisi: `ISLAND_RADIUS` 70→**160 m**, çekirdek döngü (gemi↔sazlık↔göl) mesafeleri **sabit**, tepe 18→**48 m** weenie, kuzey kayalığı + koy burnu. `DAY_LENGTH` değişmiyor (`tuning.md` §2.1). | **ölçek sahip tarafından "yeterli" (15 Ağu 2026).** "Çekirdek küme sabit" + `DAY_LENGTH` kaybı **K35 ile yeniden açıldı.** | K35 |
+| **K35** *(15 Ağu 2026)* | **Lotus Adası süre dışı, keşif adası.** | **Kodlandı.** `real`: 5 rastgele, gün döner, forget event, gezen ikram + kadın, hub **Beş yeter**. | Kiklop level’ı hâlâ yok (rozet açılır) |
 | **K5** | **Faz 5 art kapsamı:** 27 planned asset'in hangileri MVP'ye girecek? (öneri: 5 kalemlik alt küme) | açık |
 | **K6** | **Key art nerede kullanılacak?** | **kapandı (14 Ağu 2026, tersine çevrildi):** eski karar ("oyun sahnesine hiç girmez") sahip tarafından değiştirildi — key art artık **oyun içi ekranlarda da** kullanılıyor, en azından Başlık ekranı arkaplanı (bkz. `ux/screens.md` §1). `asset-registry.md` ASSET-003'ün "olası başlık ekranı arka planı (karar bekliyor)" notu artık **evet**e dönüyor — dosya kendisi henüz güncellenmedi, bu `art-director`'ın işi. Hub ekranının arkaplanının da aynı key art'ı mı kullanacağı yoksa ayrı bir kompozisyon mu isteyeceği (3 durağı temsil etmesi gerektiği için) ayrı bir açık soru, `art-director`'a devredildi. |
 | **K7** | **Veo/video yolu denenecek mi?** `gen-assets.mjs` video kolu hiç çalıştırılmadı. Trailer buna bağlı; plan B gameplay capture. | açık |
@@ -353,12 +359,12 @@ Tek liste. Numaralar kalıcı; karar verilince satır silinmez, **sonuç ve tari
 | # | Kaynak | Soru |
 |---|---|---|
 | K9 | *(kapandı — taşındı, bkz. §4.4)* | ~~Oyuncu Odysseus mu, isimsiz tayfa mı?~~ |
-| K10 | `game-concept.md` 2 | Hedef 12 sabit mi, zorluk seçeneği olacak mı? |
+| K10 | `game-concept.md` 2 | ~~Hedef 12 sabit mi?~~ **Kapandı (K35):** koşu 12, Lotus 5. |
 | K11 | `game-concept.md` 3 | Final ekranında skor/süre gösterilsin mi? (şu an gösterilmiyor) |
 | K12 | `game-concept.md` 4 | Türkçe tek dil mi? |
 | K13 | `gdd-lotus-collection.md` 2 | Yarı açık evrede kalan süre gösterilsin mi? |
 | K14 | `gdd-lotus-collection.md` 3 | Solmuş cezası (+12) çok mu sert? |
-| K15 | `gdd-lotus-collection.md` 4 | 12/12'de dümene basmak gereksiz bir tuş mu? |
+| K15 | `gdd-lotus-collection.md` 4 | ~~Dümen gereksiz tuş mu?~~ **Kapandı (K35):** 5 teslim + dümen onay. |
 | K16 | `gdd-lotus-collection.md` 5 | Hasat sonrası bitki tomurcuğa mı dönsün, kaybolsun mu? (tomurcuk seçildi, onay lazım) |
 | K17 | `gdd-memory-system.md` 2 | Uğultu ne kadar rahatsız edici olmalı? |
 | K18 | `gdd-memory-system.md` 3 | Unutuş mekaniği oyun başında açıklanmalı mı? |
@@ -366,7 +372,7 @@ Tek liste. Numaralar kalıcı; karar verilince satır silinmez, **sonuç ve tari
 | K20 | `tuning.md` 2 | Lotophagos takası oyunu kırıyor mu? (playtest adayı) |
 | K21 | `tuning.md` 3 | `FX_*` değerleri debug paneline mi taşınsın? |
 | K22 | `level-lotus-island.md` 1–5 | Tepe değer mi · direk bezi okunur mu · kuzey kayalığı boş mu · faz eşleşmesi keşfedilir mi · 140 m çap doğru mu |
-| K23 | `scenario.md` 1–4 | Açılış atlanabilir mi · kayıp finali huzurlu mu kalsın · beat 3 kamera kaçışı · minimal ayar menüsü |
+| K23 | `scenario.md` | ~~Açılış / kayıp finali~~ **Kapandı (K35):** 2. koşudan atla; unutulma cinematic yok. |
 
 ### 4.4 Kapanmış ama dokümanda hâlâ açık görünenler (temizlik)
 
@@ -381,12 +387,11 @@ Tek liste. Numaralar kalıcı; karar verilince satır silinmez, **sonuç ve tari
 
 ## 5. Şimdi ne yapmalıyız
 
-**Tek adım: Faz 1.1 — `tuning.md` ↔ `constants.ts` fark tablosunu çıkart.**
+**Tek adım:** K35 `real` oynanır — playtest. Kiklop level’ı hâlâ yok.
 
-- Kim: `game-designer`
-- Ne üretir: her sapan değer için tek satır — doc değeri, kod değeri, hangisi neden kazanmalı, kazananın diğer sistemlere maliyeti (özellikle ada yarıçapı → çiçek yerleşimi → tur süresi → unutuş oranları zinciri).
-- **Karar vermez, seçenek üretir.** Sahip tek oturumda satır satır onaylar (Faz 1.2).
-- Neden bu: kodda bugün yazılan her mekanik yanlış sayı üstüne oturuyor, playtest'e ertelenen 3 değer ölçülemez durumda ve art tarafındaki doku tekrar sıklığı bile ada ölçeğine bağlı. **Bu karar açılmadan yapılan her iş yeniden yapılır.**
-- Süre: bir oturum.
+### Backlog (park)
 
-Bu adımla birlikte sahip'e sadece **K1, K2, K3** sorulacak (üç bloke edici karar). Kalan 20 soru bu haritada duruyor, sırası geldiğinde açılacak — hepsi bugün cevaplanmak zorunda değil.
+| Kim | Fikir | Neden park |
+|---|---|---|
+| Doryseus yürüme/toplama/teslim spritesheet | `pipeline.md` §5 + `sheet-from-video.mjs`; Veo clip diskte yok; elle temizlik sahip kapısı | Sahip (15 Ağu 2026): backlog fikir. Idle 4-yön billboard duruyor (ASSET-041..044); Y-billboard + adım squash kodda. |
+| Çanta lotus boyası / kenar hale | ASSET-001 still'inde lotus her zaman var | Aynı karakter kapısı, idle göz geçişi |

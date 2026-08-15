@@ -36,7 +36,7 @@ export class Hud {
   private warnedDusk = false;
 
   constructor(touch = false) {
-    this.target.textContent = String(LOTUS.target);
+    this.target.textContent = WORLD.k35 ? "5" : String(LOTUS.target);
     this.cap.textContent = String(LOTUS.carryCap);
     // "real" world profile: the forgetting scale is the screen itself
     // (haze/vignette), no numeric bar (gdd-memory-system.md §10, ux/hud.md).
@@ -111,7 +111,12 @@ export class Hud {
   }
 
   update(st: GameState, haze: number): void {
-    this.delivered.textContent = String(st.delivered);
+    if (WORLD.k35) {
+      this.delivered.textContent =
+        st.delivered <= 0 ? "—" : st.delivered <= 2 ? "birkaç" : st.delivered <= 4 ? "yarısından çok" : "yeter";
+    } else {
+      this.delivered.textContent = String(st.delivered);
+    }
     this.carried.textContent = String(st.carried);
 
     if (WORLD.showMemoryBar) {
@@ -147,7 +152,7 @@ export class Hud {
     this.sun.classList.toggle("warn", warn);
     if (warn && !this.warnedDusk) {
       this.warnedDusk = true;
-      this.say("Güneş alçalıyor — son tur");
+      this.say(WORLD.k35 ? "Işık gül rengine döndü." : "Güneş alçalıyor — son tur");
     }
     if (st.dayTime < 1) this.warnedDusk = false;
 

@@ -21,6 +21,8 @@ export interface GameState {
   memory: number;
   /** Seconds spent pinned at full memory. */
   lostTimer: number;
+  /** K35: no memory gain while > 0 after a forget event. */
+  forgetIframes: number;
   /** 0..1 departure animation progress. */
   depart: number;
   /** Countdown while the "you forgot" card is up. */

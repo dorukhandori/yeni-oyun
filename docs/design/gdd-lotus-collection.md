@@ -4,7 +4,7 @@
 > **Tarih:** 2026-08-14
 > **Uyguladığı sütun:** **P1** (tek mekanik, iki yön) · **P3** (ada okunabilir)
 > **Sayılar:** hepsi `docs/design/tuning.md`'den. Bu dokümanda sayılar **sabit adıyla** anılır (`STAGE_RIPE` gibi); değer değişecekse orada değişir.
-> **Bağlı doküman:** `gdd-memory-system.md` (kardeş sistem), `level-lotus-island.md` (yerleşim), `game-concept.md` (çerçeve)
+> **⚠️ K35 (15 Ağu 2026):** Lotus `real` koşusu — sayı, küme, gün-kıskacı, hedef 12 — **`gdd-lotus-island-run.md` kazanır.** Bu dosya hasat/teslim/evre **fiillerini** tutar; 28’li tarla ve “zaman+mesafe oku” cümleleri `real`’de geçersiz. `test` profili bu dosyanın eski okumasını kullanabilir.
 
 ---
 
@@ -75,7 +75,7 @@ Referans his: *Firewatch*'ın haritayla yön bulması ile *Dredge*'in "bir taram
 |---|---|---|
 | **Unutuş** (`gdd-memory-system.md`) | Bu sistem → Unutuş | Hasat olayı (`MEM_ON_HARVEST`), solmuş cezası (`MEM_WITHERED_PENALTY`), taşınan çiçek sayısı (`MEM_PER_CARRIED`), teslim olayı (`MEM_PER_DELIVERED`), her bitkinin koku yayıp yaymadığı (evreden türer) |
 | **Unutuş** | Unutuş → Bu sistem | Hiçbir şey. **Unutuş toplamayı asla engellemez.** Sadece oyuncunun *nerede olduğunu bilmesini* engeller. Bu ayrım kutsaldır: sistem oyuncunun elini bağlamaz, gözünü bağlar. |
-| **Gün / güneş** | Gün → Bu sistem | Yalnızca oturumu bitirir. Olgunluk hızları gün boyunca **değişmez** (sabit hız = öğrenilebilirlik = P3). |
+| **Gün / güneş** | Gün → Bu sistem | `real` (K35): oturumu **bitirmez**; gün döner. Olgunluk hızları değişmez. |
 | **Seviye** (`level-lotus-island.md`) | Seviye → Bu sistem | Bitki koordinatları ve bölge dağılımı (`ZONE_*_COUNT`) |
 | **Arayüz** | Bu sistem → HUD | çanta sayacı, teslim sayacı |
 
@@ -83,13 +83,13 @@ Referans his: *Firewatch*'ın haritayla yön bulması ile *Dredge*'in "bir taram
 
 Adada **`LOTOPHAGOS_COUNT`** sessiz figür durur. Oyuncu `LOTOPHAGOS_RANGE` içine girdiğinde figür elini uzatır ve **açık bir lotus tutar**. Tek etkileşim:
 
-- **E** → `LOTOPHAGOS_GIFT` kadar olgun çiçek doğrudan çantaya girer (kapasite aşılmaz; yer yoksa alınabildiği kadarı alınır), unutuşa `LOTOPHAGOS_MEM_COST` eklenir.
+- **E** → unutuşa `LOTOPHAGOS_MEM_COST` + çantaya `LOTOPHAGOS_GIFT` olgun lotus (kapasite aşılmaz). **`real` (K35):** figürler **gezer**; `gift = 1`; kadın aynı fiil + çelenk — `gdd-lotus-island-run.md` §3.13. `test`: durağan, `gift = 2`.
 - **Uzaklaş** → hiçbir şey olmaz, bedel yoktur. Figür elini indirir ama tekrar yaklaşırsan yine uzatır.
 - Kabul edildikten sonra o figür bir daha ikram etmez (`LOTOPHAGOS_ONCE`).
 
 **Diyalog yok, seçenek menüsü yok, konuşma yok.** Homeros'ta da Lotophagoi düşman değildir ve pazarlık etmez; sadece verirler. Tek tuş bunu doğru anlatır.
 
-**Denge notu:** üç figürün tamamı kabul edilirse 6 çiçek (hedefin yarısı) +60 unutuş karşılığında gelir. Bu, meşru ama neredeyse ölümcül bir hız stratejisidir ve **kasıtlıdır** — oyuncunun kendi eliyle kurduğu bir tuzak, oyunun temasıyla birebir aynı şey.
+**Denge notu:** `real` — 3 gezen + kadın × 1 = 4 < 5; yalnız ikramla çıkılmaz. `test` — 3 × 2 = 6, eski tuzak.
 
 ---
 
@@ -161,7 +161,7 @@ Birden çok bitki `HARVEST_RANGE` içindeyse:
 - **Teslim sırasında güneş batarsa:** teslim animasyonu **tamamlanır**, sonra bitiş değerlendirilir. Yani son saniyede varan oyuncu 12'yi tamamlayabilir. Bu bilinçli bir cömertliktir.
 - **Lotophagos ikramı çanta 3/4 iken kabul edilirse:** yalnızca 1 çiçek alınır, ama `LOTOPHAGOS_MEM_COST` **tam** uygulanır ve figür harcanmış sayılır. Sertçe: aç gözlülük cezalandırılır. HUD kabul öncesi çanta doluluğunu gösterdiği için bu bilgi oyuncuda vardır.
 - **Çanta doluyken Lotophagos ikramı:** kabul edilemez. Figür elini uzatmaz.
-- **`LOTUS_TARGET` aşılırsa:** aşılamaz — 12'ye ulaşınca teslim sayacı kilitlenir. Çantada kalan çiçekler teslim edilebilir ama sayaç artmaz ve `MEM_PER_DELIVERED` **uygulanmaya devam eder** (yani son anda kafa açmak için kullanılabilir; küçük ve zararsız bir ustalık payı).
+- **`LOTUS_TARGET` aşılırsa:** aşılamaz — hedefe (Lotus `real`: **5**) ulaşınca teslim sayacı kilitlenir. Çantada kalan çiçekler teslim edilebilir ama sayaç artmaz ve `MEM_PER_DELIVERED` **uygulanmaya devam eder**.
 - **Oyuncu hiç çiçek toplamadan gemide E'ye basarsa:** hiçbir şey olmaz. Sessiz.
 - **İki bitki `LOTUS_MIN_SPACING`'ten yakın yerleştirilirse:** seviye yükleme sırasında konsola uyarı, yakın olan ikinci bitki 3,0 m'ye itilir.
 
@@ -244,5 +244,5 @@ Tam liste ve gerekçeleri `tuning.md` §3, §4, §6, §7'de. Tasarımcının pla
 1. **Olgunlaşma sesi 15 m'den duyulmalı mı?** Duyulursa oyuncu ekrana bakmadan da yönlenir (güzel), ama sazlıkta sürekli ses olur (yorucu). Aynı anda çalabilecek ses sayısı sınırlanmalı mı?
 2. **Yarı açık evrede oyuncuya kalan süre gösterilsin mi?** Şu an gösterilmiyor; oyuncu tahmin ediyor. Göstermek adaleti artırır, ustalığı azaltır. **Sahip kararı.**
 3. **Solmuş cezası çok mu sert?** +12 puan, bir hasadın üç katı. Kazara dokunma sık yaşanıyorsa E tuşu solmuş çiçeği hiç hedeflemesin (ceza tamamen kalkar) seçeneği var — ama o zaman "dikkat et" mesajı da kalkar.
-4. **`LOTUS_TARGET` 12'ye ulaşınca oyun kendiliğinden bitmeli mi, oyuncu gemiye gitmeli mi?** Şu an gemiye gitmesi gerekiyor (son bir gerilim turu). Alternatif: 12. teslim zaten gemide olduğu için anında bitiş. Şu anki tasarım **12. teslim gemide yapıldığından zaten oradasın** — yani dümene basmak bir onay adımı. Gereksiz bir tuş mu?
+4. ~~**`LOTUS_TARGET` dolunca oyun kendiliğinden bitmeli mi?**~~ **Kapandı (K35):** dümen E onay adımı. 5 teslim otomatik ayrılış değil.
 5. **Hasat sonrası bitki tomurcuğa mı dönmeli, yoksa tamamen mi kaybolmalı?** Tomurcuğa dönmek adayı canlı tutar ve kaynağı tüketilemez kılar. Kaybolmak "adayı boşalttım" hissi verir. Tomurcuk seçildi; sahip onayı gerekiyor.

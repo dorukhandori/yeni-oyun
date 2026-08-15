@@ -1,12 +1,12 @@
 # Oyun Konsepti — Lotus Adası
 
-> **Durum:** taslak — sahip onayı bekliyor
-> **Tarih:** 2026-08-14
+> **Durum:** taslak — Lotus `real` koşusu K35 ile `gdd-lotus-island-run.md`’ye bağlı
+> **Tarih:** 2026-08-15 (K35 damgası) · gövde 2026-08-14
 > **Motor:** Vite + TypeScript + Three.js (tarayıcı, 3D)
 > **Kardeş dokümanlar:** `gdd-lotus-collection.md` · `gdd-memory-system.md` · `scenario.md` · `level-lotus-island.md` · `tuning.md` · `multi-island-concept.md` (çoklu-ada karar dokümanı — M7 kapandı, 14 Ağu 2026)
 > **Çoklu-ada notu (14 Ağu 2026, sahip onayı):** bu doküman hâlâ büyük ölçüde **tek adalık** bir konsept metni. Proje artık 3 duraklı bir koşu (Lotus Adası → Kiklop Mağarası → Sirenler Geçidi, bkz. `multi-island-concept.md` M7). §2 ve §7 aşağıda bu yönde güncellendi; dokümanın geri kalanı (§4–§6, §8–§13) hâlâ yalnızca Lotus Adası'nı (artık 1. durak/çapa) tarif ediyor — Kiklop/Sirenler'in kendi konsept ayrıntıları `island-designer`'ın işi.
 > **⚠️ Hub'a dönüş notu (14 Ağu 2026, aynı gün):** sahip "hub yok" kararını tersine çevirdi — **gerçek bir hub var, oyuncu durağı serbest sırayla seçiyor** (bkz. `multi-island-concept.md` §9). §2 aşağıda buna göre güncellendi. Oturum süresi (~20–30 dk) **değişmedi.**
-> **Tek sayı kaynağı:** bütün sayısal değerler `docs/design/tuning.md` dosyasındadır. Buradaki sayılar oradan alıntıdır; çelişki olursa `tuning.md` kazanır.
+> **Tek sayı kaynağı:** `tuning.md` — **Lotus `real` istisnası:** koşu sayıları `gdd-lotus-island-run.md` §7 kazanır.
 
 **Etiketler:** **[H]** Homeros'ta var (kaynak) · **[O]** oyun için icat · **[?]** sahip kararı bekliyor.
 
@@ -16,7 +16,9 @@
 
 ## 1. Tek cümlelik pitch
 
-**Doryseus'un on iki gemisi Lotus Adası'na oturmuşken, güneş batmadan her gemiye bir olgun lotus çiçeği taşımalısın — ama topladığın her çiçek senin de eve dönüş yolunu unutturur.**
+**Doryseus Lotus Adası'nda beş olgun çiçeği gemisine bırakmadan sonraki denize çıkamaz — ada güzelliğiyle tutar, unutuş evi kaydırır, her çiçek dönüş yolunu inceler.**
+
+> **K35 (15 Ağu 2026):** Lotus koşusunun otoritesi `gdd-lotus-island-run.md`. Eski “güneş batmadan 12” bu adada geçersiz. Koşu toplamı hâlâ 12 (5+4+3).
 
 ---
 
@@ -29,9 +31,9 @@
 | Bakış | Üçüncü şahıs, omuz üstü serbest yörünge kamera |
 | Platform | Tarayıcı (masaüstü, klavye + fare) |
 | Hedef oturum | **~20–30 dakika, koşunun tamamı için** (14 Ağu 2026, `multi-island-concept.md` M7 sonucu — eski "5–10 dakika" tek adaydı, artık 3 durağın toplamı). Her durak kabaca eski tek-ada ölçeğinde (~5–10 dk); hub bir seçim ekranıdır, gezinme süresi ihmal edilebilir düzeyde tutulmalı — sayı hub eklenmesinden sonra da değişmedi (bkz. `multi-island-concept.md` §9.4). |
-| Tekrar oynanış | Aynı harita, aynı tohum (deterministik olgunlaşma) — tekrar oynayış rota optimizasyonudur, keşif değil |
+| Tekrar oynanış | Lotus: **keşif** — çiçek yerleri her koşu rastgele (`gdd-lotus-island-run.md`). Peyzaj sabit. Kiklop/Sirenler kendi kuralını tutar. |
 | Çekirdek fiil | **Toplamak** (ve toplamamaya karar vermek) |
-| Kapsam | **3 duraklı, elle tasarlanmış küçük bir Odysseia antolojisi**, **hub'lı** (14 Ağu 2026, `multi-island-concept.md` M7 sonucu, aynı gün hub kararıyla güncellendi — bkz. §9): Lotus Adası (1. durak/çapa, mevcut) → Kiklop Mağarası (2.) → Sirenler Geçidi (3.), gemi güvertesi/harita hub'ından serbest sırayla seçilir. Sıfır envanter ağacı, sıfır craft, sıfır diyalog ağacı. **Kayıp finalinin koşu mu durak mı bazlı olacağı henüz kapanmadı** (bkz. `multi-island-concept.md` §9.5). |
+| Kapsam | **3 duraklı, elle tasarlanmış küçük bir Odysseia antolojisi**, **hub'lı**: Lotus → Kiklop → Sirenler. Sıfır envanter / craft / diyalog ağacı. **Lotus kaybı (K35):** durak bitmez, forget event. Kiklop/Sirenler K27 (durak biter, hub). |
 
 ---
 
@@ -44,9 +46,9 @@ Oyuncunun hissetmesi gereken sıra:
 1. **Sakinlik** — sıcak Ege ışığı, dalga sesi, kolayca toplanan ilk çiçek. Ada güzel.
 2. **Fark ediş** — HUD titremeye başlar, uzak sesler boğuklaşır. Ada güzel *olduğu için* tehlikeli.
 3. **Hesap** — "şu tomurcuk 8 saniyede açar, beklersem 4'ü tamamlarım ama ölçek dolar. Üçle mi döneyim?"
-4. **Panik ya da huzur** — son teslimde ya güneş batmadan yetişirsin ya da pusula okun silinmişken denizin hangi yönde olduğunu bilemezsin.
+4. **Kalma veya bırakma** — unutuş evi kaydırır, öldürmez. Beşi gemideyse ayrılsın; yoksa ada tutar.
 
-Hedef son duygu **kaçış rahatlaması** değil, **kıl payı hatırlama**: kazanınca bile oyuncu adada bir şey bıraktığını hissetmeli.
+Hedef son duygu **kaçış rahatlaması** değil, **bırakılmış güzellik**: kazanınca bile oyuncu adada bir şey bıraktığını hissetmeli.
 
 ---
 
@@ -109,39 +111,36 @@ Ayrıca **[O]**: oyuncu **Doryseus** — Homeros'un Odysseus'u değil, oyun içi
    [ TESLİM ]  gemide E → her çiçek −10 UNUTUŞ, sayaç +1
       │
       ▼
-   12/12 mi?  ── hayır ──> tekrar adaya (ya da önce denize gir, kafanı aç)
+   5/5 mi?  ── hayır ──> tekrar adaya (unutursan çanta 0, gemi kıyı değiştirir)
       │ evet
       ▼
-   [ DÜMENDE E ]  →  AYRILIŞ
+   [ DÜMENDE E ]  →  AYRILIŞ (Kiklop açılır)
 ```
 
 ### 5.2 Oturum döngüsü (tam oyun)
 
-Üç teslim turu = üç anlatı beat'i (bkz. `scenario.md`). Kapasite 4, hedef 12 → **matematiksel minimum üç tur.** Oyuncu daha çok, daha küçük tur da yapabilir; bu güvenlidir ama günü yer.
+Kapasite 4, hedef 5 → **en az iki teslim yürüyüşü.** Unutuş üçüncü bir “tur” dayatabilir (çanta gider, gemi kayar). Beat’ler: `scenario.md`.
 
-### 5.3 İki kıskaç
-
-Oyunun tamamı iki karşıt baskının arasındadır. Tasarımın tek fikri budur:
+### 5.3 İki kıskaç (Lotus, K35)
 
 | Kıskaç | Ne der | Nasıl kaçarsın | Bedeli |
 |---|---|---|---|
-| **Güneş** (`DAY_LENGTH` 420 s) | "Acele et." | Dolu çantayla, az sayıda uzun tur yap | Uzun tur = uzun koku maruziyeti = unutuş |
-| **Unutuş** (`MEM_MAX` 100) | "Yavaşla, kıyıya in." | Sık, kısa, hafif turlar; denize gir | Her deniz molası ve her fazladan tur günden yer |
+| **Ada** (güzellik, keşif, rastgele 5) | “Kal, bak.” | Dolaş, hatıra topla | Unutuş artar; ev kayabilir |
+| **Unutuş** | “Yolu unuttun.” | Deniz / gemi; sık teslim | Çanta sıfır, gemi başka kıyı; teslimler durur |
 
-İkisi aynı anda çözülemez. Oyunun tüm kararı bu gerilimin içindedir; başka sistem eklemeye gerek yoktur.
+Güneş kıskaç değildir (batış atmosfer). Sonraki ada **yalnız 5 teslim** ile açılır.
 
 ---
 
 ## 6. Kazanma / kayıp koşulları
 
-**AYRILIŞ (kazanma)** — `LOTUS_TARGET` (12) çiçek gemiye teslim edilmişken oyuncu güverteye çıkar ve dümende **E**'ye basar. Güneş batmadan olmalı.
+**AYRILIŞ** — `LOTUS_TARGET` (5) kahraman gemide, dümen E. Kiklop açılır.
 
-**UNUTULMA (kayıp)** — iki yoldan biri:
+**UNUTUŞ** — durak bitmez. Çanta 0, gemi kıyı değiştirir, `delivered` kalır. Cinematic yok (`scenario.md` F1–F3).
 
-1. `UNUTUŞ` 100'e ulaşır ve `MEM_GRACE` (10 s) içinde oyuncu denize girmez ya da gemiye varmaz.
-2. `DAY_LENGTH` dolar (güneş batar) ve teslim edilen çiçek 12'den azdır — tayfa küreğe oturmaz, gemi kalkamaz.
+**Güneş kaybı yok.** Hub abandon sonraki adayı açmaz.
 
-**Başka final yok.** "Yarım dönüş", "gizli final", "iyi/kötü ton" varyantı yok. İki uç, temiz.
+Ayrıntı: `gdd-lotus-island-run.md` §3. Kiklop/Sirenler kendi kayıplarını tutar (K27).
 
 ---
 
@@ -151,7 +150,7 @@ Oyunun tamamı iki karşıt baskının arasındadır. Tasarımın tek fikri budu
 |---|---|---|---|
 | **P1** | **Tek mekanik, iki yön** | Toplamak hem tek ilerleme yolu hem tek tehlike kaynağıdır. | X ve Y arasında kalınca: **toplama fiiline bağlı olanı seç.** Toplamaya bağlanamayan sistem oyuna girmez. |
 | **P2** | **Unutma görülür, anlatılmaz** | Kayıp durumu metinle değil, arayüzün ve dünyanın *çekilmesiyle* anlatılır. | Bir bilgi hem yazıyla hem görsel bozulmayla verilebiliyorsa: **görsel bozulmayı seç, yazıyı sil.** |
-| **P3** | **Ada okunabilir** | Oyuncu tepeden bakınca ne yapacağını bilir; sürpriz mekanik yoktur, sürpriz *zamanlama* vardır. | Rastgelelik mi el yerleşimi mi: **el yerleşimi.** Olgunlaşma deterministik, rota öğrenilebilir. |
+| **P3** | **Ada okunabilir** | Peyzaj (tepe, kıyı, göl, filo) okunur. Lotus’ta çiçek **yeri** izinli sürprizdir (K35); evre süreleri sabittir. | Çiçek kümesi ve sabit tohum bu adada yok. Kiklop/Sirenler el yerleşimini tutabilir. |
 | **P4** | **Kıyı huzurdur** | Deniz her zaman güvenlidir, her zaman iyileştirir, her zaman görünür. | Kıyıya tehdit eklemek isteyen her fikir reddedilir. Oyuncunun tek çapası odur. |
 
 ### Karşı sütunlar (bu oyun **değildir**)
@@ -159,8 +158,8 @@ Oyunun tamamı iki karşıt baskının arasındadır. Tasarımın tek fikri budu
 - **Craft / envanter ağacı YOK** — P1'i bozar; toplamak tek fiil kalmalı.
 - **Düşman, savaş, can barı YOK** — Homeros'ta Lotophagoi düşman değildir; ayrıca P1'i bozar.
 - **Diyalog ağacı YOK** — Lotophagoi ile etkileşim tek tuşluk bir takastır, konuşma değil.
-- ~~**Çoklu bölüm / ikinci ada YOK**~~ — **bu satır 14 Ağu 2026'da geçersiz kılındı** (`multi-island-concept.md` M7, sahip onayı). Proje artık 3 duraklı bir koşu. Gerekçe hâlâ kısmen geçerliydi (P3 "ada okunabilir" sütununü bozmamak için her durak **elle tasarlanmış ve deterministik** kalıyor, prosedürel değil — bkz. M1); asıl bozulan "5–10 dk" hedefiydi, o da koşunun tamamı için ~20–30 dk'ya güncellendi (yukarıdaki tablo). Bu satır kayıtta tutuluyor çünkü kararın **neden** değiştiğini gösteriyor.
-- **Gün/gece döngüsü, hava sistemi, mevsim YOK** — tek gün, tek batış.
+- ~~**Çoklu bölüm / ikinci ada YOK**~~ — **14 Ağu 2026'da geçersiz** (3 durak). Lotus çiçekleri K35’te rastgele; peyzaj elle. Kiklop/Sirenler el yerleşimini tutabilir.
+- **Gün kaybı YOK** — gün döner (K35); batış atmosfer. Mevsim/hava hâlâ yok.
 
 ---
 
@@ -220,11 +219,11 @@ Destekleyen iki ilke:
 
 Çekirdek döngünün eğlenceli olduğunu kanıtlayan en küçük yapı:
 
-- Düz bir ada zemini + gemi kutusu + 28 lotus dikilitaşı (silindir de olur)
+- Ada + kahraman gemi + **5** lotus
 - Olgunluk döngüsü ve renk değişimi
-- Topla / taşı / teslim et
-- Unutuş sayacı ve 4 eşiğin **en az ikisi** (pusula silinmesi + süt beyazı vinyet)
-- Gün sayacı ve iki final ekranı
+- Topla / taşı / teslim et (hedef 5, dümen)
+- Unutuş: forget event (çanta 0, gemi kayar) — kayıp cinematic yok
+- Gün döner; batış atmosfer
 
 Bu listede **olmayan** her şey (Lotophagoi, tepe manzarası, ses, anlatı metinleri) MVP sonrası.
 
@@ -235,8 +234,8 @@ Bu listede **olmayan** her şey (Lotophagoi, tepe manzarası, ses, anlatı metin
 | Risk | Neden | Azaltma |
 |---|---|---|
 | Unutuş cezası "sinir bozucu" olarak okunabilir | Oyuncudan bilgi almak kolayca haksızlık hissi yaratır | Bilgi hep **kademeli** gider ve **her zaman** geri kazanılabilir; ani ölüm yok, `MEM_GRACE` var |
-| 420 s hem çok uzun hem çok kısa gelebilir | Tek bir sayı iki farklı beceri seviyesine hizmet ediyor | **Playtest'e ertelendi** — ölçüm ve karar kriteri `tuning.md` §11.1 |
-| Deterministik olgunlaşma ikinci oynayışta oyunu kolaylaştırır | Ezber rota | Kabul ediyoruz — tekrar oynanış **optimizasyon** olarak tasarlandı (P3) |
+| 420 s hem çok uzun hem çok kısa gelebilir | Artık kayıp değil (K35); gece çarpanı hissi | Playtest: `MEM_NIGHT_MUL` yeter mi |
+| Rastgele çiçek ikinci oynayışta “adayı öğrendim” hissini bozar | Ezber rota yok | Kasıtlı — P3 peyzaj; çiçek sürpriz |
 | "Neden lotus topluyorum" sorusu ilk 30 saniyede cevaplanmazsa fikir dağılır | Motivasyon icat (§4.3) | Açılış metni bunu **iki cümlede** verir (bkz. `scenario.md` §3) |
 
 ---
@@ -252,7 +251,7 @@ Bu kararlar sahip tarafından verildi ve **kapalıdır** — yeniden açılmayac
 | Oyun adı | **Lotophagoi** | 14 Ağu 2026 |
 | Menü | **Sade başlık var** (Oyna / Nasıl oynanır). Bkz. `docs/ux/`. | 14 Ağu 2026 |
 | Tek ada mı, çoklu ada mı | **Çoklu — 3 duraklı bir koşu.** Lotus Adası (1. durak/çapa) + Kiklop Mağarası (2.) + Sirenler Geçidi (3.). Unutuş koşu boyunca taşınıyor. Ayrıntı: `multi-island-concept.md` M7 ve M1–M6. | 14 Ağu 2026 |
-| Hub var mı | **Var — gerçek hub, oyuncu durağı serbest sırayla seçiyor** (aynı gün, M7'nin "hub yok" alt-maddesini tersine çevirdi). Unutuş taşıma ve `RUN_TARGET_TOTAL` değişmedi, tetik "hub'a dönüş"e taşındı. Kayıp finalinin koşu mu durak mı bazlı olacağı **henüz kapanmadı.** Ayrıntı: `multi-island-concept.md` §9. | 14 Ağu 2026 |
+| Hub var mı | **Var.** Lotus unutuşu durak bitirmez (K35). Kiklop/Sirenler K27. | 14 Ağu 2026; Lotus kaybı 15 Ağu |
 | Oyuncu Odysseus mu, isimsiz tayfa mı | **Doryseus** — Homeros'un Odysseus'u değil, oyun için orijinal bir karakter (tasarım niyeti Odysseia IX.82–104'ten mekanik/tema olarak ilham alıyor, karakteri birebir taşımıyor). Diğer denizciler/NPC'ler kolektif olarak **"unutulmuş tayfa"** olarak anılıyor. Destan adı ("Odysseia") değişmedi — yalnızca oynanan karakterin kişisel adı. | 14 Ağu 2026 |
 
 Ayrıca üç sayısal değer (`DAY_LENGTH`, `MEM_SEA_RECOVER`, eşik 2'deki muğlak sayaç) **playtest'e ertelendi** — oynanır sürüm elde olmadan tartışılmayacak. Ölçüm kriterleri: `tuning.md` §11.
@@ -262,6 +261,6 @@ Ayrıca üç sayısal değer (`DAY_LENGTH`, `MEM_SEA_RECOVER`, eşik 2'deki muğ
 ## Açık sorular
 
 1. ~~**Oyuncu Odysseus mu, isimsiz bir tayfa mı?**~~ **Kapandı (14 Ağu 2026, sahip kararı) — bkz. Kapanan kararlar.** Oyuncu **Doryseus** — Homeros'un Odysseus'u değil, oyun için orijinal bir karakter. Diğer denizciler/NPC'ler kolektif olarak "unutulmuş tayfa" olarak anılıyor.
-2. **Hedef 12 sabit mi, zorluk seçeneği olacak mı?** Şu an sabit ve anlatıya bağlı (12 gemi). Zorluk seçeneği eklenirse bu bağ kopar.
+2. ~~**Hedef 12 sabit mi?**~~ **Kapandı (K35):** koşu toplamı 12; Lotus durağı **5**, sabit. Zorluk seçeneği yok.
 3. **Oyun sonunda skor/süre gösterilsin mi?** Skor tekrar oynanışı destekler ama şiirsel finali bozar. Şu an **gösterilmiyor** varsayıldı.
 4. **Türkçe tek dil mi?** Tüm oyun içi metinler Türkçe yazıldı. İngilizce sürüm istenirse metinler `scenario.md` §7'de tek yerde toplu.

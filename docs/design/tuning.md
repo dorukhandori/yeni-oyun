@@ -6,6 +6,7 @@
 
 > **Çoklu-ada notu (14 Ağu 2026, sahip onayı):** proje artık **3 duraklı bir koşu** — Lotus Adası (1. durak/çapa) + Kiklop Mağarası (2.) + Sirenler Geçidi (3.). Karar `docs/design/multi-island-concept.md`'de M7 (Seçenek 3) olarak kapandı. Bu dosyadaki sayıların büyük çoğunluğu (§1, §2, §3'ün çoğu, §4, §6, §7, §8) **hâlâ yalnızca Lotus Adası'nı** tarif ediyor — Sirenler'in kendi `level-*.md` ve tuning satırları `island-designer` agent'ının işi, henüz yazılmadı. Kiklop Mağarası için **§3.0 (hedef dağılımı), §5 (unutuş taşıma) ve §12 (algılanma sistemi)** eklendi; Kiklop'un salt geometri sabitleri (mağara derinliği, oda-başı öğe sayıları) hâlâ yalnızca `level-cyclops-cave.md`'de, buraya taşınmadı.
 > **⚠️ Hub'a dönüş notu (14 Ağu 2026, aynı gün — `multi-island-concept.md` §9):** sahip "hub yok" kararını tersine çevirdi — **gerçek bir hub var, oyuncu durağı serbest sırayla seçiyor.** `RUN_TARGET_TOTAL` ve durak alt-hedefleri (§3.0) **değişmedi** — hub sıra özgürlüğü verir, hedefleri tek bir esnek havuza çevirmez. `MEM_ISLAND_RELIEF_PCT`'in tetik noktası (§5.2) artık "adalar arası doğrudan geçiş" değil, **"hub'a dönüş"** olarak okunmalı — formül/değer aynı. Ayrıntı ve gerekçe: `multi-island-concept.md` §9.2/§9.3.
+> **⚠️ K35 (15 Ağu 2026):** Lotus `real` koşusu — `DAY_LENGTH` **kayıp değildir**; `LOTUS_TARGET = 5` kilitli (🔬 değil); `LOTUS_TOTAL` / zon / `LOTUS_PHASE_SEED` bu adada **`gdd-lotus-island-run.md` §7** kazanır (5 rastgele, jitter 0). Bu dosyanın 28’li ve “güneş = süre bitişi” cümleleri `real`’de arşiv. Unutuş oranları (§5) durur.
 
 ---
 
@@ -33,7 +34,7 @@
 
 | İsim | Değer | Birim | Gerekçe |
 |---|---|---|---|
-| `PLAYER_SPEED` | `4.5` | m/s | Hızlı yürüyüş. 70 m yarıçaplı adayı boydan boya 31 s'de geçirir; bu, olgunluk penceresinin (30 s) hemen altında kalır — "gördüğün olgun çiçeğe ancak yetişirsin". |
+| `PLAYER_SPEED` | `4.5` | m/s | Hızlı yürüyüş. **Not (2026-08-15, ölçek büyütme önerisiyle güncellendi — bkz. §2.1):** bu sabit ada 160 m yarıçapa büyürken **değişmiyor.** Eski gerekçe ("70 m yarıçaplı adayı boydan boya 31 s'de geçirir, bu STAGE_RIPE'in altında kalır") artık **yanlış okunmasın diye** yeniden yazıldı: pillar hiçbir zaman gerçekte "adanın tamamını uçtan uca koş" değildi — sazlık/göl gibi bir kümenin **içindeki** çiçekten çiçeğe yetişme süresiydi. O yerel mesafeler (gemi↔sazlık ~35 m, gemi↔göl ~85 m) büyümediği için bu ilke hâlâ aynen geçerli; sadece adanın **dış hattının** artık STAGE_RIPE'le eşleşmediği açıkça not edildi (§2.1). |
 | `PLAYER_ACCEL` | `18.0` | m/s² | 0.25 s'de tam hıza çıkar. Ağır hissettirmeyecek kadar hızlı, kaygan hissettirmeyecek kadar yavaş. |
 | `PLAYER_TURN_SMOOTH` | `0.10` | s | Bakış yönünün hareket yönüne yumuşama süresi. |
 | `PLAYER_RADIUS` | `0.4` | m | Çarpışma kapsülü yarıçapı. |
@@ -51,14 +52,22 @@
 
 ## 2. Ada ve gün
 
+### 2.1 Ölçek büyütme önerisi (2026-08-15, playtest geri bildirimi — sahip onayı bekliyor) 🔬
+
+**Geri bildirim:** sahip playtest sonrası adanın "profesyonel tasarlanmış, büyüklük hissi veren bir peyzaj gibi durmadığını" belirtti (referans: "Diablo zindanları gibi" — küçük, sıkışık, üretim değeri düşük). **Ton değil, ölçek/üretim değeri sorunu** — parlak/sıcak Ege kimliği (`art-bible.md`) hiç değişmiyor. Araştırma ilkeleri (landmark/"weenie", katmanlı derinlik, dikey çeşitlilik, negatif alan) uygulanacak. Ayrıntı ve landmark planı: `level-lotus-island.md` §1/§2/§3.4/§3.5.
+
+**Yaklaşım — çekirdek döngü sabit kalır, ada büyür:** `ISLAND_RADIUS` uniform bir daire yarıçapı olarak büyüyor, ama **gemi + sazlık + göl kümesi bir blok olarak** yeni güney kıyısına doğru kaydırılıyor — aralarındaki **mesafeler birebir korunuyor** (gemi↔sazlık ~35 m/~8 s, gemi↔göl ~85 m/~19 s, değişmedi). Böylece `PLAYER_SPEED`, `STAGE_RIPE`, `DAY_LENGTH`, `CARRY_CAPACITY`, `LOTUS_TARGET` (5) **hiçbiri yeniden dengelenmiyor** — §9'daki elle hesap aynen geçerli kalıyor. Büyüyen tek şey adanın **kuzey yarısı**: tepe (landmark) çok daha uzağa ve çok daha yükseğe taşınıyor, kuzey kayalığı genişleyip arkasında görkemli bir sivri-kaya silüeti kazanıyor — ikisi de **isteğe bağlı**, alt-hedefi (5) etkilemiyor çünkü sazlık (12) + göl (10) = 22 çiçek tek başına yeterli.
+
+**Neden `DAY_LENGTH` ile birlikte değiştirilmiyor (§11.1'in uyarısına rağmen):** o uyarı "ikisi birden değişirse hangisi işe yaradı bilemeyiz" diyor — bu geçerli bir uyarı ama **burada ikisi birden değişmiyor.** Çekirdek turlama mesafeleri (gemi↔sazlık↔göl) aynen korunduğu için `ISLAND_RADIUS`'un büyümesi turlama süresini/unutuş baskısını hiç değiştirmiyor; sadece adanın **görsel/negatif alan** payını büyütüyor. `DAY_LENGTH` playtest'i (§11.1) bu değişiklikten **bağımsız** kalır — ayrı ayrı ölçülebilirler.
+
 | İsim | Değer | Birim | Gerekçe |
 |---|---|---|---|
-| `ISLAND_RADIUS` | `70.0` | m | Çapı 140 m. Tam geçiş 31 s. Gemi–en uzak bölge tek yön ~12–14 s → bir teslim turu 40–60 s → 420 s içine 7–10 tur sığar. |
-| `SHIP_POSITION_X` | `0.0` | m | Güney kıyı, merkez hattı. |
-| `SHIP_POSITION_Z` | `-60.0` | m | Adanın merkezine 60 m; her turun sabit çapası. |
+| `ISLAND_RADIUS` | `160.0` (öneri, eski değer `70.0`) | m | Çap 320 m. 150–200 m aralığının ortasına yakın seçildi: adanın kuzey yarısına gerçek bir dağ/kayalık landmark'ı ve geniş bir negatif alan (boş vista) sığdıracak kadar büyük, ama gemi + sazlık + göl kümesi (çekirdek döngü) hiç büyümüyor — bkz. §2.1 üstteki not. |
+| `SHIP_POSITION_X` | `0.0` | m | Güney kıyı, merkez hattı. Değişmedi. |
+| `SHIP_POSITION_Z` | `-140.0` (öneri, eski değer `-60.0`) | m | Adanın yeni (160 m) güney kıyısına ~20 m kala — eski konumun (70 m yarıçapta ~10–17 m kıyı payı) aynı oranını korur. Sazlık/göl/oyuncu spawn/Lotophagoi koordinatları bu kaymayla **birlikte** kayar (aynı Δz), aralarındaki mesafeler değişmez. Kesin koordinatlar Faz 2.6'nın (`islandLayout.ts`) işi — burada verilen yön/mesafe hedefidir. |
 | `DAY_LENGTH` 🔬 | `420.0` | s | 7 dakika. Hedef oturum 5–10 dk. Usta oyuncu ~4.5 dk'da (3 tur + tampon) bitirir, acemi süreyi doldurur. 300 s çok acımasız, 600 s ikinci yarıda gerilim düşüyor. **Playtest'te ölçülecek — §11.1** |
 | `SUN_ANGLE_START` | `55.0` | ° | Öğleden sonra. Uzun ama dramatik olmayan gölge. |
-| `SUN_ANGLE_END` | `2.0` | ° | Ufka değme anı = süre bitişi. Güneş yüksekliği HUD'suz saat göstergesidir. |
+| `SUN_ANGLE_END` | `2.0` | ° | Ufka değme = **atmosfer** (K35). Oturum bitmez; gün döner. |
 | `SUN_WARN_AT_REMAINING` | `90.0` | s **kalan** | Bu kadar süre **kaldığında** ışık gül rengine döner ve dalga sesi yükselir. Oyuncuya "son tur" sinyali. Karşılaştırma: `kalanSure <= SUN_WARN_AT_REMAINING`. |
 
 ---
@@ -72,17 +81,17 @@
 | İsim | Değer | Birim | Gerekçe |
 |---|---|---|---|
 | `RUN_TARGET_TOTAL` | `12` | adet | Koşu boyunca sabit — Odysseus'un on iki gemisi (İlyada, Gemiler Kataloğu). Her durak bu toplama kendi alt-hedefiyle katkı verir; anlatı tekliğini korur (bkz. `multi-island-concept.md` §4.2/M5). |
-| `LOTUS_TARGET` 🔬 | `5` (öneri, eski değer `12`) | adet | **1. durak (Lotus Adası) alt-hedefi.** Öneri sırası: Lotus 5 + Kiklop 4 + Sirenler 3 = 12. En uzun/öğretici durak olduğu için en büyük payı taşıyor. Kesin sayı `island-designer`'ın Kiklop/Sirenler level-spec'leri netleşince (durak uzunlukları karşılaştırılınca) doğrulanmalı — şimdilik **yön** kesin, **kesin sayı değil**. |
+| `LOTUS_TARGET` | `5` | adet | **Kilit (K35, 15 Ağu 2026).** 1. durak alt-hedefi. Lotus 5 + Kiklop 4 + Sirenler 3 = 12. 🔬 düştü. |
 | `CYCLOPS_ISLAND_TARGET` 🔬 | `4` (öneri) | adet | **2. durak (Kiklop Mağarası) alt-hedefi.** `island-designer`'ın level-spec'i henüz yazılmadı; bu bir yer tutucu öneri. |
 | `SIREN_ISLAND_TARGET` 🔬 | `3` (öneri) | adet | **3. durak (Sirenler Geçidi) alt-hedefi.** Aynı şekilde yer tutucu; en kısa/en yoğun durak olacağı varsayımıyla en düşük pay verildi. |
 
-**Bilinen tutarsızlık (henüz düzeltilmedi, kapsam dışı bırakıldı):** Lotus Adası'nın alt-hedefi 12'den 5'e düşerken `LOTUS_TOTAL` (28 çiçek), zon dağılımı (§7: sazlık 12 / göl 10 / tepe 6) ve §9'daki denge hesabı **hâlâ eski 12 hedefine göre yazılı.** Bunları 5'e göre yeniden dengelemek `level-lotus-island.md`'nin (ve `island-designer` agent'ının) işi — bu geçişte bilerek dokunulmadı, sadece işaretlendi. `gdd-lotus-collection.md` ve `scenario.md`'deki `LOTUS_TARGET`/"12 çiçek" referansları da aynı sebeple henüz güncellenmedi; bilinen bir sürüklenme olarak kayıtta.
+**K35:** 28’li tarla / zon / §9 denge hesabı `real`’de düştü — yerine `gdd-lotus-island-run.md` (5 rastgele). Aşağıdaki `LOTUS_TOTAL = 28` satırı **`test` / arşiv**. `SUN_ANGLE_END` = ufka değme **atmosferdir**, oturum bitişi değil.
 
 ### 3.1 Lotus Adası'nın kendi sayıları
 
 | İsim | Değer | Birim | Gerekçe |
 |---|---|---|---|
-| `LOTUS_TOTAL` | `28` | adet | Sazlık 12 + iç göl 10 + tepeler 6. Ortalama %25'i olgun → her an ~7 toplanabilir çiçek. Kıtlık değil, **rota** problemi yaratır. **Not:** bu sayı hâlâ eski `LOTUS_TARGET=12` varsayımıyla dengelendi, yeni alt-hedef (5) için henüz yeniden dengelenmedi — bkz. §3.0. |
+| `LOTUS_TOTAL` | `5` (`real`) / `28` (`test`, arşiv) | adet | **K35:** `real`’de arama = hedef. 28’li küme düştü. |
 | `CARRY_CAPACITY` | `4` | adet | 3 fazla küçük (5+ tur, tekrar), 6 fazla büyük (2 tur, gerilim yok). 4 → dolu çantanın unutuş yükünü (+0.6 puan/s) anlamlı kılar. Alt-hedef 12'den 5'e düşse de bu değer sabit kalmalı — P1 sütununun tutarlılığı ve "4'lük ritmin" tüm koşu boyunca öğrenilebilir kalması için (bkz. `multi-island-concept.md` §6/M5). |
 | `STAGE_BUD` | `45.0` | s | Tomurcuk. Döngünün en uzun evresi — oyuncu "bunu beklemeye değmez" diyebilmeli. |
 | `STAGE_HALF_OPEN` | `25.0` | s | Yarı açık. Olgunluğa geri sayım; oyuncunun planlama penceresi. Ada geçişine (31 s) az yetmez → "yakındakini bekle, uzaktakine yetişemezsin". |
@@ -196,7 +205,7 @@ Hepsi `0.0`–`1.0` normalize edilmiş `etki = clamp01((unutuş − başlangıç
 | İsim | Değer | Birim | Gerekçe |
 |---|---|---|---|
 | `LOTOPHAGOS_COUNT` | `3` | adet | Sazlık 1, iç göl 1, tepe eteği 1. |
-| `LOTOPHAGOS_GIFT` | `2` | çiçek | Kişi başı, tek seferlik. Toplam 6 = hedefin yarısı. Oyunu kısaltabilir ama **bitiremez.** |
+| `LOTOPHAGOS_GIFT` | `1` (`real`) / `2` (`test`) | çiçek | **K35:** `real` kişi başı 1; 3 gezen + kadın = 4 < 5. `test` eski 2. |
 | `LOTOPHAGOS_MEM_COST` | `20.0` | puan | `MEM_LOTOPHAGOS_TRADE` ile aynı değer. Üçünü de kabul = +60 puan. Meşru ama neredeyse ölümcül bir hız stratejisi — kasıtlı. |
 | `LOTOPHAGOS_ONCE` | `true` | bool | Her figür bir kez ikram eder. Tekrar yaklaşınca sadece bakar. |
 | `LOTOPHAGOS_RANGE` | `3.0` | m | İkram bu mesafede tetiklenir; E ile kabul, uzaklaşarak reddedilir. Reddetmenin bedeli yok. |
@@ -211,7 +220,8 @@ Hepsi `0.0`–`1.0` normalize edilmiş `etki = clamp01((unutuş − başlangıç
 | `ZONE_REED_COUNT` | `12` | adet | Sazlık — yakın, yoğun, öğretici tarla. |
 | `ZONE_LAKE_COUNT` | `10` | adet | İç göl — en zengin, en uzak. Açgözlülük bölgesi. |
 | `ZONE_HILL_COUNT` | `6` | adet | Tepeler — seyrek. Tepenin ödülü çiçek değil manzaradır. |
-| `HILL_VIEW_HEIGHT` | `14.0` | m | Sazlığın ve gölün tamamının görülebildiği minimum yükseklik. Beat 3 tetiği. |
+| `HILL_VIEW_HEIGHT` | `22.0` (öneri, eski değer `14.0`) | m | Sazlığın ve gölün tamamının görülebildiği minimum yükseklik. **2026-08-15 güncellemesi (§2.1):** tepe artık çok daha yüksek (`HILL_LANDMARK_HEIGHT`, aşağıda) ve çok daha uzakta olduğu için manzara noktası da yükseldi — eski 14 m yeni ölçekte çiçek tarlalarının tamamını göstermeye yetmez. Beat 3 tetiği. |
+| `HILL_LANDMARK_HEIGHT` *(yeni, 2026-08-15 öneri)* | `48.0` | m | Tepenin gerçek zirve yüksekliği (deniz seviyesinden), `HILL_VIEW_HEIGHT`'tan (22 m, "manzara açılır" eşiği) ayrı bir sayı — zirve manzara noktasından daha yüksek olmalı ki tepe uzaktan da (adanın her yerinden) dominant bir silüet olarak okunsun. Şu an kodda tek bir global gürültü fonksiyonuyla (`ISLAND.domeHeight`+`hillAmp`, toplam ~3.7 m) üretiliyor — bu sayıya ulaşmak için **ayrı, tepe merkezli bir yükselti fonksiyonu** gerekiyor (bkz. `level-lotus-island.md` §7), adanın geri kalanını şişirmeden. |
 | `SHORE_WET_BAND` | `3.0` | m | Kıyıda `MEM_SEA_RECOVER`'ın çalıştığı ıslak kum şeridinin genişliği. |
 
 **Çiçek koordinatları burada değil** `[SABİT DEĞİL]` — 28 konumun tamamı el yerleşimidir ve `docs/design/level-lotus-island.md` §2–§4'te tanımlıdır. Motor tarafı bunları ayrı bir veri dosyasından (`islandLayout.ts` vb.) okumalı; `constants.ts`'e gömülmemeli.
@@ -252,6 +262,8 @@ Tipik verimli tur — gemiden çıkış, 4 çiçek, dönüş:
 **Sonuç:** temiz bir tur başabaşın hafif altında. Dikkatli oyuncu unutuşu yönetebilir ama **hiç boşluğu yoktur**; bir solmuş çiçek (+12) ya da 20 s'lik bir bekleme (+12) turu artıya çevirir. Tam da istenen his.
 
 Üç temiz tur = 108 s + arama/bekleme payı ≈ 240–300 s. `DAY_LENGTH` 420 s → usta oyuncu için ~%40 tampon, acemi için yeterince dar.
+
+**Not (2026-08-15, §2.1 ölçek önerisiyle):** bu hesap **değişmeden** geçerli — gemi↔sazlık (35 m) ve gemi↔göl (85 m) mesafeleri `ISLAND_RADIUS` 70→160'a çıksa da aynı kalıyor (kümenin blok kayması, bkz. §2.1). Tepeye gidiş-dönüş bu hesabın **dışında** tutulur çünkü zaten "verimli tur" tanımına girmiyor (bkz. `level-lotus-island.md` §3.4/§5) — artık daha da uzak (~200 m tek yön, ~44 s) ve daha da bariz biçimde "verimlilik değil manzara" turudur.
 
 ---
 
