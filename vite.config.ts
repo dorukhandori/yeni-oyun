@@ -2,8 +2,8 @@ import { execSync } from "node:child_process";
 import { defineConfig } from "vite";
 import pkg from "./package.json" with { type: "json" };
 
-/** GitHub Pages project site: https://dorukhandori.github.io/yeni-oyun/ */
-const PAGES_BASE = "/yeni-oyun/";
+/** Relative base so github.io/yeni-oyun/ and lotophagoi.ovarlak.games both resolve assets. */
+const PAGES_BASE = "./";
 
 /**
  * Short commit hash baked in at build time — not a hand-maintained counter,
