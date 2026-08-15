@@ -21,7 +21,7 @@ _(şu an boş — kimse aktif iş bildirmedi)_
 
 | Kim | Başladı | Dosyalar / alan | Ne yapıyor |
 |---|---|---|---|
-| | | | |
+| Claude (bu oturum) | 2026-08-15 15:xx | `index.html` (#hubScreen), `src/ui/hud.css` (.hub-*), muhtemelen yeni `public/assets/ui/` görselleri | Ada seçim (Hub) ekranını interaktif/görsel olarak yeniden tasarlıyor |
 
 ---
 
