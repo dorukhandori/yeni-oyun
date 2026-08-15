@@ -795,8 +795,10 @@ button.hub-island {
   transition: transform 150ms ease;
 }
 
-button.hub-island:hover {
+button.hub-island:hover,
+button.hub-island:focus-visible {
   transform: translate(-50%, -50%) translateY(-3px);
+  z-index: 10;
 }
 
 .hub-island.locked {
@@ -812,7 +814,7 @@ button.hub-island:hover {
   border: 2px solid rgba(180, 138, 60, 0.65);
   box-shadow: 0 6px 16px rgba(40, 26, 10, 0.32);
   background: rgba(255, 246, 227, 0.6);
-  transition: box-shadow 150ms ease;
+  transition: box-shadow 180ms ease, transform 180ms ease;
 }
 
 .hub-island-thumb img {
@@ -822,12 +824,92 @@ button.hub-island:hover {
   display: block;
 }
 
-button.hub-island:hover .hub-island-thumb {
-  box-shadow: 0 10px 22px rgba(40, 26, 10, 0.42);
+button.hub-island:hover .hub-island-thumb,
+button.hub-island:focus-visible .hub-island-thumb {
+  transform: scale(1.1);
+  box-shadow: 0 0 0 3px rgba(243, 212, 136, 0.7), 0 10px 24px rgba(40, 26, 10, 0.42);
 }
 
 .hub-island.locked .hub-island-thumb {
   filter: grayscale(0.4) brightness(0.94);
+}
+
+.hub-island.locked:hover .hub-island-thumb {
+  transform: scale(1.04);
+  box-shadow: 0 0 0 2px rgba(243, 212, 136, 0.35), 0 8px 18px rgba(40, 26, 10, 0.38);
+}
+
+/* --------------------------------------------------------- hub info tags
+   Hover/focus reveal — short flavor line per stop (sahip brief, 15 Ağu). */
+.hub-island-desc {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  width: max-content;
+  max-width: 170px;
+  padding: 7px 11px;
+  background: var(--parchment);
+  border: 1px solid rgba(150, 116, 58, 0.5);
+  border-radius: 4px;
+  box-shadow: 0 8px 18px rgba(40, 26, 10, 0.3);
+  font-size: 11px;
+  line-height: 1.4;
+  font-weight: 400;
+  color: var(--ink);
+  text-align: center;
+  text-transform: none;
+  letter-spacing: 0.2px;
+  white-space: normal;
+  opacity: 0;
+  transform: translate(-50%, -4px) scale(0.92);
+  transform-origin: top center;
+  pointer-events: none;
+  transition: opacity 160ms ease, transform 160ms ease;
+  z-index: 6;
+}
+
+button.hub-island:hover .hub-island-desc,
+button.hub-island:focus-visible .hub-island-desc,
+.hub-island.locked:hover .hub-island-desc,
+.hub-quest:hover .hub-island-desc,
+.hub-quest:focus-visible .hub-island-desc {
+  opacity: 1;
+  transform: translate(-50%, 0) scale(1);
+}
+
+/* Lotus sits low on the map — open the tag upward so it stays on the panel. */
+#cardLotus .hub-island-desc {
+  top: auto;
+  bottom: calc(100% + 8px);
+  transform: translate(-50%, 4px) scale(0.92);
+  transform-origin: bottom center;
+}
+#cardLotus:hover .hub-island-desc,
+#cardLotus:focus-visible .hub-island-desc {
+  transform: translate(-50%, 0) scale(1);
+}
+
+/* Sirenler sits at the right edge — anchor the tag to the left of center. */
+#cardSirens .hub-island-desc {
+  left: auto;
+  right: -8px;
+  transform: translateY(-4px) scale(0.92);
+  transform-origin: top right;
+}
+#cardSirens:hover .hub-island-desc,
+#cardSirens:focus-visible .hub-island-desc {
+  transform: translateY(0) scale(1);
+}
+
+/* Beş yeter sits at the left edge — anchor the tag to the right of center. */
+#questLotusEdge .hub-island-desc {
+  left: -8px;
+  transform: translateY(-4px) scale(0.92);
+  transform-origin: top left;
+}
+#questLotusEdge:hover .hub-island-desc,
+#questLotusEdge:focus-visible .hub-island-desc {
+  transform: translateY(0) scale(1);
 }
 
 .hub-island-name {
@@ -890,6 +972,12 @@ button.hub-island:hover .hub-island-thumb {
 .hub-quest:hover,
 .hub-quest:focus-visible {
   transform: translate(-50%, -50%) translateY(-2px);
+  z-index: 10;
+}
+
+.hub-island.locked:hover,
+.hub-island.locked:focus-visible {
+  z-index: 10;
 }
 
 .hub-quest:focus-visible {

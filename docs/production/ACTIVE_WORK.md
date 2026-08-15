@@ -21,7 +21,7 @@ _(şu an boş — kimse aktif iş bildirmedi)_
 
 | Kim | Başladı | Dosyalar / alan | Ne yapıyor |
 |---|---|---|---|
-| Claude (bu oturum) | 2026-08-15 15:xx | `index.html` (#hubScreen), `src/ui/hud.css` (.hub-*), muhtemelen yeni `public/assets/ui/` görselleri | Ada seçim (Hub) ekranını interaktif/görsel olarak yeniden tasarlıyor |
+| | | | |
 
 ---
 
@@ -30,3 +30,4 @@ _(şu an boş — kimse aktif iş bildirmedi)_
 | Kim | Tarih | Dosyalar / alan | Ne yapıldı |
 |---|---|---|---|
 | Claude (bu oturum) | 2026-08-15 | `vite.config.ts`, `src/main.ts`, `index.html`, `src/ui/hud.css` | Build-time versiyon etiketi |
+| Claude (bu oturum) | 2026-08-15 | `index.html` (#hubScreen), `src/ui/hud.css` (.hub-*) | Hub'a hover büyüme + parşömen bilgi etiketi eklendi (4 durak) |
