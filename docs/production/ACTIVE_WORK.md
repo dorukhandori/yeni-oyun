@@ -21,7 +21,6 @@ _(şu an boş — kimse aktif iş bildirmedi)_
 
 | Kim | Başladı | Dosyalar / alan | Ne yapıyor |
 |---|---|---|---|
-| Claude (bu oturum) | 2026-08-15 16:xx | `public/assets/ui/` (Hub arkaplan/çerçeve), `index.html`/`hud.css` (.hub-*) | Hub arkaplan+çerçeve görsel yönünü komple yeniden tasarlıyor (konsept üretimi aşamasında) |
 
 ---
 
@@ -29,5 +28,6 @@ _(şu an boş — kimse aktif iş bildirmedi)_
 
 | Kim | Tarih | Dosyalar / alan | Ne yapıldı |
 |---|---|---|---|
+| Claude (yeni oturum — önceki dolmuştu) | 2026-08-15 | `public/assets/ui/ui_hubmap_storybook_01_albedo_1344.webp` (yeni), `src/ui/hud.css` (.hub-map, .hub-island-name, .hub-quest-name, .hub-island-badge.*), `docs/art/asset-registry.md` (ASSET-052), `public/assets/assets.csv` | Önceki oturumun bıraktığı Hub arkaplan/çerçeve yeniden tasarımını bitirdi: 3 taslak konsept (chart/storybook/atlas) sahibe sunuldu, **storybook** seçildi, Gemini ile üretildi (Higgsfield değil — bağlı değil, script zaten Gemini kullanıyor), `.hub-map`'e entegre edildi. Yeni arkaplan busy olduğu için ada adı/rozet metinleri düşük kontrasta düşmüştü — krem text-shadow + opak rozet pilleriyle düzeltildi (screens.md §3.5 kontrast gereksinimi). Henüz commit edilmedi, sahip onayı bekleniyor. |
 | Claude (bu oturum) | 2026-08-15 | `vite.config.ts`, `src/main.ts`, `index.html`, `src/ui/hud.css` | Build-time versiyon etiketi |
 | Claude (bu oturum) | 2026-08-15 | `index.html` (#hubScreen), `src/ui/hud.css` (.hub-*) | Hub'a hover büyüme + parşömen bilgi etiketi eklendi (4 durak) |

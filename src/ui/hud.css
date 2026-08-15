@@ -750,6 +750,21 @@ canvas#game {
   padding: 8px;
 }
 
+/* Storybook archipelago concept (sahip approved, 15 Ağu 2026) — the map
+   panel gets its own illustrated sea/land + baked-in olive-branch gold-leaf
+   frame instead of the shared plain-parchment + separate frame overlay, so
+   the two ::before/::after layers from .parchment-panel are overridden here
+   (frame is already painted into the image, a second overlay would double
+   the border). Route dots + island medallions still render on top (z-index
+   2 from .parchment-panel > *). */
+.hub-map.parchment-panel::before {
+  background: url("/assets/ui/ui_hubmap_storybook_01_albedo_1344.webp") center / cover no-repeat;
+}
+
+.hub-map.parchment-panel::after {
+  background: none;
+}
+
 .hub-route {
   position: relative;
   width: 100%;
@@ -918,6 +933,14 @@ button.hub-island:focus-visible .hub-island-desc,
   text-transform: uppercase;
   text-align: center;
   white-space: nowrap;
+  /* Storybook map bg (15 Ağu) is busy — hills/sea vary a lot in luminance
+     under this text, unlike the old flat parchment. Cream halo keeps the
+     dark-brown label ≥4.5:1 regardless of what's behind it (screens.md
+     §3.5: "kontrastı ne olursa olsun"). */
+  text-shadow:
+    0 0 3px rgba(253, 243, 240, 0.95),
+    0 0 6px rgba(253, 243, 240, 0.85),
+    0 1px 2px rgba(253, 243, 240, 0.9);
 }
 
 .hub-island-badge {
@@ -929,14 +952,14 @@ button.hub-island:focus-visible .hub-island-desc,
 }
 
 .hub-island-badge.ready {
-  background: rgba(138, 168, 96, 0.24);
+  background: rgba(253, 248, 235, 0.72);
   color: #55642a;
   border: 1px solid rgba(138, 168, 96, 0.55);
 }
 
 .hub-island-badge.locked-badge {
-  background: rgba(120, 96, 60, 0.14);
-  color: rgba(90, 64, 28, 0.75);
+  background: rgba(253, 248, 235, 0.6);
+  color: rgba(90, 64, 28, 0.85);
   border: 1px solid rgba(120, 96, 60, 0.35);
 }
 
@@ -1013,6 +1036,10 @@ button.hub-island:focus-visible .hub-island-desc,
   letter-spacing: 1.2px;
   text-transform: uppercase;
   white-space: nowrap;
+  text-shadow:
+    0 0 3px rgba(253, 243, 240, 0.95),
+    0 0 6px rgba(253, 243, 240, 0.85),
+    0 1px 2px rgba(253, 243, 240, 0.9);
 }
 
 /* Title/Hub cover the canvas — hide the touch HUD behind them so virtual
