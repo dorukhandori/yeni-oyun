@@ -21,7 +21,7 @@ _(şu an boş — kimse aktif iş bildirmedi)_
 
 | Kim | Başladı | Dosyalar / alan | Ne yapıyor |
 |---|---|---|---|
-| | | | |
+| Claude (bu oturum) | 2026-08-15 16:xx | `public/assets/ui/` (Hub arkaplan/çerçeve), `index.html`/`hud.css` (.hub-*) | Hub arkaplan+çerçeve görsel yönünü komple yeniden tasarlıyor (konsept üretimi aşamasında) |
 
 ---
 
