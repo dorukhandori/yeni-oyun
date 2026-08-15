@@ -57,7 +57,7 @@ Koşu başında (`real`, Title → Hub → Lotus):
 
 `test` profili bu tabloyu okumaz.
 
-**Hub girişi:** haritada Lotus’un uydusu — küçük daire + nokta, `Beş yeter` (`docs/ux/screens.md` §3.6). Ada kartı ve kenar görev aynı koşuyu açar. Dördüncü durak değildir.
+**Hub girişi:** haritada Lotus’un uydusu — küçük daire + nokta, `Beş yeter` (`docs/ux/screens.md` §3.6). **Yalnızca bu düğüm K35’i açar.** Lotus ada kartı asıl 12’li koşuyu açar. Dördüncü durak değildir.
 
 ### 3.2 İlerleme ve çıkış
 

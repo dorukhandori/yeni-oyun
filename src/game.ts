@@ -19,6 +19,8 @@ import {
   SHIP,
   STEP,
   WORLD,
+  setLotusRun,
+  type LotusRunKind,
 } from "./constants";
 import { CameraRig } from "./render/cameraRig";
 import { createStage } from "./render/stage";
@@ -278,7 +280,8 @@ export function startGame(canvas: HTMLCanvasElement): void {
   }
 
   /** Full world reset + actually starts play. Only entry point into "play". */
-  function fullRestart(): void {
+  function fullRestart(kind: LotusRunKind): void {
+    setLotusRun(kind);
     menu.hideAll();
     hud.hideCard();
     ship.reset();
@@ -362,8 +365,8 @@ export function startGame(canvas: HTMLCanvasElement): void {
 
   const menu = new Menu({
     onPlay,
-    onSelectLotus: fullRestart,
-    onSelectLotusEdge: fullRestart,
+    onSelectLotus: () => fullRestart("classic"),
+    onSelectLotusEdge: () => fullRestart("edge"),
     onHubMenu: goTitle,
   });
   menu.showTitle();

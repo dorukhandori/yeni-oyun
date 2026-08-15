@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { BEAUTY, ISLAND, LANDMARK, LOTOPHAGOS, PALETTE, PLAYER, SHIP, WORLD } from "../constants";
+import { ACTIVE_PROFILE, BEAUTY, ISLAND, LANDMARK, LOTOPHAGOS, PALETTE, PLAYER, SHIP, WORLD } from "../constants";
 import { heightAt } from "./terrain";
 
 export interface LotophagosNpc {
@@ -44,7 +44,7 @@ export function buildLotophagoi(): LotophagosNpc {
 
   const homes = [
     ...LOTOPHAGOS.spots.map((s) => ({ x: s.x, z: s.z, faceY: s.faceY, woman: false })),
-    ...(WORLD.k35
+    ...(ACTIVE_PROFILE === "real"
       ? [{ x: BEAUTY.womanPos.x, z: BEAUTY.womanPos.z, faceY: 0.8, woman: true }]
       : []),
   ];
@@ -58,6 +58,7 @@ export function buildLotophagoi(): LotophagosNpc {
     fig.home = { x: spot.x, z: spot.z };
     fig.waypoint = { x: spot.x, z: spot.z };
     group.add(fig.root);
+    if (fig.woman) fig.root.visible = WORLD.k35;
     figures.push(fig);
   }
 
@@ -108,7 +109,7 @@ export function buildLotophagoi(): LotophagosNpc {
       let best: number | null = null;
       let bestD: number = LOTOPHAGOS.range;
       for (let i = 0; i < figures.length; i++) {
-        if (figures[i].spent) continue;
+        if (!figures[i].root.visible || figures[i].spent) continue;
         const p = figures[i].root.position;
         const d = Math.hypot(p.x - x, p.z - z);
         if (d < bestD) {
@@ -122,7 +123,7 @@ export function buildLotophagoi(): LotophagosNpc {
       let best: number | null = null;
       let bestD: number = LOTOPHAGOS.range;
       for (let i = 0; i < figures.length; i++) {
-        if (!figures[i].spent) continue;
+        if (!figures[i].root.visible || !figures[i].spent) continue;
         const p = figures[i].root.position;
         const d = Math.hypot(p.x - x, p.z - z);
         if (d < bestD) {
@@ -149,6 +150,7 @@ export function buildLotophagoi(): LotophagosNpc {
         f.setOffering(true);
         f.root.position.set(f.home.x, Math.max(heightAt(f.home.x, f.home.z), 0.02), f.home.z);
         f.waypoint = { ...f.home };
+        if (f.woman) f.root.visible = WORLD.k35;
       }
     },
   };

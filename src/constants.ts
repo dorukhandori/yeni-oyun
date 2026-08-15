@@ -98,7 +98,7 @@ const PROFILES: Record<WorldProfileKey, WorldProfileValues> = {
     // island grows, core loop (ship↔reed↔lake) keeps its old distances.
     island: { radius: 160, planeSize: 384, planeSegments: 196 },
     player: { speed: 4.5, spawn: { x: 3.2, z: -146 } },
-    lotus: { count: 5, carryCap: 4 },
+    lotus: { count: 28, carryCap: 4 },
     ship: { pos: { x: 0, z: -140 }, range: 4.0 },
     layoutShiftZ: -80,
     fogDensity: 0.0044,
@@ -125,14 +125,28 @@ const PROFILES: Record<WorldProfileKey, WorldProfileValues> = {
 
 const profile = PROFILES[ACTIVE_PROFILE];
 
+/** Hub Lotus card = classic 12-run. Hub "Beş yeter" = K35 edge quest. */
+export type LotusRunKind = "classic" | "edge";
+let lotusRun: LotusRunKind = "classic";
+
+export function setLotusRun(kind: LotusRunKind): void {
+  lotusRun = kind;
+}
+
+export function isEdgeRun(): boolean {
+  return lotusRun === "edge";
+}
+
 /** Profile-driven behaviour flags consumed outside the raw tuning numbers. */
 export const WORLD = {
   profile: ACTIVE_PROFILE,
   showMemoryBar: profile.hud.showMemoryBar,
   lossMode: profile.loss.onFull,
-  /** K35 Lotus `real` run — `gdd-lotus-island-run.md`. */
-  k35: ACTIVE_PROFILE === "real",
-} as const;
+  /** True only while the Beş yeter edge quest is the active run. */
+  get k35(): boolean {
+    return lotusRun === "edge";
+  },
+};
 
 /**
  * Southward block-shift of the core loop (reed / lagoon / cove / NPCs) so
@@ -317,18 +331,14 @@ export const SAILOR = {
    * Weight squash at foot-plant. No upward hop — a still A-pose lifted off
    * the ground reads as floating (playtest: "karakter havada uçuyor").
    */
-  walkStepSquash: 0.12,
-  walkStepStretch: 0.04,
-  /**
-   * Lateral hip shift toward the planted foot (metres). Polygon Treehouse /
-   * SIGGRAPH walk notes: weight must sit over the stance leg. Billboard
-   * cannot yaw (that shows the card edge) so we translate in X instead.
-   */
-  walkHipShift: 0.045,
-  /** Small roll toward the stance leg (radians). Shoulders would oppose; one plane can only roll. */
-  walkHipRoll: 0.06,
+  /** Fallback squash if no walk sheet is loaded. Sheet playback must not add this. */
+  walkStepSquash: 0.03,
+  walkStepStretch: 0.01,
+  /** Disabled — lateral sway read as a drunken stagger on the back walk. */
+  walkHipShift: 0,
+  walkHipRoll: 0,
   /** Extra Y-squash while holding a harvest (knees compress before the hinge). */
-  harvestBend: 0.1,
+  harvestBend: 0.06,
   /** Forward hip hinge while picking (radians). Pivot at harvestHip. Never pitch the camera-facing plane. */
   harvestLean: 0.38,
   /**
@@ -366,6 +376,16 @@ export const SAILOR = {
   /** Walk cycle (ASSET-024). Horizontal strip, 8 frames. */
   walkFrames: 8,
   walkFps: 10,
+  /** Fraction of max PLAYER.speed at which the run cycle takes over. */
+  runThreshold: 0.72,
+  runFps: 14,
+  /**
+   * Camera-facing card thickness (metres). Twin parallel planes + a slim
+   * core box — never yawed off-camera, so turning does not flash a paper edge.
+   */
+  thickness: 0.16,
+  /** Torso slab width, kept inside the silhouette. */
+  coreWidth: 0.26,
 } as const;
 
 // --------------------------------------------------------------------- lotus
@@ -403,9 +423,13 @@ export const LOTUS = {
   ripeTime: 26,
   wiltTime: 16,
   /** Regrow delay after a bloom is taken. */
-  goneTime: ACTIVE_PROFILE === "real" ? 0 : 12,
+  get goneTime(): number {
+    return isEdgeRun() ? 0 : 12;
+  },
   /** Randomised +/- factor applied to every stage duration. */
-  timeJitter: ACTIVE_PROFILE === "real" ? 0 : 0.45,
+  get timeJitter(): number {
+    return isEdgeRun() ? 0 : 0.45;
+  },
   /** How close the player must be to harvest. */
   pickRange: 2.4,
   /** Seconds E must be held (`HARVEST_HOLD`). Instant tap does not pick. */
@@ -415,9 +439,15 @@ export const LOTUS = {
   /** Inventory cap before a trip back to the ship is required. */
   carryCap: profile.lotus.carryCap,
   /** Ripe lotuses to deliver for the departure. */
-  target: ACTIVE_PROFILE === "real" ? 5 : 12,
+  get target(): number {
+    return isEdgeRun() ? 5 : 12;
+  },
+  /** Active plants in the edge quest (classic uses `count`). */
+  edgeCount: 5,
   /** Minimum spacing when scattering plants across the lagoon. */
-  minSpacing: ACTIVE_PROFILE === "real" ? 18 : 1.75,
+  get minSpacing(): number {
+    return isEdgeRun() ? 18 : 1.75;
+  },
   /**
    * Three harvest pockets (reed shore / deep lagoon / north cove).
    * Counts should sum to `count`.
@@ -427,7 +457,7 @@ export const LOTUS = {
     { name: "deep", cx: 1.2, cz: -1.5 + LAYOUT_SHIFT_Z, radius: 6.4, count: 14, spacing: 1.85 },
     { name: "cove", cx: 6.8, cz: -6.2 + LAYOUT_SHIFT_Z, radius: 4.4, count: 8, spacing: 1.7 },
   ],
-} as const;
+};
 
 /**
  * Stage readability tuning (playtest bug: "lotus aşaması okunmuyor" — the 4
@@ -573,7 +603,9 @@ export const DAY = {
 /** Silent lotus-eaters who offer a one-shot gift (tuning.md §6). */
 export const LOTOPHAGOS = {
   count: 3,
-  gift: ACTIVE_PROFILE === "real" ? 1 : 2,
+  get gift(): number {
+    return isEdgeRun() ? 1 : 2;
+  },
   memCost: 0.2,
   range: 3.2,
   /** World spots near the three harvest pockets. */
@@ -582,7 +614,7 @@ export const LOTOPHAGOS = {
     { name: "deep", x: 0.4, z: 2.8 + LAYOUT_SHIFT_Z, faceY: Math.PI },
     { name: "cove", x: 5.8, z: -4.8 + LAYOUT_SHIFT_Z, faceY: -2.2 },
   ],
-} as const;
+};
 
 /** Achaean fleet on the beach — twelve ships for twelve lotuses. */
 export const FLEET = {

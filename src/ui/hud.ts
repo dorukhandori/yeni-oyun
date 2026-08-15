@@ -36,7 +36,7 @@ export class Hud {
   private warnedDusk = false;
 
   constructor(touch = false) {
-    this.target.textContent = WORLD.k35 ? "5" : String(LOTUS.target);
+    this.target.textContent = String(LOTUS.target);
     this.cap.textContent = String(LOTUS.carryCap);
     // "real" world profile: the forgetting scale is the screen itself
     // (haze/vignette), no numeric bar (gdd-memory-system.md §10, ux/hud.md).
@@ -111,6 +111,7 @@ export class Hud {
   }
 
   update(st: GameState, haze: number): void {
+    this.target.textContent = String(LOTUS.target);
     if (WORLD.k35) {
       this.delivered.textContent =
         st.delivered <= 0 ? "—" : st.delivered <= 2 ? "birkaç" : st.delivered <= 4 ? "yarısından çok" : "yeter";

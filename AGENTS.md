@@ -4,7 +4,7 @@ Sahiple Türkçe. Kod/commit İngilizce. Stüdyo işletim sistemi: **Claude Code
 
 ## Oyun
 
-**Lotophagoi** (Lotus Adası) — Vite + TypeScript + **Three.js (r185)** 3D prototipi. Title → Hub → Lotus (`real` = K35: 5 rastgele lotus, gün döner, unutuş gemi kaydırır). Hub’da kenar görev **Beş yeter**. Sanrı figürleri: `docs/design/gdd-lotus-hallucination.md`. Otorite: `docs/design/gdd-lotus-island-run.md`.
+**Lotophagoi** (Lotus Adası) — Vite + TypeScript + **Three.js (r185)** 3D prototipi. Title → Hub → **Lotus kartı = asıl oyun** (`real`: 12 lotus, batış kayıp, unutuş = gameover). Hub uydusu **Beş yeter** = K35 kenar görev (5 rastgele, gün döner). Sanrı figürleri: `docs/design/gdd-lotus-hallucination.md`. Kenar otoritesi: `docs/design/gdd-lotus-island-run.md`.
 
 - Çalıştır: `npm run dev` → http://localhost:5173/
 - Telefon (canlı): **https://dorukhandori.github.io/yeni-oyun/** (master merge + GitHub Pages Actions)

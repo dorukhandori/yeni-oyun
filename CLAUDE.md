@@ -8,7 +8,7 @@ Converse with sahip (the owner) in Turkish. Keep code, comments, and commit mess
 
 An Odyssey adaptation: **Doryseus** (original, not Homer's Odysseus), crew = "forgotten sailors". Third-person, WASD + mouse.
 
-**K35 (15 Aug 2026, shipped in `real`):** authority `docs/design/gdd-lotus-island-run.md` + `scenario.md`. Exactly **5** random lotuses; wilt/harvest relocates; day loops (dusk is not a lose); forget event wipes satchel, relocates the hero ship, keeps `delivered`, player stays put. Wandering NPCs + woman share one Offer verb (`gift = 1`, max 4 < 5). Hub satellite **Beş yeter** on Lotus. Helm at 5 unlocks Cyclops badge (level not built). `?profile=test` keeps the old 12 / dusk / soft-lose sandbox.
+**Hub split (15 Aug 2026):** Lotus card = classic `real` run (12 zone lotuses, dusk lose, forget = `gameover`). **Beş yeter** is the only entry to K35 (`docs/design/gdd-lotus-island-run.md`): **5** random lotuses; wilt/harvest relocates; day loops; forget wipes satchel, relocates the hero ship, keeps `delivered`. Wandering NPCs + woman (`gift = 1`). Helm at 5 unlocks Cyclops badge (level not built). `?profile=test` is the small/fast sandbox.
 
 Hallucination figures still apply on Lotus — not enemies; contact = memory spike + walk-drift.
 

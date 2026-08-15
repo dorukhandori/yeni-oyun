@@ -143,7 +143,7 @@ Lotus Adası’nın **uydusu**, dördüncü durak değil. Haritada ada düğüm�
 | | Ada kartı | Kenar görev |
 |---|---|---|
 | Ne | Durak (antoloji) | Aynı adanın adlandırılmış senaryosu |
-| Tıklanınca | Lotus koşusu | Aynı koşu (K35 kuralları kodlanınca buradan da girilir) |
+| Tıklanınca | Asıl Lotus koşusu (12, batış kayıp) | K35 kenar görev (5, gün döner) |
 | Kiklop kilidi | 5 teslim + dümen | Aynı — ayrı sayaç yok |
 
 Kiklop/Sirenler’e kenar görev yok. Tab sırası: kenar görev → Lotus → (kilitliler) → Ana menü.

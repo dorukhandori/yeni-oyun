@@ -4,7 +4,7 @@
 > **Tarih:** 2026-08-14
 > **Uyguladığı sütun:** **P1** (tek mekanik, iki yön) · **P3** (ada okunabilir)
 > **Sayılar:** hepsi `docs/design/tuning.md`'den. Bu dokümanda sayılar **sabit adıyla** anılır (`STAGE_RIPE` gibi); değer değişecekse orada değişir.
-> **⚠️ K35 (15 Ağu 2026):** Lotus `real` koşusu — sayı, küme, gün-kıskacı, hedef 12 — **`gdd-lotus-island-run.md` kazanır.** Bu dosya hasat/teslim/evre **fiillerini** tutar; 28’li tarla ve “zaman+mesafe oku” cümleleri `real`’de geçersiz. `test` profili bu dosyanın eski okumasını kullanabilir.
+> **⚠️ K35 (15 Ağu 2026, aynı gün düzeltme):** Bu dosya **Lotus ada kartının** asıl koşusunu tutar (12, 28’li tarla, gün-kıskacı). Kenar görev **Beş yeter** sayıları `gdd-lotus-island-run.md`’den okunur.
 
 ---
 

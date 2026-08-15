@@ -35,6 +35,11 @@ interface Plant {
   bob: SpringState;
   /** Roll spring — whole plant tilting with the same swell. */
   roll: SpringState;
+  /** Classic-run home berth; edge scatter writes over `pos` only. */
+  homeX: number;
+  homeZ: number;
+  homeY: number;
+  homeGate: LotusGate;
 }
 
 export interface LotusField {
@@ -152,18 +157,9 @@ export function buildLotusField(): LotusField {
   const plants: Plant[] = [];
   const spots: Array<{ x: number; z: number; zone: string; indexInZone: number }> = [];
 
-  function placeReal(rand: () => number, ctx: SpawnCtx): void {
-    spots.length = 0;
-    for (let i = 0; i < LOTUS.count; i++) {
-      const c = sampleLotusCell(rand, spots, ctx);
-      spots.push({ x: c.x, z: c.z, zone: "scatter", indexInZone: i });
-    }
-  }
-
-  // Three harvest pockets: reed shore (near ship), deep lagoon, north cove.
-  if (WORLD.k35) {
-    placeReal(rand, { playerX: 0, playerZ: -140, shipX: 0, shipZ: -140 });
-  } else for (const zone of LOTUS.zones) {
+  // Always plant the classic zone field. The Beş yeter edge run hides the
+  // surplus and scatters the first `LOTUS.edgeCount` plants in reset().
+  for (const zone of LOTUS.zones) {
     let placed = 0;
     let guard = 0;
     while (placed < zone.count && guard++ < 2500) {
@@ -182,11 +178,11 @@ export function buildLotusField(): LotusField {
   // Zone counts are fixed data (test-profile scale); a world profile with a
   // smaller LOTUS.count (see constants.ts "real" profile) trims the surplus
   // rather than redesigning zone placement, which is out of scope here.
-  if (!WORLD.k35 && spots.length > LOTUS.count) spots.length = LOTUS.count;
+  if (spots.length > LOTUS.count) spots.length = LOTUS.count;
 
   // Top up if a zone undershot (terrain rejection).
   let guard = 0;
-  while (!WORLD.k35 && spots.length < LOTUS.count && guard++ < 4000) {
+  while (spots.length < LOTUS.count && guard++ < 4000) {
     const a = rand() * Math.PI * 2;
     const r = Math.sqrt(rand()) * (LAGOON.radius - 1.4);
     const x = LAGOON.center.x + Math.cos(a) * r;
@@ -201,15 +197,15 @@ export function buildLotusField(): LotusField {
 
   for (const s of spots) {
     let gate: LotusGate = null;
-    if (!WORLD.k35 && s.zone === "deep" && s.indexInZone >= PUZZLE.deepGatedFromIndex) {
+    if (s.zone === "deep" && s.indexInZone >= PUZZLE.deepGatedFromIndex) {
       gate = "stones";
-    } else if (!WORLD.k35 && s.zone === "cove" && coveGatedLeft > 0) {
+    } else if (s.zone === "cove" && coveGatedLeft > 0) {
       gate = "hill";
       coveGatedLeft -= 1;
     }
 
     const g = new THREE.Group();
-    const gy = WORLD.k35 ? plantGroundY(s.x, s.z) : LAGOON.waterY;
+    const gy = LAGOON.waterY;
     g.position.set(s.x, gy, s.z);
     g.rotation.y = rand() * Math.PI * 2;
 
@@ -265,6 +261,10 @@ export function buildLotusField(): LotusField {
       gate,
       bob: { value: 0, velocity: 0 },
       roll: { value: 0, velocity: 0 },
+      homeX: s.x,
+      homeZ: s.z,
+      homeY: gy,
+      homeGate: gate,
     };
     plants.push(plant);
     applyStage(plant);
@@ -342,6 +342,7 @@ export function buildLotusField(): LotusField {
     let best: number | null = null;
     let bestD: number = LOTUS.pickRange;
     for (let i = 0; i < plants.length; i++) {
+      if (!plants[i].group.visible) continue;
       if (plants[i].stage !== "ripe") continue;
       const open = gateOpen(plants[i], gates);
       if (blockedOnly !== !open) continue;
@@ -360,6 +361,7 @@ export function buildLotusField(): LotusField {
       if (ctx) spawnCtx = ctx;
       const ripeAspect = STAGE_TEX.ripe.aspect;
       for (const p of plants) {
+        if (!p.group.visible) continue;
         p.timer += dt;
         if (p.timer >= p.duration) advance(p);
         p.pop = Math.max(0, p.pop - dt * 4.5);
@@ -441,7 +443,7 @@ export function buildLotusField(): LotusField {
     },
     pick(index, gates) {
       const p = plants[index];
-      if (p.stage !== "ripe") return false;
+      if (!p.group.visible || p.stage !== "ripe") return false;
       if (!gateOpen(p, gates)) return false;
       if (WORLD.k35) {
         p.pop = 1;
@@ -459,7 +461,7 @@ export function buildLotusField(): LotusField {
       return true;
     },
     ripeCount() {
-      return plants.reduce((n, p) => n + (p.stage === "ripe" ? 1 : 0), 0);
+      return plants.reduce((n, p) => n + (p.group.visible && p.stage === "ripe" ? 1 : 0), 0);
     },
     setHighlight(index: number | null) {
       if (index === null) {
@@ -475,13 +477,6 @@ export function buildLotusField(): LotusField {
       const re = mulberry32(ctx?.seed ?? 77002);
       if (WORLD.k35) {
         const placed: Array<{ x: number; z: number }> = [];
-        for (const p of plants) {
-          const c = sampleLotusCell(re, placed, spawnCtx);
-          placed.push(c);
-          const y = plantGroundY(c.x, c.z);
-          p.pos.set(c.x, y, c.z);
-          p.group.position.set(c.x, y, c.z);
-        }
         const stages: LotusStage[] = ["ripe", "half", "bud", "bud", "half"];
         for (let i = stages.length - 1; i > 0; i--) {
           const j = Math.floor(re() * (i + 1));
@@ -490,6 +485,17 @@ export function buildLotusField(): LotusField {
           stages[j] = tmp;
         }
         plants.forEach((p, i) => {
+          if (i >= LOTUS.edgeCount) {
+            p.group.visible = false;
+            return;
+          }
+          p.group.visible = true;
+          p.gate = null;
+          const c = sampleLotusCell(re, placed, spawnCtx);
+          placed.push(c);
+          const y = plantGroundY(c.x, c.z);
+          p.pos.set(c.x, y, c.z);
+          p.group.position.set(c.x, y, c.z);
           p.stage = stages[i] ?? "bud";
           p.timer = re() * baseDuration(p.stage) * 0.4;
           p.duration = baseDuration(p.stage);
@@ -505,6 +511,10 @@ export function buildLotusField(): LotusField {
         return;
       }
       for (const p of plants) {
+        p.group.visible = true;
+        p.gate = p.homeGate;
+        p.pos.set(p.homeX, p.homeY, p.homeZ);
+        p.group.position.set(p.homeX, p.homeY, p.homeZ);
         p.stage = STAGE_ORDER[Math.floor(re() * 4)];
         p.timer = re() * baseDuration(p.stage);
         p.duration = baseDuration(p.stage) * (1 + (re() - 0.5) * LOTUS.timeJitter);
