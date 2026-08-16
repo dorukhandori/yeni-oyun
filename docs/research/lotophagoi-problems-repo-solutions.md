@@ -293,3 +293,5 @@ git clone --depth 1 https://github.com/satelllte/playwright-canvas
 3. **~%15’i** saf süreç (ACTIVE_WORK, doküman senkronu).
 
 **En acil repo entegrasyonu:** `threejs-game-skills` canvas inspector (S2, S3) + kyh manifest check (S4) + LayrKits/ai-game-art-pipeline birleşimi (S13–S15).
+
+**Uygulama prompt'u (ajan oturumuna yapıştır):** `docs/production/agent-prompt-archive-integration.md`
