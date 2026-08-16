@@ -279,6 +279,7 @@ Hiçbir çıktı bunların hepsini geçmeden `public/assets/` altına girmez:
 - [ ] **[K]** Fotogerçekçi değil (*"NOT photoreal"*)
 - [ ] **[P]** Unutuş efekti texture'a gömülmemiş (çalışma zamanında uygulanır)
 - [ ] **[P]** `docs/design/` ile çelişmiyor: HUD'da unutuş barı yok, can barı yok, olgunluk ikonla gösterilmiyor
+- [ ] **[P]** `npm run test:assets` koşuldu ve sonucu kayda geçti — manifest (§7) / isimlendirme (§6) / indirme bütçesi (§6) kontrolü. Ayrıntı: `docs/production/asset-testing-platform.md`. **Bu, yukarıdaki listenin yalnızca ölçülebilir yarısıdır**; "NOT photoreal", "IP temiz", "döngü başı-sonu birleşiyor", "unutuş texture'a gömülmemiş" maddeleri makine kararı değildir ve insan/sahip kapısı olarak burada kalır.
 
 ---
 

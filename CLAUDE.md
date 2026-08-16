@@ -48,7 +48,7 @@ Don't kill the dev server needlessly if it's already running.
 
 ## Design authority
 
-`docs/design/` (`game-concept.md`, `gdd-lotus-collection.md`, `gdd-memory-system.md`, `gdd-lotus-hallucination.md`, `tuning.md`) owns gameplay, numbers, and HUD — it wins over `docs/art/` in any conflict. `hallucination-reframe-concept.md` is the design-decision record behind `gdd-lotus-hallucination.md`, not a tuning source itself. `docs/art/` (`art-bible.md`, `asset-registry.md`, `pipeline.md`) fixes visual language and the Higgsfield media pipeline only; it does not change mechanics. `docs/ux/` covers screens/HUD/flow at the UX layer. `docs/production/roadmap.md` is the living "where are we, what's next" status doc — it doesn't decide anything itself, just points at the doc that does; `webgpu-migration-assessment.md` sits next to it as a standing technical-director assessment, not an active migration.
+`docs/design/` (`game-concept.md`, `gdd-lotus-collection.md`, `gdd-memory-system.md`, `gdd-lotus-hallucination.md`, `tuning.md`) owns gameplay, numbers, and HUD — it wins over `docs/art/` in any conflict. `hallucination-reframe-concept.md` is the design-decision record behind `gdd-lotus-hallucination.md`, not a tuning source itself. `docs/art/` (`art-bible.md`, `asset-registry.md`, `pipeline.md`) fixes visual language and the Higgsfield media pipeline only; it does not change mechanics. `docs/ux/` covers screens/HUD/flow at the UX layer. `docs/production/roadmap.md` is the living "where are we, what's next" status doc — it doesn't decide anything itself, just points at the doc that does; `webgpu-migration-assessment.md` sits next to it as a standing technical-director assessment, not an active migration. Araştırma ve tooling çıktıları karar vermez; envanterleri `docs/research/lotophagoi-research-index.md`'de.
 
 ## The `.cursor/` studio kit — what applies here and what doesn't
 
@@ -61,20 +61,23 @@ This repo also carries a large Cursor-native "CCGS" kit (`.cursor/agents/`, `.cu
 
 ## Claude Code agents for this project
 
-`.claude/agents/` holds a curated roster (mirrors the roles `AGENTS.md` recommends for this repo, trimmed of Unity/Godot/Unreal/multi-department boilerplate that doesn't apply to a solo Vite+Three.js prototype):
+`.claude/agents/` holds a curated roster (mirrors the roles `AGENTS.md` recommends for this repo, trimmed of Unity/Godot/Unreal/multi-department boilerplate that doesn't apply to a solo Vite+Three.js prototype). Work is tracked in **Paca** (http://localhost:8090, project Lotophagoi). Every agent/sub-agent **must** have a nick + title; every Paca comment starts with `[@nick · Title]` and is written in complete sentences. Task titles: `Ortam │ State │ Title` (State = game location/component, not kanban stage). Report into `@nile` → `@atlas` / `@mira` / `@rex`.
 
-| Need | Agent |
-|---|---|
-| What's next / coordination | `producer` |
-| Mechanics / systems / tuning | `game-designer` |
-| Throwaway slice to test a mechanic | `prototyper` |
-| Three.js/TS gameplay implementation | `gameplay-programmer` |
-| HUD / DOM overlay implementation | `ui-programmer` |
-| Flows, input, accessibility | `ux-designer` |
-| Visual identity, palette, asset specs, Higgsfield prompts | `art-director` |
-| Test strategy, release readiness | `qa-lead` |
-| Test cases, bug reports | `qa-tester` |
-| Architecture / tech choices / performance budget | `technical-director` |
+| Need | Agent file | Nick · Title |
+|---|---|---|
+| What's next / coordination | `producer` | `@nile` · Producer |
+| Mechanics / systems / tuning | `game-designer` | `@helix` · Game Designer |
+| New Odyssey stop level-spec | `island-designer` | `@cove` · Island Designer |
+| Throwaway slice to test a mechanic | `prototyper` | `@spark` · Prototyper |
+| Three.js/TS gameplay implementation | `gameplay-programmer` | `@byte` · Gameplay Programmer |
+| HUD / DOM overlay implementation | `ui-programmer` | `@glyph` · UI Programmer |
+| Flows, input, accessibility | `ux-designer` | `@tide` · UX Designer |
+| Visual identity, palette, asset specs, Higgsfield prompts | `art-director` | `@iris` · Game Art Director |
+| Test strategy, release readiness | `qa-lead` | `@flint` · QA Lead |
+| Test cases, bug reports | `qa-tester` | `@pebble` · QA Tester |
+| Architecture / tech choices / performance budget | `technical-director` | `@axiom` · Technical Director |
+
+Cursor-only extras (same Paca nicks): `@myth` · Narrative Director, `@echo` · Sound Designer. `@iris` is **in-game** art (Aegean art bible). Studio one-pager art is `@orion` in `ovarlak-games` — do not mix palettes.
 
 There is no real multi-person team behind these — sahip is the only other party. Each agent asks sahip directly rather than escalating to a simulated colleague.
 

@@ -26,3 +26,5 @@ Kaynak stüdyo kit: Desktop `game-project` (CCGS) — `.cursor/` içindeki ajan/
 Canopy'ye özel kurallar `.cursor/rules/reference-canopy/` altında arşiv; bu ürüne uygulanmaz.
 
 Bir seans = bir oynanır dilim. Cursor'da skill adı söyle veya ajan çağır (`help`, `producer`, `game-designer`, `prototyper`, …). Claude Code'da `.claude/agents/` altındaki isimle çağır. Commit ancak sahip derse.
+
+İş takibi: **Paca** http://localhost:8090 (proje Lotophagoi). Kimlik kuralı: `.cursor/rules/paca-identity.mdc`. Stüdyo one-pager ajanları (`@selene` / `@orion` / `@forge`) `ovarlak-games` reposundadır; oyun görseli `@iris`, stüdyo görseli `@orion` — paletler karışmaz.

@@ -47,7 +47,33 @@ function standY(x: number, z: number): number {
   return Math.max(heightAt(x, z), PLAYER.wadeFloor);
 }
 
-export function startGame(canvas: HTMLCanvasElement): void {
+/**
+ * DEV-only automation seam consumed by scripts/asset-qa/. Attached to
+ * `window.__LOTOPHAGOI_TEST_HOOKS__` in main.ts behind `import.meta.env.DEV`,
+ * so the whole surface is dead-code-eliminated from a production build.
+ *
+ * Every hook routes through the same functions the menu uses — nothing here
+ * pokes at private state directly, so a test-driven phase change leaves the
+ * DOM overlay, HUD and world in exactly the state real play would.
+ */
+export interface TestHooks {
+  getState(): GameState;
+  setPhase(phase: "title" | "hub" | "play", opts?: { kind?: LotusRunKind; seed?: number }): void;
+  setProfile(profile: "test" | "real"): void;
+  /** 0 = clear headed, 1 = fully lotus-drunk. Drives the haze/forgetting pass. */
+  setMemory(v: number): void;
+  /** Replace Math.random with a seeded PRNG so particles/NPCs are reproducible. */
+  seedRandom(seed: number): void;
+  /** Zero the world clock, day clock and bloom boost (test-only). */
+  resetClock(): void;
+  /** Advance exactly n fixed 60 Hz steps. Only meaningful while frozen. */
+  runSteps(n: number): void;
+  /** Stop the simulation so screenshots are byte-stable. */
+  freeze(): void;
+  unfreeze(): void;
+}
+
+export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
   const stage = createStage(canvas);
 
   const terrain = buildTerrain();
@@ -280,13 +306,20 @@ export function startGame(canvas: HTMLCanvasElement): void {
     audio.lose();
   }
 
-  /** Full world reset + actually starts play. Only entry point into "play". */
-  function fullRestart(kind: LotusRunKind): void {
+  /**
+   * Full world reset + actually starts play. Only entry point into "play".
+   *
+   * `seedOverride` exists for the asset-qa screenshot regression check
+   * (scripts/asset-qa/checks/regression.mjs): lotus placement is seeded, so a
+   * fixed seed makes the field reproducible frame-for-frame. Normal play never
+   * passes it and keeps the random seed.
+   */
+  function fullRestart(kind: LotusRunKind, seedOverride?: number): void {
     setLotusRun(kind);
     menu.hideAll();
     hud.hideCard();
     ship.reset();
-    const runSeed = (Math.random() * 1e9) | 0;
+    const runSeed = seedOverride ?? ((Math.random() * 1e9) | 0);
     if (WORLD.k35) console.debug("[lotus-run] seed", runSeed);
     field.reset({
       seed: runSeed,
@@ -988,20 +1021,99 @@ export function startGame(canvas: HTMLCanvasElement): void {
 
   let acc = 0;
   let last = performance.now();
+  /**
+   * Freeze seam for screenshot regression. When set, step() and the sailor
+   * billboard spring stop running, so every time-driven uniform (haze.time,
+   * sea, field, bloom) holds its last value and composer.render() produces a
+   * byte-identical frame on every rAF tick. Nothing outside the DEV-gated test
+   * hooks can set this.
+   */
+  let frozen = false;
   const loop = (now: number) => {
     const frameMs = Math.min(now - last, 250);
-    acc += frameMs;
     last = now;
-    let guard = 0;
-    while (acc >= STEP && guard++ < 5) {
-      acc -= STEP;
-      step();
+    if (!frozen) {
+      acc += frameMs;
+      let guard = 0;
+      while (acc >= STEP && guard++ < 5) {
+        acc -= STEP;
+        step();
+      }
+      sailor.faceCamera(stage.camera, Math.min(frameMs / 1000, 0.05));
     }
-    sailor.faceCamera(stage.camera, Math.min(frameMs / 1000, 0.05));
     stage.render();
     requestAnimationFrame(loop);
   };
   requestAnimationFrame(loop);
 
   document.getElementById("loading")?.classList.add("gone");
+
+  // Gating the RETURN (not just main.ts's window assignment) is what actually
+  // keeps the hooks out of the bundle. With only main.ts gated, Rollup dropped
+  // the window property name but still emitted this object literal and every
+  // closure it names — unreachable, but shipped. `import.meta.env.DEV` is a
+  // static false in a production build, so everything below is dead code.
+  if (!import.meta.env.DEV) return null;
+
+  return {
+    getState: () => ({ ...st }),
+    setPhase(phase, opts) {
+      if (phase === "title") goTitle();
+      else if (phase === "hub") goHub();
+      else fullRestart(opts?.kind ?? "classic", opts?.seed);
+    },
+    setProfile(profile) {
+      // Deliberately a reload, not a mutation: constants.ts resolves
+      // ACTIVE_PROFILE once at module load and every world builder captured
+      // profile-dependent values at construction time. Flipping it in place
+      // would desync the island geometry from the tuning numbers.
+      const url = new URL(window.location.href);
+      url.searchParams.set("profile", profile);
+      window.location.replace(url.toString());
+    },
+    setMemory(v) {
+      st.memory = Math.min(1, Math.max(0, v));
+    },
+    seedRandom(seed) {
+      // Overwrites the global Math.random with mulberry32. Screenshot
+      // regression is impossible otherwise: burst.ts alone draws 21 random
+      // numbers per spawn, and the hallucination/NPC lifecycles draw more.
+      // DEV-only by construction — nothing outside the test hooks reaches it.
+      let a = seed >>> 0;
+      Math.random = () => {
+        a = (a + 0x6d2b79f5) | 0;
+        let t = Math.imul(a ^ (a >>> 15), 1 | a);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    },
+    resetClock() {
+      // fullRestart() rebuilds the world but deliberately does not touch the
+      // running world clock — so the scrolling caustic/foam UVs, the sun angle
+      // and the bloom boost carry over from before the restart. Harmless in
+      // play, fatal for screenshot comparison: it was the entire 8-16% diff.
+      // Test-only, so the restart's real semantics stay unchanged.
+      time = 0;
+      st.dayTime = 0;
+      stage.bloomBoost = 0;
+    },
+    runSteps(n) {
+      // Advances simulation by an exact step count instead of a wall-clock
+      // wait. `await page.waitForTimeout(1200)` executes a *variable* number
+      // of 60 Hz steps depending on machine load, which is what made the first
+      // baseline attempt differ by 8-18% between runs.
+      for (let i = 0; i < n; i++) {
+        step();
+        sailor.faceCamera(stage.camera, STEP / 1000);
+      }
+    },
+    freeze() {
+      frozen = true;
+    },
+    unfreeze() {
+      frozen = false;
+      last = performance.now();
+      acc = 0;
+    },
+  };
 }

@@ -16,17 +16,22 @@ Sahiple Türkçe. Kod/commit İngilizce. Stüdyo işletim sistemi: **Claude Code
 
 Cursor’da slash yok. Skill adı söyle veya ajan çağır.
 
-| İhtiyacın | Ajan / skill |
-|---|---|
-| Bugün ne? | `help` veya `producer` |
-| Mekanik / tasarım | `game-designer` · `design-system` · `quick-design` |
-| Prototip dilim | `prototyper` · `prototype` · `vertical-slice` |
-| Oynanış kodu (Three.js/TS) | `gameplay-programmer` · `prototyper` |
-| UI / HUD | `ui-programmer` · `ux-designer` · `team-ui` |
-| Görsel / art yönü | `art-director` · `art-bible` · `asset-spec` |
-| QA / playtest | `qa-lead` · `qa-tester` · `playtest-report` · `smoke-check` |
-| Sprint / risk | `producer` · `sprint-plan` |
-| Mimari | `technical-director` · `architecture-decision` |
+Board: **Paca** http://localhost:8090 (proje Lotophagoi). Her ajan/sub-agent nick + title taşır; her yorum `[@nick · Title]` ile başlar ve tam cümlelerle yazılır. Kart başlığı: `Ortam │ State │ Title` (State = oyunun neresi / hangi component; kanban stage değil). Rapor: `@nile` → `@atlas` / `@mira` / `@rex`.
+
+| İhtiyacın | Ajan / skill | Nick · Title |
+|---|---|---|
+| Bugün ne? | `help` veya `producer` | `@nile` · Producer |
+| Mekanik / tasarım | `game-designer` · `design-system` · `quick-design` | `@helix` · Game Designer |
+| Ada / durak spec | `island-designer` | `@cove` · Island Designer |
+| Prototip dilim | `prototyper` · `prototype` · `vertical-slice` | `@spark` · Prototyper |
+| Oynanış kodu (Three.js/TS) | `gameplay-programmer` · `prototyper` | `@byte` · Gameplay Programmer |
+| UI / HUD | `ui-programmer` · `ux-designer` · `team-ui` | `@glyph` / `@tide` |
+| Görsel / art yönü (oyun) | `art-director` · `art-bible` · `asset-spec` | `@iris` · Game Art Director |
+| Anlatı | `narrative-director` | `@myth` · Narrative Director |
+| Ses | `sound-designer` | `@echo` · Sound Designer |
+| QA / playtest | `qa-lead` · `qa-tester` · `playtest-report` · `smoke-check` | `@flint` / `@pebble` |
+| Sprint / risk | `producer` · `sprint-plan` | `@nile` · Producer |
+| Mimari | `technical-director` · `architecture-decision` | `@axiom` · Technical Director |
 
 Unity / Unreal specialist ajanlar kitte duruyor; bu repo Vite + Three.js — onları yalnızca bilinçli engine değişiminde kullan.
 

@@ -1,0 +1,48 @@
+---
+description: Paca identity — nick + title required on every Lotophagoi agent comment
+alwaysApply: true
+---
+
+# Paca (Lotophagoi board)
+
+Local UI: http://localhost:8090 — project **Lotophagoi**.
+
+Every agent and sub-agent **must** have a nick + title. Every Paca comment, status note, and report line starts with:
+
+`[@nick · Title]`
+
+Task titles use this template (pipe is `│`, U+2502):
+
+`Ortam │ State │ Title`
+
+- **Ortam** — where in the product (`Hub`, `Lotus`, `Kiklop`, `Tooling`, `Art`, `Process`, `Production`, `Research`). Not a file path.
+- **State** — which game/system component (`Island stops`, `Hallucination`, `Core loop`, `Map background`, `Paca roster`…). Not the kanban column.
+- **Title** — the work itself. Never put `Backlog` / `In Progress` / `Done` in the title; that lives only in the Paca status column.
+
+Example: `Hub │ Island stops │ Hover-grow + info tag`
+
+Comments are readable prose, not telegrams: complete sentences, short paragraphs, file/commit names in backticks. Signature on the first line, then a blank line, then the body.
+
+Never post anonymously. Never borrow a parent agent's nick. Report into `@nile` (game producer) → `@atlas` (board) / `@mira` (scope) / `@rex` (tech).
+
+## Game team (yeni-oyun)
+
+| Nick | Title | When to call |
+|---|---|---|
+| `@nile` | Producer | coordination / what's next |
+| `@helix` | Game Designer | systems / tuning |
+| `@cove` | Island Designer | per-island level-spec |
+| `@spark` | Prototyper | throwaway slice |
+| `@byte` | Gameplay Programmer | Three.js/TS `src/` |
+| `@glyph` | UI Programmer | DOM HUD |
+| `@tide` | UX Designer | flows / input |
+| `@iris` | Game Art Director | art bible / Higgsfield (not studio `@orion`) |
+| `@flint` | QA Lead | test strategy |
+| `@pebble` | QA Tester | cases / bugs |
+| `@axiom` | Technical Director | architecture / perf |
+| `@myth` | Narrative Director | scenario / voice |
+| `@echo` | Sound Designer | audio cues |
+
+Unity / Unreal / Godot specialists in this kit: do not use unless sahip changes engine.
+
+Studio marketing (`@selene` / `@orion` / `@forge`) lives in `ovarlak-games`, not this repo.

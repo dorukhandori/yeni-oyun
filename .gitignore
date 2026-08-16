@@ -15,3 +15,8 @@ art-source/**
 !art-source/**/.gitkeep
 
 .env
+
+# asset-qa failure artifacts (diff/actual PNGs). The *baselines* in
+# scripts/asset-qa/baselines/ ARE committed — a baseline you cannot review in a
+# diff is not a baseline. This is only the scratch output of a failed run.
+.asset-qa-out/
