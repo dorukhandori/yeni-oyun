@@ -17,9 +17,10 @@ Aynı dosyada/alanda zaten bir satır varsa: ya bekle, ya sahiple/diğer oturuml
 
 ## Şu an aktif olanlar
 
+_(şu an boş — kimse aktif iş bildirmedi)_
+
 | Kim | Başladı | Dosyalar / alan | Ne yapıyor |
 |---|---|---|---|
-| Cursor Cloud Agent | 2026-08-16 | `art-source/reference/metatransformer/`, `docs/research/metatransformer-game-stack-scan.md` | Metatransformer / game-stack / gamestack skill Git repo taraması + Lotophagoi eşlemesi |
 
 ---
 
