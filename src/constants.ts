@@ -291,7 +291,8 @@ export const CAMERA = {
   lookHeight: 1.5,
   lerp: 0.11,
   yawStart: 0,
-  pitchStart: 0.16,
+  /** Slightly less look-down so the golden-hour disc fits in the sky band. */
+  pitchStart: 0.09,
   pitchMin: -0.1,
   pitchMax: 0.62,
   mouseSens: 0.0032,
@@ -329,6 +330,24 @@ export const FEEL = {
 export const SAILOR = {
   /** World height of the 512² canvas (feet on the bottom pad). */
   height: 1.82,
+  /** ASSET-058 Tripo P1 mesh. Missing file → billboard fallback. */
+  mesh: "assets/models/char_doryseus_01_mesh_8000.glb",
+  /** Rigged + idle/walk/run. Preferred over `mesh` when present. */
+  meshRig: "assets/models/char_doryseus_01_rig_8000.glb",
+  /**
+   * Playable body is the rigged Tripo GLB. Facing offset is `meshFacing`.
+   * Meshy retexture (4-view) needs `MESHY_API_KEY` — until then Tripo albedo.
+   */
+  meshEnabled: true,
+  /**
+   * Added to `root.rotation.y`. Playtest while holding W: face and toes
+   * pointed at the camera — π turns the nape into the walk direction.
+   */
+  meshFacing: Math.PI,
+  /** Extra yaw on the GLB inside the sailor root. 0 while meshFacing holds π. */
+  meshYaw: 0,
+  /** Extra metres under the 3D soles — low-poly peaks clip a planted AABB. */
+  meshYLift: 0.08,
   /** Empty rows under the soles in the 512 canvas (measured 10px). */
   feetPad: 10 / 512,
   /** Fallback squash if no walk sheet is loaded. Sheet playback must not add this. */
@@ -595,10 +614,15 @@ export const FLOW = {
 /** One in-game day — sun height is the clock (tuning.md §2). */
 export const DAY = {
   length: 420,
-  /** Sun elevation at t=0 (degrees above horizon). */
-  sunStartDeg: 55,
-  /** Sun elevation at dusk (degrees). */
-  sunEndDeg: 2,
+  /**
+   * Elevation at t=0 (degrees). Third-person look-down + FOV 55° leaves only
+   * ~8–11° of sky above the world horizon; anything higher is off the top
+   * of the frame (the disc read as a few haze pixels on the hills). Stay
+   * inside that band for the whole afternoon→dusk clock.
+   */
+  sunStartDeg: 4.5,
+  /** Elevation at dusk (degrees) — still a fat disc, just over the far hills. */
+  sunEndDeg: 2.2,
   /** Remaining seconds when light turns rose / warn toast. */
   warnRemaining: 90,
 } as const;
@@ -661,14 +685,25 @@ export const RENDER = {
 export const SUN_DISK = {
   haloColor: 0xffcf80,
   coreColor: 0xfff6d0,
-  /** Just inside the sky sphere (360) and cloud sphere (350). */
-  distance: 332,
-  coreScale: 12,
-  haloScale: 42,
-  skyCorePower: 160,
-  skyHaloPower: 11,
-  skyCoreGain: 1.05,
-  skyHaloGain: 0.38,
+  /**
+   * Metres from the camera. Far plane is 600; keep this close so the disc
+   * is large in screen space and cannot be clipped.
+   */
+  distance: 48,
+  /** World-unit diameters at `distance` (~10° core; hale stays tight so bloom doesn't erase the rim). */
+  coreScale: 8.4,
+  haloScale: 11.5,
+  /** Mild sky wash — the opaque disc carries the readable circle. */
+  skyCorePower: 22,
+  skyHaloPower: 4.5,
+  skyHaloGain: 0.55,
+  /**
+   * atan2(z, x). Default camera sits at +Z looking −Z (inland). The HUD sun
+   * clock sits in the top-centre of the frame, so the disc is offset east
+   * (screen-right) of −Z or it hides behind the widget.
+   */
+  azimuthStart: -1.22,
+  azimuthEnd: -1.48,
 } as const;
 
 /**
@@ -693,13 +728,41 @@ export const SEA_TEX = {
   shallowNormalStrength: 0.55,
   /** water_lake_01 (ASSET-033) — slower, calmer ripple than the open sea. */
   lakeNormalTileMeters: 7.5,
-  lakeNormalStrength: 0.4,
+  lakeNormalStrength: 0.22,
   /** water_foam_01 (ASSET-013) repeats around the coastline ring. */
   foamRepeatX: 30,
   /** water_caustic_01 (ASSET-014), additive shimmer over the shallows. */
   causticTileMeters: 3.2,
   causticScrollSpeed: 0.035,
   causticOpacity: 0.55,
+  /** Stylized Gerstner-ish vertex waves (art-bible.md §1 NOT photoreal). */
+  waveAmpA: 0.22,
+  waveAmpB: 0.16,
+  waveAmpC: 0.1,
+  /** Lake caustic — much weaker so the lagoon does not read as sea. */
+  lakeCausticOpacity: 0.1,
+} as const;
+
+/**
+ * Mid-ground flora (art-bible.md §6). High density at the lotus/lagoon rim,
+ * groves on the hills, open sand left as breathing room. Not gameplay.
+ */
+export const FLORA = {
+  cypressGroves: ACTIVE_PROFILE === "real" ? 14 : 6,
+  cypressPerGrove: ACTIVE_PROFILE === "real" ? 5 : 3,
+  oliveGroves: ACTIVE_PROFILE === "real" ? 11 : 5,
+  olivePerGrove: ACTIVE_PROFILE === "real" ? 4 : 3,
+  rockShore: ACTIVE_PROFILE === "real" ? 52 : 18,
+  rockLagoon: ACTIVE_PROFILE === "real" ? 32 : 12,
+  rockInland: ACTIVE_PROFILE === "real" ? 40 : 14,
+  reedRim: ACTIVE_PROFILE === "real" ? 64 : 24,
+  reedPocket: ACTIVE_PROFILE === "real" ? 44 : 20,
+  lilyPads: ACTIVE_PROFILE === "real" ? 26 : 12,
+  grassTufts: ACTIVE_PROFILE === "real" ? 72 : 28,
+  treeMinY: 1.7,
+  treeMaxY: 14,
+  shipKeepout: 18,
+  groveRadius: 6.8,
 } as const;
 
 export const SHIP_TEX = {
@@ -726,12 +789,15 @@ export const PALETTE = {
   grassDry: 0xa8b566,
   grass: 0x7f9c56,
   grassDeep: 0x5e7f45,
-  rock: 0xa8a091,
+  /** Tebeşir beyazı kaya — art-bible.md §2 `#e6e2d4`, tinted by the chalk albedo. */
+  rock: 0xe6e2d4,
   marble: 0xeee6d6,
-  seaShallow: 0x63d7d2,
-  seaDeep: 0x0f6f9e,
-  seaFoam: 0xf4ffff,
-  lagoon: 0x38b8bb,
+  /** Art-bible.md §2 sığ turkuaz / lazuli derin. */
+  seaShallow: 0x3fc8c0,
+  seaDeep: 0x14507f,
+  seaFoam: 0xfbf7ef,
+  /** Art-bible.md §2 iç göl `#5d8f86` — durgun, deniz turkuazı değil. */
+  lagoon: 0x5d8f86,
   pad: 0x4e7f44,
   padLight: 0x74a355,
   stem: 0x5f8a4a,
@@ -745,8 +811,8 @@ export const PALETTE = {
   hullDark: 0x5e3a1e,
   hullTrim: 0xb03a2e,
   sail: 0xf2e4c9,
-  cypress: 0x3f5f3a,
-  olive: 0x7d9464,
+  cypress: 0x3d5240,
+  olive: 0x6b7f4a,
   trunk: 0x6b5136,
   /** Sanrı figürleri + unutma pusu ailesi (art-bible.md §2/§4.1) — yeni bir renk ailesi getirilmiyor. */
   hallucination: 0xf6f2ea,

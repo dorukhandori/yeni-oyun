@@ -10,6 +10,8 @@
     "preview": "vite preview",
     "test:assets": "node scripts/asset-qa/run.mjs",
     "gen:assets": "node scripts/gen-assets.mjs",
+    "gen:mesh": "node scripts/gen-mesh.mjs",
+    "gen:meshy": "node scripts/gen-meshy.mjs",
     "sheet:still": "node scripts/sheet-from-still.mjs",
     "sheet:video": "node scripts/sheet-from-video.mjs"
   },

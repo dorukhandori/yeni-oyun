@@ -364,7 +364,7 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
     sailor.setCarried(0);
     sailor.root.visible = true;
     sailor.root.position.copy(pos);
-    sailor.root.rotation.y = facing;
+    sailor.root.rotation.y = facing + (SAILOR.meshEnabled ? SAILOR.meshFacing : 0);
     rig.yaw = CAMERA.yawStart;
     rig.snap(pos);
     stage.setDayProgress(0);
@@ -910,7 +910,7 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
       while (d < -Math.PI) d += Math.PI * 2;
       facing += d * turnK;
     }
-    sailor.root.rotation.y = facing;
+    sailor.root.rotation.y = facing + (SAILOR.meshEnabled ? SAILOR.meshFacing : 0);
 
     if (st.phase === "play") {
       // Lotus Adası only — gdd-lotus-hallucination.md. Contact is a one-shot
@@ -1003,6 +1003,7 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
     );
     rig.update(focus, dt, camLift, camPullback);
     sea.update(time);
+    terrain.update(time);
     field.update(dt, time, {
       playerX: pos.x,
       playerZ: pos.z,

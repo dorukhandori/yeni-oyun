@@ -52,7 +52,7 @@ Kabul: kontrast düşük, ön planla yarışmıyor · sıcak aksan yok (sıcakl�
 `<ASPECT>` = `16:9` · Dosya: `flora_tree_01_alpha_1024.png`
 
 ```text
-Using Higgsfield, generate this as an image — 16:9, high quality, game billboard reference. Pick the best model for stylized-cartoon next-gen game graphics (bright, glossy stylized 3D look — soft-shaded, rounded, colorful, NOT photoreal).
+Using Gemini, generate this as an image — 16:9, high quality, game billboard reference. Pick the best model for stylized-cartoon next-gen game graphics (bright, glossy stylized 3D look — soft-shaded, rounded, colorful, NOT photoreal).
 
 Three separate trees side by side on a plain flat background with clean cut-out edges for alpha masking, each fully isolated with clear space around it: a gnarled olive tree with a twisted pale trunk and soft silver-green canopy, a tall narrow dark cypress, and a second smaller olive tree at a different angle. Seen straight on as flat billboards.
 
@@ -60,6 +60,8 @@ Flat even lighting, no cast shadows, no ground, no HUD, no text, no watermark.
 
 Look: stylized-cartoon vegetation, soft-shaded rounded canopy masses, clean flat colors, olive green and silver-green foliage, dark cypress green, pale twisted bark. Cool blue shadows, never black. Original designs only — no logos, no brand marks, no text.
 ```
+
+2026-08-16: oyuna giren şey isolated ASSET-053 / ASSET-054 (`docs/art/prompts/flora-billboard.md`); bu sayfa stil referansı.
 
 Kabul: üç ağaç ayrık ve maskelenebilir · gövde/kanopi silüeti okunuyor · perspektif yok (düz karşıdan).
 

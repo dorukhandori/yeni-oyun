@@ -78,6 +78,24 @@ Arada kalan her şey (design, media, build) modellerin işidir. **[K]** *"You we
 
 **[A]** Araştırmanın uyarısı: üretilmiş 3D modele hero asset olarak güvenilmiyor (*Bawk to the Future* geliştiricisinin özeleştirisi). Çalışan yol **"concept image → 3D"**, yani görsel yönü önce 2D'de sabitlemek. Bizde de sıra: art bible → turnaround → geri kalanı.
 
+### 2.1 Yakın plan hacim — billboard değil **[P]** (2026-08-16)
+
+Sahip ASSET-053/054 zeytin+servi çapraz billboard'larını ön planda **kâğıt** okudu ve reddetti. İki bağlayıcı neden:
+
+1. **`art-bible.md` §8:** doku ışık taşımaz. Gemini still'in yarısı sarı-yeşil / yarısı koyu yeşil — o ayrım albedo'ya gömülü ışık. Kart döndükçe dünya ışığıyla çelişir.
+2. **`skybox-backdrop.md`:** alpha billboard orta-uzak katman içindir, ön plan için değil. Ada yürüme mesafesinde; her koruluk ön plan.
+
+**Kural:** yürünebilir ağaç = kod mesh (hacim + `MeshStandardMaterial`, `flatShading` kapalı, gölge motordan). Billboard yalnız ince bitki (saz, ot tutamı, lotus) ve gerçekten uzak silüet. ASSET-053/054 `public/assets/`'te stil referansı / ileride image-to-3D kaynağı olarak durur, sahneye dönmez.
+
+### 2.2 Image-to-3D — Tripo **[P]** (2026-08-16, K39)
+
+Gemini / Higgsfield / Veo **mesh vermez.** Hacimli GLB ayrı hattır: **§5.1**. Bu bölüm yalnızca sınırı kaydeder.
+
+- Kurulu: `scripts/gen-mesh.mjs`, `src/world/gltf.ts`, `public/assets/models/`.
+- Anahtar: `TRIPO_API_KEY` in `.env.local` (OpenAPI v3, `platform.tripo3d.ai`). Studio kredisi bu cüzdanı doldurmaz.
+- İlk GLB **G1** (`visual-change-gate.md`) — koruluk değil, tek prop. Ajan G1'siz `gen:mesh` çalıştırmaz.
+- Tripo albedo varsayılanı **kapalı** (`texture: false`, `pbr: false`): gömülü ışık kâğıt billboard'u tekrarlar (`art-bible.md` §8). `pbr: true` dokuyu zorla açar.
+
 ---
 
 ## 3. Erişim — Higgsfield MCP bağlantısı
@@ -156,6 +174,53 @@ Higgsfield mesh vermediği için hareketli yaratık/karakter şöyle çıkarıl�
 
 ---
 
+## 5.1 Image-to-3D — Tripo **[P][A]**
+
+**[A]** Funkatron hattı (`docs/research/ai-pipeline-games.md` §4.7): fikir → concept image → image-to-3D → sahne. Çalışan kısım **"prompt → 3D" değil, "concept image → 3D"**. **[A]** *Bawk to the Future* (Tripo): AI mesh'i hero olarak kullanma — ilk deneme tek prop.
+
+Higgsfield bu adımı **yapmaz** (§2). Gemini still üretir; Tripo OpenAPI v3 mesh üretir. Meshy yedek değil — tek satıcı.
+
+### Durum
+
+**API script'i + anahtar `.env.local`'de.** `npm run gen:mesh -- --balance` cüzdanı doğrular (üretim yok). Anahtar sohbete yapıştırılmaz. İki yol:
+
+| Yol | Kim | Ne zaman |
+|---|---|---|
+| **A — sahip tık** | tripo3d.ai Studio, GLB indir → `art-source/raw/` | API cüzdanı boşken / tek seferlik deneme |
+| **B — script** | `scripts/gen-mesh.mjs` (`POST /v3/files` → `POST /v3/generation/image-to-model` → poll 2 sn → `output.model_url`, URL ~5 dk ölür) | `TRIPO_API_KEY` var, G1 açık |
+
+Studio kredisi ile OpenAPI kredisi **ayrı cüzdan**. Script yalnız `platform.tripo3d.ai` bakiyesini harcar. Ajan **sen demeden** `gen:mesh` ile mesh üretmez (`--balance` serbest).
+
+### Adımlar
+
+| # | Adım | Nerede |
+|---|---|---|
+| 1 | **Kaynak still** — 3/4, tek nesne, bej stüdyo (`docs/art/prompts/meshy-source-still.md`) | Gemini → `art-source/raw/` → alpha-key `art-source/work/` |
+| 2 | **Tripo** — varsayılan: `model=v3.1-20260211`, `texture: false`, `pbr: false`, `smart_low_poly: true`, `auto_size: true`, `face_limit` 4000 | `art-source/raw/*.glb` |
+| 3 | **§8** — silüet, poly, palet, gömülü ışık yok, ölçek (1 birim ≈ 1 m) | sahip |
+| 4 | **Ship** — `public/assets/models/` + `assets.csv` (`class=scene-mesh`, `model=v3.1-20260211`, `seed=none`) | `kategori_ad_01_mesh_<poly>.glb` |
+| 5 | **Kod** — `loadGltf()` (`src/world/gltf.ts`) + `tintGltf(PALETTE.*)` | InstancedMesh ancak bütçe geçerse |
+
+Düz karşıdan billboard still (ASSET-053/054) image-to-3D'de **yassı kart** riski taşır. Yeni kaynak 3/4 olmalı. Eski still stil ref olarak durur. `--p1` = `P1-20260311` (sıkı low-poly, smart_low_poly yok).
+
+### Neden dokusuz?
+
+Tripo varsayılanı `texture: true` — albedo'ya gömülü ışık. Sahip bunu zeytin billboard'da kâğıt okudu. `--texture` yalnız bilinçli istisna. `pbr` asla varsayılan açık değil.
+
+### İlk aday (G1, koruluk değil)
+
+1. Tek tebeşir kaya
+2. Tek zeytin
+3. Tek servi
+4. Koruluk = kod mesh kalır ta ki bir GLB instancing + 400 KB tavanı geçene kadar
+
+```bash
+npm run gen:mesh -- --image art-source/work/rock_chalk_boulder_01_alpha_keyed.png \
+  -o art-source/raw/rock_chalk_boulder_01_mesh.glb --polycount 2000
+```
+
+---
+
 ## 6. Klasör şeması ve isimlendirme
 
 **[P] Bu bölümün tamamı proje kararıdır** — makalede klasör şeması ve isim kuralı yoktur.
@@ -175,6 +240,7 @@ yeni-oyun/
     spritesheets/
     ui/
     skybox/
+    models/                # §5.1 Tripo GLB — §8 geçmeden boş
   docs/art/
     pipeline.md            # bu dosya
     art-bible.md           # görsel dil
@@ -190,8 +256,8 @@ yeni-oyun/
 | kategori | `lotus`, `flora`, `water`, `sand`, `rock`, `ship`, `hill`, `sky`, `ui`, `char`, `fx` |
 | ad | kısa İngilizce isim |
 | varyant | `01`, `02`, … (lotus aşamalarında aşama numarası) |
-| kanal | `albedo`, `normal`, `rough`, `emissive`, `alpha`, `caustic`, `sheet`, `ref` |
-| çözünürlük | `256`, `512`, `1024`, `2048` |
+| kanal | `albedo`, `normal`, `rough`, `emissive`, `alpha`, `caustic`, `sheet`, `ref`, `mesh` |
+| çözünürlük | `256`, `512`, `1024`, `2048` — **`mesh` kanalında bu sayı `target_polycount`** (2000, 4000…) |
 
 Örnekler:
 
@@ -221,7 +287,7 @@ char_odysseus_turnaround_01_ref_2048.png  # sadece referans — oyuna girmez. NO
 **Teknik bütçe [P][?]** — web hedefi, ölçüm sonrası düzeltilecek:
 
 - Çözünürlük basamakları: 256 / 512 / 1024 / 2048. Ara değer icat edilmez.
-- Dosya tavanı: texture ≤ 300 KB · UI ikonu ≤ 30 KB · backdrop/sky ≤ 600 KB · spritesheet ≤ 500 KB.
+- Dosya tavanı: texture ≤ 300 KB · UI ikonu ≤ 30 KB · backdrop/sky ≤ 600 KB · spritesheet ≤ 500 KB · **GLB (`models/`) ≤ 400 KB**.
 - Format: üretim PNG → oyuna giren WebP (gerekirse KTX2).
 - Toplam ilk indirme hedefi ≤ 8 MB.
 
@@ -231,6 +297,8 @@ char_odysseus_turnaround_01_ref_2048.png  # sadece referans — oyuna girmez. NO
 - Tileable kum ve su: `wrapS = wrapT = THREE.RepeatWrapping` + `repeat.set(x, y)`; tile ölçeği metre başına sabit.
 - Su: renk motorda, `normal` map yalnız dalga taşır. Caustic ayrı katman, additive.
 - Köpük hattı ve sazlık: alpha'lı `PlaneGeometry`, `transparent = true`, `alphaTest` ile dither kenarı kes.
+- **Yakın ağaç: kod mesh** ta ki bir Tripo GLB §8'i geçene kadar (`pipeline.md` §5.1). Billboard / `Sprite` yalnız ince bitki ve uzak silüet.
+- GLB: `src/world/gltf.ts` `loadGltf` + `tintGltf`. Tripo albedo varsayılanı kullanılmaz.
 - Lotus ve uzak bitki: `Sprite` (billboard) — yakın plandaki lotus geometriyle, uzaktaki sprite ile.
 - Spritesheet: `NearestFilter`, sabit kare oranı (§5).
 - Gökyüzü: altın saat açık gökyüzü olduğu için gerçek skybox anlamlı — `sky_goldenhour` küre/kutu içine; uzak tepeler ayrı backdrop katmanı, `scene.fog` ile birlikte.
@@ -275,6 +343,7 @@ Hiçbir çıktı bunların hepsini geçmeden `public/assets/` altına girmez:
 - [ ] Tileable olması gerekiyorsa dikiş yok (2×2 döşeyip bak)
 - [ ] Boyut ve çözünürlük bütçede (§6)
 - [ ] Spritesheet ise döngü başı-sonu birleşiyor, elle temizlikten geçti (§5) **[A]**
+- [ ] **GLB ise** dokusuz (veya albedo ışık taşımıyor), poly bütçede (`models/` ≤ 400 KB), 1 birim ≈ 1 m, `tintGltf` ile palet (§5.1)
 - [ ] **[K]** IP temiz: logo yok, marka izi yok, gerçek oyun adı yok, HUD dışında ekran yazısı yok
 - [ ] **[K]** Fotogerçekçi değil (*"NOT photoreal"*)
 - [ ] **[P]** Unutuş efekti texture'a gömülmemiş (çalışma zamanında uygulanır)

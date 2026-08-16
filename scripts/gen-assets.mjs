@@ -101,10 +101,18 @@ function parseArgs(argv) {
   return { mode, prompt, opts };
 }
 
-async function generateImage(prompt, apiKey, model, aspect) {
+async function generateImage(prompt, apiKey, model, aspect, imagePath) {
   const url = `${API_BASE}/models/${model}:generateContent`;
+  const requestParts = [{ text: prompt }];
+  if (imagePath) {
+    if (!existsSync(imagePath)) throw new Error(`Reference image not found: ${imagePath}`);
+    const buf = readFileSync(imagePath);
+    const ext = imagePath.toLowerCase();
+    const mime = ext.endsWith(".jpg") || ext.endsWith(".jpeg") ? "image/jpeg" : "image/png";
+    requestParts.push({ inlineData: { mimeType: mime, data: buf.toString("base64") } });
+  }
   const body = {
-    contents: [{ parts: [{ text: prompt }] }],
+    contents: [{ parts: requestParts }],
     generationConfig: { responseModalities: ["IMAGE", "TEXT"], imageConfig: { aspectRatio: aspect } },
   };
   const res = await fetch(url, {
@@ -116,8 +124,8 @@ async function generateImage(prompt, apiKey, model, aspect) {
     throw new Error(`Gemini API ${res.status}: ${(await res.text()).slice(0, 800)}`);
   }
   const data = await res.json();
-  const parts = data?.candidates?.[0]?.content?.parts ?? [];
-  for (const part of parts) {
+  const responseParts = data?.candidates?.[0]?.content?.parts ?? [];
+  for (const part of responseParts) {
     const b64 = part.inlineData?.data ?? part.inline_data?.data;
     if (b64) return Buffer.from(b64, "base64");
   }
@@ -213,7 +221,7 @@ async function main() {
       const model = opts.model ?? (mode === "image" ? DEFAULT_IMAGE_MODEL : DEFAULT_VIDEO_MODEL);
       const bytes =
         mode === "image"
-          ? await generateImage(prompt, key, model, opts.aspect)
+          ? await generateImage(prompt, key, model, opts.aspect, opts.image)
           : await generateVideo(
               prompt,
               key,

@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import {
+  FLORA,
   ISLAND,
   LAGOON,
   LANDMARK,
@@ -13,6 +14,7 @@ import {
   TERRAIN_TEX,
 } from "../constants";
 import { mulberry32 } from "./rng";
+import { displace } from "./geo";
 import { assetUrl } from "../assets/paths";
 import { loadAlbedoTexture } from "./sprite";
 
@@ -24,8 +26,12 @@ const GRASS_TEX_URL = "assets/textures/flora_drygrass_01_albedo_1024.webp";
 const SAND_TEX_URL = "assets/textures/sand_gold_01_albedo_512.webp";
 const SAND_WET_TEX_URL = "assets/textures/sand_wet_01_albedo_1024.webp";
 const ROCK_TEX_URL = "assets/textures/rock_chalk_01_albedo_1024.webp";
-const REED_TEX_URL = "assets/textures/flora_reed_01_alpha_512.webp";
+const REED_TEX_URL = "assets/textures/flora_reed_02_alpha_512.webp";
+const GRASS_TUFT_TEX_URL = "assets/textures/flora_grasstuft_01_alpha_512.webp";
 const HILL_BACKDROP_TEX_URL = "assets/skybox/hill_backdrop_01_albedo_2048.webp";
+
+const REED_ASPECT = 512 / 482;
+const GRASS_TUFT_ASPECT = 482 / 350;
 
 function smoothstep(a: number, b: number, x: number): number {
   const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
@@ -152,6 +158,7 @@ export function wadeLimitAt(x: number, z: number): number {
 
 export interface Terrain {
   group: THREE.Group;
+  update(t: number): void;
 }
 
 /**
@@ -232,6 +239,152 @@ diffuseColor.rgb = mix(groundGrass, groundSand, vWeights.x);`,
   return material;
 }
 
+function colorize(geo: THREE.BufferGeometry, hex: number): THREE.BufferGeometry {
+  const g = geo.index ? geo.toNonIndexed() : geo;
+  if (g !== geo) geo.dispose();
+  const c = new THREE.Color(hex);
+  const n = g.attributes.position.count;
+  const arr = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    arr[i * 3] = c.r;
+    arr[i * 3 + 1] = c.g;
+    arr[i * 3 + 2] = c.b;
+  }
+  g.setAttribute("color", new THREE.BufferAttribute(arr, 3));
+  return g;
+}
+
+/** Mediterranean cypress — trunk + stacked cones. Volume from the mesh; light from the engine. */
+function makeCypressGeo(): THREE.BufferGeometry {
+  const trunk = colorize(new THREE.CylinderGeometry(0.1, 0.18, 1.2, 7), PALETTE.trunk);
+  trunk.translate(0, 0.58, 0);
+  const layers = [
+    { r: 0.92, h: 2.05, y: 1.68 },
+    { r: 0.7, h: 1.85, y: 2.92 },
+    { r: 0.48, h: 1.55, y: 4.05 },
+    { r: 0.28, h: 1.2, y: 4.95 },
+  ];
+  const parts: THREE.BufferGeometry[] = [trunk];
+  for (const L of layers) {
+    const cone = colorize(new THREE.ConeGeometry(L.r, L.h, 8), PALETTE.cypress);
+    cone.translate(0, L.y, 0);
+    parts.push(cone);
+  }
+  const merged = mergeGeometries(parts);
+  for (const p of parts) p.dispose();
+  if (!merged) throw new Error("cypress geo merge failed");
+  merged.computeVertexNormals();
+  return merged;
+}
+
+/** Olive: gnarled trunk + overlapping canopy volumes. Smooth normals, not billboard cards. */
+function makeOliveGeo(): THREE.BufferGeometry {
+  const trunk = colorize(new THREE.CylinderGeometry(0.14, 0.22, 1.45, 8), PALETTE.trunk);
+  trunk.translate(0, 0.7, 0);
+  const blobs = [
+    { s: 1.12, y: 1.88, x: 0, z: 0, sy: 0.76, hex: PALETTE.olive },
+    { s: 0.8, y: 2.08, x: 0.58, z: -0.2, sy: 0.68, hex: PALETTE.olive },
+    { s: 0.72, y: 2.12, x: -0.5, z: 0.32, sy: 0.64, hex: PALETTE.grassDry },
+    { s: 0.66, y: 1.58, x: 0.22, z: 0.52, sy: 0.6, hex: PALETTE.olive },
+    { s: 0.55, y: 2.38, x: -0.12, z: -0.38, sy: 0.55, hex: PALETTE.olive },
+  ];
+  const parts: THREE.BufferGeometry[] = [trunk];
+  for (const b of blobs) {
+    const ic = colorize(new THREE.IcosahedronGeometry(b.s, 1), b.hex);
+    ic.scale(1, b.sy, 1);
+    ic.translate(b.x, b.y, b.z);
+    parts.push(ic);
+  }
+  const merged = mergeGeometries(parts);
+  for (const p of parts) p.dispose();
+  if (!merged) throw new Error("olive geo merge failed");
+  merged.computeVertexNormals();
+  return merged;
+}
+
+function alphaBillboardMat(url: string): THREE.MeshStandardMaterial {
+  return new THREE.MeshStandardMaterial({
+    map: loadAlbedoTexture(assetUrl(url)),
+    color: 0xffffff,
+    transparent: true,
+    alphaTest: 0.4,
+    depthWrite: true,
+    side: THREE.DoubleSide,
+    roughness: 0.88,
+  });
+}
+
+function attachSway(mat: THREE.MeshStandardMaterial, amount: number): { value: number } {
+  const wind = { value: 0 };
+  mat.onBeforeCompile = (shader) => {
+    shader.uniforms.uTime = wind;
+    shader.uniforms.uSway = { value: amount };
+    shader.vertexShader = shader.vertexShader
+      .replace(
+        "#include <common>",
+        `#include <common>
+uniform float uTime;
+uniform float uSway;`,
+      )
+      .replace(
+        "#include <begin_vertex>",
+        `#include <begin_vertex>
+float h = max(position.y, 0.0);
+transformed.x += sin(uTime * 1.35 + position.z * 0.45 + position.x * 0.2) * h * uSway;
+transformed.z += cos(uTime * 1.05 + position.x * 0.4) * h * uSway * 0.55;`,
+      );
+  };
+  return wind;
+}
+
+function nearLotus(x: number, z: number, extra = 1.6): boolean {
+  return LOTUS.zones.some((zn) => Math.hypot(x - zn.cx, z - zn.cz) < zn.radius + extra);
+}
+
+function onTreeLand(x: number, z: number): number | null {
+  const y = heightAt(x, z);
+  if (y < FLORA.treeMinY || y > FLORA.treeMaxY) return null;
+  if (lagoonDist(x, z) < lagoonRadiusAt(x, z) + 2.4) return null;
+  if (Math.hypot(x - SHIP.pos.x, z - SHIP.pos.z) < FLORA.shipKeepout) return null;
+  if (nearLotus(x, z)) return null;
+  const coast = islandRadiusAt(x, z);
+  if (Math.hypot(x, z) > coast - 7) return null;
+  return y;
+}
+
+function scatterPoint(
+  rand: () => number,
+  valid: (x: number, z: number) => number | null,
+  tries = 18,
+): { x: number; z: number; y: number } | null {
+  for (let t = 0; t < tries; t++) {
+    const a = rand() * Math.PI * 2;
+    const coast = ISLAND.radius * islandRadiusFactor(a);
+    const r = 8 + rand() * Math.max(4, coast - 10);
+    const x = Math.cos(a) * r;
+    const z = Math.sin(a) * r;
+    const y = valid(x, z);
+    if (y !== null) return { x, z, y };
+  }
+  return null;
+}
+
+type Pose = { x: number; z: number; y: number; sx: number; sy: number; sz: number; rotY: number };
+
+function fillInstanced(mesh: THREE.InstancedMesh, poses: Pose[]): void {
+  const dummy = new THREE.Object3D();
+  for (let i = 0; i < poses.length; i++) {
+    const p = poses[i];
+    dummy.position.set(p.x, p.y, p.z);
+    dummy.scale.set(p.sx, p.sy, p.sz);
+    dummy.rotation.set(0, p.rotY, 0);
+    dummy.updateMatrix();
+    mesh.setMatrixAt(i, dummy.matrix);
+  }
+  mesh.instanceMatrix.needsUpdate = true;
+  mesh.castShadow = true;
+}
+
 export function buildTerrain(): Terrain {
   const group = new THREE.Group();
   const rand = mulberry32(20260814);
@@ -299,23 +452,6 @@ export function buildTerrain(): Terrain {
   group.add(ground);
 
   // ------------------------------------------------------------------- props
-  const trunkMat = new THREE.MeshStandardMaterial({
-    color: PALETTE.trunk,
-    roughness: 0.9,
-    flatShading: true,
-  });
-  const cypressMat = new THREE.MeshStandardMaterial({
-    color: PALETTE.cypress,
-    roughness: 0.85,
-    flatShading: true,
-  });
-  const oliveMat = new THREE.MeshStandardMaterial({
-    color: PALETTE.olive,
-    roughness: 0.85,
-    flatShading: true,
-  });
-  // Weathered chalk rock (ASSET-031) doubles as both the loose boulders and
-  // the shrine's marble — both read as pale cracked stone at this palette.
   const rockTex = loadAlbedoTexture(assetUrl(ROCK_TEX_URL));
   rockTex.wrapS = THREE.RepeatWrapping;
   rockTex.wrapT = THREE.RepeatWrapping;
@@ -323,7 +459,7 @@ export function buildTerrain(): Terrain {
   const rockMat = new THREE.MeshStandardMaterial({
     map: rockTex,
     color: PALETTE.rock,
-    roughness: 0.95,
+    roughness: 0.92,
     flatShading: true,
   });
   const marbleMat = new THREE.MeshStandardMaterial({
@@ -333,10 +469,6 @@ export function buildTerrain(): Terrain {
     flatShading: true,
   });
 
-  const cypressGeo = new THREE.ConeGeometry(1, 5.2, 7);
-  const oliveGeo = new THREE.IcosahedronGeometry(1, 1);
-  const trunkGeo = new THREE.CylinderGeometry(0.16, 0.24, 1.6, 6);
-  const rockGeo = new THREE.IcosahedronGeometry(1, 0);
   const columnGeo = new THREE.CylinderGeometry(0.42, 0.5, 4.4, 10);
   const capGeo = new THREE.BoxGeometry(1.3, 0.4, 1.3);
 
@@ -346,52 +478,141 @@ export function buildTerrain(): Terrain {
     group.add(o);
   };
 
-  const floraCount = ISLAND.radius > 80 ? 140 : 60;
-  for (let i = 0; i < floraCount; i++) {
+  const treeMat = new THREE.MeshStandardMaterial({
+    vertexColors: true,
+    roughness: 0.82,
+    metalness: 0,
+  });
+
+  const cypressPoses: Pose[] = [];
+  for (let g = 0; g < FLORA.cypressGroves; g++) {
+    const center = scatterPoint(rand, onTreeLand);
+    if (!center) continue;
+    const n = 2 + Math.floor(rand() * FLORA.cypressPerGrove);
+    for (let k = 0; k < n; k++) {
+      const a = rand() * Math.PI * 2;
+      const d = k === 0 ? 0 : 1.4 + rand() * FLORA.groveRadius;
+      const x = center.x + Math.cos(a) * d;
+      const z = center.z + Math.sin(a) * d;
+      const y = onTreeLand(x, z);
+      if (y === null) continue;
+      const s = 0.88 + rand() * 0.5;
+      cypressPoses.push({
+        x,
+        z,
+        y: y - 0.06,
+        sx: s * (0.86 + rand() * 0.18),
+        sy: s,
+        sz: s * (0.86 + rand() * 0.18),
+        rotY: rand() * 6.28,
+      });
+    }
+  }
+  if (cypressPoses.length > 0) {
+    const mesh = new THREE.InstancedMesh(makeCypressGeo(), treeMat, cypressPoses.length);
+    fillInstanced(mesh, cypressPoses);
+    mesh.frustumCulled = false;
+    group.add(mesh);
+  }
+
+  const olivePoses: Pose[] = [];
+  for (let g = 0; g < FLORA.oliveGroves; g++) {
+    const center = scatterPoint(rand, onTreeLand);
+    if (!center) continue;
+    const n = 2 + Math.floor(rand() * FLORA.olivePerGrove);
+    for (let k = 0; k < n; k++) {
+      const a = rand() * Math.PI * 2;
+      const d = k === 0 ? 0 : 1.2 + rand() * (FLORA.groveRadius * 0.85);
+      const x = center.x + Math.cos(a) * d;
+      const z = center.z + Math.sin(a) * d;
+      const y = onTreeLand(x, z);
+      if (y === null) continue;
+      const s = 0.92 + rand() * 0.48;
+      olivePoses.push({
+        x,
+        z,
+        y: y - 0.08,
+        sx: s,
+        sy: s * (0.9 + rand() * 0.14),
+        sz: s,
+        rotY: rand() * 6.28,
+      });
+    }
+  }
+  if (olivePoses.length > 0) {
+    const mesh = new THREE.InstancedMesh(makeOliveGeo(), treeMat, olivePoses.length);
+    fillInstanced(mesh, olivePoses);
+    mesh.frustumCulled = false;
+    group.add(mesh);
+  }
+
+  const rockGeo = displace(new THREE.IcosahedronGeometry(1, 0), 0.35, rand);
+  const rockPoses: Pose[] = [];
+  const pushRock = (x: number, z: number, y: number, s: number) => {
+    rockPoses.push({
+      x,
+      z,
+      y: y - s * 0.22,
+      sx: s * (0.85 + rand() * 0.4),
+      sy: s * (0.45 + rand() * 0.4),
+      sz: s * (0.85 + rand() * 0.4),
+      rotY: rand() * 6.28,
+    });
+  };
+  for (let i = 0; i < FLORA.rockShore; i++) {
     const a = rand() * Math.PI * 2;
-    const r = 6 + rand() * (ISLAND.radius * islandRadiusFactor(a) - 7);
+    const coast = ISLAND.radius * islandRadiusFactor(a);
+    const r = coast - 0.6 - rand() * 4.2;
     const x = Math.cos(a) * r;
     const z = Math.sin(a) * r;
     const y = heightAt(x, z);
-    if (y < 0.9 || y > 16 || lagoonDist(x, z) < lagoonRadiusAt(x, z) + 2.2) continue;
-    // Keep the shoreline in front of the ship clear.
-    if (Math.hypot(x - SHIP.pos.x, z - SHIP.pos.z) < 18) continue;
-    if (LAYOUT_SHIFT_Z === 0 && z > 15 && Math.abs(x - 4) < 7) continue;
-
-    const kind = rand();
-    if (kind < 0.42) {
-      const t = new THREE.Mesh(cypressGeo, cypressMat);
-      const s = 0.7 + rand() * 0.7;
-      t.scale.set(s * (0.8 + rand() * 0.3), s, s * (0.8 + rand() * 0.3));
-      placeOnGround(t, x, z, 5.2 * s * 0.5 - 0.2);
-      t.rotation.y = rand() * 6.28;
-    } else if (kind < 0.78) {
-      const g = new THREE.Group();
-      const trunk = new THREE.Mesh(trunkGeo, trunkMat);
-      trunk.position.y = 0.8;
-      g.add(trunk);
-      const blobs = 2 + Math.floor(rand() * 3);
-      for (let b = 0; b < blobs; b++) {
-        const m = new THREE.Mesh(oliveGeo, oliveMat);
-        const s = 0.7 + rand() * 0.55;
-        m.scale.set(s, s * 0.78, s);
-        m.position.set((rand() - 0.5) * 1.1, 1.6 + rand() * 0.7, (rand() - 0.5) * 1.1);
-        g.add(m);
-      }
-      g.scale.setScalar(0.85 + rand() * 0.5);
-      placeOnGround(g, x, z, -0.15);
-      g.rotation.y = rand() * 6.28;
-    } else {
-      const m = new THREE.Mesh(rockGeo, rockMat);
-      const s = 0.5 + rand() * 1.1;
-      m.scale.set(s, s * (0.5 + rand() * 0.5), s);
-      m.rotation.set(rand() * 6.28, rand() * 6.28, rand() * 6.28);
-      placeOnGround(m, x, z, -s * 0.25);
+    if (y < -0.15 || y > 3.2) continue;
+    if (Math.hypot(x - SHIP.pos.x, z - SHIP.pos.z) < 8) continue;
+    pushRock(x, z, y, 0.45 + rand() * 1.15);
+  }
+  for (let i = 0; i < FLORA.rockLagoon; i++) {
+    const a = rand() * Math.PI * 2;
+    const lr = LAGOON.radius * lagoonRadiusFactor(a);
+    const r = lr + 0.35 + rand() * 1.8;
+    const x = LAGOON.center.x + Math.cos(a) * r;
+    const z = LAGOON.center.z + Math.sin(a) * r;
+    const y = heightAt(x, z);
+    if (y < LAGOON.floor + 0.05 || y > 2.4) continue;
+    pushRock(x, z, y, 0.35 + rand() * 0.7);
+  }
+  for (let i = 0; i < FLORA.rockInland; i++) {
+    const p = scatterPoint(rand, (x, z) => {
+      const y = heightAt(x, z);
+      if (y < 0.7 || y > 10) return null;
+      if (lagoonDist(x, z) < lagoonRadiusAt(x, z) + 1.2) return null;
+      if (Math.hypot(x - SHIP.pos.x, z - SHIP.pos.z) < FLORA.shipKeepout) return null;
+      return y;
+    });
+    if (!p) continue;
+    pushRock(p.x, p.z, p.y, 0.5 + rand() * 1.3);
+  }
+  if (rockPoses.length > 0) {
+    const mesh = new THREE.InstancedMesh(rockGeo, rockMat, rockPoses.length);
+    const dummy = new THREE.Object3D();
+    for (let i = 0; i < rockPoses.length; i++) {
+      const p = rockPoses[i];
+      dummy.position.set(p.x, p.y, p.z);
+      dummy.scale.set(p.sx, p.sy, p.sz);
+      dummy.rotation.set(rand() * 1.2, p.rotY, rand() * 0.8);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(i, dummy.matrix);
     }
+    mesh.instanceMatrix.needsUpdate = true;
+    mesh.castShadow = true;
+    mesh.frustumCulled = false;
+    group.add(mesh);
   }
 
+  const reeds = buildReedBeds(rand);
+  const grass = buildGrassTufts(rand);
   group.add(buildDistantHills(rand));
-  group.add(buildReedBeds(rand));
+  group.add(reeds.group);
+  group.add(grass.group);
   group.add(buildNorthSpikeRocks(rand));
 
   // Weathered columns hint at the Lotophagoi's abandoned shrine.
@@ -412,7 +633,13 @@ export function buildTerrain(): Terrain {
     }
   }
 
-  return { group };
+  return {
+    group,
+    update(t) {
+      reeds.update(t);
+      grass.update(t);
+    },
+  };
 }
 
 /**
@@ -536,64 +763,61 @@ function buildHillBackdropRing(): THREE.Mesh {
 }
 
 /**
- * Dense reed clumps along the south-west lagoon pocket (tutorial zone).
- * Each clump is a pair of crossed alpha-cutout billboards carrying the
- * generated reed tuft (ASSET-010) — replaces the old procedural
- * stem/tip cylinder+cone pairs (`docs/art/pipeline.md` §6: "sazlık billboard
- * PlaneGeometry"). All clumps are merged into one draw call.
+ * Dense reed clumps along the lagoon rim (art-bible.md §6: sazlık = border)
+ * plus a thicker pocket at the tutorial harvest zone.
  */
-function buildReedBeds(rand: () => number): THREE.Group {
+function buildReedBeds(rand: () => number): { group: THREE.Group; update: (t: number) => void } {
   const group = new THREE.Group();
 
-  const reedTex = loadAlbedoTexture(assetUrl(REED_TEX_URL));
-  const reedAspect = 624 / 862; // cropped alpha-key pixel dimensions
-  const reedMat = new THREE.MeshStandardMaterial({
-    map: reedTex,
-    transparent: true,
-    alphaTest: 0.4,
-    depthWrite: true,
-    side: THREE.DoubleSide,
-    roughness: 0.85,
-  });
+  const reedMat = alphaBillboardMat(REED_TEX_URL);
+  reedMat.roughness = 0.85;
+  const wind = attachSway(reedMat, 0.08);
 
   const clumpGeos: THREE.BufferGeometry[] = [];
-  const reedZone = LOTUS.zones[0];
-  const cx = reedZone.cx;
-  const cz = reedZone.cz;
-  for (let i = 0; i < 34; i++) {
-    const a = rand() * Math.PI * 2;
-    const r = 2.2 + rand() * 5.5;
-    const x = cx + Math.cos(a) * r;
-    const z = cz + Math.sin(a) * r;
+  const plant = (x: number, z: number) => {
     const y = heightAt(x, z);
-    if (y > LAGOON.waterY + 0.35 || y < LAGOON.floor + 0.05) continue;
-    if (lagoonDist(x, z) > lagoonRadiusAt(x, z) + 0.8) continue;
-
-    const h = 1.1 + rand() * 0.9;
-    const w = h * reedAspect;
+    if (y > LAGOON.waterY + 0.55 || y < LAGOON.floor + 0.02) return;
+    const h = 1.25 + rand() * 1.15;
+    const w = h * REED_ASPECT;
     const yaw = rand() * Math.PI;
     for (const crossOffset of [0, Math.PI / 2]) {
       const plane = new THREE.PlaneGeometry(w, h);
       plane.translate(0, h * 0.5, 0);
       plane.rotateY(yaw + crossOffset);
-      plane.translate(x, y, z);
+      plane.translate(x, y - 0.02, z);
       clumpGeos.push(plane);
     }
+  };
+
+  for (let i = 0; i < FLORA.reedRim; i++) {
+    const a = (i / FLORA.reedRim) * Math.PI * 2 + (rand() - 0.5) * 0.18;
+    const lr = LAGOON.radius * lagoonRadiusFactor(a);
+    const r = lr - 0.4 + rand() * 2.2;
+    plant(LAGOON.center.x + Math.cos(a) * r, LAGOON.center.z + Math.sin(a) * r);
+  }
+
+  const reedZone = LOTUS.zones[0];
+  for (let i = 0; i < FLORA.reedPocket; i++) {
+    const a = rand() * Math.PI * 2;
+    const r = 1.6 + rand() * reedZone.radius;
+    plant(reedZone.cx + Math.cos(a) * r, reedZone.cz + Math.sin(a) * r);
   }
 
   if (clumpGeos.length > 0) {
     const merged = mergeGeometries(clumpGeos);
-    const reeds = new THREE.Mesh(merged, reedMat);
-    reeds.castShadow = true;
-    group.add(reeds);
+    for (const g of clumpGeos) g.dispose();
+    if (merged) {
+      const reeds = new THREE.Mesh(merged, reedMat);
+      reeds.castShadow = true;
+      group.add(reeds);
+    }
   }
 
-  // North cove stepping stones — marks the distant pocket.
   const stoneTex = loadAlbedoTexture(assetUrl(ROCK_TEX_URL));
   const rockMat = new THREE.MeshStandardMaterial({
     map: stoneTex,
     color: PALETTE.rock,
-    roughness: 0.95,
+    roughness: 0.92,
     flatShading: true,
   });
   for (let i = 0; i < 7; i++) {
@@ -610,5 +834,58 @@ function buildReedBeds(rand: () => number): THREE.Group {
     group.add(stone);
   }
 
-  return group;
+  return {
+    group,
+    update(t) {
+      wind.value = t;
+    },
+  };
+}
+
+/** Sparse dry-grass tufts on open slopes (ASSET-056). */
+function buildGrassTufts(rand: () => number): { group: THREE.Group; update: (t: number) => void } {
+  const group = new THREE.Group();
+  const mat = alphaBillboardMat(GRASS_TUFT_TEX_URL);
+  const wind = attachSway(mat, 0.11);
+
+  const geos: THREE.BufferGeometry[] = [];
+  for (let i = 0; i < FLORA.grassTufts; i++) {
+    const p = scatterPoint(rand, (x, z) => {
+      const y = heightAt(x, z);
+      if (y < 0.2 || y > 11) return null;
+      if (lagoonDist(x, z) < lagoonRadiusAt(x, z) + 0.6) return null;
+      if (Math.hypot(x - SHIP.pos.x, z - SHIP.pos.z) < 10) return null;
+      if (nearLotus(x, z, 0.9)) return null;
+      if (Math.hypot(x, z) > islandRadiusAt(x, z) - 2.2) return null;
+      return y;
+    });
+    if (!p) continue;
+    const h = 0.38 + rand() * 0.55;
+    const w = h * GRASS_TUFT_ASPECT;
+    const yaw = rand() * Math.PI;
+    for (const crossOffset of [0, Math.PI / 2]) {
+      const plane = new THREE.PlaneGeometry(w, h);
+      plane.translate(0, h * 0.5, 0);
+      plane.rotateY(yaw + crossOffset);
+      plane.translate(p.x, p.y - 0.02, p.z);
+      geos.push(plane);
+    }
+  }
+
+  if (geos.length > 0) {
+    const merged = mergeGeometries(geos);
+    for (const g of geos) g.dispose();
+    if (merged) {
+      const mesh = new THREE.Mesh(merged, mat);
+      mesh.castShadow = true;
+      group.add(mesh);
+    }
+  }
+
+  return {
+    group,
+    update(t) {
+      wind.value = t;
+    },
+  };
 }

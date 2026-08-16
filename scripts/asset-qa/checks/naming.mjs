@@ -21,7 +21,7 @@ const CATEGORIES = new Set([
   "lotus", "flora", "water", "sand", "rock", "ship", "hill", "sky", "ui", "char", "fx",
 ]);
 const CHANNELS = new Set([
-  "albedo", "normal", "rough", "emissive", "alpha", "caustic", "sheet", "ref",
+  "albedo", "normal", "rough", "emissive", "alpha", "caustic", "sheet", "ref", "mesh",
 ]);
 const LADDER = new Set([256, 512, 1024, 2048]);
 
@@ -79,7 +79,7 @@ export async function run(ctx) {
     if (!/^\d{2}$/.test(p.variant)) {
       findings.push(finding("warn", `naming/variant/${file}`, `'${file}': variant '${p.variant}' is not two digits`));
     }
-    if (!LADDER.has(p.resolution)) {
+    if (!LADDER.has(p.resolution) && p.channel !== "mesh") {
       findings.push(
         finding(
           "warn",
@@ -100,6 +100,10 @@ export async function run(ctx) {
     // their token is the frame height, not the sheet width (see sheetNote).
     if (p.channel === "sheet") {
       sheetCount++;
+      continue;
+    }
+    if (p.channel === "mesh" || file.endsWith(".glb")) {
+      notes.push(`${file}: mesh channel — resolution token is target_polycount, not pixels (pipeline.md §5.1)`);
       continue;
     }
     const size = imageSize(ctx.abs(file));

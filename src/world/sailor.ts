@@ -2,6 +2,15 @@ import * as THREE from "three";
 import { LOTUS, PALETTE, SAILOR } from "../constants";
 import { assetUrl } from "../assets/paths";
 import { glowSprite, loadAlbedoTexture } from "./sprite";
+import {
+  cloneGltfBundle,
+  fitGltfHeight,
+  lightGltf,
+  loadGltf,
+  loadGltfBundle,
+  pinClipBonePositions,
+  restBonePositions,
+} from "./gltf";
 
 export interface Sailor {
   root: THREE.Group;
@@ -241,6 +250,82 @@ export function buildSailor(): Sailor {
   root.add(body);
   body.add(hips);
   hips.add(card);
+  if (SAILOR.meshEnabled) {
+    console.info("[sailor] playable body is the rigged GLB");
+  }
+
+  const hipY = SAILOR.height * SAILOR.harvestHip;
+  const meshHold = new THREE.Group();
+  meshHold.visible = false;
+  body.add(meshHold);
+  let meshLive = false;
+  let mixer: THREE.AnimationMixer | null = null;
+  let clipName: "idle" | "walk" | "run" = "idle";
+  const acts: Partial<Record<"idle" | "walk" | "run", THREE.AnimationAction>> = {};
+
+  const pickClip = (clips: THREE.AnimationClip[], keys: string[]) => {
+    for (const key of keys) {
+      const hit = clips.find((c) => c.name.toLowerCase().includes(key));
+      if (hit) return hit;
+    }
+    return undefined;
+  };
+
+  const mountMesh = (scene: THREE.Group, clips: THREE.AnimationClip[]) => {
+    lightGltf(scene);
+    scene.traverse((obj) => {
+      const skinned = obj as THREE.SkinnedMesh;
+      if (skinned.isSkinnedMesh) skinned.frustumCulled = false;
+    });
+    const rest = restBonePositions(scene);
+    scene.rotation.set(0, 0, 0);
+    fitGltfHeight(scene, SAILOR.height);
+    while (meshHold.children.length > 0) meshHold.remove(meshHold.children[0]);
+    meshHold.position.set(0, SAILOR.meshYLift, 0);
+    meshHold.rotation.set(0, SAILOR.meshYaw, 0);
+    meshHold.add(scene);
+    meshHold.visible = true;
+    meshLive = true;
+    card.visible = false;
+    mixer = null;
+    acts.idle = acts.walk = acts.run = undefined;
+    if (clips.length > 0) {
+      mixer = new THREE.AnimationMixer(scene);
+      const idleSrc = pickClip(clips, ["idle", "wait", "stand"]) ?? clips[0];
+      const walkSrc = pickClip(clips, ["walk"]) ?? clips[Math.min(1, clips.length - 1)];
+      const runSrc = pickClip(clips, ["run", "sprint"]) ?? walkSrc;
+      const idleClip = idleSrc ? pinClipBonePositions(idleSrc, rest) : undefined;
+      const walkClip = walkSrc ? pinClipBonePositions(walkSrc, rest) : undefined;
+      const runClip = runSrc ? pinClipBonePositions(runSrc, rest) : undefined;
+      if (idleClip) acts.idle = mixer.clipAction(idleClip);
+      if (walkClip) acts.walk = mixer.clipAction(walkClip);
+      if (runClip) acts.run = mixer.clipAction(runClip);
+      for (const action of Object.values(acts)) {
+        if (!action) continue;
+        action.setLoop(THREE.LoopRepeat, Infinity);
+        action.clampWhenFinished = false;
+      }
+      acts.idle?.play();
+      mixer.update(0);
+      clipName = "idle";
+    }
+  };
+
+  if (SAILOR.meshEnabled) {
+    loadGltfBundle(SAILOR.meshRig)
+      .then((bundle) => {
+        if (bundle.animations.length === 0) throw new Error("rig GLB has no clips");
+        mountMesh(cloneGltfBundle(bundle), bundle.animations);
+      })
+      .catch(() =>
+        loadGltf(SAILOR.mesh).then((scene) => {
+          mountMesh(scene, []);
+        }),
+      )
+      .catch(() => {
+        /* Billboard remains the playable body. */
+      });
+  }
 
   const maps = {} as Record<Cardinal, THREE.Texture>;
   for (const v of IDLE_VIEWS) {
@@ -293,7 +378,6 @@ export function buildSailor(): Sailor {
   matB.depthWrite = false;
   matB.alphaTest = 0.08;
 
-  const hipY = SAILOR.height * SAILOR.harvestHip;
   const meshA = new THREE.Mesh(geo, matA);
   const meshB = new THREE.Mesh(geo, matB);
   meshA.position.set(0, -hipY, 0);
@@ -502,17 +586,36 @@ export function buildSailor(): Sailor {
       landSquash = Math.max(landSquash, strength);
     },
     faceCamera(camera, dt) {
+      if (meshLive) return;
       const yaw = Math.atan2(
         camera.position.x - root.position.x,
         camera.position.z - root.position.z,
       );
-      orientCard(Number.isFinite(yaw) ? yaw : 0);
-      applyView(Number.isFinite(yaw) ? yaw : 0, Number.isFinite(dt) ? dt : 0);
+      const camYaw = Number.isFinite(yaw) ? yaw : 0;
+      orientCard(camYaw);
+      applyView(camYaw, Number.isFinite(dt) ? dt : 0);
     },
     update(t, dt, moving, _velX = 0, _velZ = 0, _camYaw = 0, harvest = 0, running = false) {
       lastMoving = moving;
       lastHarvest = harvest;
       lastRunning = running;
+
+      if (mixer) {
+        mixer.update(Number.isFinite(dt) ? dt : 0);
+        const next: "idle" | "walk" | "run" =
+          harvest > 0.08 ? "idle" : moving > SAILOR.gaitMin ? (running ? "run" : "walk") : "idle";
+        if (next !== clipName && acts[next]) {
+          acts[clipName]?.fadeOut(0.16);
+          acts[next]?.reset().fadeIn(0.16).play();
+          clipName = next;
+        }
+        if (clipName === "walk" && acts.walk) {
+          acts.walk.timeScale = 0.85 + Math.min(1, moving) * 0.45;
+        }
+        if (clipName === "run" && acts.run) {
+          acts.run.timeScale = 0.95 + Math.min(1, moving) * 0.25;
+        }
+      }
 
       const liveGait = moving > SAILOR.gaitMin && harvest < 0.08;
       const cycle = running ? SAILOR.runCycle : SAILOR.walkCycle;
@@ -526,7 +629,8 @@ export function buildSailor(): Sailor {
       stretch *= Math.exp(-8 * dt);
       landSquash *= Math.exp(-12 * dt);
 
-      const sheetOn = liveGait && (texReady(walkMaps.back) || texReady(runMaps.back));
+      const sheetOn =
+        !meshLive && liveGait && (texReady(walkMaps.back) || texReady(runMaps.back));
       const gait = sheetOn ? lastGaitPhase * Math.PI * 2 : phase;
       const stride = Math.sin(gait);
       const plant = 1 - Math.abs(stride);
@@ -560,17 +664,27 @@ export function buildSailor(): Sailor {
 
       hips.position.x = 0;
       hips.rotation.z = 0;
-      hips.rotation.x = -lean;
-      body.position.y =
-        -SAILOR.height * SAILOR.feetPad -
-        squash * 0.03 * juice -
-        landSquash * 0.06 * juice -
-        hipY * (1 - Math.cos(lean));
-      body.position.z = hinge * SAILOR.harvestReach - hipY * Math.sin(lean);
-
-      const h = SAILOR.height;
-      meshA.scale.set(h * sx, h * sy, 1);
-      meshB.scale.set(h * sx, h * sy, 1);
+      if (meshLive) {
+        hips.rotation.x = 0;
+        body.position.y = 0;
+        body.position.z = 0;
+        meshHold.scale.set(1, 1, 1);
+        meshHold.position.set(0, SAILOR.meshYLift, 0);
+        // meshYaw lives in SAILOR so a constants HMR still turns the body.
+        meshHold.rotation.set(0, SAILOR.meshYaw, 0);
+        for (const child of meshHold.children) child.rotation.y = 0;
+      } else {
+        hips.rotation.x = -lean;
+        body.position.y =
+          -SAILOR.height * SAILOR.feetPad -
+          squash * 0.03 * juice -
+          landSquash * 0.06 * juice -
+          hipY * (1 - Math.cos(lean));
+        body.position.z = hinge * SAILOR.harvestReach - hipY * Math.sin(lean);
+        const h = SAILOR.height;
+        meshA.scale.set(h * sx, h * sy, 1);
+        meshB.scale.set(h * sx, h * sy, 1);
+      }
       shadow.scale.setScalar(0.95 + bend * 0.12);
       (shadow.material as THREE.MeshBasicMaterial).opacity = 0.24 + moving * 0.06;
       bloomMat.opacity = 0.75 + Math.sin(t * 2.4) * 0.15 + squash * 0.25;

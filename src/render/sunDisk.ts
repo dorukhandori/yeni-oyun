@@ -1,76 +1,116 @@
 import * as THREE from "three";
 import { SUN_DISK } from "../constants";
 
-function radialGlow(inner: string, mid: string, size: number): THREE.CanvasTexture {
+function discTexture(size: number): THREE.CanvasTexture {
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = size;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("sunDisk: 2d context unavailable");
-  const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-  g.addColorStop(0, inner);
-  g.addColorStop(0.28, mid);
+  const cx = size / 2;
+  const g = ctx.createRadialGradient(cx, cx, 0, cx, cx, cx);
+  // Hot core + darker rim so the circle reads against a peach sky after ACES/bloom.
+  g.addColorStop(0, "rgba(255,255,245,1)");
+  g.addColorStop(0.18, "rgba(255,240,190,1)");
+  g.addColorStop(0.48, "rgba(255,198,90,1)");
+  g.addColorStop(0.7, "rgba(210,110,28,1)");
+  g.addColorStop(0.86, "rgba(90,32,8,1)");
+  g.addColorStop(0.94, "rgba(40,12,4,0.85)");
+  g.addColorStop(1, "rgba(20,6,2,0)");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, size, size);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.needsUpdate = true;
+  return tex;
+}
+
+function haloTexture(size: number): THREE.CanvasTexture {
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("sunDisk: 2d context unavailable");
+  const cx = size / 2;
+  const g = ctx.createRadialGradient(cx, cx, 0, cx, cx, cx);
+  g.addColorStop(0, "rgba(255,210,120,0.0)");
+  g.addColorStop(0.42, "rgba(255,170,70,0.28)");
+  g.addColorStop(0.75, "rgba(255,140,50,0.12)");
   g.addColorStop(1, "rgba(0,0,0,0)");
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, size, size);
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
+  tex.needsUpdate = true;
   return tex;
-}
-
-function glowSprite(map: THREE.Texture, scale: number, color: number, opacity: number): THREE.Sprite {
-  const mat = new THREE.SpriteMaterial({
-    map,
-    color,
-    opacity,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
-    fog: false,
-    transparent: true,
-    toneMapped: false,
-  });
-  const sprite = new THREE.Sprite(mat);
-  sprite.scale.setScalar(scale);
-  sprite.renderOrder = 1;
-  sprite.frustumCulled = false;
-  return sprite;
 }
 
 export interface SunDisk {
   group: THREE.Group;
-  /** Place the disc on the same ray as the directional light. */
-  setFromLight(lightPos: THREE.Vector3, duskT: number): void;
+  setDusk(duskT: number): void;
+  faceCamera(camera: THREE.Camera): void;
 }
 
 /**
- * Compact bloom source that sits on the sky. The wide halo and the readable
- * disc live in the sky shader; these sprites only give UnrealBloomPass a
- * hot spot to bloom (art-bible.md §2).
+ * Textured disc (white core, amber rim) + additive hale. The rim is what
+ * makes the circle survive ACES + bloom against the peach horizon.
  */
 export function createSunDisk(): SunDisk {
   const group = new THREE.Group();
   group.name = "sunDisk";
+  group.frustumCulled = false;
+  group.renderOrder = 4;
 
-  const coreMap = radialGlow("rgba(255,255,255,1)", "rgba(255,236,180,0.85)", 128);
-  const haloMap = radialGlow("rgba(255,207,128,0.95)", "rgba(255,180,80,0.35)", 256);
+  const haloMat = new THREE.MeshBasicMaterial({
+    map: haloTexture(256),
+    color: 0xffffff,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    depthTest: false,
+    fog: false,
+    transparent: true,
+    toneMapped: false,
+    side: THREE.DoubleSide,
+  });
+  const halo = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), haloMat);
+  halo.scale.setScalar(SUN_DISK.haloScale);
+  halo.renderOrder = 4;
+  halo.frustumCulled = false;
 
-  const core = glowSprite(coreMap, SUN_DISK.coreScale, SUN_DISK.coreColor, 0.9);
-  const halo = glowSprite(haloMap, SUN_DISK.haloScale, SUN_DISK.haloColor, 0.55);
+  const coreMat = new THREE.MeshBasicMaterial({
+    map: discTexture(256),
+    color: 0xffffff,
+    transparent: true,
+    depthWrite: false,
+    depthTest: false,
+    fog: false,
+    toneMapped: false,
+    side: THREE.DoubleSide,
+  });
+  const core = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), coreMat);
+  core.scale.setScalar(SUN_DISK.coreScale);
+  core.renderOrder = 5;
+  core.frustumCulled = false;
+
   group.add(halo);
   group.add(core);
 
-  const duskHalo = new THREE.Color(0xff8a6a);
-  const dayHalo = new THREE.Color(SUN_DISK.haloColor);
+  const duskHalo = new THREE.Color(1.2, 0.5, 0.22);
+  const dayHalo = new THREE.Color(1, 0.82, 0.45);
+  const duskCore = new THREE.Color(1.15, 0.62, 0.35);
+  const dayCore = new THREE.Color(1, 1, 1);
   const tmp = new THREE.Color();
-  const pos = new THREE.Vector3();
+  haloMat.color.copy(dayHalo);
 
   return {
     group,
-    setFromLight(lightPos, duskT) {
+    setDusk(duskT) {
       const t = Math.min(1, Math.max(0, duskT));
-      pos.copy(lightPos).normalize().multiplyScalar(SUN_DISK.distance);
-      group.position.copy(pos);
       tmp.copy(dayHalo).lerp(duskHalo, t);
-      (halo.material as THREE.SpriteMaterial).color.copy(tmp);
+      haloMat.color.copy(tmp);
+      tmp.copy(dayCore).lerp(duskCore, t);
+      coreMat.color.copy(tmp);
+    },
+    faceCamera(camera) {
+      group.lookAt(camera.position);
     },
   };
 }

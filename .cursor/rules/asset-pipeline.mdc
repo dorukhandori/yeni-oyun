@@ -28,7 +28,7 @@ Kaynak sistem: *"How to Run a Game Studio Solo with Claude Code + Higgsfield MCP
 
 ## Bağlayıcı maddeler
 
-- **[K] Higgsfield medya motorudur** — trailer, gameplay-tarzı görüntü, key art, karakter turnaround, sinematik beat, sosyal cutdown. **3D mesh üretmez.** Çıktı ancak texture / billboard / skybox / UI sprite / trailer / stil referansı olur.
+- **[K] Higgsfield medya motorudur** — trailer, gameplay-tarzı görüntü, key art, karakter turnaround, sinematik beat, sosyal cutdown. **3D mesh üretmez.** Mesh ayrı hat: Meshy image-to-3D (`pipeline.md` §5.1), `scripts/gen-mesh.mjs`. Ajan sahip G1 demeden `gen:mesh` çalıştırmaz.
 - **[K] Hattın sınırı:** bu hat AAA çıkarmaz, **"concept-to-trailer-to-prototype"** çıkarır. Kapsam bunun üstüne büyütülmez.
 - **[K] Oyun içi görsel koddan çıkar** — *"without a single hand-modeled asset"*. Still'i `public/assets/` altına texture olarak sokmak **[P]** uzantıdır ve **[?]** sahip onayı olmadan yapılmaz; onay yoksa çıktı `art-source/ref/` altında stil referansı kalır.
 - **[K] Model adı sabitlenmez** — prompt `Pick the best model for …` der; seçim ajana bırakılır. Tek connector URL `https://mcp.higgsfield.ai/mcp`, OAuth, API key yok; 30+ model (Sora 2, Veo 3.1, Kling 3.0 …).
@@ -50,7 +50,7 @@ Kaynak sistem: *"How to Run a Game Studio Solo with Claude Code + Higgsfield MCP
 ## Yasak
 
 - Kaynakta olmayan bir kuralı **[P] etiketi olmadan** dokümana yazmak.
-- Higgsfield'dan mesh/glTF beklemek.
+- Higgsfield'dan mesh/glTF beklemek. Mesh = Meshy §5.1, G1 kapısı.
 - Registry, art bible veya `assets.csv` atlayıp `public/assets/` altına dosya koymak.
 - Karanlık mağara / fener / mor kristal paletine dönmek — iptal edildi.
 - Tehdidi karanlıkla anlatmak; bu oyunda tehdit ışıktır.

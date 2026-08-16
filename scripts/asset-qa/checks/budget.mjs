@@ -23,6 +23,7 @@ const CAPS = {
   sprites: 300 * KB,
   spritesheets: 500 * KB,
   skybox: 600 * KB,
+  models: 400 * KB,
   ui: 300 * KB, // UI *icons* are 30 KB; panels/backdrops are not icons — see UI_ICON_HINT
   ref: Infinity,
 };
