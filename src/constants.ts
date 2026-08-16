@@ -330,24 +330,47 @@ export const FEEL = {
 export const SAILOR = {
   /** World height of the 512² canvas (feet on the bottom pad). */
   height: 1.82,
-  /** ASSET-058 Tripo P1 mesh. Missing file → billboard fallback. */
-  mesh: "assets/models/char_doryseus_01_mesh_8000.glb",
-  /** Rigged + idle/walk/run. Preferred over `mesh` when present. */
-  meshRig: "assets/models/char_doryseus_01_rig_8000.glb",
   /**
-   * Playable body is the rigged Tripo GLB. Facing offset is `meshFacing`.
-   * Meshy retexture (4-view) needs `MESHY_API_KEY` — until then Tripo albedo.
+   * ASSET-058 v2 — Tripo `multiview-to-model` (geometry) + Tripo's own
+   * `texture_model` retexture (`POST /v3/models/texture`, not Meshy —
+   * sahip 2026-08-16: "meshy değil, tripo kullanıyoruz"), same locked
+   * ASSET-041..044 stills as texture direction. Verified per-angle (frozen
+   * test-hook rotation, LOT-27 QA 2026-08-16): 0°/180° are correct mirrored
+   * side profiles, 90° is a real back (short hair, no face), 270° is a real
+   * front. No projection hack needed — `cardinalViews.ts` (the runtime
+   * sprite-projection workaround) is retired and deleted. Untextured/unrigged
+   * fallback only reached if `meshRig` below fails to load.
    */
+  mesh: "assets/models/char_doryseus_02_textured_8000.glb",
+  /**
+   * Same textured mesh, rigged + retargeted by Tripo (`rig-check` →`rig`→
+   * `retarget`, `scripts/gen-mesh.mjs --animate --glb`) onto the exact GLB
+   * above — texture/material carried through (`export_with_geometry`), not
+   * re-baked. Clips: `preset:idle`/`preset:walk`/`preset:run`, 2026-08-17.
+   */
+  meshRig: "assets/models/char_doryseus_02_rig_8000.glb",
   meshEnabled: true,
   /**
-   * Added to `root.rotation.y`. Playtest while holding W: face and toes
-   * pointed at the camera — π turns the nape into the walk direction.
+   * Added to `root.rotation.y`. char_doryseus_02's own local "front" axis
+   * sits 90° off the `facing` convention (confirmed via frozen rotation
+   * sweep, LOT-27 QA 2026-08-17: at `facing=0` the mesh shows a side
+   * profile, not front/back). -π/2 makes the mesh's real face point the
+   * same way `facing` does, so W (away from camera) shows the real back
+   * and S (toward camera) shows the real face — verified both ways with
+   * `__LOTOPHAGOI_TEST_HOOKS__.freeze()` + a forced `facing` value, not
+   * just derived on paper (this exact constant has flipped wrong before).
    */
-  meshFacing: Math.PI,
-  /** Extra yaw on the GLB inside the sailor root. 0 while meshFacing holds π. */
+  meshFacing: -Math.PI / 2,
+  /** Extra yaw on the GLB inside the sailor root. 0 while meshFacing holds the value above. */
   meshYaw: 0,
-  /** Extra metres under the 3D soles — low-poly peaks clip a planted AABB. */
-  meshYLift: 0.08,
+  /**
+   * Extra metres under the 3D soles. Was 0.08 for the old low-poly mesh's
+   * jagged peaks; measured against char_doryseus_02 (LOT-27 QA 2026-08-17,
+   * `fitGltfHeight` + terrain raycast both checked directly) the real
+   * planted gap is ~0 — sahip saw "havada uçuyor" with the old value. Small
+   * safety margin only, not a deliberate lift.
+   */
+  meshYLift: 0.01,
   /** Empty rows under the soles in the 512 canvas (measured 10px). */
   feetPad: 10 / 512,
   /** Fallback squash if no walk sheet is loaded. Sheet playback must not add this. */

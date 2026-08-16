@@ -15,6 +15,8 @@ Lotus Yiyenler Adası artık tek başına bir oyun değil — 3 duraklı bir Ody
 
 Stack: **Vite + TypeScript + Three.js (r185)** (Phaser yok, Unity yok). Render `EffectComposer` + `UnrealBloomPass`; sabit 60 Hz timestep (`STEP = 1000/60`). HUD DOM overlay. Juice (camera shake, squash-stretch, spark burst, dust).
 
+**Karakter render — bağlayıcı karar (16 Ağu 2026):** oynanabilir karakterler gerçek dokulu 3D mesh, 2D billboard veya runtime projeksiyon hilesi değil. Satıcı **Tripo, Meshy değil** (sahip: "meshy değil, tripo kullanıyoruz"). Gönderildi ve doğrulandı: `scripts/gen-tripo-retexture.mjs` — Tripo `multiview-to-model` (geometri) + Tripo'nun kendi `texture_model` retexture task'ı (`POST /v3/models/texture`). GLB: `public/assets/models/char_doryseus_02_textured_8000.glb`. Dondurulmuş test-hook rotasyonuyla açı açı doğrulandı: 90°=gerçek ense (yüz yok), 270°=gerçek yüz, 0°/180°=doğru ayna profil. `src/world/cardinalViews.ts` (projeksiyon hilesi) silindi — gerçek dokulu mesh'e gerek yok. Eksik: rig/animasyon yok (statik bind pose), takip işi. Detay: `docs/production/ACTIVE_WORK.md`, Paca LOT-27.
+
 Görsel referans: Ege altın saat paleti — altın kum, turkuaz sığ su / lacivert derin su, sisli uzak tepeler, olgunlaştıkça açık pembeye dönen lotus çiçekleri. Unutuş arttıkça doygunluk düşer, süt beyazı vinyet ve sis mesafesi kısalır — ekran **karartılmaz**, bilgi azalır. Detay: `docs/art/art-bible.md`.
 
 Tasarım otoritesi: Lotus `real` için **`gdd-lotus-island-run.md` kazanır.** Anlatı `scenario.md`. Eski 12/gün-kaybı/K27-Lotus cümleleri `real`’de geçersiz. `docs/art/` yalnızca görsel dil. `docs/production/roadmap.md` durum gösterir, karar vermez.

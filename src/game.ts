@@ -664,6 +664,43 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
 
     let nx = pos.x + vel.x * dt;
     let nz = pos.z + vel.z * dt;
+
+    // Obstacle collision — rocks, tree trunks, shrine columns
+    // (`terrain.colliders`) read as solid but nothing ever blocked walking
+    // through them. Position correction (push out to the collider's edge)
+    // plus velocity projection (drop the inward component only) so the
+    // player doesn't jitter against the surface every frame and can still
+    // slide along it. Two passes resolve the rare double-overlap where two
+    // colliders sit close together; brute-force over ~150-250 colliders is
+    // trivial at 60 Hz, no spatial index needed at this island's scale.
+    for (let pass = 0; pass < 2; pass++) {
+      for (const c of terrain.colliders) {
+        const dx = nx - c.x;
+        const dz = nz - c.z;
+        const minDist = PLAYER.radius + c.radius;
+        const distSq = dx * dx + dz * dz;
+        if (distSq >= minDist * minDist) continue;
+        const dist = Math.sqrt(distSq);
+        let nnx: number;
+        let nnz: number;
+        if (dist > 1e-6) {
+          nnx = dx / dist;
+          nnz = dz / dist;
+        } else {
+          // Degenerate — standing exactly on the collider centre. Push along facing.
+          nnx = Math.sin(facing);
+          nnz = Math.cos(facing);
+        }
+        nx = c.x + nnx * minDist;
+        nz = c.z + nnz * minDist;
+        const into = vel.x * nnx + vel.z * nnz;
+        if (into < 0) {
+          vel.x -= nnx * into;
+          vel.z -= nnz * into;
+        }
+      }
+    }
+
     let nr = Math.hypot(nx, nz);
     const limit = wadeLimitAt(nx, nz);
     const softStart = limit - PLAYER.boundarySoftZone;

@@ -156,8 +156,17 @@ export function wadeLimitAt(x: number, z: number): number {
   return islandRadiusAt(x, z) + PLAYER.shoreLimit;
 }
 
+/** A static solid the player can bump into — world XZ + a push-out radius. */
+export interface Collider {
+  x: number;
+  z: number;
+  radius: number;
+}
+
 export interface Terrain {
   group: THREE.Group;
+  /** Rocks, tree trunks, shrine columns — static circle colliders for `game.ts`'s movement step. */
+  colliders: Collider[];
   update(t: number): void;
 }
 
@@ -484,6 +493,18 @@ export function buildTerrain(): Terrain {
     metalness: 0,
   });
 
+  // Static push-out circles for game.ts's movement step — rocks and tree
+  // trunks read as solid but nothing ever blocked walking through them.
+  const colliders: Collider[] = [];
+  /** Cypress trunk base radius ~0.18 local units (`makeCypressGeo`). */
+  const CYPRESS_TRUNK_R = 0.18;
+  /** Olive trunk base radius ~0.22 local units (`makeOliveGeo`). */
+  const OLIVE_TRUNK_R = 0.22;
+  /** Icosahedron rock radius 1 local unit; 0.55 keeps the collider inside the displaced silhouette. */
+  const ROCK_COLLIDE_FACTOR = 0.55;
+  /** Shrine column radius (`columnGeo` = CylinderGeometry(0.42, 0.5, ...)). */
+  const COLUMN_R = 0.46;
+
   const cypressPoses: Pose[] = [];
   for (let g = 0; g < FLORA.cypressGroves; g++) {
     const center = scatterPoint(rand, onTreeLand);
@@ -497,15 +518,10 @@ export function buildTerrain(): Terrain {
       const y = onTreeLand(x, z);
       if (y === null) continue;
       const s = 0.88 + rand() * 0.5;
-      cypressPoses.push({
-        x,
-        z,
-        y: y - 0.06,
-        sx: s * (0.86 + rand() * 0.18),
-        sy: s,
-        sz: s * (0.86 + rand() * 0.18),
-        rotY: rand() * 6.28,
-      });
+      const sx = s * (0.86 + rand() * 0.18);
+      const sz = s * (0.86 + rand() * 0.18);
+      cypressPoses.push({ x, z, y: y - 0.06, sx, sy: s, sz, rotY: rand() * 6.28 });
+      colliders.push({ x, z, radius: CYPRESS_TRUNK_R * ((sx + sz) / 2) });
     }
   }
   if (cypressPoses.length > 0) {
@@ -537,6 +553,7 @@ export function buildTerrain(): Terrain {
         sz: s,
         rotY: rand() * 6.28,
       });
+      colliders.push({ x, z, radius: OLIVE_TRUNK_R * s });
     }
   }
   if (olivePoses.length > 0) {
@@ -548,16 +565,12 @@ export function buildTerrain(): Terrain {
 
   const rockGeo = displace(new THREE.IcosahedronGeometry(1, 0), 0.35, rand);
   const rockPoses: Pose[] = [];
-  const pushRock = (x: number, z: number, y: number, s: number) => {
-    rockPoses.push({
-      x,
-      z,
-      y: y - s * 0.22,
-      sx: s * (0.85 + rand() * 0.4),
-      sy: s * (0.45 + rand() * 0.4),
-      sz: s * (0.85 + rand() * 0.4),
-      rotY: rand() * 6.28,
-    });
+  /** `solid` false for lagoon-edge pebbles — shore/inland boulders block, wading debris doesn't. */
+  const pushRock = (x: number, z: number, y: number, s: number, solid = true) => {
+    const sx = s * (0.85 + rand() * 0.4);
+    const sz = s * (0.85 + rand() * 0.4);
+    rockPoses.push({ x, z, y: y - s * 0.22, sx, sy: s * (0.45 + rand() * 0.4), sz, rotY: rand() * 6.28 });
+    if (solid) colliders.push({ x, z, radius: ROCK_COLLIDE_FACTOR * ((sx + sz) / 2) });
   };
   for (let i = 0; i < FLORA.rockShore; i++) {
     const a = rand() * Math.PI * 2;
@@ -578,7 +591,7 @@ export function buildTerrain(): Terrain {
     const z = LAGOON.center.z + Math.sin(a) * r;
     const y = heightAt(x, z);
     if (y < LAGOON.floor + 0.05 || y > 2.4) continue;
-    pushRock(x, z, y, 0.35 + rand() * 0.7);
+    pushRock(x, z, y, 0.35 + rand() * 0.7, false);
   }
   for (let i = 0; i < FLORA.rockInland; i++) {
     const p = scatterPoint(rand, (x, z) => {
@@ -627,6 +640,7 @@ export function buildTerrain(): Terrain {
     col.scale.y = hCol / 4.4;
     placeOnGround(col, x, z, hCol / 2 - 0.2);
     col.rotation.y = rand() * 0.4;
+    colliders.push({ x, z, radius: COLUMN_R });
     if (!broken) {
       const cap = new THREE.Mesh(capGeo, marbleMat);
       placeOnGround(cap, x, z, hCol + 0.05);
@@ -635,6 +649,7 @@ export function buildTerrain(): Terrain {
 
   return {
     group,
+    colliders,
     update(t) {
       reeds.update(t);
       grass.update(t);
