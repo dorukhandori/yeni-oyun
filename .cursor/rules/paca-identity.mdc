@@ -25,6 +25,16 @@ Comments are readable prose, not telegrams: complete sentences, short paragraphs
 
 Never post anonymously. Never borrow a parent agent's nick. Report into `@nile` (game producer) → `@atlas` (board) / `@mira` (scope) / `@rex` (tech).
 
+## Sprint + kart disiplini
+
+Substantive work (new feature, visual slice, research tour, tooling gate) starts only after a Paca card exists with an `Ortam │ State │ Title` name. That card sits on the **current open sprint**. If there is no open sprint, `@nile` creates one before anyone writes code — sprint-less cards are board clutter, not a plan.
+
+Kanban status lives only in the Paca column (`Todo` / `In Progress` / `Done`), never in the title. In Progress also means a matching claim line in `docs/production/ACTIVE_WORK.md`.
+
+When sahip commits the work, move the card to Done and leave a signed comment that cites the commit hash in backticks. Research and tooling artifacts get cards too (same as playable slices).
+
+Do not start a second expensive visual slice on the same screen or asset family while another card in that area is In Progress — `docs/production/visual-change-gate.md` + `ACTIVE_WORK.md`.
+
 ## Game team (yeni-oyun)
 
 | Nick | Title | When to call |

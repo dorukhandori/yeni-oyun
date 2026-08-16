@@ -3,8 +3,9 @@ import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
-import { CAMERA, ISLAND, RENDER, SKY_TEX } from "../constants";
+import { CAMERA, DAY, ISLAND, PALETTE, RENDER, SKY_TEX, SUN_DISK } from "../constants";
 import { HazePass } from "./hazePass";
+import { createSunDisk } from "./sunDisk";
 import { assetUrl } from "../assets/paths";
 import { loadAlbedoTexture } from "../world/sprite";
 
@@ -57,21 +58,41 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
     uniforms: {
       top: { value: skyTop.clone() },
       horizon: { value: skyHorizon.clone() },
+      sunPos: { value: new THREE.Vector3(-34, 40, 30).normalize().multiplyScalar(SUN_DISK.distance) },
+      haloColor: { value: new THREE.Color(SUN_DISK.haloColor) },
+      corePower: { value: SUN_DISK.skyCorePower },
+      haloPower: { value: SUN_DISK.skyHaloPower },
+      coreGain: { value: SUN_DISK.skyCoreGain },
+      haloGain: { value: SUN_DISK.skyHaloGain },
     },
     vertexShader: /* glsl */ `
       varying vec3 vPos;
+      varying vec3 vWorldPos;
       void main() {
         vPos = position;
+        vWorldPos = (modelMatrix * vec4(position, 1.0)).xyz;
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
       }
     `,
     fragmentShader: /* glsl */ `
       uniform vec3 top;
       uniform vec3 horizon;
+      uniform vec3 sunPos;
+      uniform vec3 haloColor;
+      uniform float corePower;
+      uniform float haloPower;
+      uniform float coreGain;
+      uniform float haloGain;
       varying vec3 vPos;
+      varying vec3 vWorldPos;
       void main() {
         float h = clamp(normalize(vPos).y * 1.6 + 0.12, 0.0, 1.0);
         vec3 c = mix(horizon, top, pow(h, 0.7));
+        vec3 viewDir = normalize(vWorldPos - cameraPosition);
+        vec3 toSun = normalize(sunPos - cameraPosition);
+        float sunDot = max(dot(viewDir, toSun), 0.0);
+        c += haloColor * pow(sunDot, haloPower) * haloGain;
+        c += haloColor * pow(sunDot, corePower) * coreGain;
         gl_FragColor = vec4(c, 1.0);
       }
     `,
@@ -125,6 +146,15 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
   sun.shadow.normalBias = 0.03;
   scene.add(sun);
 
+  // Art-bible.md §3: turquoise fill from the water, third light of the set.
+  const waterFill = new THREE.HemisphereLight(0x000000, PALETTE.seaShallow, RENDER.waterBounceIntensity);
+  scene.add(waterFill);
+
+  const sunDisk = createSunDisk();
+  scene.add(sunDisk.group);
+  sunDisk.setFromLight(sun.position, 0);
+  (skyMat.uniforms.sunPos.value as THREE.Vector3).copy(sunDisk.group.position);
+
   const sunColorDay = new THREE.Color(RENDER.sunColor);
   const sunColorDusk = new THREE.Color(0xff8a6a);
   const fogDay = new THREE.Color(RENDER.fogColor);
@@ -169,8 +199,9 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
     bloomBoost: 0,
     setDayProgress(p: number) {
       const t = Math.min(1, Math.max(0, p));
-      // Elevation: afternoon → near horizon (radians-ish via unit circle).
-      const elev = THREE.MathUtils.lerp(0.95, 0.06, t);
+      const elev = THREE.MathUtils.degToRad(
+        THREE.MathUtils.lerp(DAY.sunStartDeg, DAY.sunEndDeg, t),
+      );
       const az = THREE.MathUtils.lerp(-0.7, -1.35, t);
       const dist = 55;
       sun.position.set(
@@ -178,6 +209,8 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
         Math.sin(elev) * dist,
         Math.sin(az) * Math.cos(elev) * dist,
       );
+      sunDisk.setFromLight(sun.position, t);
+      (skyMat.uniforms.sunPos.value as THREE.Vector3).copy(sunDisk.group.position);
 
       const warn = Math.max(0, (t - 0.78) / 0.22);
       tmpA.copy(skyTop).lerp(duskTop, t * 0.85);
@@ -191,6 +224,8 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
       sun.intensity = THREE.MathUtils.lerp(RENDER.sunIntensity, 1.35, t);
       ambient.intensity = THREE.MathUtils.lerp(RENDER.ambientIntensity, 0.22, t);
       hemi.intensity = THREE.MathUtils.lerp(RENDER.bounceIntensity, 0.18, t);
+      waterFill.intensity = THREE.MathUtils.lerp(RENDER.waterBounceIntensity, 0.12, t);
+      (skyMat.uniforms.haloColor.value as THREE.Color).copy(sunColorDay).lerp(sunColorDusk, t);
 
       if (scene.fog instanceof THREE.FogExp2) {
         scene.fog.color.copy(fogDay).lerp(fogDusk, t);

@@ -61,7 +61,7 @@ This repo also carries a large Cursor-native "CCGS" kit (`.cursor/agents/`, `.cu
 
 ## Claude Code agents for this project
 
-`.claude/agents/` holds a curated roster (mirrors the roles `AGENTS.md` recommends for this repo, trimmed of Unity/Godot/Unreal/multi-department boilerplate that doesn't apply to a solo Vite+Three.js prototype). Work is tracked in **Paca** (http://localhost:8090, project Lotophagoi). Every agent/sub-agent **must** have a nick + title; every Paca comment starts with `[@nick · Title]` and is written in complete sentences. Task titles: `Ortam │ State │ Title` (State = game location/component, not kanban stage). Report into `@nile` → `@atlas` / `@mira` / `@rex`.
+`.claude/agents/` holds a curated roster (mirrors the roles `AGENTS.md` recommends for this repo, trimmed of Unity/Godot/Unreal/multi-department boilerplate that doesn't apply to a solo Vite+Three.js prototype). Work is tracked in **Paca** (http://localhost:8090, project Lotophagoi). Every agent/sub-agent **must** have a nick + title; every Paca comment starts with `[@nick · Title]` and is written in complete sentences. Task titles: `Ortam │ State │ Title` (State = game location/component, not kanban stage). Report into `@nile` → `@atlas` / `@mira` / `@rex`. Substantive work needs an **open sprint plus a card** before coding; if none exists, `producer` opens the sprint first. Binding rule: `.cursor/rules/paca-identity.mdc`.
 
 | Need | Agent file | Nick · Title |
 |---|---|---|

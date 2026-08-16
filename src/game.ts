@@ -71,6 +71,8 @@ export interface TestHooks {
   /** Stop the simulation so screenshots are byte-stable. */
   freeze(): void;
   unfreeze(): void;
+  /** Point the camera at a world position (frozen shots of the sun, etc.). */
+  lookAt(x: number, y: number, z: number): void;
 }
 
 export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
@@ -1114,6 +1116,9 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
       frozen = false;
       last = performance.now();
       acc = 0;
+    },
+    lookAt(x, y, z) {
+      stage.camera.lookAt(x, y, z);
     },
   };
 }

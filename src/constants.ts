@@ -645,6 +645,30 @@ export const RENDER = {
   bounceSky: 0x8ecbff,
   bounceGround: 0xd9b478,
   bounceIntensity: 0.36,
+  /**
+   * Upward turquoise fill from the shallows — art-bible.md §3 "sahnenin üçüncü
+   * ışığı". Sky channel is unused (black); only the ground colour lifts hulls
+   * and character undersides.
+   */
+  waterBounceIntensity: 0.26,
+} as const;
+
+/**
+ * Visible sun (art-bible.md §2 "Güneş halesi `#ffcf80`, bloom kaynağı").
+ * The directional light stays close for the shadow camera; this is the disc
+ * the player reads as the clock (`game-concept.md` §9.1).
+ */
+export const SUN_DISK = {
+  haloColor: 0xffcf80,
+  coreColor: 0xfff6d0,
+  /** Just inside the sky sphere (360) and cloud sphere (350). */
+  distance: 332,
+  coreScale: 12,
+  haloScale: 42,
+  skyCorePower: 160,
+  skyHaloPower: 11,
+  skyCoreGain: 1.05,
+  skyHaloGain: 0.38,
 } as const;
 
 /**

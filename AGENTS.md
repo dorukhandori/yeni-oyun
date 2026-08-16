@@ -16,7 +16,7 @@ Sahiple Türkçe. Kod/commit İngilizce. Stüdyo işletim sistemi: **Claude Code
 
 Cursor’da slash yok. Skill adı söyle veya ajan çağır.
 
-Board: **Paca** http://localhost:8090 (proje Lotophagoi). Her ajan/sub-agent nick + title taşır; her yorum `[@nick · Title]` ile başlar ve tam cümlelerle yazılır. Kart başlığı: `Ortam │ State │ Title` (State = oyunun neresi / hangi component; kanban stage değil). Rapor: `@nile` → `@atlas` / `@mira` / `@rex`.
+Board: **Paca** http://localhost:8090 (proje Lotophagoi). Her ajan/sub-agent nick + title taşır; her yorum `[@nick · Title]` ile başlar ve tam cümlelerle yazılır. Kart başlığı: `Ortam │ State │ Title` (State = oyunun neresi / hangi component; kanban stage değil). Rapor: `@nile` → `@atlas` / `@mira` / `@rex`. Asıl iş ancak **açık bir sprint + kart** varken başlar; sprint yoksa `producer` önce sprint açar. Tam disiplin: `.cursor/rules/paca-identity.mdc`.
 
 | İhtiyacın | Ajan / skill | Nick · Title |
 |---|---|---|
