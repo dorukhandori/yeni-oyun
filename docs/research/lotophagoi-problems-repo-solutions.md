@@ -2,6 +2,7 @@
 
 **Tarih:** 2026-08-16  
 **Amaç:** Projede yaşanan kalite sorunlarını sınıflandırmak; her biri için **somut Git repo / script / skill** önerisi vermek.  
+**Oturum özeti (pipeline + test platform beyin fırtınası):** `docs/research/brainstorm-pipeline-qa-ecosystem-2026-08-16.md`  
 **Yerel arşivler (gitignore):**
 
 | Klasör | İçerik |

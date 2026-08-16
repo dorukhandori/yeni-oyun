@@ -8,6 +8,7 @@
 
 | Doküman | Ne için |
 |---|---|
+| `docs/research/brainstorm-pipeline-qa-ecosystem-2026-08-16.md` | **Bu oturumun tam özeti** — pipeline, test platform, kararlar |
 | `docs/research/lotophagoi-problems-repo-solutions.md` | Sorun ID (S1–S19) + repo matrisi + P0 sırası |
 | `docs/research/vibegamedev-reference-index.md` | Chong-U / kyh yerel arşiv |
 | `docs/research/metatransformer-game-stack-scan.md` | gamestack + threejs-game-skills |

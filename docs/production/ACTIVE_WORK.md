@@ -33,5 +33,6 @@ _(şu an boş — kimse aktif iş bildirmedi)_
 | Cursor Cloud Agent | 2026-08-16 | `docs/research/lotophagoi-problems-repo-solutions.md`, `art-source/reference/problem-solutions/` | 19 sorun ID + repo çözüm matrisi; 4 yeni hedefli clone |
 | Cursor Cloud Agent | 2026-08-16 | `docs/research/turkish-game-dev-ecosystem.md` | Türk oyun geliştirici/stüdyo/topluluk/GitHub geniş taraması |
 | Cursor Cloud Agent | 2026-08-16 | `docs/production/agent-prompt-archive-integration.md` | P0 arşiv entegrasyonu agent prompt (kopyala-yapıştır) |
+| Cursor Cloud Agent | 2026-08-16 | `docs/research/brainstorm-pipeline-qa-ecosystem-2026-08-16.md` | Pipeline/QA/test platform oturum özeti (AI handoff) |
 | Claude (bu oturum) | 2026-08-15 | `vite.config.ts`, `src/main.ts`, `index.html`, `src/ui/hud.css` | Build-time versiyon etiketi |
 | Claude (bu oturum) | 2026-08-15 | `index.html` (#hubScreen), `src/ui/hud.css` (.hub-*) | Hub'a hover büyüme + parşömen bilgi etiketi eklendi (4 durak) |
