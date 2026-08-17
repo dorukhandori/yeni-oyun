@@ -21,7 +21,7 @@ Aynı dosyada/alanda zaten bir satır varsa: ya bekle, ya sahiple/diğer oturuml
 
 | Kim | Başladı | Dosyalar / alan | Ne yapıyor |
 |---|---|---|---|
-| Claude (bu oturum) | 2026-08-17 | `docs/production/asset-pipeline-loop-plan.md` (yeni dosya) | Chong-U videosu (Grok+Blender MCP+Meshy+Unity) temelinde, Tripo+Three.js'e uyarlanmış görsel-geri-bildirimli asset üretim döngüsü planı — kod yok, yalnızca plan dokümanı |
+| Claude (ana oturum) | 2026-08-17 | `docs/production/asset-pipeline-loop-plan.md` uygulanıyor — Paca sprint/kart açılıyor, `producer`'a devredildi | Sahip planı onayladı ("beğendim, uçtan uca kuralım"). Blender Homebrew ile arka planda kuruluyor. `producer` sprint+kart açıp workbench'i (§4, bağımsız) başlatıyor olacak. |
 
 ---
 
@@ -29,6 +29,7 @@ Aynı dosyada/alanda zaten bir satır varsa: ya bekle, ya sahiple/diğer oturuml
 
 | Kim | Tarih | Dosyalar / alan | Ne bekliyor |
 |---|---|---|---|
+| Claude (bu oturum) | 2026-08-17 | `docs/production/asset-pipeline-loop-plan.md` (yeni dosya) | Sahip onayı — Chong-U videosu (Grok+Blender MCP+Meshy+Unity) temelinde, Tripo+Three.js'e uyarlanmış görsel-geri-bildirimli asset üretim döngüsü planı (taslak). Kod yok, yalnızca plan. §4'teki iki açık soru (Blender kurulu mu, MCP nereye bağlanacak) ve §6 açık sorular sahibi bekliyor. |
 | — | — | — | — |
 
 ---
