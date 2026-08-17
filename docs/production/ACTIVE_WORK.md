@@ -42,7 +42,7 @@ Aynı dosyada/alanda zaten bir satır varsa: ya bekle, ya sahiple/diğer oturuml
 
 | Kim | Tarih | Dosyalar / alan | Ne yapıldı |
 |---|---|---|---|
-| Cursor (Grok, bu oturum) · `@byte` / `@iris` | 2026-08-17 | `src/render/{stage,hazePass,sunDisk}.ts`, `src/constants.ts`, `src/world/terrain.ts` (uzak tepe), `scripts/blender/build_sun_god.py`, `sky_sungod_01_mesh_1200.glb` | LOT-49 ada ışığı (bible §3) + LOT-50 güneş tanrısı v1. Sahip park etti, yine de canlıya istedi. Hash bu oturumun ışık/güneş commit’i. |
+| Cursor (Grok, bu oturum) · `@byte` / `@iris` | 2026-08-17 | `src/render/{stage,hazePass,sunDisk}.ts`, `src/constants.ts`, `src/world/terrain.ts` (uzak tepe), `scripts/blender/build_sun_god.py`, `sky_sungod_01_mesh_1200.glb` | Commit `593f027`. LOT-49 ada ışığı (bible §3) + LOT-50 güneş tanrısı v1. Sahip park etti, yine de canlıya istedi. |
 | Cursor (Grok, bu oturum) · `@byte` | 2026-08-17 | `src/world/thallope.ts`, `src/game.ts`, `public/assets/{models,ref}/creature_thallope_*` | Commit `2d6ea69`. LOT-39 Thallope ada spawn. Ayak yaw v1 (LOT-34). Push bu oturum. |
 | Cursor (Grok, bu oturum) · `@glyph` | 2026-08-17 | `src/ui/fullscreen.ts`, `src/ui/hud.css`, `docs/ux/{screens.md,hud.md}` | Commit `11d59f3`. LOT-51 iOS follow-up: Tam ekran düğmesi iPhone'da da görünür, native API yoksa görünür alana sığdırır. Pushlandı. |
 | Cursor (Grok, bu oturum) · `@glyph` | 2026-08-17 | `src/ui/fullscreen.ts`, `src/ui/hud.css`, `src/main.ts`, `src/game.ts`, `docs/ux/{screens.md,hud.md}` | Commit `9b2ceae`. LOT-51 (Paca Done): telefon tarayıcı tam ekran gir/çık + visualViewport kabuk. Pushlandı. |
