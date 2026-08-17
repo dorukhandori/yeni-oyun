@@ -29,7 +29,7 @@ Aynı dosyada/alanda zaten bir satır varsa: ya bekle, ya sahiple/diğer oturuml
 
 | Kim | Tarih | Dosyalar / alan | Ne bekliyor |
 |---|---|---|---|
-| — | — | — | — |
+| Claude (ana oturum) | 2026-08-17 | `docs/production/asset-pipeline-loop-plan.md` (§5, §6 güncellendi) | Küçük bir doküman güncellemesi — Blender MCP bağlantısının artık gerçekten canlı olduğu (`get_addon_status`/`get_scene_info` ile doğrulandı) ve LOT-32/LOT-33'ün Done olduğu işlendi. Sahip onayı + commit bekliyor. |
 
 **Sahibe açık not (hiçbir commit'i beklemiyor, ayrı bir eylem):** CLAUDE.md'deki "rig'siz Doryseus / bilinen boşluk" satırı artık eski — GLB'de `preset:idle/walk/run` zaten var, ikili düzeyde doğrulandı (2026-08-17). İzin sistemi CLAUDE.md düzenlemesini blokladığı için **sahibin kendi eliyle** güncellemesi gerekiyor.
 
