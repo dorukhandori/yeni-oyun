@@ -204,6 +204,147 @@ export const LAGOON = {
   wobbleB: 0.08,
 } as const;
 
+/**
+ * Decorative freshwater pockets (LOT-53). Scenery only — `inLagoon()` stays
+ * lagoon-only, so ponds never touch wade speed or the memory rates in
+ * `gdd-memory-system.md`. Sites are stored in island-normalised polar space
+ * (`ar`/`rf` are fractions of `ISLAND.radius`) so the same layout scales
+ * between the 160 m `real` island and the 26 m sandbox; `resolvePonds()` in
+ * `world/ponds.ts` pushes each site outward until it clears the lagoon, the
+ * berth, the lotus zones, the coast and its neighbours, and drops it if it
+ * never fits. Layout rationale: `docs/design/level-lotus-island.md` §8.
+ */
+export const PONDS = {
+  /** Still surface, just under sea level like the lagoon so the rim reads wet. */
+  waterY: -0.05,
+  /**
+   * Basin floor. Matched to `LAGOON.floor` on purpose: a shallower dish put
+   * the waterline in the steep part of the bowl, where the terrain plane's
+   * ~2 m vertex spacing cuts corners and the flat water disc poked out over
+   * the bank as visible straight edges.
+   */
+  floor: -0.75,
+  /** How far the rim climbs above the floor, so the pool has a bank. */
+  rimRise: 0.35,
+  /** Blend band outside the rim so the edge is a muddy shelf, not a step. */
+  rimBlend: 3.4,
+  /** Radius floor in metres. Only ever binds on the 26 m sandbox. */
+  minRadius: 1.6,
+  /**
+   * Extra overlap past the analytic waterline, as a fraction of the rim, so
+   * the disc edge tucks under the bank instead of ending in mid-air.
+   */
+  discOverlap: 0.06,
+  /**
+   * Clearance from the lagoon rim, the lotus zones and other ponds, as a
+   * fraction of `ISLAND.radius`. Absolute metres do not port: 6 m is right on
+   * the 160 m island and leaves the 26 m sandbox with no legal site at all,
+   * because its lagoon already eats half the land.
+   */
+  keepoutFrac: 0.0375,
+  keepoutMin: 1.2,
+  /** Bearing sweep when the authored direction has no legal ground (radians). */
+  bearingStep: 0.11,
+  bearingSteps: 14,
+  /**
+   * How much of the beach ring stays pond-free. Capped by radius for the same
+   * reason as `keepoutFrac` — the sandbox cannot spare a full 8 m of shore.
+   */
+  beachMarginFrac: 0.05,
+  /** Outward search when a nominal site does not fit (fraction of radius per step). */
+  pushStep: 0.04,
+  pushMaxAr: 0.86,
+  reedsPerPond: ACTIVE_PROFILE === "real" ? 30 : 9,
+  pebblesPerPond: ACTIVE_PROFILE === "real" ? 16 : 6,
+  /** A scatter of pads, not the lagoon's dense mat. */
+  padsPerPond: ACTIVE_PROFILE === "real" ? 7 : 3,
+  /** Pad size as a fraction of pond radius — keeps pads in proportion on any island. */
+  padScale: 0.085,
+  sites: [
+    /** West meadow — the long empty run between the berth and the west coast. */
+    { name: "west-meadow", angle: 3.02, ar: 0.5, rf: 0.075 },
+    /** North hollow — breaks up the negative-space band before the spikes (§3.5). */
+    { name: "north-hollow", angle: 1.92, ar: 0.55, rf: 0.062 },
+    /** Hill approach — a rest beat on the long north trek, clear of the weenie bump. */
+    { name: "hill-foot", angle: 0.72, ar: 0.28, rf: 0.055 },
+    /** East shelf — gives the eastern half a reason to be crossed. */
+    { name: "east-shelf", angle: -0.42, ar: 0.62, rf: 0.052 },
+  ],
+} as const;
+
+/**
+ * Faint desire lines between the places the player actually walks (LOT-53).
+ * Not a drawn road: the mask is baked once into a single-channel DataTexture
+ * (`world/paths.ts`) and multiplied by a break-up noise so the trail is
+ * intermittent — "belli belirsiz", per sahip. Costs one texture fetch in the
+ * ground shader and no extra geometry; the heightmap is untouched.
+ */
+export const PATHS = {
+  /** Half-width in metres. Wider on `real` because the camera is further out. */
+  halfWidth: ACTIVE_PROFILE === "real" ? 2.3 : 1.3,
+  /** Soft shoulder outside `halfWidth` where the trail fades into grass. */
+  feather: ACTIVE_PROFILE === "real" ? 2.2 : 1.1,
+  /** Peak blend toward packed earth. Above ~0.7 it stops reading as a desire line. */
+  strength: 0.55,
+  /** Break-up: fraction of the mask that the patchy noise can eat away. */
+  breakUp: 0.55,
+  breakUpFreq: 0.085,
+  /** Baked mask resolution over `ISLAND.planeSize`. 0.375 m/texel on `real`. */
+  texSize: ACTIVE_PROFILE === "real" ? 1024 : 512,
+  /** Metres between polyline samples; also the meander wavelength. */
+  sampleStep: ACTIVE_PROFILE === "real" ? 7 : 3,
+  /** Lateral meander so a route never reads as a ruler line. */
+  meander: ACTIVE_PROFILE === "real" ? 4.5 : 1.6,
+  /** Packed-earth tint applied to the dry-sand albedo. Derived from PALETTE.sand, no new hue. */
+  tint: { r: 0.74, g: 0.66, b: 0.55 },
+  /** Trees and boulders are pushed off a trail above this mask value. */
+  clearMask: 0.35,
+  /** Grass tufts are thinned above this mask value (higher — a trail keeps some fringe). */
+  grassClearMask: 0.5,
+  /**
+   * Routes as anchor keys, resolved in `world/paths.ts`. Anchors that do not
+   * exist on a profile (`hillFoot` is flat on `test`, ponds may be dropped)
+   * are skipped, and a route with fewer than two surviving anchors is dropped.
+   */
+  routes: [
+    { name: "landing", anchors: ["ship", "spawn", "reed"] },
+    { name: "reed-lagoon", anchors: ["reed", "lagoonS"] },
+    { name: "lagoon-shrine", anchors: ["lagoonN", "shrine"] },
+    { name: "shrine-hill", anchors: ["shrine", "pond:hill-foot", "hillFoot"] },
+    { name: "west-water", anchors: ["lagoonW", "pond:west-meadow"] },
+    { name: "north-run", anchors: ["pond:hill-foot", "pond:north-hollow"] },
+    { name: "east-run", anchors: ["lagoonE", "pond:east-shelf"] },
+  ],
+} as const;
+
+/**
+ * Pond-rim frogs (LOT-53). Ambient decor only: no collider, no interaction, no
+ * relation to the hallucination figures in `gdd-lotus-hallucination.md`. Motion
+ * is a pure function of `t` (hashed hop index) so it never accumulates drift and
+ * costs one matrix write per frog per frame.
+ */
+export const FROGS = {
+  perPond: ACTIVE_PROFILE === "real" ? 7 : 4,
+  /** Extra frogs on the big lagoon rim, where the player actually walks. */
+  onLagoon: ACTIVE_PROFILE === "real" ? 9 : 5,
+  /** Body length in metres. Small enough to be a detail, big enough to notice. */
+  size: 0.3,
+  /** Band around a rim, as a fraction of that water body's radius. */
+  rimInner: 0.92,
+  rimOuter: 1.22,
+  /** How far a frog may stray from its home spot. */
+  leash: 0.9,
+  /** Seconds between hops, randomised per frog inside this range. */
+  hopPeriodMin: 3.4,
+  hopPeriodMax: 7.8,
+  /** Seconds a single hop takes. */
+  hopTime: 0.42,
+  hopArc: 0.22,
+  /** Idle throat/flank bob amplitude, as a fraction of body height. */
+  breathAmp: 0.07,
+  breathHz: 1.9,
+} as const;
+
 /** Lotus on water — spring bob and pad tilt (pseudo-physics). */
 export const LOTUS_PHYSICS = {
   bobStiffness: 28,
@@ -932,13 +1073,21 @@ export const SEA_TEX = {
  * groves on the hills, open sand left as breathing room. Not gameplay.
  */
 export const FLORA = {
-  cypressGroves: ACTIVE_PROFILE === "real" ? 14 : 6,
+  /**
+   * LOT-53 density pass. The 160 m `real` island carried a 70 m island's
+   * scatter counts, which is most of why sahip read it as empty — every
+   * grove/rock family below is one InstancedMesh (or one kit GLB batch), so
+   * the extra instances cost draw-call-free vertices, not draw calls. Grass
+   * spacing is deliberately NOT tightened: at 0.58 m the field is already the
+   * fill-rate ceiling (see `grassFieldSpacing`).
+   */
+  cypressGroves: ACTIVE_PROFILE === "real" ? 26 : 7,
   cypressPerGrove: ACTIVE_PROFILE === "real" ? 5 : 3,
-  oliveGroves: ACTIVE_PROFILE === "real" ? 11 : 5,
+  oliveGroves: ACTIVE_PROFILE === "real" ? 21 : 6,
   olivePerGrove: ACTIVE_PROFILE === "real" ? 4 : 3,
-  rockShore: ACTIVE_PROFILE === "real" ? 52 : 18,
-  rockLagoon: ACTIVE_PROFILE === "real" ? 32 : 12,
-  rockInland: ACTIVE_PROFILE === "real" ? 40 : 14,
+  rockShore: ACTIVE_PROFILE === "real" ? 76 : 20,
+  rockLagoon: ACTIVE_PROFILE === "real" ? 40 : 14,
+  rockInland: ACTIVE_PROFILE === "real" ? 88 : 18,
   reedRim: ACTIVE_PROFILE === "real" ? 64 : 24,
   reedPocket: ACTIVE_PROFILE === "real" ? 44 : 20,
   lilyPads: ACTIVE_PROFILE === "real" ? 26 : 12,
@@ -1019,6 +1168,16 @@ export const PALETTE = {
   cypress: 0x3d5240,
   olive: 0x6b7f4a,
   trunk: 0x6b5136,
+  /**
+   * Pond frogs (LOT-53). No new colour family — the back is the existing
+   * cypress/olive green pair, the belly borrows the bud petal cream and the
+   * eye reuses the Thallope's socket dark, so the critters sit inside
+   * `art-bible.md` §2 as they are.
+   */
+  frogBack: 0x51703f,
+  frogSpot: 0x3d5240,
+  frogBelly: 0xbcd98f,
+  frogEye: 0x2a221c,
   /** Sanrı figürleri + unutma pusu ailesi (art-bible.md §2/§4.1) — yeni bir renk ailesi getirilmiyor. */
   hallucination: 0xf6f2ea,
   /**

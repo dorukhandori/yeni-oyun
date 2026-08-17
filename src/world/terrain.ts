@@ -8,7 +8,9 @@ import {
   LAYOUT_SHIFT_Z,
   LOTUS,
   PALETTE,
+  PATHS,
   PLAYER,
+  PONDS,
   SHIP,
   SKY_TEX,
   TERRAIN_TEX,
@@ -18,6 +20,15 @@ import { displace } from "./geo";
 import { assetUrl } from "../assets/paths";
 import { loadAlbedoTexture } from "./sprite";
 import { ISLAND_KIT, placeKit, type KitLook, type KitPose } from "./islandKit";
+import {
+  PONDS_RESOLVED,
+  buildPondScenery,
+  inAnyPond,
+  pondBasinAt,
+  pondRadiusAt,
+} from "./ponds";
+import { buildPathMask, describeDressing, type PathMask } from "./paths";
+import { buildFrogs } from "./frogs";
 
 /**
  * Generated ground/prop textures (`docs/art/asset-registry.md` P1 — Su ve
@@ -143,6 +154,11 @@ export function heightAt(x: number, z: number): number {
     h = h * (1 - w) + Math.min(h + 0.6, basin) * w;
   }
 
+  // Decorative pond dishes (LOT-53). Applied last and clamped downward, so a
+  // pond can only ever dig into the ground it was placed on — it never lifts
+  // terrain and never fights the lagoon carve above.
+  h = pondBasinAt(x, z, h);
+
   return h;
 }
 
@@ -178,7 +194,7 @@ export interface Terrain {
  * UVs) drives the texture sampling so tile scale is a fixed meters-per-repeat
  * value regardless of how large the terrain plane is (`TERRAIN_TEX`).
  */
-function buildGroundMaterial(): THREE.MeshStandardMaterial {
+function buildGroundMaterial(pathMask: PathMask): THREE.MeshStandardMaterial {
   const grassTex = loadAlbedoTexture(assetUrl(GRASS_TEX_URL));
   const sandTex = loadAlbedoTexture(assetUrl(SAND_TEX_URL));
   const sandWetTex = loadAlbedoTexture(assetUrl(SAND_WET_TEX_URL));
@@ -200,6 +216,13 @@ function buildGroundMaterial(): THREE.MeshStandardMaterial {
     shader.uniforms.uGrassTile = { value: TERRAIN_TEX.grassTileMeters };
     shader.uniforms.uSandTile = { value: TERRAIN_TEX.sandTileMeters };
     shader.uniforms.uSandWetTile = { value: TERRAIN_TEX.sandWetTileMeters };
+    // LOT-53 footpaths: one prebaked mask fetch, no extra geometry.
+    shader.uniforms.tPath = { value: pathMask.texture };
+    shader.uniforms.uPathExtent = { value: pathMask.extent };
+    shader.uniforms.uPathStrength = { value: PATHS.strength };
+    shader.uniforms.uPathTint = {
+      value: new THREE.Vector3(PATHS.tint.r, PATHS.tint.g, PATHS.tint.b),
+    };
 
     shader.vertexShader = shader.vertexShader
       .replace(
@@ -229,6 +252,10 @@ uniform sampler2D tSandWet;
 uniform float uGrassTile;
 uniform float uSandTile;
 uniform float uSandWetTile;
+uniform sampler2D tPath;
+uniform float uPathExtent;
+uniform float uPathStrength;
+uniform vec3 uPathTint;
 varying vec3 vTint;
 varying vec2 vWeights;
 varying vec2 vWorldXZ;`,
@@ -240,7 +267,15 @@ vec3 groundGrass = texture2D(tGrass, vWorldXZ / uGrassTile).rgb * vTint;
 vec3 groundSandDry = texture2D(tSand, vWorldXZ / uSandTile).rgb;
 vec3 groundSandWet = texture2D(tSandWet, vWorldXZ / uSandWetTile).rgb;
 vec3 groundSand = mix(groundSandDry, groundSandWet, vWeights.y);
-diffuseColor.rgb = mix(groundGrass, groundSand, vWeights.x);`,
+diffuseColor.rgb = mix(groundGrass, groundSand, vWeights.x);
+// Worn footpath (LOT-53). Packed earth is the dry-sand albedo pushed darker
+// and greyer at a tighter tile, so no new texture and no new colour family.
+// The trail fades out where the ground is already sand or lagoon rim
+// (1.0 - vWeights.x) — a desire line is something worn into grass.
+vec2 pathUv = vWorldXZ / uPathExtent + 0.5;
+float pathM = texture2D(tPath, pathUv).r * uPathStrength * (1.0 - vWeights.x);
+vec3 packedEarth = texture2D(tSand, vWorldXZ / (uSandTile * 0.55)).rgb * uPathTint;
+diffuseColor.rgb = mix(diffuseColor.rgb, packedEarth, pathM);`,
       );
   };
 
@@ -349,12 +384,27 @@ function nearLotus(x: number, z: number, extra = 1.6): boolean {
   return LOTUS.zones.some((zn) => Math.hypot(x - zn.cx, z - zn.cz) < zn.radius + extra);
 }
 
+/**
+ * The baked footpath mask, published module-wide so the scatter predicates
+ * below (which are plain functions, not closures over `buildTerrain`) can keep
+ * props off the trails. Null until the first `buildTerrain()` call.
+ */
+let activePathMask: PathMask | null = null;
+
+/** True where a trail is worn enough that a prop would block or hide it. */
+function onPath(x: number, z: number, limit: number): boolean {
+  return activePathMask !== null && activePathMask.sample(x, z) > limit;
+}
+
 function onTreeLand(x: number, z: number): number | null {
   const y = heightAt(x, z);
   if (y < FLORA.treeMinY || y > FLORA.treeMaxY) return null;
   if (lagoonDist(x, z) < lagoonRadiusAt(x, z) + 2.4) return null;
   if (Math.hypot(x - SHIP.pos.x, z - SHIP.pos.z) < FLORA.shipKeepout) return null;
   if (nearLotus(x, z)) return null;
+  // Trees never stand in a pond or across a footpath.
+  if (inAnyPond(x, z, 2.2)) return null;
+  if (onPath(x, z, PATHS.clearMask)) return null;
   const coast = islandRadiusAt(x, z);
   if (Math.hypot(x, z) > coast - 7) return null;
   return y;
@@ -421,6 +471,11 @@ export function buildTerrain(): Terrain {
   const group = new THREE.Group();
   const rand = mulberry32(20260814);
   const kitUpdates: Array<(t: number) => void> = [];
+  // Bake the footpath mask before anything scatters — trees, boulders and
+  // grass all consult it so the trails stay walkable and legible.
+  const pathMask = buildPathMask();
+  activePathMask = pathMask;
+  if (import.meta.env.DEV) console.info(`[dressing] ${describeDressing()}`);
   const useKit = (
     legacy: THREE.Object3D,
     path: string,
@@ -492,7 +547,7 @@ export function buildTerrain(): Terrain {
   geo.setAttribute("aWeights", new THREE.BufferAttribute(weights, 2));
   geo.computeVertexNormals();
 
-  const ground = new THREE.Mesh(geo, buildGroundMaterial());
+  const ground = new THREE.Mesh(geo, buildGroundMaterial(pathMask));
   ground.receiveShadow = true;
   group.add(ground);
 
@@ -651,6 +706,9 @@ export function buildTerrain(): Terrain {
       if (y < 0.7 || y > 10) return null;
       if (lagoonDist(x, z) < lagoonRadiusAt(x, z) + 1.2) return null;
       if (Math.hypot(x - SHIP.pos.x, z - SHIP.pos.z) < FLORA.shipKeepout) return null;
+      if (inAnyPond(x, z, 1.6)) return null;
+      // A boulder in the middle of a trail is a nuisance, not dressing.
+      if (onPath(x, z, PATHS.clearMask)) return null;
       return y;
     });
     if (!p) continue;
@@ -719,12 +777,23 @@ export function buildTerrain(): Terrain {
     }
   }
 
+  // ------------------------------------------------------- dressing (LOT-53)
+  // Ponds and frogs live inside the terrain group on purpose: `game.ts`
+  // already builds and ticks the terrain, so the dressing layer needs no new
+  // wiring in the game loop and cannot collide with the sea/ship slice.
+  const ponds = buildPondScenery(heightAt);
+  const frogs = buildFrogs(heightAt);
+  group.add(ponds.group);
+  group.add(frogs.group);
+
   return {
     group,
     colliders,
     update(t) {
       reeds.update(t);
       grass.update(t);
+      ponds.update(t);
+      frogs.update(t);
       for (const u of kitUpdates) u(t);
     },
   };
@@ -869,9 +938,13 @@ function buildReedBeds(rand: () => number): {
   const wind = attachSway(reedMat, 0.08);
 
   const clumpGeos: THREE.BufferGeometry[] = [];
-  const plant = (x: number, z: number) => {
+  /**
+   * `loY`/`hiY` bracket the wet band a reed will grow in. Defaults are the
+   * lagoon's; ponds are shallower dishes, so they pass their own window.
+   */
+  const plant = (x: number, z: number, loY = LAGOON.floor + 0.02, hiY = LAGOON.waterY + 0.55) => {
     const y = heightAt(x, z);
-    if (y > LAGOON.waterY + 0.55 || y < LAGOON.floor + 0.02) return;
+    if (y > hiY || y < loY) return;
     const h = 1.25 + rand() * 1.15;
     const w = h * REED_ASPECT;
     const yaw = rand() * Math.PI;
@@ -898,6 +971,24 @@ function buildReedBeds(rand: () => number): {
     const a = rand() * Math.PI * 2;
     const r = 1.6 + rand() * reedZone.radius;
     plant(reedZone.cx + Math.cos(a) * r, reedZone.cz + Math.sin(a) * r);
+  }
+
+  // Pond rims get the same reed treatment as the lagoon (LOT-53) — this is
+  // what makes a pond read as a living pocket rather than a puddle decal, and
+  // it costs nothing extra: the clumps merge into the same geometry and swap
+  // to the same `ISLAND_KIT.reed` batch.
+  for (const pond of PONDS_RESOLVED) {
+    for (let i = 0; i < PONDS.reedsPerPond; i++) {
+      const a = rand() * Math.PI * 2;
+      const rimR = pondRadiusAt(pond, pond.x + Math.cos(a), pond.z + Math.sin(a));
+      const r = rimR * (0.72 + rand() * 0.42);
+      plant(
+        pond.x + Math.cos(a) * r,
+        pond.z + Math.sin(a) * r,
+        PONDS.floor + 0.02,
+        PONDS.waterY + 0.5,
+      );
+    }
   }
 
   let reedMesh: THREE.Object3D | null = null;
@@ -966,6 +1057,10 @@ function onGrassField(x: number, z: number): number | null {
   if (lagoonT > 0.5) return null;
   if (inNorthSpikeBand(x, z)) return null;
   if (nearLotus(x, z, 0.55)) return null;
+  // Ponds get a reed rim instead of lawn, and a trail keeps a thin fringe of
+  // grass but not a full sward across it.
+  if (inAnyPond(x, z, 0.4)) return null;
+  if (onPath(x, z, PATHS.grassClearMask)) return null;
   return y;
 }
 

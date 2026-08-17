@@ -249,6 +249,88 @@ Daha büyük vistalar ve 48 m'lik bir zirve, mevcut kamera ayarlarının (`CAMER
 
 ---
 
+## 8. Donatım katmanı — patika, golet, kurbağa (LOT-53, 17 Ağu 2026)
+
+> **Durum:** kodlandı, diskte duruyor, **commit edilmedi** — sahip onayı bekliyor.
+> **Tetikleyen:** sahip playtest geri bildirimi, "genel olarak düzenleme ve mapping yap, şu anda gözüme boş geliyor."
+> **Kapsam sınırı:** bu bir **yeniden tasarım değil.** Oynanabilir alan (gemi / sazlık / göl / tepe), lotus spawn'ı, K35 "Beş yeter" akışı ve `heightAt()`'in landmark terimleri **değişmedi.** Eklenen her şey peyzaj donatımıdır ve hiçbir tuning sayısını (`gdd-memory-system.md` oranları, `LOTUS` zamanlamaları, `PLAYER` hızları) okumaz ya da değiştirmez.
+> **Sayılar:** `src/constants.ts` → `PONDS`, `PATHS`, `FROGS` blokları + `FLORA` yoğunluk geçişi.
+
+### 8.1 Neden — teşhis
+
+160 m yarıçaplı `real` ada, 70 m'lik adanın scatter sayılarını taşıyordu (14 servi kümesi, 11 zeytin kümesi, 40 iç kaya — ~80.000 m²'ye). Sahibin "boş" okuması ölçekten değil **yoğunluktan** geliyordu: ada büyütüldü (K34), donatım büyütülmedi. İkinci eksik, adanın hiçbir yerinde **insan izi** olmamasıydı — 12 gemilik bir mürettebatın yıllardır yaşadığı bir adada tek bir aşınmış yol yoktu.
+
+### 8.2 Patikalar — "belli belirsiz"
+
+Sahibin ifadesi bağlayıcı: **çizilmiş bir yol değil**, yarı fark edilen bir *desire line*. Uygulama üç seçenek arasından seçildi (gerekçe `src/world/paths.ts` başlığında):
+
+- Zemin düzlemine per-vertex ağırlık → `real`'de vertex aralığı ~1,96 m, 2,3 m'lik patika benekli bir leke olurdu. **Elendi.**
+- Fragment shader'da segment-mesafe döngüsü → ~40 segment × tam ekran, kare başına yüz milyonlarca işlem. **Elendi.**
+- Maskeyi bir kez tek kanallı dokuya **bake** et, shader'da tek `texture2D` ile örnekle. **Seçildi** — ölçülen bake maliyeti `real`'de 22 ms, doku texel'lerinin %3,2'si dolu.
+
+Heightmap'e dokunulmadı: aşınmış ot, kazılmış hendek değil.
+
+**Rotalar** sabit dünya koordinatı değil, **anchor** adlarıdır (`PATHS.routes`); `world/paths.ts` bunları profile göre çözer. Bir anchor o profilde yoksa (tepe `test`'te düz, bir golet düşmüşse) atlanır; ikiden az anchor kalan rota tamamen düşer. Ölçülen sonuç: `real` 7/7 rota, `test` 5/7.
+
+| Rota | Anchor zinciri | İşlevi |
+|---|---|---|
+| `landing` | gemi → spawn → sazlık | İlk 30 saniyenin (§6) rotasını yere yazar |
+| `reed-lagoon` | sazlık → göl güney kıyısı | §2 krokisindeki "patika" |
+| `lagoon-shrine` | göl kuzey kıyısı → tapınak/kadın | İç kısmı kıyıya bağlar |
+| `shrine-hill` | tapınak → hill-foot goleti → tepe eteği | §3.4'ün "tepeye çıkan patika"sı, goletle mola beat'i kazanır |
+| `west-water` | göl batı kıyısı → west-meadow goleti | Batı boşluğuna gitmek için sebep |
+| `north-run` | hill-foot → north-hollow goleti | §3.5 negatif alan bandını tamamen boş bırakmadan geçer |
+| `east-run` | göl doğu kıyısı → east-shelf goleti | Doğu yarısını okunur kılar |
+
+Patikanın kesintili olması bake sırasında bir gürültü çarpanıyla sağlanır (`PATHS.breakUp`), shader'da bedava. Patika kumda ve göl kenarında **söner** (`1.0 - vWeights.x`) — aşınma otta olur, kumda değil. Ağaç ve kaya scatter'ı `PATHS.clearMask` üstünde reddedilir, çim `grassClearMask` üstünde seyrelir; yoksa patika kendi bitki örtüsünün altında kaybolurdu.
+
+### 8.3 Goletler
+
+Dört aday bölge, **ada-normalize polar uzayda** (`PONDS.sites`, `ar`/`rf` = `ISLAND.radius` kesirleri) — böylece 160 m ada ile 26 m sandbox aynı yerleşimi paylaşır. `resolvePonds()` her adayı kendi açısı boyunca dışa doğru iterek göl, demirleme yeri (42 m gövde — bu clearance **mutlak**, adanın değil geminin ölçüsü), lotus bölgeleri, kıyı ve komşu goletlerden temizleyene kadar dener; sığmazsa **zorlamaz, düşürür.**
+
+| Golet | `real` konum / yarıçap | Gerekçe |
+|---|---|---|
+| `west-meadow` | (−79, 10) · r 12 m | Gemi ile batı kıyısı arasındaki en uzun boş koşu |
+| `north-hollow` | (−30, 83) · r 9,9 m | §3.5 negatif alanını bozmadan kırar — "boş ama görkemli" hâlâ geçerli |
+| `hill-foot` | (34, 30) · r 8,8 m | Tepe tırmanışında mola beat'i; weenie kabarcığının (r 44) **dışında**, yamaca oturmuyor |
+| `east-shelf` | (91, −40) · r 8,3 m | Doğu yarısına gitmek için bir sebep |
+
+`test`'te (yarıçap 26 m, gölün yarıçapı 12 m — kara alanının yarısını yiyor) **bir golet kalır** (`west-meadow`, (−12,7, −2,7) · r 1,9 m), üçü düşer. Bu kasıtlı ve zorlanmadı.
+
+Yerleşim çözücüsü iki kez düzeltildi, ikisi de `test` sayesinde yakalandı:
+
+1. **Clearance'lar yarıçapa bağlandı.** Mutlak metre değerleri (6 m keepout, 8 m plaj payı) 160 m'de doğru, 26 m'de **hiçbir** yasal konum bırakmıyordu → `keepoutFrac` / `beachMarginFrac`.
+2. **Açı taraması eklendi.** Çözücü önce yalnızca kendi açısı boyunca dışa doğru itiyordu. Ama hem kıyı (±%10,5) hem göl kenarı (±%23) salınıyor, yani *yasal bir halka olup olmadığı açıya bağlı.* Sabit açıda `test` sıfır golet veriyordu; ±0,11 rad adımlarla tarayınca gölün içeri çekildiği ve kıyının dışarı taştığı boşluk bulunuyor. `real` sonucu değişmedi (4/4 hâlâ kendi yazılı açılarında).
+
+**Deniz örtüşmesi — asıl kısıt (kritik, tekrar eden bir tuzak):** `sea.ts` okyanus tabakasını kıyıdan **içeri doğru** `SEA_TEX.overlapMeters` (10 m) kadar uzatıyor ve `SEA_TEX.floorY` = **+0,05**'te tutuyor. Golet havzası −0,75'e kazıyor. Yani bu banda giren bir golet, **içine okyanus çizilmiş** olarak görünüyor: havuzun dış yarısı `PALETTE.seaFoam` (0xfbf7ef) krem beyazına dönüyor. Sandbox screenshot'ında "havuzun üstünde duran beyaz levha" olarak yakalandı; su diskini kırmızıya boyayan bir teşhis çekimiyle diskin kendisi olmadığı kesinleştirildi. `siteFits()` artık `r + radius > coast - SEA_TEX.overlapMeters` konumlarını reddediyor. **Adaya su gövdesi ekleyecek herkes bunu bilmeli** — `sea.ts`'e dokunmadan çözülür, ama görmezden gelinirse sessizce çirkin bir hata verir.
+
+**Mekanik olarak nötr:** `inLagoon()` yalnızca iç göl için `true` döner. Golet ne yürüme hızını, ne `MEM_LAKE_RECOVER`'ı, ne de başka bir tuned oranı okur. §3.3'ün "göl yalanı" tek kalır ve sulandırılmaz.
+
+Su diski düz bir daire değil: havzanın profili çözülerek **gerçek su hattı** bulunur (`WATERLINE_RATIO` = √((waterY − floor) / (rimRise − floor)) ≈ 0,80). İlk denemede disk çukur yarıçapına göre boyutlandırılmıştı ve kıyıda havada kalıp düz poligon kenarları gösteriyordu (screenshot'ta yakalandı); havza tabanı `LAGOON.floor` ile eşitlenip disk çözülen su hattına oturtularak düzeltildi. Nilüfer yaprağı **boyutu da** golet yarıçapına oranlı (`PONDS.padScale`) — sabit ~1 m'lik yaprak, 1,9 m'lik sandbox havuzunu tamamen örtüyordu.
+
+### 8.4 Kurbağalar
+
+Golet ve göl kenarlarında ambient fauna. **Sanrı figürleriyle (`gdd-lotus-hallucination.md`) hiçbir ilişkisi yok** ve karıştırılmamalı: temas testi yok, hafıza sıçraması yok, yürüme sapması yok, collider yok, etkileşim ipucu yok. Thallope (`asset-registry.md` P3) ile aynı katman: sıfır mekanik etki.
+
+Hareket `t`'nin **saf fonksiyonu** — sıçrama indeksi `floor(t / period)`, hedef o indeksin hash'i. Durum biriktirmediği için frame-rate bağımsız ve sapma yapmaz; kare başına maliyeti kurbağa başına bir matris yazımı (`real` ~37 kurbağa, tek `InstancedMesh`).
+
+**Kurbağa sayısı ve konumu peyzaj kararıdır, çiçek/oynanış kararı değil** — `real` golet başına 7 + göl kenarı 9; `test` 4 + 5.
+
+### 8.5 Yoğunluk geçişi
+
+`FLORA` sayıları `real` için yükseltildi: servi kümesi 14→26, zeytin 11→21, iç kaya 40→88, kıyı kaya 52→76, göl kayası 32→40. Her aile tek bir `InstancedMesh` / kit batch olduğu için bu **draw call değil vertex** maliyeti.
+
+**Çim aralığı bilerek sıkılaştırılmadı** (`grassFieldSpacing` 0,58 m): o alan zaten fill-rate tavanı, sıkıştırmak kareyi tebeşirler (`constants.ts` notu). "Boş" hissinin çaresi daha çok çim değil, daha çok **silüet** (ağaç, kaya, golet, patika).
+
+Goletler ayrıca göl kıyısıyla aynı saz muamelesini görür (`PONDS.reedsPerPond`) — bir goleti "su decal'i" olmaktan çıkarıp yaşayan bir cep yapan şey budur ve bedava gelir: aynı merged geometriye girer, aynı `ISLAND_KIT.reed` batch'ine takas olur.
+
+### 8.6 Açık uçlar
+
+- Golet artık göl kadar derin (`PONDS.floor` = −0,75) ama **yavaşlatmıyor** (göl `PLAYER.waterSpeedMul` uygular, golet uygulamaz). Görsel olarak tutarsız; mekanik tutarlılık istenirse bu `game-designer` kararıdır, donatım katmanı kendi başına tuned bir sayıyı değiştirmedi.
+- Patika maskesi `ISLAND.planeSize` karesini kaplar; ada bir gün dikdörtgen olursa bake penceresi de değişmeli.
+
+---
+
 ## Açık sorular
 
 1. **Tepe gerçekten değer mi?** 6 çiçek + manzara, artık **~44 saniyelik** (eski 24 s) yürüyüşe karşılık. **15 Ağu 2026 güncellemesi:** ölçek önerisi bu soruyu şiddetlendiriyor değil, netleştiriyor — tepe artık açıkça "verim için değil, manzara için" bir sapma; kimse çıkmasa da alt-hedef (5) tehlikeye girmiyor. Playtest'te hâlâ kimse çıkmıyorsa çözüm artık "çiçek sayısını artır" değil, "manzaranın/silüetin kendisinin çekiciliğini artır" (48 m zirve + tapınak kalıntısı silüeti bunun bir denemesi).

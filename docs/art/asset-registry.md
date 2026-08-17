@@ -247,6 +247,23 @@ Eski planned ASSET-062–067 (Tripo 3/4 still) **iptal** — ID çakışması + 
 
 ---
 
+## P7 — Ada donatım katmanı (LOT-53, 2026-08-17) **[P]**
+
+> Sahip brifi (17 Ağu 2026): "tüm lotus adasının ve küçük adanın mapping'ini yap … belli belirsiz patikalar, birkaç farklı yerde gölet, göletin kenarlarında kurbağalar … şu anda gözüme boş geliyor."
+> Yerleşim/rota kararları ve gerekçeleri: `docs/design/level-lotus-island.md` §8. Sayılar: `src/constants.ts` → `PONDS` / `PATHS` / `FROGS`.
+>
+> **Üretim notu — dış pipeline kullanılmadı.** Bu setin tamamı **kod içi prosedürel** (Three.js primitifleri + mevcut `PALETTE`) ya da **mevcut dokuların yeniden kullanımı**dır. Tripo / Hyper3D / Higgsfield / PolyHaven / Sketchfab'a **hiç gidilmedi**, `public/assets/` altına **tek bir yeni dosya eklenmedi**, üretim kredisi harcanmadı. Sahibin 17 Ağu ek kısıtı ("yeni asset üretiminden önce referans görselleri onaya sun") bu yüzden tetiklenmedi — onay gerektiren adım hiç oluşmadı. Kurbağa ileride gerçek bir mesh'e yükseltilecekse, o **yeni bir kalem** olur ve önce referans-onay akışından geçer.
+>
+> **Palet:** yeni renk ailesi **yok.** Kurbağa sırtı mevcut servi/zeytin yeşili çiftinden, karnı `petalBud` kreminden, gözü Thallope'un göz koyusundan türetildi (`PALETTE.frog*`). Patika "sıkışmış toprak" rengi, mevcut kuru-kum albedo'sunun daha koyu/soluk tonlanmışıdır (`PATHS.tint`) — art-bible §2 kum ailesinin içinde.
+
+| ID | Ad | Sınıf | Tip | Şablon | Durum | Not |
+|---|---|---|---|---|---|---|
+| ASSET-080 | Golet suyu + havza | `scene-mesh` | prosedürel (kod) | `src/world/ponds.ts` | **integrated** | Dalgalı `ShapeGeometry` diski, 64 segment, `PALETTE.lagoon`. Havza `heightAt()`'e `pondBasinAt()` terimi olarak giriyor. Disk yarıçapı çözülen su hattından (`WATERLINE_RATIO`) türetiliyor — çukur yarıçapından değil (ilk sürüm kıyıda havada kalıp poligon kenarı gösteriyordu). Kıyıda ASSET-071 saz + ASSET-069 çakıl + ASSET-034 nilüfer yaprağı yeniden kullanılıyor. |
+| ASSET-081 | Belli belirsiz patika maskesi | `scene-texture` | prosedürel (runtime `DataTexture`) | `src/world/paths.ts` | **integrated** | Tek kanallı, `real` 1024² (0,375 m/texel), `test` 512². Bake 22 ms, texel'lerin %3,2'si dolu. Zemin shader'ında tek `texture2D` fetch. Doku **dosyası yok** — her açılışta rotalardan üretiliyor, bu yüzden ada şekli değişince patika da değişiyor. |
+| ASSET-082 | Kurbağa (ambient fauna) | `creature` | prosedürel (kod mesh) | `src/world/frogs.ts` | **integrated** | ~150 üçgen, merged + `InstancedMesh`, vertex colour. Gövde/burun/göz kubbeleri/katlı arka bacak. `real` ~37 adet. Hareket `t`'nin saf fonksiyonu (hash'lenmiş sıçrama indeksi) — durum yok, sapma yok. **Sanrı figürü DEĞİL:** collider yok, temas testi yok, hiçbir mekanik etki yok (Thallope ile aynı katman). |
+
+---
+
 ## P2 — UI **[P]**
 
 > **Unutuş göstergesi listede YOK ve olmayacak.** `docs/design/gdd-memory-system.md` §10: unutuşun barı/sayısı/yüzdesi yoktur, ölçek ekranın kendisidir (süt beyazı vinyet). Sahip'in brief'i "unutma göstergesi çerçevesi" istemişti; GDD bunu açıkça reddediyor ve tasarım otoritesi GDD'dir. **Sahip onayı gereken çelişki.**
