@@ -2,7 +2,7 @@
 
 > **Kart:** Paca LOT-52 · `Lotus │ Ship │ Hero home hull`
 > **Tarih:** 2026-08-17 · **Yazan:** `@iris` · Game Art Director
-> **Durum:** tasarım kilitlendi — **mesh yok**. Sahip Adım 1–7’yi bu oturumda seçti.
+> **Durum:** mesh turu — Gemini still v3 (ASSET-075, kabarık Wedjat) → Tripo dokulu GLB (ASSET-076). v2 silüet sahip beğendi; göz Mısır + runik kabartma (17 Ağu).
 > **Otorite (görsel):** `art-bible.md` §1/§2/§5/§9 — gemi tek soğuk çapa; stylized, müze dokusu değil.
 > **Otorite (oynanış, çelişince):** `gdd-lotus-island-run.md` teslim + dümen; bu spec filoyu **görselden** düşürür, 12’yi güverte kilerine taşır.
 
@@ -17,9 +17,9 @@ Her durakta aynı **tek** kahraman gemisi. Ev burası: kuma oturmuş gövde + k�
 | 1 | Tek kahraman gövde. Görkem = yaşanır ev-güverte (küpeşte, amfora, okunur teslim). |
 | 2 | Tek büyük tarihi 3D gemi, güverte tam sanat. 12’li filo görseli düşer. Güverte kalbi = **eşik** (adadan gemiye kapı). |
 | 3 | Eşik = kuma oturmuş gövde **+** kısa iskele (iki direk). Silüet = **icat ev-kadırga** (uzaktan uzun çizgi, ortadan yürünebilir ev). |
-| 4 | Ölçek **mütevazı** (~14 m boy, ~4 m en). Yelken park halinde de **açık** (poster üçgen). Tente yok; ev = eşik + güverte işçiliği. |
-| 5 | Pruva = boyalı apotropaik **göz + sade mahmuz** (heykel yok). Ayrılış = yelken inmez; kumaş **karın doldurur**. Park = aynı üçgen, **gevşek**. |
-| 6 | Teslim = ortada **amfora sırası**. Üretim = **hibrit:** Blender gövde + Tripo yalnız yelken kumaşı. |
+| 4 | Ölçek **3×** (~42 m boy). Sahip 17 Ağu: “gemiyi 3 kat büyüt”. Önceki mütevazı 14 m kilidi bu turda açıldı. Yelken park halinde de **açık**. |
+| 5 | Pruva = kabarık Mısır **Wedjat** (Horus gözü) + sade mahmuz. Göz düz boya değil: yüksek kabartma ahşap amulet + runik oyma yazıt. Heykel pruva yok. Ayrılış = yelken inmez; kumaş **karın doldurur**. Park = aynı üçgen, **gevşek**. Sahip 17 Ağu: “göz daha Mısır mitolojisini andırsın ve kabarık runik olsun.” |
+| 6 | Teslim = ortada **amfora sırası**. Üretim = **Gemini still → Tripo mesh** (sahip: Blender v0 yeterince görkemli değil). |
 | 7 | 12 küp = koşunun kileri: Lotus 1–5, Kiklop 6–9, Sirenler 10–12. Filo metaforu güvertede yaşar. |
 
 ## Silüet (80 m)
@@ -27,7 +27,7 @@ Her durakta aynı **tek** kahraman gemisi. Ev burası: kuma oturmuş gövde + k�
 - Ada organik; gemi **tek doğrusal kütle** (`art-bible.md` §5).
 - Yelken üçgeni her zaman gökyüzünde — 12 gövde olmadan pusula hedefi bu.
 - Renk: ağarmış ahşap `#c8b49a`, yelken bezi `#efe6d2`, halat `#c9a877`. Ada sıcağına karşı **serin**.
-- Olgun lotus pembe `#f78fae` ile yarışan doygunluk yok. Göz boyası kömür + krem; altın/bronz parıltı yok.
+- Olgun lotus pembe `#f78fae` ile yarışan doygunluk yok. Göz: lazuli `#1f6fa8` + kömür + krem; kabartma olukları `#8a7358`. Altın/bronz parıltı yok. Piramit, sfenks, asılı ankh yok.
 
 ## Güverte programı (20 m → ayak)
 
@@ -57,22 +57,23 @@ deniz ────────────────────────�
 
 | | |
 |---|---|
-| Boy | ~14 m |
-| En (orta) | ~4 m |
+| Boy | ~42 m (sahip 3×; önceki kilit 14 m) |
+| En (orta) | ~12 m |
 | Doryseus | güvertede oda gibi yürür; koyu yutmaz |
 | Bugünkü filo | ~3.35 m aralıklı kutu gövdeler — bu spec onları siler |
 
 Aynı mesh Kiklop / Sirenler berth’inde durur; iskele çocuk mesh’i zemine oturur. K35 `relocateHero` tek gövdeyi kaydırır.
 
-## Üretim (mesh turu — henüz açılmadı)
+## Üretim
 
 | Parça | Hat |
 |---|---|
-| Gövde, küpeşte, güverte, mahmuz, direk, seren, iskele, amfora, göz geometrisi | Blender, tasarlanmış (ada kiti / güneş gibi). Vertex colour veya UV + mevcut plank/yelken/halat albedo (ASSET-018/019/020) |
-| Yelken kumaşı | Tripo, gevşek + karın (blendshape veya iki mesh) |
-| Sahne | `src/world/ship.ts` — tek hero; kardeş gövde döngüsü kalkar |
+| 3/4 still | Gemini `gemini-3-pro-image` · v3 = v2 image-edit (Wedjat + runik kabartma) |
+| Mesh | Tripo H3.1 image-to-3D, **dokulu**, 8000 face · `ship_hero_03_mesh_8000.glb` |
+| Sahne | `src/world/ship.ts` — tek hero, 42 m; kara tarafında kahverengi kaya patikası (pruva → kum) |
+| Yedek | `scripts/blender/build_hero_ship.py` v0 — sahne fallback |
 
-Yeni ASSET-id üretim başında verilir. LOT-28 ada kiti ve `sea.ts` bu aile değil.
+LOT-28 ada kiti ve `sea.ts` bu aile değil.
 
 ## Yasak
 

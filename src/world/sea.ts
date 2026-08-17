@@ -1,235 +1,352 @@
 import * as THREE from "three";
-import { FLORA, ISLAND, LAGOON, PALETTE, SEA_TEX } from "../constants";
-import { islandRadiusFactor, lagoonRadiusFactor } from "./terrain";
+import { DAY, FLORA, ISLAND, LAGOON, PALETTE, RENDER, SEA_TEX, SHIP, SUN_DISK } from "../constants";
 import { assetUrl } from "../assets/paths";
+import { loadKitGeometry } from "./islandKit";
+import { WAVE_UNIFORMS } from "./oceanWaves";
 import { mulberry32 } from "./rng";
-import { loadAlbedoTexture, loadDataTexture } from "./sprite";
+import { loadAlbedoTexture } from "./sprite";
 
 /**
- * Generated water textures (`docs/art/asset-registry.md` P1 — Su ve kıyı),
- * shipped as WebP. Normal/caustic stay in linear space (`loadDataTexture` —
- * `docs/art/pipeline.md` §6, data maps never get `SRGBColorSpace`); foam is
- * an alpha-cutout albedo so it goes through `loadAlbedoTexture`.
+ * Dynamic sea — one Gerstner surface, not tiled wave meshes.
+ *
+ * Pattern (WebGL2, no extra npm dep):
+ *   https://github.com/achrefelouafi/WaterThreeJS  (camera-snapped grid + contact foam)
+ *   Sean-Bradley Gerstner fork of three.js Water   (GPU Gems waves + CPU twin)
+ *
+ * Playtest 17 Aug: Blender tiles and a coarse shader plane both failed because
+ * the triangles were bigger than the waves. This patch is ~1.4 m cells under
+ * the camera. Lagoon stays a still disc (art-bible.md §6).
  */
-const SHALLOW_NORMAL_URL = "assets/textures/water_shallow_01_normal_512.webp";
-const LAKE_NORMAL_URL = "assets/textures/water_lake_01_normal_512.webp";
-const FOAM_TEX_URL = "assets/textures/water_foam_01_alpha_512.webp";
-const CAUSTIC_TEX_URL = "assets/textures/water_caustic_01_caustic_512.webp";
 
-/** Push a flat (XZ) disc/ring outward by an angular radius factor. */
-function wobbleRadially(
-  geo: THREE.BufferGeometry,
-  factor: (angle: number) => number = lagoonRadiusFactor,
-): void {
-  const p = geo.attributes.position as THREE.BufferAttribute;
-  for (let i = 0; i < p.count; i++) {
-    const x = p.getX(i);
-    const z = p.getZ(i);
-    if (Math.abs(x) < 1e-4 && Math.abs(z) < 1e-4) continue;
-    const f = factor(Math.atan2(z, x));
-    p.setX(i, x * f);
-    p.setZ(i, z * f);
-  }
-  p.needsUpdate = true;
-  geo.computeVertexNormals();
-}
+const LAGOON_URL = "assets/models/water_lagoon_01_mesh_400.glb";
 
 export interface Sea {
   group: THREE.Group;
-  update(t: number): void;
+  update(
+    t: number,
+    hull?: THREE.Vector3,
+    heading?: number,
+    cam?: THREE.Vector3,
+    day01?: number,
+  ): void;
 }
 
-/** Turquoise shallows fading to lazuli depth, plus a foam line at the shore. */
+function sunDirection(day01: number): THREE.Vector3 {
+  const t = THREE.MathUtils.clamp(day01, 0, 1);
+  const elev = THREE.MathUtils.degToRad(
+    THREE.MathUtils.lerp(DAY.sunStartDeg, DAY.sunEndDeg, t),
+  );
+  const az = THREE.MathUtils.lerp(SUN_DISK.azimuthStart, SUN_DISK.azimuthEnd, t);
+  return new THREE.Vector3(
+    Math.cos(az) * Math.cos(elev),
+    Math.sin(elev),
+    Math.sin(az) * Math.cos(elev),
+  ).normalize();
+}
+
+function oceanMaterial(): THREE.ShaderMaterial {
+  const shallow = new THREE.Color(PALETTE.seaShallow);
+  const mid = new THREE.Color(PALETTE.seaMid);
+  const deep = new THREE.Color(PALETTE.seaDeep);
+  const foam = new THREE.Color(PALETTE.seaFoam);
+  const crest = new THREE.Color(PALETTE.seaCrest);
+  const sun = new THREE.Color(RENDER.sunColor);
+  const sky = new THREE.Color(RENDER.skyHorizon);
+
+  return new THREE.ShaderMaterial({
+    fog: true,
+    uniforms: THREE.UniformsUtils.merge([
+      THREE.UniformsLib.fog,
+      {
+        uTime: { value: 0 },
+        uWave0: { value: new THREE.Vector4(...WAVE_UNIFORMS[0]) },
+        uWave1: { value: new THREE.Vector4(...WAVE_UNIFORMS[1]) },
+        uWave2: { value: new THREE.Vector4(...WAVE_UNIFORMS[2]) },
+        uWave3: { value: new THREE.Vector4(...WAVE_UNIFORMS[3]) },
+        uHull: { value: new THREE.Vector3(SHIP.pos.x, 0, SHIP.pos.z) },
+        uHeading: { value: SHIP.rotY },
+        uHullHalf: { value: new THREE.Vector2(SHIP.deckHalfL + 1.4, SHIP.deckHalfW + 1.1) },
+        uIslandR: { value: ISLAND.radius },
+        uWobbleA: { value: ISLAND.wobbleA },
+        uWobbleB: { value: ISLAND.wobbleB },
+        uShoreCalm: { value: SEA_TEX.shoreCalm },
+        uShoreMin: { value: SEA_TEX.shoreMin },
+        uOverlap: { value: SEA_TEX.overlapMeters },
+        uFloorY: { value: SEA_TEX.floorY },
+        uEnableWaves: { value: 1 },
+        uHullChop: { value: SEA_TEX.hullChop },
+        uFoamShore: { value: SEA_TEX.foamShoreMeters },
+        uSpecPower: { value: SEA_TEX.specPower },
+        uSpecGain: { value: SEA_TEX.specGain },
+        uShallow: { value: shallow },
+        uMid: { value: mid },
+        uDeep: { value: deep },
+        uFoam: { value: foam },
+        uCrest: { value: crest },
+        uSunDir: { value: sunDirection(0) },
+        uSunColor: { value: sun },
+        uSky: { value: sky },
+      },
+    ]),
+    vertexShader: /* glsl */ `
+      #include <common>
+      #include <fog_pars_vertex>
+
+      uniform float uTime;
+      uniform vec4 uWave0;
+      uniform vec4 uWave1;
+      uniform vec4 uWave2;
+      uniform vec4 uWave3;
+      uniform vec3 uHull;
+      uniform float uHeading;
+      uniform vec2 uHullHalf;
+      uniform float uIslandR;
+      uniform float uWobbleA;
+      uniform float uWobbleB;
+      uniform float uShoreCalm;
+      uniform float uShoreMin;
+      uniform float uOverlap;
+      uniform float uFloorY;
+      uniform float uEnableWaves;
+      uniform float uHullChop;
+
+      varying vec3 vWorld;
+      varying vec2 vOrig;
+      varying vec3 vNormalW;
+      varying float vCrest;
+      varying float vDeep;
+      varying float vHull;
+
+      float coastR(vec2 xz) {
+        float ang = atan(xz.y, xz.x);
+        return uIslandR * (1.0 + uWobbleA * sin(ang * 2.0 + 0.9) + uWobbleB * sin(ang * 4.0 - 2.2));
+      }
+
+      void gerstner(
+        vec4 wave,
+        vec3 p,
+        float ampMul,
+        inout vec3 disp,
+        inout vec3 tangent,
+        inout vec3 binormal
+      ) {
+        float steepness = wave.z * ampMul;
+        float wavelength = wave.w;
+        float k = PI2 / wavelength;
+        float c = sqrt(9.8 / k);
+        vec2 d = normalize(wave.xy);
+        float f = k * (dot(d, p.xz) - c * uTime);
+        float a = steepness / k;
+        disp += vec3(d.x * (a * cos(f)), a * sin(f), d.y * (a * cos(f)));
+        tangent += vec3(
+          -d.x * d.x * steepness * sin(f),
+          d.x * steepness * cos(f),
+          -d.x * d.y * steepness * sin(f)
+        );
+        binormal += vec3(
+          -d.x * d.y * steepness * sin(f),
+          d.y * steepness * cos(f),
+          -d.y * d.y * steepness * sin(f)
+        );
+      }
+
+      void main() {
+        vec3 p = (modelMatrix * vec4(position, 1.0)).xyz;
+        vOrig = p.xz;
+        float r = length(p.xz);
+        float coast = coastR(p.xz);
+        float deep = smoothstep(coast - 1.0, coast + uShoreCalm, r);
+        float ampMul = mix(uShoreMin, 1.0, deep) * uEnableWaves;
+        // Kill horizontal Gerstner near the beach so vertices cannot tear
+        // holes that show the sand through (the "kellik" pattern).
+        float xzFade = smoothstep(coast + 2.0, coast + 14.0, r);
+
+        vec2 toH = p.xz - uHull.xz;
+        float cs = cos(uHeading);
+        float sn = sin(uHeading);
+        vec2 local = vec2(toH.x * cs + toH.y * sn, -toH.x * sn + toH.y * cs);
+        float hullD = length(local / max(uHullHalf, vec2(0.5)));
+        float hullProx = 1.0 - smoothstep(1.05, 2.35, hullD);
+        ampMul *= 1.0 + hullProx * uHullChop * uEnableWaves;
+
+        vec3 disp = vec3(0.0);
+        vec3 tangent = vec3(1.0, 0.0, 0.0);
+        vec3 binormal = vec3(0.0, 0.0, 1.0);
+        gerstner(uWave0, p, ampMul, disp, tangent, binormal);
+        gerstner(uWave1, p, ampMul, disp, tangent, binormal);
+        gerstner(uWave2, p, ampMul, disp, tangent, binormal);
+        gerstner(uWave3, p, ampMul, disp, tangent, binormal);
+        disp.x *= xzFade;
+        disp.z *= xzFade;
+
+        vec3 world = p + disp;
+        world.y = max(world.y, uFloorY);
+        vWorld = world;
+        vNormalW = normalize(cross(binormal, tangent));
+        vCrest = clamp(disp.y * 0.55 + 0.45, 0.0, 1.0);
+        vDeep = deep;
+        vHull = hullProx;
+
+        vec4 mvPosition = viewMatrix * vec4(world, 1.0);
+        gl_Position = projectionMatrix * mvPosition;
+        #include <fog_vertex>
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      #include <common>
+      #include <fog_pars_fragment>
+      #include <tonemapping_pars_fragment>
+
+      uniform vec3 uShallow;
+      uniform vec3 uMid;
+      uniform vec3 uDeep;
+      uniform vec3 uFoam;
+      uniform vec3 uCrest;
+      uniform vec3 uSunDir;
+      uniform vec3 uSunColor;
+      uniform vec3 uSky;
+      uniform float uSpecPower;
+      uniform float uSpecGain;
+      uniform float uFoamShore;
+      uniform float uOverlap;
+      uniform float uTime;
+      uniform float uIslandR;
+      uniform float uWobbleA;
+      uniform float uWobbleB;
+
+      varying vec3 vWorld;
+      varying vec2 vOrig;
+      varying vec3 vNormalW;
+      varying float vCrest;
+      varying float vDeep;
+      varying float vHull;
+
+      float coastR(vec2 xz) {
+        float ang = atan(xz.y, xz.x);
+        return uIslandR * (1.0 + uWobbleA * sin(ang * 2.0 + 0.9) + uWobbleB * sin(ang * 4.0 - 2.2));
+      }
+
+      void main() {
+        float r = length(vOrig);
+        float coast = coastR(vOrig);
+        if (r < coast - uOverlap) discard;
+
+        vec3 n = normalize(vNormalW);
+        vec3 nFace = cross(dFdx(vWorld), dFdy(vWorld));
+        if (length(nFace) > 1e-5 && dot(nFace, n) > 0.0) {
+          n = normalize(mix(n, normalize(nFace), 0.55));
+        }
+        n.x += 0.07 * sin(vWorld.x * 2.4 + uTime * 1.35);
+        n.z += 0.07 * sin(vWorld.z * 1.9 - uTime * 1.05);
+        n = normalize(n);
+
+        vec3 V = normalize(cameraPosition - vWorld);
+        vec3 L = normalize(uSunDir);
+        float ndv = max(dot(n, V), 0.0);
+        float fresnel = mix(0.05, 0.58, pow(1.0 - ndv, 5.0));
+
+        vec3 water = mix(uShallow, uMid, smoothstep(0.0, 0.42, vDeep));
+        water = mix(water, uDeep, smoothstep(0.42, 1.0, vDeep));
+        water = mix(water, uCrest, vCrest * (1.0 - vDeep) * 0.18);
+
+        vec3 R = reflect(-L, n);
+        float spec = pow(max(dot(R, V), 0.0), uSpecPower) * uSpecGain;
+        spec *= mix(0.16, 0.85, vDeep);
+        spec = min(spec, 0.2);
+
+        vec3 col = mix(water, mix(water, uSky, 0.65), fresnel);
+        col += uSunColor * spec;
+
+        float shoreBand = 1.0 - smoothstep(-uOverlap * 0.4, uFoamShore, r - coast);
+        float foam = max(shoreBand * (0.42 + 0.58 * vCrest), vHull * (0.72 + 0.28 * vCrest));
+        col = mix(col, uFoam, clamp(foam, 0.0, 1.0) * 0.9);
+
+        gl_FragColor = vec4(col, 1.0);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+        #include <fog_fragment>
+      }
+    `,
+  });
+}
+
+function makeGrid(span: number, segs: number): THREE.PlaneGeometry {
+  const geo = new THREE.PlaneGeometry(span, span, segs, segs);
+  geo.rotateX(-Math.PI / 2);
+  return geo;
+}
+
 export function buildSea(): Sea {
   const group = new THREE.Group();
+  const updaters: Array<(
+    t: number,
+    hull?: THREE.Vector3,
+    heading?: number,
+    cam?: THREE.Vector3,
+    day01?: number,
+  ) => void> = [];
 
-  const size = ISLAND.planeSize * 3.2;
-  const seg = 90;
-  const geo = new THREE.PlaneGeometry(size, size, seg, seg);
-  geo.rotateX(-Math.PI / 2);
-  const pos = geo.attributes.position as THREE.BufferAttribute;
-  const base = Float32Array.from(pos.array);
+  const mat = oceanMaterial();
+  const patch = new THREE.Mesh(makeGrid(SEA_TEX.patchMeters, SEA_TEX.segments), mat);
+  patch.frustumCulled = false;
+  patch.matrixAutoUpdate = true;
+  patch.receiveShadow = false;
+  patch.castShadow = false;
+  patch.renderOrder = 2;
+  mat.polygonOffset = true;
+  mat.polygonOffsetFactor = -1;
+  mat.polygonOffsetUnits = -1;
+  group.add(patch);
 
-  const shallow = new THREE.Color(PALETTE.seaShallow);
-  const deep = new THREE.Color(PALETTE.seaDeep);
-  const colors = new Float32Array(pos.count * 3);
-  const tmp = new THREE.Color();
-  for (let i = 0; i < pos.count; i++) {
-    const r = Math.hypot(base[i * 3], base[i * 3 + 2]);
-    const t = Math.min(1, Math.max(0, (r - ISLAND.radius) / 22));
-    tmp.copy(shallow).lerp(deep, t * t);
-    colors[i * 3] = tmp.r;
-    colors[i * 3 + 1] = tmp.g;
-    colors[i * 3 + 2] = tmp.b;
-  }
-  geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+  const floodMat = mat.clone();
+  floodMat.uniforms.uEnableWaves.value = 0;
+  floodMat.polygonOffset = false;
+  const flood = new THREE.Mesh(makeGrid(SEA_TEX.floodMeters, SEA_TEX.floodSegments), floodMat);
+  flood.frustumCulled = false;
+  flood.position.y = SEA_TEX.floorY;
+  flood.renderOrder = 1;
+  flood.receiveShadow = false;
+  flood.castShadow = false;
+  group.add(flood);
 
-  const shallowNormal = loadDataTexture(assetUrl(SHALLOW_NORMAL_URL));
-  shallowNormal.wrapS = THREE.RepeatWrapping;
-  shallowNormal.wrapT = THREE.RepeatWrapping;
-  const shallowReps = size / SEA_TEX.shallowNormalTileMeters;
-  shallowNormal.repeat.set(shallowReps, shallowReps);
+  updaters.push((t, hull, heading, cam, day01) => {
+    const cell = SEA_TEX.patchMeters / SEA_TEX.segments;
+    const cx = cam ? Math.round(cam.x / cell) * cell : 0;
+    const cz = cam ? Math.round(cam.z / cell) * cell : 0;
+    patch.position.set(cx, SEA_TEX.floorY, cz);
 
-  const seaMat = new THREE.MeshStandardMaterial({
-    vertexColors: true,
-    roughness: 0.18,
-    metalness: 0.12,
-    transparent: true,
-    opacity: 0.92,
-    flatShading: true,
-    normalMap: shallowNormal,
-    normalScale: new THREE.Vector2(SEA_TEX.shallowNormalStrength, SEA_TEX.shallowNormalStrength),
+    const hx = hull?.x ?? SHIP.pos.x;
+    const hz = hull?.z ?? SHIP.pos.z;
+    const yaw = heading ?? SHIP.rotY;
+    const sun = sunDirection(day01 ?? 0);
+
+    for (const m of [mat, floodMat]) {
+      m.uniforms.uTime.value = t;
+      (m.uniforms.uHull.value as THREE.Vector3).set(hx, 0, hz);
+      m.uniforms.uHeading.value = yaw;
+      (m.uniforms.uSunDir.value as THREE.Vector3).copy(sun);
+    }
+    floodMat.uniforms.uEnableWaves.value = 0;
+    mat.uniforms.uEnableWaves.value = 1;
   });
-  const waveTime = { value: 0 };
-  seaMat.onBeforeCompile = (shader) => {
-    shader.uniforms.uTime = waveTime;
-    shader.uniforms.uAmpA = { value: SEA_TEX.waveAmpA };
-    shader.uniforms.uAmpB = { value: SEA_TEX.waveAmpB };
-    shader.uniforms.uAmpC = { value: SEA_TEX.waveAmpC };
-    shader.uniforms.uIslandR = { value: ISLAND.radius };
-    shader.vertexShader = shader.vertexShader
-      .replace(
-        "#include <common>",
-        `#include <common>
-uniform float uTime;
-uniform float uAmpA;
-uniform float uAmpB;
-uniform float uAmpC;
-varying vec2 vSeaXZ;`,
-      )
-      .replace(
-        "#include <begin_vertex>",
-        `#include <begin_vertex>
-vSeaXZ = position.xz;
-transformed.y += sin(position.x * 0.16 + uTime * 1.1) * uAmpA
-  + sin(position.z * 0.21 - uTime * 0.85) * uAmpB
-  + sin((position.x + position.z) * 0.09 + uTime * 1.7) * uAmpC;`,
-      );
-    shader.fragmentShader = shader.fragmentShader
-      .replace(
-        "#include <common>",
-        `#include <common>
-uniform float uIslandR;
-varying vec2 vSeaXZ;`,
-      )
-      .replace(
-        "#include <dithering_fragment>",
-        `#include <dithering_fragment>
-// Interior is the lagoon basin — don't paint ocean over the still lake.
-if (length(vSeaXZ) < uIslandR - 3.5) discard;`,
-      );
-  };
-  const sea = new THREE.Mesh(geo, seaMat);
-  group.add(sea);
 
-  // ------------------------------------------------------------------- foam
-  // Ring UVs wrap u around the full circle and v across the ring's thin
-  // radial width — repeat the foam strip around the coastline, clamp across it.
-  const foamTex = loadAlbedoTexture(assetUrl(FOAM_TEX_URL));
-  foamTex.wrapS = THREE.RepeatWrapping;
-  foamTex.wrapT = THREE.ClampToEdgeWrapping;
-  foamTex.repeat.x = SEA_TEX.foamRepeatX;
-  const foamMat = new THREE.MeshBasicMaterial({
-    map: foamTex,
-    color: PALETTE.seaFoam,
-    transparent: true,
-    alphaTest: 0.08,
-    opacity: 0.85,
-    depthWrite: false,
-    side: THREE.DoubleSide,
+  void loadKitGeometry(LAGOON_URL).then((geo) => {
+    const mesh = new THREE.Mesh(
+      geo,
+      new THREE.MeshStandardMaterial({
+        vertexColors: true,
+        roughness: 0.55,
+        metalness: 0,
+        envMapIntensity: 0.25,
+      }),
+    );
+    mesh.position.set(LAGOON.center.x, LAGOON.waterY, LAGOON.center.z);
+    mesh.receiveShadow = true;
+    group.add(mesh);
+    updaters.push((t) => {
+      mesh.position.y = LAGOON.waterY + Math.sin(t * 0.45) * 0.02;
+    });
   });
-  const foams: THREE.Mesh[] = [];
-  for (let i = 0; i < 2; i++) {
-    const r0 = ISLAND.radius - 1.3 + i * 1.15;
-    const geoF = new THREE.RingGeometry(r0, r0 + (i === 0 ? 0.8 : 0.5), 128, 1);
-    geoF.rotateX(-Math.PI / 2);
-    wobbleRadially(geoF, islandRadiusFactor);
-    const ring = new THREE.Mesh(geoF, foamMat.clone());
-    ring.position.y = 0.035 + i * 0.012;
-    group.add(ring);
-    foams.push(ring);
-  }
-
-  // -------------------------------------------------------- shallow caustic
-  // Additive shimmer over the coastline shallows (ASSET-014) — a wider ring
-  // than the foam, sitting just above the sea surface, drifting slowly.
-  const causticTex = loadAlbedoTexture(assetUrl(CAUSTIC_TEX_URL));
-  causticTex.wrapS = THREE.RepeatWrapping;
-  causticTex.wrapT = THREE.RepeatWrapping;
-  const causticGeo = new THREE.RingGeometry(ISLAND.radius - 6, ISLAND.radius + 4, 128, 1);
-  causticGeo.rotateX(-Math.PI / 2);
-  wobbleRadially(causticGeo, islandRadiusFactor);
-  const causticReps = ((ISLAND.radius + 4) * Math.PI * 2) / SEA_TEX.causticTileMeters;
-  const causticUv = causticGeo.attributes.uv as THREE.BufferAttribute;
-  for (let i = 0; i < causticUv.count; i++) {
-    causticUv.setX(i, causticUv.getX(i) * causticReps);
-  }
-  const causticMat = new THREE.MeshBasicMaterial({
-    map: causticTex,
-    transparent: true,
-    opacity: SEA_TEX.causticOpacity,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-    side: THREE.DoubleSide,
-  });
-  const caustic = new THREE.Mesh(causticGeo, causticMat);
-  caustic.position.y = 0.02;
-  group.add(caustic);
-
-  // ----------------------------------------------------------- lagoon water
-  const lakeNormal = loadDataTexture(assetUrl(LAKE_NORMAL_URL));
-  lakeNormal.wrapS = THREE.RepeatWrapping;
-  lakeNormal.wrapT = THREE.RepeatWrapping;
-  const lakeReps = (LAGOON.radius * 2) / SEA_TEX.lakeNormalTileMeters;
-  lakeNormal.repeat.set(lakeReps, lakeReps);
-
-  const lagoonGeo = new THREE.CircleGeometry(LAGOON.radius, 96, 0, Math.PI * 2);
-  lagoonGeo.rotateX(-Math.PI / 2);
-  wobbleRadially(lagoonGeo);
-  const lagoonMat = new THREE.MeshStandardMaterial({
-    color: PALETTE.lagoon,
-    roughness: 0.42,
-    metalness: 0.04,
-    transparent: true,
-    opacity: 0.94,
-    normalMap: lakeNormal,
-    normalScale: new THREE.Vector2(SEA_TEX.lakeNormalStrength, SEA_TEX.lakeNormalStrength),
-  });
-  const lagoon = new THREE.Mesh(lagoonGeo, lagoonMat);
-  lagoon.position.set(LAGOON.center.x, LAGOON.waterY, LAGOON.center.z);
-  group.add(lagoon);
-
-  // Wet-sand rim — not foam. Art-bible.md §6: the lake has no surf.
-  const edgeGeo = new THREE.RingGeometry(LAGOON.radius - 0.45, LAGOON.radius + 0.35, 96, 1);
-  edgeGeo.rotateX(-Math.PI / 2);
-  wobbleRadially(edgeGeo);
-  const lagoonEdge = new THREE.Mesh(
-    edgeGeo,
-    new THREE.MeshBasicMaterial({
-      color: PALETTE.sandWet,
-      transparent: true,
-      opacity: 0.55,
-      depthWrite: false,
-      side: THREE.DoubleSide,
-    }),
-  );
-  lagoonEdge.position.set(LAGOON.center.x, LAGOON.waterY + 0.015, LAGOON.center.z);
-  group.add(lagoonEdge);
-
-  const lakeCausticGeo = new THREE.CircleGeometry(LAGOON.radius * 0.92, 48);
-  lakeCausticGeo.rotateX(-Math.PI / 2);
-  wobbleRadially(lakeCausticGeo);
-  const lakeCausticMat = new THREE.MeshBasicMaterial({
-    map: causticTex,
-    transparent: true,
-    opacity: SEA_TEX.lakeCausticOpacity,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-    side: THREE.DoubleSide,
-  });
-  const lakeCaustic = new THREE.Mesh(lakeCausticGeo, lakeCausticMat);
-  lakeCaustic.position.set(LAGOON.center.x, LAGOON.waterY + 0.025, LAGOON.center.z);
-  group.add(lakeCaustic);
 
   const padTex = loadAlbedoTexture(assetUrl("assets/textures/flora_lilypad_01_albedo_512.webp"));
   const padAspect = 547 / 643;
@@ -265,25 +382,14 @@ if (length(vSeaXZ) < uIslandR - 3.5) discard;`,
   padMesh.instanceMatrix.needsUpdate = true;
   padMesh.frustumCulled = false;
   group.add(padMesh);
+  updaters.push((t) => {
+    padMesh.position.y = Math.sin(t * 0.45) * 0.012;
+  });
 
   return {
     group,
-    update(t: number) {
-      waveTime.value = t;
-
-      foams.forEach((f, i) => {
-        const p = (Math.sin(t * 0.9 - i * 0.7) + 1) * 0.5;
-        (f.material as THREE.MeshBasicMaterial).opacity = 0.38 + p * 0.5;
-        f.scale.setScalar(1 + p * 0.012);
-      });
-
-      causticTex.offset.set(t * SEA_TEX.causticScrollSpeed, t * SEA_TEX.causticScrollSpeed * 0.6);
-      causticMat.opacity = SEA_TEX.causticOpacity * (0.85 + Math.sin(t * 0.6) * 0.15);
-      lakeCausticMat.opacity = SEA_TEX.lakeCausticOpacity * (0.75 + Math.sin(t * 0.35) * 0.25);
-
-      lagoon.position.y = LAGOON.waterY + Math.sin(t * 0.45) * 0.012;
-      lakeCaustic.position.y = lagoon.position.y + 0.025;
-      padMesh.position.y = Math.sin(t * 0.45) * 0.012;
+    update(t, hull, heading, cam, day01) {
+      for (const fn of updaters) fn(t, hull, heading, cam, day01);
     },
   };
 }

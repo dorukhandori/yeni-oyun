@@ -632,7 +632,7 @@ export function buildTerrain(): Terrain {
     const z = Math.sin(a) * r;
     const y = heightAt(x, z);
     if (y < -0.15 || y > 3.2) continue;
-    if (Math.hypot(x - SHIP.pos.x, z - SHIP.pos.z) < 8) continue;
+    if (Math.hypot(x - SHIP.pos.x, z - SHIP.pos.z) < FLORA.shipKeepout) continue;
     pushRock(x, z, y, 0.45 + rand() * 1.15);
   }
   for (let i = 0; i < FLORA.rockLagoon; i++) {

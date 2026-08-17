@@ -44,10 +44,8 @@ import { buildHillPuzzle, updateHillPuzzleVisuals } from "./world/hillPuzzle";
 import { buildTerrain, heightAt, inLagoon, islandRadiusAt, wadeLimitAt } from "./world/terrain";
 import { glowSprite } from "./world/sprite";
 
-/** Surface the sailor and camera stand on: land, or wading depth in water. */
-function standY(x: number, z: number): number {
-  return Math.max(heightAt(x, z), PLAYER.wadeFloor);
-}
+/** Surface the sailor and camera stand on: land, wading depth, or the home deck. */
+let standY = (x: number, z: number): number => Math.max(heightAt(x, z), PLAYER.wadeFloor);
 
 /**
  * DEV-only automation seam consumed by scripts/asset-qa/. Attached to
@@ -88,6 +86,11 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
   const stones = buildSteppingStones();
   const hill = buildHillPuzzle();
   const ship = buildShip();
+  standY = (x, z) => {
+    const deck = ship.deckY(x, z);
+    if (deck != null) return deck;
+    return Math.max(heightAt(x, z), PLAYER.wadeFloor);
+  };
   const lotophagoi = buildLotophagoi();
   const hallucinations = buildHallucinations();
   const thallopes = buildThallopes();
@@ -1054,7 +1057,7 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
       running,
     );
     rig.update(focus, dt, camLift, camPullback);
-    sea.update(time);
+    sea.update(time, ship.anchor, ship.heading(), stage.camera.position, st.dayTime / DAY.length);
     terrain.update(time);
     field.update(dt, time, {
       playerX: pos.x,

@@ -99,7 +99,7 @@ const PROFILES: Record<WorldProfileKey, WorldProfileValues> = {
     island: { radius: 160, planeSize: 384, planeSegments: 196 },
     player: { speed: 4.5, spawn: { x: 3.2, z: -146 } },
     lotus: { count: 28, carryCap: 4 },
-    ship: { pos: { x: 0, z: -140 }, range: 4.0 },
+    ship: { pos: { x: 0, z: -154 }, range: 6.5 },
     layoutShiftZ: -80,
     fogDensity: 0.0044,
     // tuning.md §5.1/5.2 documents these as puan/s on a 0-100 scale
@@ -221,13 +221,42 @@ export const SHIP = {
   pos: profile.ship.pos,
   /** Broadside to the shore so the sail and oars read from the beach. */
   rotY: -1.3,
-  scale: 0.92,
-  /** Delivery trigger radius. */
-  range: profile.ship.range,
+  /**
+   * Fitted length in metres. Sahip 17 Aug: 3× the locked 14 m house-galley.
+   */
+  length: 42,
+  scale: 1,
+  mesh: "assets/models/ship_hero_03_mesh_8000.glb",
+  /**
+   * Tripo from Gemini still ASSET-075 v3 (Wedjat bow). 0 until playtest says flip.
+   */
+  meshFacing: 0,
+  deckY: 4.74,
+  deckHalfW: 6.6,
+  deckHalfL: 20.7,
+  /** Delivery trigger — scales with the 3× hull so the gangplank still counts. */
+  range: profile.ship.range * 3,
+  /** Inlaid glow on the Wedjat and nearby glyph grooves only — low, not hull-wide. */
+  neonEye: 0x3dfff6,
+  neonRune: 0xc46bff,
+  neonIntensity: 0.55,
+  /** Beached hull, lapping shallows — readable from the hill on a 42 m ship. */
+  bobAmp: 0.55,
+  bobHz: 1.05,
+  rollAmp: 0.055,
+  rollHz: 0.82,
+  pitchAmp: 0.028,
+  pitchHz: 0.7,
   /** K35 forget: min metres from the previous berth. */
   relocateMin: 40,
   /** K35 forget: min metres from the player. */
   relocatePlayerMin: 25,
+  /** Brown-stone causeway from the landward bow onto the beach (hull sits in the shallows). */
+  causewayCount: 34,
+  causewayWidth: 2.6,
+  causewayInland: 16,
+  causewayClear: 2.2,
+  causewayBow: 0.62,
 } as const;
 
 /** Hidden beauties + offer wander (K35, `gdd-lotus-island-run.md` §3.12–3.13). */
@@ -752,12 +781,10 @@ export const LOTOPHAGOS = {
   ],
 };
 
-/** Achaean fleet on the beach — twelve ships for twelve lotuses. */
+/** Hero home hull only — twelve-ship fleet retired (LOT-52). */
 export const FLEET = {
-  count: 12,
-  /** Index of Doryseus' ship (delivery + player spawn nearby). */
-  playerIndex: 6,
-  /** Spacing along the shore tangent. */
+  count: 1,
+  playerIndex: 0,
   spacing: 3.35,
 } as const;
 
@@ -859,24 +886,42 @@ export const TERRAIN_TEX = {
 } as const;
 
 export const SEA_TEX = {
-  /** water_shallow_01 (ASSET-012) ripple wavelength. */
-  shallowNormalTileMeters: 6.5,
-  shallowNormalStrength: 0.55,
-  /** water_lake_01 (ASSET-033) — slower, calmer ripple than the open sea. */
-  lakeNormalTileMeters: 7.5,
-  lakeNormalStrength: 0.22,
-  /** water_foam_01 (ASSET-013) repeats around the coastline ring. */
-  foamRepeatX: 30,
-  /** water_caustic_01 (ASSET-014), additive shimmer over the shallows. */
-  causticTileMeters: 3.2,
-  causticScrollSpeed: 0.035,
-  causticOpacity: 0.55,
-  /** Stylized Gerstner-ish vertex waves (art-bible.md §1 NOT photoreal). */
-  waveAmpA: 0.22,
-  waveAmpB: 0.16,
-  waveAmpC: 0.1,
-  /** Lake caustic — much weaker so the lagoon does not read as sea. */
-  lakeCausticOpacity: 0.1,
+  /**
+   * Camera-snapped Gerstner patch (WaterThreeJS / Sean-Bradley pattern).
+   * Cell size ≈ patchMeters / segments — must stay well under the shortest
+   * wavelength or the surface reads as stained-glass slabs again.
+   */
+  patchMeters: 400,
+  segments: 320,
+  /** dirDeg is travel heading in XZ; steepness 0–1; wavelength metres. */
+  waves: [
+    { dirDeg: 22, steepness: 0.22, wavelength: 36 },
+    { dirDeg: 41, steepness: 0.16, wavelength: 20 },
+    { dirDeg: -8, steepness: 0.14, wavelength: 11 },
+    { dirDeg: 58, steepness: 0.10, wavelength: 6.5 },
+  ],
+  /** Metres past the coast before chop is full strength. */
+  shoreCalm: 22,
+  /** Amplitude scale right at the waterline — 0 so Gerstner cannot tear holes in the beach. */
+  shoreMin: 0,
+  /** How far the sheet overlaps the wet-sand ring (art-bible beach). */
+  overlapMeters: 10,
+  /** Troughs never drop below this, so sand cannot show through. */
+  floorY: 0.05,
+  /** Static flood under the Gerstner chop — covers the seafloor to the horizon. */
+  floodMeters: 1100,
+  floodSegments: 48,
+  foamShoreMeters: 11,
+  /** Extra Gerstner steepness piled against the hull (shader only). */
+  hullChop: 0.7,
+  specPower: 72,
+  specGain: 0.18,
+  /** How much of the sampled wave height the hull rides (0–1). */
+  hullFollow: 0.72,
+  /** Keel sits this many metres below the sampled surface. */
+  hullDraft: 0.4,
+  hullPitchFollow: 0.42,
+  hullRollFollow: 0.38,
 } as const;
 
 /**
@@ -909,7 +954,8 @@ export const FLORA = {
   grassSway: 0.03,
   treeMinY: 1.7,
   treeMaxY: 14,
-  shipKeepout: 18,
+  /** Half of the 42 m hull plus margin so lawn does not grow through the berth. */
+  shipKeepout: 26,
   groveRadius: 6.8,
 } as const;
 
@@ -943,6 +989,10 @@ export const PALETTE = {
   marble: 0xeee6d6,
   /** Art-bible.md §2 sığ turkuaz / lazuli derin. */
   seaShallow: 0x3fc8c0,
+  /** art-bible.md §2 sığ parlak — dalga tepesi. */
+  seaCrest: 0x6fe0d4,
+  /** art-bible.md §2 lazuli orta — gemi çevresi. */
+  seaMid: 0x1f6fa8,
   seaDeep: 0x14507f,
   seaFoam: 0xfbf7ef,
   /** Art-bible.md §2 iç göl `#5d8f86` — durgun, deniz turkuazı değil. */
@@ -956,9 +1006,12 @@ export const PALETTE = {
   petalRipeTint: 0xff9ec4,
   petalWilt: 0x8f8577,
   lotusHeart: 0xffd45e,
-  hull: 0x8f5d33,
+  hull: 0xc8b49a,
   hullDark: 0x5e3a1e,
   hullTrim: 0xb03a2e,
+  /** Causeway stones — bible çakıl/ahşap gölge, not chalk white. */
+  causeway: 0x8a7358,
+  causewayWet: 0x6b5340,
   sail: 0xf2e4c9,
   cypress: 0x3d5240,
   olive: 0x6b7f4a,

@@ -21,9 +21,9 @@ Aynı dosyada/alanda zaten bir satır varsa: ya bekle, ya sahiple/diğer oturuml
 
 | Kim | Tarih | Dosyalar / alan | Ne yapıyor |
 |---|---|---|---|
-| Cursor (Grok, bu oturum) · `@iris` | 2026-08-17 | `docs/art/specs/lot-52-hero-home-hull.md`, `scripts/blender/build_hero_ship.py`, `src/world/ship.ts`, `src/constants.ts` (`SHIP`/`FLEET`), `public/assets/models/ship_hero_*` | LOT-52 mesh turu: Blender ev-kadırga (tek gövde, filo yok). Bu push'a girmez — sahip canlı eşitlemesinde güneş+ada kiti istedi. `sea.ts` dokunulmuyor. |
+| — | — | — | (bu oturumun deniz/gemi dilimi push'ta) |
 
-**Not — diğer oturumlar:** ada kiti GLB'leri (ASSET-068–073) bu push ile `master`'a giriyor. Deniz shader (LOT-48 / G6) hâlâ son; `sea.ts`'e dokunmayın. Thallope (LOT-39) ayrı aile. LOT-52 gemi mesh'i yerelde, henüz commit yok.
+**Not — diğer oturumlar:** ada kiti GLB'leri (ASSET-068–073) `master`'da. Deniz artık Gerstner ızgara (`sea.ts` + `oceanWaves.ts`); ada kiti dokunulmasın. Thallope (LOT-39) ayrı aile.
 
 ---
 
@@ -41,6 +41,7 @@ Aynı dosyada/alanda zaten bir satır varsa: ya bekle, ya sahiple/diğer oturuml
 
 | Kim | Tarih | Dosyalar / alan | Ne yapıldı |
 |---|---|---|---|
+| Cursor (Grok, bu oturum) · `@byte` / `@iris` | 2026-08-17 | `src/world/{sea,oceanWaves,ship}.ts`, `ship_hero_03_mesh_8000.glb` | LOT-52 42 m kahraman gövde + Gerstner deniz + pruvadan kuma kahverengi kaya patikası. Sahip bu haliyle push istedi. |
 | Cursor (Grok, bu oturum) · `@iris` | 2026-08-17 | `scripts/blender/build_island_kit.py`, `public/assets/models/{rock_chalk_*,flora_olive,flora_cypress,flora_reed}*`, `docs/art/{asset-registry.md,specs/lot-28-island-interior.md}` | LOT-45 / LOT-28 dilim 1: Blender ada kiti GLB'leri Pages'e. Kod (`islandKit.ts`) zaten `master`'daydı; mesh dosyaları untracked kaldığı için canlıda fallback kod mesh görünüyordu. Güneş (`593f027`) de canlıda yoktu — sonraki Pages job GitHub 429/502 ile düştü. |
 | Cursor (Grok, bu oturum) · `@byte` / `@iris` | 2026-08-17 | `src/render/{stage,hazePass,sunDisk}.ts`, `src/constants.ts`, `src/world/terrain.ts` (uzak tepe), `scripts/blender/build_sun_god.py`, `sky_sungod_01_mesh_1200.glb` | Commit `593f027`. LOT-49 ada ışığı (bible §3) + LOT-50 güneş tanrısı v1. Sahip park etti, yine de canlıya istedi. |
 | Cursor (Grok, bu oturum) · `@byte` | 2026-08-17 | `src/world/thallope.ts`, `src/game.ts`, `public/assets/{models,ref}/creature_thallope_*` | Commit `2d6ea69`. LOT-39 Thallope ada spawn. Ayak yaw v1 (LOT-34). Push bu oturum. |

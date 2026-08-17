@@ -140,7 +140,15 @@ CCGS `asset-spec` karşılıkları: `planned`=Needed · `generated`=In Progress 
 | ASSET-017 | Çakıl / kıyı taşı | `scene-texture` | albedo | `art-source/work/prompt-asset-017-pebble.txt` | **accepted** | `public/assets/textures/sand_pebble_01_albedo_512.png` · 2026-08-14 · ilk deneme davetsiz beyaz çiçek lekeleriyle reddedildi, "no flowers" kısıtıyla yeniden üretildi · **2026-08-14 üçüncü tur kapsamı dışında bırakıldı** (sahip'in bu turdaki texture listesinde yoktu) — kod entegrasyonu hâlâ bekliyor |
 | ASSET-031 | Tebeşir beyazı kayalık | `scene-texture` | albedo | `art-source/work/prompt-asset-031-rock-chalk.txt` | **integrated** | `public/assets/textures/rock_chalk_01_albedo_1024.webp` · 2026-08-14 · `src/world/terrain.ts` `rockMat` (kayalar) + `marbleMat` (mabet sütunları) + kuzey koyu adım taşları |
 | ASSET-032 | Kavruk yeşil ot | `scene-texture` | albedo | `art-source/work/prompt-asset-032-drygrass.txt` | **integrated** | `public/assets/textures/flora_drygrass_01_albedo_1024.webp` · 2026-08-14 · iki revizyon gerekti (önce davetsiz lotus çiçekleri, sonra mavi renkli toprak çatlakları) · `src/world/terrain.ts` `buildGroundMaterial` (`aTint` ile yükseklik-bazlı yeşil gradyan çarpımı), `TERRAIN_TEX.grassTileMeters` |
-| ASSET-033 | İç göl suyu (tatlı su) | `scene-texture` | normal | `art-source/work/prompt-asset-033-lake-water.txt` | **integrated** | `public/assets/textures/water_lake_01_normal_512.webp` · 2026-08-14 · denizden hem renkle (mevcut `PALETTE.lagoon`) hem artık normal dalga karakteriyle ayrışıyor · `src/world/sea.ts` lagoon `MeshStandardMaterial.normalMap`, `SEA_TEX.lakeNormalTileMeters/Strength` |
+| ASSET-033 | İç göl suyu (tatlı su) | `scene-texture` | normal | `art-source/work/prompt-asset-033-lake-water.txt` | **integrated** | `public/assets/textures/water_lake_01_normal_512.webp` · 2026-08-14 · **LOT-48 rebuild (17 Ağu):** okyanus yüzeyi artık shader plane değil; ASSET-077–079 Blender mesh. Bu normal göl yedeği olarak durur. |
+
+**LOT-48 deniz kiti (17 Ağu 2026, sahip: shader su reddi → 3D model):** `scripts/blender/build_sea.py` · `src/world/sea.ts` InstancedMesh.
+
+| ID | Ad | Sınıf | Tip | Şablon | Durum | Not |
+|---|---|---|---|---|---|---|
+| ASSET-077 | Dalga kiremiti | `scene-mesh` **[P]** | GLB | `scripts/blender/build_sea.py` | **integrated** | `water_wave_01_mesh_800.glb` · 14 m sculpted chop, vertex colour §2 |
+| ASSET-078 | Kıyı/gövde köpük dubası | `scene-mesh` **[P]** | GLB | `scripts/blender/build_sea.py` | **integrated** | `water_foamcrest_01_mesh_200.glb` · breaker lip |
+| ASSET-079 | İç göl diski | `scene-mesh` **[P]** | GLB | `scripts/blender/build_sea.py` | **integrated** | `water_lagoon_01_mesh_400.glb` · durgun, köpüksüz |
 
 ---
 
@@ -153,7 +161,7 @@ CCGS `asset-spec` karşılıkları: `planned`=Needed · `generated`=In Progress 
 | ASSET-020 | Halat / ağ | `scene-texture` | albedo + alpha | `art-source/work/prompt-asset-020-ship-rope.txt` | **integrated** | `public/assets/textures/ship_rope_01_albedo_512.webp` · 2026-08-14 · raw dosyada gerçek alpha yoktu (beyaz fon) — alpha-key'lendi (1024×644'e kırpıldı); yalnızca ağ yarısı offset/repeat ile kırpılıp kullanıldı (halat şeridi kullanılmadı) · `src/world/ship.ts` `netMat` (güverte üstü balıkçı ağı prop'u) |
 | ASSET-021 | Gemi concept — teslim noktası | `reference` **[K]** | still | `art-source/work/prompt-asset-021-ship-concept.txt` | **accepted** | `art-source/ref/ship_concept_01_ref_1344.png` · 2026-08-14 · oyuna girmez, 3D agent'ın nişan aldığı hedef |
 
-**Gemi sayısı — kapandı:** tek teslim gemisi + kıyıda 12 gemilik filo silüeti (`FLEET.count = 12`, `constants.ts`). `level-lotus-island.md` krokisi ve kod bunu doğruluyor. Key art bu varsayımla üretildi.
+**Gemi sayısı — LOT-52:** tek kahraman ev-kadırga (`ASSET-075`, `FLEET.count = 1`). On iki, güverte kilerindeki amforadır. Eski 12 gövdelik filo retired.
 
 ---
 
@@ -226,6 +234,16 @@ Eski planned ASSET-062–067 (Tripo 3/4 still) **iptal** — ID çakışması + 
 | ID | Ad | Sınıf | Tip | Şablon | Durum | Not |
 |---|---|---|---|---|---|---|
 | ASSET-074 | Helios baş silüeti | `scene-mesh` **[P]** | GLB | `scripts/blender/build_sun_god.py` | **integrated** | `sky_sungod_01_mesh_1200.glb` · 12 kite ışın, vertex colour `#fff6d0`/`#ffcf80`. `src/render/sunDisk.ts`. Still: `art-source/ref/sky_sungod_01_ref_1024.png` (oyuna girmez). |
+
+## P6 — Kahraman ev-gövde (LOT-52, 2026-08-17) **[P]**
+
+> Sahip: tek büyük tarihi ev-kadırga, her adada aynı. Filo yok. 12 amfora = koşu kileri. Spec: `docs/art/specs/lot-52-hero-home-hull.md`.
+> Üretim (sahip, 17 Ağu akşam): Blender v0 yeterince görkemli değil → **Gemini still → Tripo mesh**.
+
+| ID | Ad | Sınıf | Tip | Şablon | Durum | Not |
+|---|---|---|---|---|---|---|
+| ASSET-075 | Kahraman gemi — 3/4 still | `reference` **[P]** | still | `docs/art/prompts/ship-hero-mesh-source.md` | **accepted** | `public/assets/ref/ship_hero_03_ref_1344.png` — Gemini 3-pro-image, v2 gövde image-edit, kabarık Wedjat + runik oyma. v1 holkas / v2 düz Yunan gözü elendi. `_ref_` oyuna girmez. |
+| ASSET-076 | Kahraman ev-kadırga mesh | `scene-mesh` **[P]** | GLB | ASSET-075 + Tripo image-to-3D | **integrated** | `ship_hero_03_mesh_8000.glb` · H3.1, 8000 face, **dokulu** (lazuli göz), `src/world/ship.ts` 14 m. v2 dokusuz ve Blender v0 yedek. |
 
 ---
 

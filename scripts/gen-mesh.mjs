@@ -38,7 +38,8 @@ const API_HOSTS = ["https://openapi.tripo3d.ai", "https://openapi.tripo3d.com"];
 const H_MODEL = "v3.1-20260211";
 const P_MODEL = "P1-20260311";
 const POLL_MS = 2000;
-const POLL_ATTEMPTS = 150;
+/** Textured H3.1 jobs often exceed 5 min; 15 min covers image-to-model + albedo. */
+const POLL_ATTEMPTS = 450;
 
 function readDotenv(path) {
   if (!existsSync(path)) return {};
@@ -185,7 +186,7 @@ async function pollTask(apiKey, id) {
     }
     await new Promise((r) => setTimeout(r, POLL_MS));
   }
-  throw new Error("Timed out waiting for Tripo (3 min).");
+  throw new Error(`Timed out waiting for Tripo (${Math.round((POLL_MS * POLL_ATTEMPTS) / 60000)} min).`);
 }
 
 async function downloadGlb(task, outPath) {
@@ -329,6 +330,7 @@ function usage() {
     "  node scripts/gen-mesh.mjs --front f.png --left l.png --back b.png --right r.png --p1 --pbr\n" +
     "  Default: untextured H3.1 + smart_low_poly + auto_size. Pass --texture/--pbr only if you accept baked albedo.\n" +
     "  Pass --p1 for P1-20260311 (strict face_limit, no smart_low_poly).\n" +
+    "  node scripts/gen-mesh.mjs --task <id> -o art-source/raw/name.glb   # resume poll + download\n" +
     "  node scripts/gen-mesh.mjs --animate --task <generation_task_id> [-o art-source/raw/name.glb]\n" +
     "  node scripts/gen-mesh.mjs --animate --glb art-source/raw/char.glb [-o …]\n" +
     "  Agent does not generate without sahip G1."
@@ -338,7 +340,7 @@ function usage() {
 async function main() {
   const opts = parseArgs(process.argv.slice(2));
   const views = ["front", "left", "back", "right"].filter((k) => opts[k]);
-  if (!opts.balance && !opts.animate && !opts.image && views.length === 0) {
+  if (!opts.balance && !opts.animate && !opts.task && !opts.image && views.length === 0) {
     console.error(usage());
     process.exit(1);
   }
@@ -393,6 +395,30 @@ async function main() {
       } catch (err) {
         lastError = err;
         console.error(`Tripo key ${tag(key)} animate failed: ${err.message}`);
+      }
+    }
+    console.error(lastError ?? new Error("All keys failed."));
+    process.exit(1);
+  }
+
+  if (opts.task && !opts.animate) {
+    const outPath = opts.output
+      ? resolve(opts.output)
+      : join(OUT_DIR, `mesh-${opts.task.slice(0, 8)}.glb`);
+    let lastError;
+    for (const key of keys) {
+      try {
+        const task = await pollTask(key, opts.task);
+        const bytes = await downloadGlb(task, outPath);
+        const credits = task.credits_consumed ?? task.output?.credits_consumed;
+        console.log(
+          `Wrote ${outPath} (${bytes} bytes) task=${opts.task} key=${tag(key)}` +
+            (credits != null ? ` credits=${credits}` : ""),
+        );
+        return;
+      } catch (err) {
+        lastError = err;
+        console.error(`Tripo key ${tag(key)} fetch failed: ${err.message}`);
       }
     }
     console.error(lastError ?? new Error("All keys failed."));

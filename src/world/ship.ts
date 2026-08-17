@@ -1,7 +1,10 @@
 import * as THREE from "three";
-import { FLEET, PALETTE, SHIP } from "../constants";
-import { heightAt } from "./terrain";
+import { PALETTE, SEA_TEX, SHIP } from "../constants";
+import { sampleOceanHull } from "./oceanWaves";
+import { heightAt, islandRadiusAt } from "./terrain";
+import { mulberry32 } from "./rng";
 import { assetUrl } from "../assets/paths";
+import { loadGltf } from "./gltf";
 import { loadAlbedoTexture } from "./sprite";
 
 /** Generated ship textures (`docs/art/asset-registry.md` P1 — Gemi), shipped as WebP. */
@@ -9,119 +12,102 @@ const PLANK_TEX_URL = "assets/textures/ship_plank_01_albedo_1024.webp";
 const SAIL_TEX_URL = "assets/textures/ship_sail_01_albedo_1024.webp";
 const ROPE_TEX_URL = "assets/textures/ship_rope_01_albedo_512.webp";
 
-/** Shared deck-plank material — one texture instance, reused across every hull. */
-function buildDeckMaterial(): THREE.MeshStandardMaterial {
-  const tex = loadAlbedoTexture(assetUrl(PLANK_TEX_URL));
-  tex.wrapS = THREE.RepeatWrapping;
-  tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(1.8, 5.4);
-  return new THREE.MeshStandardMaterial({
-    map: tex,
-    color: PALETTE.hullDark,
-    roughness: 0.85,
-    flatShading: true,
-  });
-}
-
-/** Shared sail-cloth material. */
-function buildSailMaterial(): THREE.MeshStandardMaterial {
-  const tex = loadAlbedoTexture(assetUrl(SAIL_TEX_URL));
-  return new THREE.MeshStandardMaterial({
-    map: tex,
-    color: PALETTE.sail,
-    roughness: 0.8,
-    side: THREE.DoubleSide,
-  });
-}
+const JAR_EMPTY = 0x947a61;
+const JAR_FULL = 0x6e5a48;
 
 export interface Ship {
   group: THREE.Group;
   /** World position used for the delivery trigger (Doryseus' ship). */
   anchor: THREE.Vector3;
+  /** Current hull yaw (park, forget-relocate, departing). */
+  heading(): number;
   update(t: number, departing: number): void;
-  /** Light a mast ribbon on the first n ships (visual progress). */
+  /** Fill the first n amphorae (run pantry, LOT-52). */
   setDelivered(n: number): void;
-  /** Move only the hero hull (K35 forget). Fleet sisters stay put. */
+  /** Move the hero hull (K35 forget). */
   relocateHero(x: number, z: number, rotY: number): void;
   addKeepsake(kind: "cairn" | "wreath"): void;
   reset(): void;
+  /** World Y of the walkable deck, or null if the point is not on the hull. */
+  deckY(x: number, z: number): number | null;
 }
 
-/** Twelve Achaean galleys on the beach — middle one is Doryseus' delivery ship. */
+/** Single hero home-hull (LOT-52). Sisters are gone. */
 export function buildShip(): Ship {
   const group = new THREE.Group();
+  const hull = new THREE.Group();
+  hull.position.set(SHIP.pos.x, heightAt(SHIP.pos.x, SHIP.pos.z), SHIP.pos.z);
+  hull.rotation.y = SHIP.rotY;
+  hull.scale.setScalar(SHIP.scale);
+  group.add(hull);
 
-  // Shore frame: radial out from island center through the beach point.
-  const beachAngle = Math.atan2(SHIP.pos.z, SHIP.pos.x);
-  const tangentX = -Math.sin(beachAngle);
-  const tangentZ = Math.cos(beachAngle);
-  const radialX = Math.cos(beachAngle);
-  const radialZ = Math.sin(beachAngle);
-
-  const ribbons: THREE.Mesh[] = [];
-  const hulls: THREE.Group[] = [];
-  const homePos: THREE.Vector3[] = [];
-  const homeRot: number[] = [];
+  const heroBerth = hull.position.clone();
+  let heroRot: number = SHIP.rotY;
+  const anchor = heroBerth.clone();
+  const local = new THREE.Vector3();
+  const jars: THREE.Mesh[] = [];
+  let sailMesh: THREE.Mesh | null = null;
+  let bellyIndex = -1;
   let sailUpdate: ((t: number, departing: number) => void) | null = null;
 
-  const ribbonMat = new THREE.MeshStandardMaterial({
-    color: PALETTE.petalRipeTint,
-    emissive: new THREE.Color(PALETTE.lotusHeart),
-    emissiveIntensity: 0.35,
-    roughness: 0.55,
-    flatShading: true,
-  });
-
-  for (let i = 0; i < FLEET.count; i++) {
-    const slot = i - FLEET.playerIndex;
-    const ox = SHIP.pos.x + tangentX * slot * FLEET.spacing + radialX * (Math.abs(slot) * 0.15);
-    const oz = SHIP.pos.z + tangentZ * slot * FLEET.spacing + radialZ * (Math.abs(slot) * 0.15);
-    const oy = heightAt(ox, oz);
-    const isPlayer = i === FLEET.playerIndex;
-    const hull = isPlayer ? buildHeroHull() : buildSisterHull(0.55 + (i % 3) * 0.04);
-    hull.position.set(ox, oy, oz);
-    hull.rotation.y = SHIP.rotY + slot * 0.04;
-    if (isPlayer) hull.scale.setScalar(SHIP.scale);
-    group.add(hull);
-    hulls.push(hull);
-    homePos.push(new THREE.Vector3(ox, oy, oz));
-    homeRot.push(hull.rotation.y);
-
-    if (isPlayer && hull.userData.sailUpdate) {
-      sailUpdate = hull.userData.sailUpdate as (t: number, departing: number) => void;
-    }
-
-    // One ribbon per ship — lights when that lotus is stowed.
-    const ribbon = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.7, 0.2), ribbonMat);
-    ribbon.position.set(0, isPlayer ? 3.4 : 2.2, 0.15);
-    ribbon.visible = false;
-    hull.add(ribbon);
-    ribbons.push(ribbon);
-  }
-
-  const playerHull = hulls[FLEET.playerIndex];
-  const heroBerth = homePos[FLEET.playerIndex].clone();
-  let heroRot = homeRot[FLEET.playerIndex];
   const keepsakeRoot = new THREE.Group();
-  keepsakeRoot.position.set(0, 1.55, 0.4);
-  playerHull.add(keepsakeRoot);
+  keepsakeRoot.position.set(0, SHIP.deckY + 0.08, 0.15);
+  hull.add(keepsakeRoot);
   const kept = new Set<string>();
 
-  const anchor = heroBerth.clone();
+  const causeway = new THREE.Group();
+  group.add(causeway);
+  plantCauseway(causeway, SHIP.pos.x, SHIP.pos.z, SHIP.rotY);
+
+  loadGltf(SHIP.mesh)
+    .then((scene) => {
+      paintHero(scene);
+      plantHero(scene);
+      hull.add(scene);
+      scene.traverse((obj) => {
+        const mesh = obj as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        if (/^Jar_\d+/i.test(mesh.name)) jars.push(mesh);
+        if (mesh.name === "Sail" || mesh.morphTargetInfluences) {
+          sailMesh = mesh;
+          const dict = mesh.morphTargetDictionary;
+          bellyIndex = dict?.belly ?? dict?.Belly ?? 0;
+        }
+      });
+      jars.sort((a, b) => a.name.localeCompare(b.name));
+    })
+    .catch(() => {
+      const fallback = buildHeroHull();
+      hull.add(fallback);
+      sailUpdate = fallback.userData.sailUpdate as (t: number, departing: number) => void;
+    });
 
   return {
     group,
     anchor,
-    setDelivered(n: number) {
-      for (let i = 0; i < ribbons.length; i++) ribbons[i].visible = i < n;
+    deckY(x, z) {
+      local.set(x, hull.position.y, z);
+      hull.worldToLocal(local);
+      if (Math.abs(local.x) > SHIP.deckHalfW || Math.abs(local.z) > SHIP.deckHalfL) return null;
+      return hull.position.y + SHIP.deckY;
+    },
+    setDelivered(n) {
+      for (let i = 0; i < jars.length; i++) {
+        const mat = jars[i].material as THREE.MeshStandardMaterial;
+        const full = i < n;
+        mat.color.setHex(full ? JAR_FULL : JAR_EMPTY);
+        mat.emissive.setHex(full ? 0x3a3228 : 0x000000);
+        mat.emissiveIntensity = full ? 0.18 : 0;
+      }
     },
     relocateHero(x, z, rotY) {
       const y = heightAt(x, z);
       heroBerth.set(x, y, z);
       heroRot = rotY;
-      playerHull.position.copy(heroBerth);
-      playerHull.rotation.y = heroRot;
+      hull.position.copy(heroBerth);
+      hull.rotation.y = heroRot;
       anchor.copy(heroBerth);
+      plantCauseway(causeway, x, z, rotY);
     },
     addKeepsake(kind) {
       if (kept.has(kind)) return;
@@ -144,50 +130,349 @@ export function buildShip(): Ship {
                 flatShading: true,
               }),
             );
-      mesh.position.set(kept.size === 1 ? -0.35 : 0.35, 0.12, 0);
+      mesh.position.set(kept.size === 1 ? -0.45 : 0.45, 0.12, 1.1);
       if (kind === "wreath") mesh.rotation.x = Math.PI / 2;
       keepsakeRoot.add(mesh);
     },
     reset() {
-      heroBerth.copy(homePos[FLEET.playerIndex]);
-      heroRot = homeRot[FLEET.playerIndex];
+      heroBerth.set(SHIP.pos.x, heightAt(SHIP.pos.x, SHIP.pos.z), SHIP.pos.z);
+      heroRot = SHIP.rotY;
       kept.clear();
       while (keepsakeRoot.children.length) {
-        const c = keepsakeRoot.children[0];
-        keepsakeRoot.remove(c);
+        keepsakeRoot.remove(keepsakeRoot.children[0]);
       }
-      for (let i = 0; i < hulls.length; i++) {
-        const home = i === FLEET.playerIndex ? heroBerth : homePos[i];
-        hulls[i].position.copy(i === FLEET.playerIndex ? heroBerth : homePos[i]);
-        hulls[i].rotation.y = i === FLEET.playerIndex ? heroRot : homeRot[i];
-        hulls[i].rotation.z = 0;
-        ribbons[i].visible = false;
-        void home;
-      }
+      hull.position.copy(heroBerth);
+      hull.rotation.set(0, heroRot, 0);
+      this.setDelivered(0);
+      plantCauseway(causeway, SHIP.pos.x, SHIP.pos.z, SHIP.rotY);
     },
-    update(t: number, departing: number) {
+    heading() {
+      return hull.rotation.y;
+    },
+    update(t, departing) {
       sailUpdate?.(t, departing);
-      ribbonMat.emissiveIntensity = 0.3 + Math.sin(t * 2.5) * 0.15;
-
-      for (let i = 0; i < hulls.length; i++) {
-        const h = hulls[i];
-        const home = i === FLEET.playerIndex ? heroBerth : homePos[i];
-        const stagger = i * 0.035;
-        const d = Math.max(0, departing - stagger);
-        const leaveA = i === FLEET.playerIndex ? Math.atan2(home.z, home.x) : beachAngle;
-        h.position.x = home.x + Math.cos(leaveA) * d * 22;
-        h.position.z = home.z + Math.sin(leaveA) * d * 22;
-        h.position.y = home.y + d * 0.3 + Math.sin(t * 0.9 + i) * 0.05 * d;
-        h.rotation.z = Math.sin(t * 0.8 + i * 0.4) * 0.035 * (0.25 + d);
-        if (i === FLEET.playerIndex && d <= 0) h.rotation.y = heroRot;
+      if (sailMesh && bellyIndex >= 0 && sailMesh.morphTargetInfluences) {
+        const infl = sailMesh.morphTargetInfluences;
+        infl[bellyIndex] += (Math.min(1, departing) - infl[bellyIndex]) * 0.08;
       }
-
-      // Keep delivery trigger on Doryseus' hull while beached / departing.
-      anchor.set(playerHull.position.x, playerHull.position.y, playerHull.position.z);
+      const d = Math.max(0, departing);
+      const leaveA = Math.atan2(heroBerth.z, heroBerth.x);
+      const live = 1 + d * 1.6;
+      hull.position.x = heroBerth.x + Math.cos(leaveA) * d * 22;
+      hull.position.z = heroBerth.z + Math.sin(leaveA) * d * 22;
+      const wave = sampleOceanHull(
+        hull.position.x,
+        hull.position.z,
+        heroRot,
+        t,
+        SHIP.deckHalfL * 0.62,
+        SHIP.deckHalfW * 0.7,
+      );
+      const floorY = Math.min(heroBerth.y, -0.12);
+      hull.position.y = Math.max(floorY, wave.y * SEA_TEX.hullFollow - SEA_TEX.hullDraft) + d * 0.3;
+      hull.rotation.x = wave.pitch * SEA_TEX.hullPitchFollow * live;
+      hull.rotation.z = wave.roll * SEA_TEX.hullRollFollow * live;
+      hull.rotation.y = heroRot;
+      anchor.set(hull.position.x, hull.position.y, hull.position.z);
     },
   };
 }
 
+type RockPose = {
+  x: number;
+  y: number;
+  z: number;
+  sx: number;
+  sy: number;
+  sz: number;
+  rotX: number;
+  rotY: number;
+  rotZ: number;
+};
+
+function causewayPoses(hx: number, hz: number, rotY: number): RockPose[] {
+  const il = Math.hypot(hx, hz) || 1;
+  const ix = -hx / il;
+  const iz = -hz / il;
+  const ax = Math.sin(rotY);
+  const az = Math.cos(rotY);
+  const bowR = Math.hypot(hx + ax * SHIP.deckHalfL, hz + az * SHIP.deckHalfL);
+  const sternR = Math.hypot(hx - ax * SHIP.deckHalfL, hz - az * SHIP.deckHalfL);
+  const bow = bowR <= sternR ? 1 : -1;
+  const startX =
+    hx + ix * (SHIP.deckHalfW + SHIP.causewayClear) + ax * bow * SHIP.deckHalfL * SHIP.causewayBow;
+  const startZ =
+    hz + iz * (SHIP.deckHalfW + SHIP.causewayClear) + az * bow * SHIP.deckHalfL * SHIP.causewayBow;
+  const coast = islandRadiusAt(startX, startZ);
+  const ang = Math.atan2(startZ, startX);
+  let endR = Math.max(10, coast - SHIP.causewayInland);
+  let endX = Math.cos(ang) * endR;
+  let endZ = Math.sin(ang) * endR;
+  let dx = endX - startX;
+  let dz = endZ - startZ;
+  if (Math.hypot(dx, dz) < 10) {
+    endX = startX + ix * SHIP.causewayInland;
+    endZ = startZ + iz * SHIP.causewayInland;
+    dx = endX - startX;
+    dz = endZ - startZ;
+  }
+  const span = Math.hypot(dx, dz) || 1;
+  const px = -dz / span;
+  const pz = dx / span;
+  const rand = mulberry32(20260817 + Math.round(hx * 10) + Math.round(hz * 10));
+  const out: RockPose[] = [];
+  const n = SHIP.causewayCount;
+  for (let i = 0; i < n; i++) {
+    const t = i / Math.max(1, n - 1);
+    const side = (rand() - 0.5) * SHIP.causewayWidth * (0.45 + (1 - t) * 0.55);
+    const jitter = (rand() - 0.5) * 0.7;
+    const x = startX + dx * t + px * side + ix * jitter * 0.25;
+    const z = startZ + dz * t + pz * side + iz * jitter * 0.25;
+    const ground = heightAt(x, z);
+    const y = Math.max(ground, 0.02) - 0.08;
+    const s = 0.42 + rand() * 0.7 + (1 - t) * 0.18;
+    out.push({
+      x,
+      y,
+      z,
+      sx: s * (0.8 + rand() * 0.5),
+      sy: s * (0.38 + rand() * 0.4),
+      sz: s * (0.8 + rand() * 0.5),
+      rotX: rand() * 1.1,
+      rotY: rand() * Math.PI * 2,
+      rotZ: (rand() - 0.5) * 0.8,
+    });
+  }
+  return out;
+}
+
+function instanceRocks(geo: THREE.BufferGeometry, poses: RockPose[], color: number): THREE.InstancedMesh {
+  const mat = new THREE.MeshStandardMaterial({
+    color,
+    roughness: 0.96,
+    metalness: 0,
+    flatShading: true,
+  });
+  const mesh = new THREE.InstancedMesh(geo, mat, poses.length);
+  const dummy = new THREE.Object3D();
+  for (let i = 0; i < poses.length; i++) {
+    const p = poses[i];
+    dummy.position.set(p.x, p.y, p.z);
+    dummy.scale.set(p.sx, p.sy, p.sz);
+    dummy.rotation.set(p.rotX, p.rotY, p.rotZ);
+    dummy.updateMatrix();
+    mesh.setMatrixAt(i, dummy.matrix);
+  }
+  mesh.instanceMatrix.needsUpdate = true;
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  mesh.frustumCulled = false;
+  return mesh;
+}
+
+function plantCauseway(root: THREE.Group, hx: number, hz: number, rotY: number): void {
+  while (root.children.length) {
+    const ch = root.children[0] as THREE.Mesh;
+    root.remove(ch);
+    ch.geometry?.dispose();
+    const mat = ch.material;
+    if (Array.isArray(mat)) mat.forEach((m) => m.dispose());
+    else mat?.dispose();
+  }
+  const poses = causewayPoses(hx, hz, rotY);
+  const a = poses.filter((_, i) => i % 2 === 0);
+  const b = poses.filter((_, i) => i % 2 === 1);
+  if (a.length) root.add(instanceRocks(new THREE.IcosahedronGeometry(0.55, 0), a, PALETTE.causeway));
+  if (b.length) root.add(instanceRocks(new THREE.DodecahedronGeometry(0.48, 0), b, PALETTE.causewayWet));
+}
+
+function plantHero(scene: THREE.Object3D): void {
+  scene.rotation.y = SHIP.meshFacing;
+  scene.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(scene);
+  const size = new THREE.Vector3();
+  box.getSize(size);
+  const span = Math.max(size.x, size.z, 0.01);
+  scene.scale.multiplyScalar(SHIP.length / span);
+  scene.updateMatrixWorld(true);
+  const planted = new THREE.Box3().setFromObject(scene);
+  scene.position.x -= (planted.min.x + planted.max.x) * 0.5;
+  scene.position.z -= (planted.min.z + planted.max.z) * 0.5;
+  scene.position.y -= planted.min.y;
+}
+
+function paintHero(root: THREE.Object3D): void {
+  root.traverse((obj) => {
+    const mesh = obj as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    const src = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
+    const map = src && "map" in src ? (src as THREE.MeshStandardMaterial).map : null;
+    const hasVC = Boolean(mesh.geometry.getAttribute("color"));
+    const isSail = mesh.name === "Sail";
+    const isJar = /^Jar_/i.test(mesh.name);
+    const mat = new THREE.MeshStandardMaterial({
+      map,
+      vertexColors: hasVC && !map,
+      color: map ? 0xffffff : hasVC ? 0xffffff : isJar ? JAR_EMPTY : PALETTE.hull,
+      roughness: isSail ? 0.78 : map ? 0.78 : 0.86,
+      metalness: 0,
+      side: isSail ? THREE.DoubleSide : THREE.FrontSide,
+    });
+    if (map) applyHeroNeon(mat, map);
+    mesh.material = mat;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+  });
+}
+
+/** Faint inlaid glow on the Wedjat pupil and nearby carved glyphs — wood albedo stays. */
+function applyHeroNeon(mat: THREE.MeshStandardMaterial, map: THREE.Texture): void {
+  const bake = (): void => {
+    const emissive = bakeShipNeon(map);
+    if (!emissive) return;
+    mat.map = map;
+    mat.emissiveMap = emissive;
+    mat.emissive.setHex(0xffffff);
+    mat.emissiveIntensity = SHIP.neonIntensity;
+    mat.needsUpdate = true;
+  };
+  if (map.image) bake();
+  else {
+    const img = map.source?.data as HTMLImageElement | undefined;
+    if (img && "complete" in img && !img.complete) img.addEventListener("load", bake, { once: true });
+  }
+}
+
+function bakeShipNeon(map: THREE.Texture): THREE.Texture | null {
+  const img = map.image as { width?: number; height?: number } | undefined;
+  if (!img?.width || !img.height || typeof document === "undefined") return null;
+  const w = img.width;
+  const h = img.height;
+  const src = document.createElement("canvas");
+  src.width = w;
+  src.height = h;
+  const sctx = src.getContext("2d");
+  if (!sctx) return null;
+  try {
+    sctx.drawImage(img as CanvasImageSource, 0, 0);
+  } catch {
+    return null;
+  }
+  const pix = sctx.getImageData(0, 0, w, h);
+  const em = sctx.createImageData(w, h);
+  const eye = new THREE.Color(SHIP.neonEye);
+  const rune = new THREE.Color(SHIP.neonRune);
+  const d = pix.data;
+  const e = em.data;
+  const n = w * h;
+  const pupil = new Uint8Array(n);
+  const lum = new Float32Array(n);
+  for (let p = 0; p < n; p++) {
+    const i = p * 4;
+    const r = d[i] / 255;
+    const g = d[i + 1] / 255;
+    const b = d[i + 2] / 255;
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const sat = max === 0 ? 0 : (max - min) / max;
+    lum[p] = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    // True lapis disc — not cool-blue wood shadow (bible shadows are blue).
+    if (sat > 0.42 && b > 0.38 && b > r + 0.12 && b > g + 0.04 && lum[p] > 0.18 && lum[p] < 0.72) {
+      pupil[p] = 1;
+    }
+  }
+  const radius = Math.max(6, Math.round(Math.min(w, h) * 0.012));
+  const nearPupil = dilateMask(pupil, w, h, radius);
+  for (let p = 0; p < n; p++) {
+    const i = p * 4;
+    e[i + 3] = 255;
+    if (pupil[p] === 1) {
+      writeGlow(e, i, eye, 0.42);
+      continue;
+    }
+    if (nearPupil[p] === 0) {
+      e[i] = e[i + 1] = e[i + 2] = 0;
+      continue;
+    }
+    const groove = lum[p] < 0.3 && grooveContrast(lum, w, h, p) > 0.1;
+    if (groove) writeGlow(e, i, rune, 0.22);
+    else {
+      e[i] = e[i + 1] = e[i + 2] = 0;
+    }
+  }
+  sctx.putImageData(em, 0, 0);
+  const emissive = new THREE.CanvasTexture(src);
+  emissive.colorSpace = THREE.SRGBColorSpace;
+  emissive.flipY = map.flipY;
+  emissive.needsUpdate = true;
+  return emissive;
+}
+
+function writeGlow(data: Uint8ClampedArray, i: number, color: THREE.Color, strength: number): void {
+  data[i] = Math.round(color.r * strength * 255);
+  data[i + 1] = Math.round(color.g * strength * 255);
+  data[i + 2] = Math.round(color.b * strength * 255);
+}
+
+function grooveContrast(lum: Float32Array, w: number, h: number, p: number): number {
+  const x = p % w;
+  const y = (p / w) | 0;
+  let hi = lum[p];
+  for (let oy = -1; oy <= 1; oy++) {
+    const yy = y + oy;
+    if (yy < 0 || yy >= h) continue;
+    for (let ox = -1; ox <= 1; ox++) {
+      const xx = x + ox;
+      if (xx < 0 || xx >= w) continue;
+      const v = lum[yy * w + xx];
+      if (v > hi) hi = v;
+    }
+  }
+  return hi - lum[p];
+}
+
+function dilateMask(src: Uint8Array, w: number, h: number, radius: number): Uint8Array {
+  const out = new Uint8Array(src.length);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (src[y * w + x] === 0) continue;
+      const y0 = Math.max(0, y - radius);
+      const y1 = Math.min(h - 1, y + radius);
+      const x0 = Math.max(0, x - radius);
+      const x1 = Math.min(w - 1, x + radius);
+      for (let yy = y0; yy <= y1; yy++) {
+        const row = yy * w;
+        out.fill(1, row + x0, row + x1 + 1);
+      }
+    }
+  }
+  return out;
+}
+
+function buildDeckMaterial(): THREE.MeshStandardMaterial {
+  const tex = loadAlbedoTexture(assetUrl(PLANK_TEX_URL));
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(1.8, 5.4);
+  return new THREE.MeshStandardMaterial({
+    map: tex,
+    color: PALETTE.hullDark,
+    roughness: 0.85,
+    flatShading: true,
+  });
+}
+
+function buildSailMaterial(): THREE.MeshStandardMaterial {
+  const tex = loadAlbedoTexture(assetUrl(SAIL_TEX_URL));
+  return new THREE.MeshStandardMaterial({
+    map: tex,
+    color: PALETTE.sail,
+    roughness: 0.8,
+    side: THREE.DoubleSide,
+  });
+}
+
+/** Procedural fallback if the LOT-52 GLB is missing. */
 function buildHeroHull(): THREE.Group {
   const group = new THREE.Group();
   const hullMat = new THREE.MeshStandardMaterial({
@@ -277,39 +562,11 @@ function buildHeroHull(): THREE.Group {
   band.position.set(0, 5.4, -0.16);
   group.add(band);
 
-  for (const s of [-1, 1]) {
-    for (let i = 0; i < 5; i++) {
-      const oar = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 3.4), darkMat);
-      oar.position.set(s * 1.5, 1.2, -3.2 + i * 1.6);
-      oar.rotation.set(0, s * 1.2, s * 0.22);
-      group.add(oar);
-    }
-  }
-
   const plank = new THREE.Mesh(new THREE.BoxGeometry(1, 0.14, 4.6), deckMat);
   plank.position.set(-1.6, 0.85, -1.2);
   plank.rotation.set(0.28, 0.35, 0.12);
   group.add(plank);
 
-  const jarMat = new THREE.MeshStandardMaterial({
-    color: 0xb5763f,
-    roughness: 0.8,
-    flatShading: true,
-  });
-  const basket = new THREE.Group();
-  basket.position.set(-2.9, 0.1, -2.4);
-  for (let i = 0; i < 3; i++) {
-    const jar = new THREE.Mesh(new THREE.LatheGeometry(jarProfile(), 10), jarMat);
-    jar.position.set((i - 1) * 0.62, 0, (i % 2) * 0.4);
-    jar.scale.setScalar(0.9 + i * 0.08);
-    jar.castShadow = true;
-    basket.add(jar);
-  }
-  group.add(basket);
-
-  // Coiled fishing net on the deck (ASSET-020) — the source sheet has a rope
-  // strand on top and a net square below; crop to just the net square via
-  // offset/repeat instead of shipping a second file.
   const ropeTex = loadAlbedoTexture(assetUrl(ROPE_TEX_URL));
   ropeTex.offset.set(0.197, 0.009);
   ropeTex.repeat.set(0.66, 0.542);
@@ -332,8 +589,7 @@ function buildHeroHull(): THREE.Group {
       const yv = sailBase[i * 3 + 1];
       sailPos.setZ(
         i,
-        Math.sin(x * 1.1 + t * 2.1) * (0.16 + departing * 0.3) +
-          Math.sin(yv * 1.4 - t * 1.5) * 0.09,
+        Math.sin(x * 1.1 + t * 2.1) * (0.16 + departing * 0.3) + Math.sin(yv * 1.4 - t * 1.5) * 0.09,
       );
     }
     sailPos.needsUpdate = true;
@@ -341,56 +597,4 @@ function buildHeroHull(): THREE.Group {
   };
 
   return group;
-}
-
-function buildSisterHull(scale: number): THREE.Group {
-  const group = new THREE.Group();
-  group.scale.setScalar(scale);
-
-  const hullMat = new THREE.MeshStandardMaterial({
-    color: PALETTE.hull,
-    roughness: 0.88,
-    flatShading: true,
-  });
-  const deckMat = buildDeckMaterial();
-  const sailMat = buildSailMaterial();
-
-  const hull = new THREE.Mesh(
-    new THREE.SphereGeometry(1, 12, 8, 0, Math.PI * 2, Math.PI * 0.5, Math.PI * 0.5),
-    hullMat,
-  );
-  hull.scale.set(1.2, 1.15, 4.2);
-  hull.position.y = 1.2;
-  hull.castShadow = true;
-  group.add(hull);
-
-  const deck = new THREE.Mesh(new THREE.BoxGeometry(2, 0.12, 7.2), deckMat);
-  deck.position.y = 1.15;
-  group.add(deck);
-
-  const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 5.4, 6), hullMat);
-  mast.position.y = 3.7;
-  mast.castShadow = true;
-  group.add(mast);
-
-  const sail = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 2.6), sailMat);
-  sail.position.set(0, 3.9, -0.08);
-  group.add(sail);
-
-  const prow = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.18, 1.8, 6), hullMat);
-  prow.position.set(0, 1.6, 4.1);
-  prow.rotation.x = -0.45;
-  group.add(prow);
-
-  return group;
-}
-
-function jarProfile(): THREE.Vector2[] {
-  const pts: THREE.Vector2[] = [];
-  for (let i = 0; i <= 8; i++) {
-    const t = i / 8;
-    const r = 0.12 + Math.sin(t * Math.PI) * 0.34;
-    pts.push(new THREE.Vector2(Math.max(0.05, r), t * 1.25));
-  }
-  return pts;
 }

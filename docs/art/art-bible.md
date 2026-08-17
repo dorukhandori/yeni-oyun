@@ -189,7 +189,7 @@ Sahip'in playtest sonrası geri bildirimi ("bayılmaya doğru, uykuya doğru çe
 - **Mekân:** açık kıyı — sığ turkuaz su, altın kum şeridi, lotus tarlaları, arkada zeytin/servi ve sisli tepeler. Gökyüzü geniş ve görünür.
 - **Katmanlar [P]:** ön plan (kum/su detayı) → oynanış düzlemi (lotus tarlası, gemi) → orta (sazlık, ağaçlar) → uzak (tepe backdrop + fog + gökyüzü). Detay bütçesi oynanış düzlemine harcanır.
 - **Lotus tarlası:** sığ suda kümeler; nilüfer yaprakları basamak, sazlık sınır. Kümeler eşit dağıtılmaz — okunur adacıklar halinde.
-- **Gemi:** kıyıda sabit, sahnenin çapası. Her açıdan bir parçası görünmeli **[P]** — oyuncu kaybolmasın. **Kapandı:** tek teslim gemisi + kıyıda 12 gemilik filo silüeti (`asset-registry.md` ASSET-021 notu, `FLEET.count = 12`).
+- **Gemi:** kıyıda sabit, sahnenin çapası. Her açıdan bir parçası görünmeli **[P]** — oyuncu kaybolmasın. **LOT-52 (2026-08-17):** tek kahraman ev-kadırga; 12 kardeş filo yok. 12 sayısı güvertedeki amfora kileridir.
 - **Prop yoğunluğu:** lotus tarlasında yüksek, açık kumda düşük. Boş kum "nefes" alanıdır, doldurulmaz.
 - **İç göl [P]:** merkez-kuzeyde tatlı su. Denizden **görsel olarak ayrışmalı** — köpük yok, caustic zayıf, durgun yeşilimsi (`#5d8f86`). Oyuncu "burası deniz değil"i bakarak sezebilmeli, çünkü göl iyileştirmiyor (`gdd-memory-system.md` §3.3) ve bu kural ona söylenmiyor.
 - **Deniz her karede görünür [P]:** kamera hangi açıda olursa olsun turkuazın bir parçası kadraja girmeli (`game-concept.md` §11). Kaybolmak bilinçli bir hata olmalı.

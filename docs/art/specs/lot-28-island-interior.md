@@ -25,7 +25,7 @@ Sahneye bağlama: `src/world/islandKit.ts` + `terrain.ts`. Kit yüklenene kadar 
 
 ## Bilinçli dışarıda
 
-- **Deniz / göl shader** — G6, LOT-48. Yeni mesh yok.
+- **Deniz / göl** — LOT-48: kamera-hizalı Gerstner ızgara (`src/world/sea.ts` + `oceanWaves.ts`). İç göl hâlâ durgun Blender disk. Blender dalga kiremiti playtest'te reddedildi.
 - **Nilüfer yaprağı** — ASSET-009 texture duruyor; 3D pad ayrı dilim.
 - **Kuzey spike kayalık** — landmark, kit değil.
 - **Doryseus / Thallope** — başka aile.
