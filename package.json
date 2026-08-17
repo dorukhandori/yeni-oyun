@@ -11,7 +11,9 @@
     "test:assets": "node scripts/asset-qa/run.mjs",
     "gen:assets": "node scripts/gen-assets.mjs",
     "gen:mesh": "node scripts/gen-mesh.mjs",
+    "gen:island-kit": "blender --background --python scripts/blender/build_island_kit.py",
     "gen:sun-god": "blender --background --python scripts/blender/build_sun_god.py",
+    "gen:hero-ship": "blender --background --python scripts/blender/build_hero_ship.py",
     "gen:meshy": "node scripts/gen-meshy.mjs",
     "sheet:still": "node scripts/sheet-from-still.mjs",
     "sheet:video": "node scripts/sheet-from-video.mjs"

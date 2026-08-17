@@ -202,6 +202,23 @@ CCGS `asset-spec` karşılıkları: `planned`=Needed · `generated`=In Progress 
 
 ---
 
+## P4 — Ada içi hacim kiti (LOT-28, 2026-08-17) **[P]**
+
+> Sahip (17 Ağu): çim, taş, sazlık ve adada her yerde kullanılan tekrarlı prop'lar **Blender'da** tasarlanır — Tripo still değil. Kaynak: `scripts/blender/build_island_kit.py` (seed `20260817`). Vertex colour = art-bible §2 yerel renk; ışık motordan. Billboard ağaç (ASSET-053/054) sahneye dönmez. Deniz shader (G6) bu kitte yok.
+>
+> **ID notu:** ASSET-062/063 csv'de Doryseus `char_doryseus_02_*` — bu kit 068'den başlar.
+
+| ID | Ad | Sınıf | Tip | Şablon | Durum | Not |
+|---|---|---|---|---|---|---|
+| ASSET-068 | Tebeşir kaya (boulder) | `scene-mesh` **[P]** | GLB | `scripts/blender/build_island_kit.py` | **integrated** | `rock_chalk_boulder_01_mesh_800.glb` · kıyı + iç ada. Tint yok, vertex colour `#e6e2d4`/`#b9b6ab`. |
+| ASSET-069 | Tebeşir çakıl (pebble) | `scene-mesh` **[P]** | GLB | aynı | **integrated** | `rock_chalk_pebble_01_mesh_400.glb` · göl kenarı. |
+| ASSET-070 | Ot tutamı (hacim) | `scene-mesh` **[P]** | GLB | aynı | **integrated** | `flora_grasstuft_01_mesh_600.glb` · ada çim zemini, bilek hizası InstancedMesh carpet + ASSET-032 albedo. |
+| ASSET-071 | Saz kümesi (hacim) | `scene-mesh` **[P]** | GLB | aynı | **integrated** | `flora_reed_01_mesh_900.glb` · ASSET-055 billboard fallback. |
+| ASSET-072 | Zeytin (hacim) | `scene-mesh` **[P]** | GLB | aynı | **integrated** | `flora_olive_01_mesh_2000.glb` · kod mesh fallback. |
+| ASSET-073 | Servi (hacim) | `scene-mesh` **[P]** | GLB | aynı | **integrated** | `flora_cypress_01_mesh_1800.glb` · kod mesh fallback. |
+
+Eski planned ASSET-062–067 (Tripo 3/4 still) **iptal** — ID çakışması + sahip Blender kararı. Prompt dosyaları `docs/art/prompts/island-*-mesh-source.md` stil referansı olarak durur, üretim yolu değildir.
+
 ## P5 — Güneş tanrısı (LOT-50, 2026-08-17) **[P]**
 
 > Sahip: seçenek 1, tasarımsal baş+12 ışın. Blender kanon. Tripo yalnızca tasarlanmış ön-yüz still yetmezse.
