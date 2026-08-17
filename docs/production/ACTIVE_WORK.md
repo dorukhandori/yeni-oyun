@@ -21,6 +21,7 @@ Aynı dosyada/alanda zaten bir satır varsa: ya bekle, ya sahiple/diğer oturuml
 
 | Kim | Tarih | Dosyalar / alan | Ne yapıyor |
 |---|---|---|---|
+| Claude (producer/@nile + alt-ajanlar, bu oturum) | 2026-08-17 | `src/world/terrain.ts`, yeni `src/world/{ponds,frogs,paths}.ts`, `src/constants.ts` (yeni tuning bloğu), `docs/design/level-lotus-island.md`, `docs/art/asset-registry.md` | Ada donatım katmanı: belli belirsiz patikalar, birkaç dekoratif golet, golet kenarı kurbağalar, scatter yoğunluk geçişi. `sea.ts`/`ship.ts`/`oceanWaves.ts`'e **dokunmuyorum**; ada kiti GLB'leri değişmiyor (sadece yeniden kullanılıyor). |
 | — | — | — | (bu oturumun deniz/gemi dilimi push'ta) |
 
 **Not — diğer oturumlar:** ada kiti GLB'leri (ASSET-068–073) `master`'da. Deniz artık Gerstner ızgara (`sea.ts` + `oceanWaves.ts`); ada kiti dokunulmasın. Thallope (LOT-39) ayrı aile.
