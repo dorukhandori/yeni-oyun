@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { SUN_DISK } from "../constants";
+import { loadGltf } from "../world/gltf";
 
 function discTexture(size: number): THREE.CanvasTexture {
   const canvas = document.createElement("canvas");
@@ -31,9 +32,9 @@ function haloTexture(size: number): THREE.CanvasTexture {
   if (!ctx) throw new Error("sunDisk: 2d context unavailable");
   const cx = size / 2;
   const g = ctx.createRadialGradient(cx, cx, 0, cx, cx, cx);
-  g.addColorStop(0, "rgba(255,210,120,0.0)");
-  g.addColorStop(0.42, "rgba(255,170,70,0.28)");
-  g.addColorStop(0.75, "rgba(255,140,50,0.12)");
+  g.addColorStop(0, "rgba(255,220,140,0.45)");
+  g.addColorStop(0.22, "rgba(255,200,110,0.28)");
+  g.addColorStop(0.55, "rgba(255,170,70,0.1)");
   g.addColorStop(1, "rgba(0,0,0,0)");
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, size, size);
@@ -43,6 +44,32 @@ function haloTexture(size: number): THREE.CanvasTexture {
   return tex;
 }
 
+function paintGod(root: THREE.Object3D): THREE.MeshBasicMaterial[] {
+  const mats: THREE.MeshBasicMaterial[] = [];
+  root.traverse((obj) => {
+    const mesh = obj as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    const mat = new THREE.MeshBasicMaterial({
+      vertexColors: true,
+      // Multiply the cream vertex colours down so UnrealBloom cannot turn
+      // the face into a white triangle; ACES still grades the sky.
+      color: 0xe2c48a,
+      fog: false,
+      toneMapped: true,
+      depthWrite: false,
+      depthTest: false,
+      side: THREE.DoubleSide,
+    });
+    mesh.material = mat;
+    mesh.renderOrder = 8;
+    mesh.frustumCulled = false;
+    mesh.castShadow = false;
+    mesh.receiveShadow = false;
+    mats.push(mat);
+  });
+  return mats;
+}
+
 export interface SunDisk {
   group: THREE.Group;
   setDusk(duskT: number): void;
@@ -50,14 +77,14 @@ export interface SunDisk {
 }
 
 /**
- * Textured disc (white core, amber rim) + additive hale. The rim is what
- * makes the circle survive ACES + bloom against the peach horizon.
+ * Helios head (ASSET-074) + additive hale. Flat disc stays as fallback until
+ * the GLB loads. Unlit so the silhouette is the clock, not a lit sculpture.
  */
 export function createSunDisk(): SunDisk {
   const group = new THREE.Group();
   group.name = "sunDisk";
   group.frustumCulled = false;
-  group.renderOrder = 4;
+  group.renderOrder = 8;
 
   const haloMat = new THREE.MeshBasicMaterial({
     map: haloTexture(256),
@@ -67,7 +94,7 @@ export function createSunDisk(): SunDisk {
     depthTest: false,
     fog: false,
     transparent: true,
-    toneMapped: false,
+    toneMapped: true,
     side: THREE.DoubleSide,
   });
   const halo = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), haloMat);
@@ -82,7 +109,7 @@ export function createSunDisk(): SunDisk {
     depthWrite: false,
     depthTest: false,
     fog: false,
-    toneMapped: false,
+    toneMapped: true,
     side: THREE.DoubleSide,
   });
   const core = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), coreMat);
@@ -93,21 +120,46 @@ export function createSunDisk(): SunDisk {
   group.add(halo);
   group.add(core);
 
-  const duskHalo = new THREE.Color(1.2, 0.5, 0.22);
-  const dayHalo = new THREE.Color(1, 0.82, 0.45);
-  const duskCore = new THREE.Color(1.15, 0.62, 0.35);
-  const dayCore = new THREE.Color(1, 1, 1);
+  const duskHalo = new THREE.Color(0.85, 0.38, 0.16);
+  const dayHalo = new THREE.Color(0.72, 0.52, 0.28);
+  const duskCore = new THREE.Color(0.95, 0.55, 0.28);
+  const dayCore = new THREE.Color(0.92, 0.82, 0.62);
+  const duskGod = new THREE.Color(0xc47a48);
+  const dayGod = new THREE.Color(0xe2c48a);
   const tmp = new THREE.Color();
   haloMat.color.copy(dayHalo);
 
+  const godMats: THREE.MeshBasicMaterial[] = [];
+  let duskT = 0;
+
+  const applyDusk = (t: number) => {
+    tmp.copy(dayHalo).lerp(duskHalo, t);
+    haloMat.color.copy(tmp);
+    tmp.copy(dayCore).lerp(duskCore, t);
+    coreMat.color.copy(tmp);
+    tmp.copy(dayGod).lerp(duskGod, t);
+    for (const mat of godMats) mat.color.copy(tmp);
+  };
+
+  void loadGltf(SUN_DISK.mesh)
+    .then((root) => {
+      root.scale.setScalar(SUN_DISK.meshScale);
+      // Blender +Y face → glTF -Z, which Object3D.lookAt aims at the camera.
+      godMats.push(...paintGod(root));
+      group.add(root);
+      core.visible = false;
+      halo.visible = false;
+      applyDusk(duskT);
+    })
+    .catch((err) => {
+      console.warn("[sunDisk] sungod GLB missing, keeping flat disc", err);
+    });
+
   return {
     group,
-    setDusk(duskT) {
-      const t = Math.min(1, Math.max(0, duskT));
-      tmp.copy(dayHalo).lerp(duskHalo, t);
-      haloMat.color.copy(tmp);
-      tmp.copy(dayCore).lerp(duskCore, t);
-      coreMat.color.copy(tmp);
+    setDusk(next) {
+      duskT = Math.min(1, Math.max(0, next));
+      applyDusk(duskT);
     },
     faceCamera(camera) {
       group.lookAt(camera.position);

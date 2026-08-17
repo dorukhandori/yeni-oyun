@@ -3,7 +3,7 @@ import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
-import { CAMERA, DAY, ISLAND, PALETTE, RENDER, SKY_TEX, SUN_DISK } from "../constants";
+import { CAMERA, DAY, PALETTE, RENDER, SKY_TEX, SUN_DISK } from "../constants";
 import { HazePass } from "./hazePass";
 import { createSunDisk } from "./sunDisk";
 import { assetUrl } from "../assets/paths";
@@ -50,7 +50,7 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
   const warnHorizon = new THREE.Color(0xffb08a);
 
   // ------------------------------------------------------------------- sky
-  const skyGeo = new THREE.SphereGeometry(360, 32, 20);
+  const skyGeo = new THREE.SphereGeometry(360, 64, 40);
   const skyMat = new THREE.ShaderMaterial({
     side: THREE.BackSide,
     depthWrite: false,
@@ -124,6 +124,8 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
   scene.add(cloudMesh);
 
   // ------------------------------------------------------------------ lights
+  // art-bible.md §3 trio: high sky hemi, warm key, turquoise water fill.
+  // AmbientLight is only a crush-floor so cavities never go black.
   const ambient = new THREE.AmbientLight(RENDER.ambientColor, RENDER.ambientIntensity);
   scene.add(ambient);
   const hemi = new THREE.HemisphereLight(
@@ -136,25 +138,34 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
   const sun = new THREE.DirectionalLight(RENDER.sunColor, RENDER.sunIntensity);
   const elev0 = THREE.MathUtils.degToRad(DAY.sunStartDeg);
   const az0 = SUN_DISK.azimuthStart;
-  sun.position.set(
-    Math.cos(az0) * Math.cos(elev0) * 55,
-    Math.sin(elev0) * 55,
-    Math.sin(az0) * Math.cos(elev0) * 55,
-  );
+  const sunDir = new THREE.Vector3(
+    Math.cos(az0) * Math.cos(elev0),
+    Math.sin(elev0),
+    Math.sin(az0) * Math.cos(elev0),
+  ).normalize();
+  const lightFocus = new THREE.Vector3();
+  const placeSunLight = () => {
+    lightFocus.set(camera.position.x, 0, camera.position.z);
+    sun.target.position.copy(lightFocus);
+    sun.position.copy(lightFocus).addScaledVector(sunDir, RENDER.sunShadowDistance);
+    sun.target.updateMatrixWorld();
+  };
   sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
-  const half = ISLAND.radius + 8;
+  sun.shadow.mapSize.set(RENDER.shadowMapSize, RENDER.shadowMapSize);
+  const half = RENDER.shadowExtent;
   const cam = sun.shadow.camera as THREE.OrthographicCamera;
   cam.left = -half;
   cam.right = half;
   cam.top = half;
   cam.bottom = -half;
   cam.near = 1;
-  cam.far = 160;
-  sun.shadow.bias = -0.0012;
-  sun.shadow.normalBias = 0.03;
+  cam.far = RENDER.shadowFar;
+  sun.shadow.bias = RENDER.shadowBias;
+  sun.shadow.normalBias = RENDER.shadowNormalBias;
   scene.add(sun);
-  (skyMat.uniforms.sunDir.value as THREE.Vector3).copy(sun.position).normalize();
+  scene.add(sun.target);
+  placeSunLight();
+  (skyMat.uniforms.sunDir.value as THREE.Vector3).copy(sunDir);
 
   // Art-bible.md §3: turquoise fill from the water, third light of the set.
   const waterFill = new THREE.HemisphereLight(0x000000, PALETTE.seaShallow, RENDER.waterBounceIntensity);
@@ -212,13 +223,12 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
         THREE.MathUtils.lerp(DAY.sunStartDeg, DAY.sunEndDeg, t),
       );
       const az = THREE.MathUtils.lerp(SUN_DISK.azimuthStart, SUN_DISK.azimuthEnd, t);
-      const dist = 55;
-      sun.position.set(
-        Math.cos(az) * Math.cos(elev) * dist,
-        Math.sin(elev) * dist,
-        Math.sin(az) * Math.cos(elev) * dist,
-      );
-      (skyMat.uniforms.sunDir.value as THREE.Vector3).copy(sun.position).normalize();
+      sunDir.set(
+        Math.cos(az) * Math.cos(elev),
+        Math.sin(elev),
+        Math.sin(az) * Math.cos(elev),
+      ).normalize();
+      (skyMat.uniforms.sunDir.value as THREE.Vector3).copy(sunDir);
       sunDisk.setDusk(t);
 
       const warn = Math.max(0, (t - 0.78) / 0.22);
@@ -230,32 +240,32 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
       cloudMat.opacity = t * SKY_TEX.cloudMaxOpacity;
 
       sun.color.copy(sunColorDay).lerp(sunColorDusk, t * 0.85 + warn * 0.15);
-      sun.intensity = THREE.MathUtils.lerp(RENDER.sunIntensity, 1.35, t);
-      ambient.intensity = THREE.MathUtils.lerp(RENDER.ambientIntensity, 0.22, t);
-      hemi.intensity = THREE.MathUtils.lerp(RENDER.bounceIntensity, 0.18, t);
-      waterFill.intensity = THREE.MathUtils.lerp(RENDER.waterBounceIntensity, 0.12, t);
+      // art-bible.md §3 / §4: light never drops — dusk is a hue shift, not a dim.
+      sun.intensity = RENDER.sunIntensity;
+      ambient.intensity = RENDER.ambientIntensity;
+      hemi.intensity = RENDER.bounceIntensity;
+      waterFill.intensity = RENDER.waterBounceIntensity;
+      renderer.toneMappingExposure = RENDER.exposure;
       (skyMat.uniforms.haloColor.value as THREE.Color).copy(sunColorDay).lerp(sunColorDusk, t);
 
       if (scene.fog instanceof THREE.FogExp2) {
         scene.fog.color.copy(fogDay).lerp(fogDusk, t);
-        scene.fog.density = THREE.MathUtils.lerp(RENDER.fogDensity, RENDER.fogDensity * 1.35, t);
+        scene.fog.density = THREE.MathUtils.lerp(RENDER.fogDensity, RENDER.fogDensity * 1.2, t);
       }
-      renderer.toneMappingExposure = THREE.MathUtils.lerp(RENDER.exposure, 0.88, t);
     },
     render: () => {
       // Skybox follows the camera so the disc sits at infinity from the south
       // beach, not as a world prop around the origin.
       skyMesh.position.copy(camera.position);
       cloudMesh.position.copy(camera.position);
-      const dir = sun.position;
-      const len = Math.hypot(dir.x, dir.y, dir.z) || 1;
+      placeSunLight();
       sunDisk.group.position.set(
-        camera.position.x + (dir.x / len) * SUN_DISK.distance,
-        camera.position.y + (dir.y / len) * SUN_DISK.distance,
-        camera.position.z + (dir.z / len) * SUN_DISK.distance,
+        camera.position.x + sunDir.x * SUN_DISK.distance,
+        camera.position.y + sunDir.y * SUN_DISK.distance,
+        camera.position.z + sunDir.z * SUN_DISK.distance,
       );
       sunDisk.faceCamera(camera);
-      (skyMat.uniforms.sunDir.value as THREE.Vector3).set(dir.x / len, dir.y / len, dir.z / len);
+      (skyMat.uniforms.sunDir.value as THREE.Vector3).copy(sunDir);
       bloom.strength = RENDER.bloomStrength + stage.bloomBoost;
       composer.render();
     },

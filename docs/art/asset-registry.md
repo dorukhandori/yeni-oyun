@@ -202,6 +202,16 @@ CCGS `asset-spec` karşılıkları: `planned`=Needed · `generated`=In Progress 
 
 ---
 
+## P5 — Güneş tanrısı (LOT-50, 2026-08-17) **[P]**
+
+> Sahip: seçenek 1, tasarımsal baş+12 ışın. Blender kanon. Tripo yalnızca tasarlanmış ön-yüz still yetmezse.
+
+| ID | Ad | Sınıf | Tip | Şablon | Durum | Not |
+|---|---|---|---|---|---|---|
+| ASSET-074 | Helios baş silüeti | `scene-mesh` **[P]** | GLB | `scripts/blender/build_sun_god.py` | **integrated** | `sky_sungod_01_mesh_1200.glb` · 12 kite ışın, vertex colour `#fff6d0`/`#ffcf80`. `src/render/sunDisk.ts`. Still: `art-source/ref/sky_sungod_01_ref_1024.png` (oyuna girmez). |
+
+---
+
 ## P2 — UI **[P]**
 
 > **Unutuş göstergesi listede YOK ve olmayacak.** `docs/design/gdd-memory-system.md` §10: unutuşun barı/sayısı/yüzdesi yoktur, ölçek ekranın kendisidir (süt beyazı vinyet). Sahip'in brief'i "unutma göstergesi çerçevesi" istemişti; GDD bunu açıkça reddediyor ve tasarım otoritesi GDD'dir. **Sahip onayı gereken çelişki.**

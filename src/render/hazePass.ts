@@ -93,9 +93,11 @@ export const HazeShader = {
         col = mix(col, (col + ghostCol) * 0.5, ghostStrength * 0.55);
       }
 
-      // Warm base grade plus a gentle vignette even when clear headed.
-      col *= vec3(1.03, 1.005, 0.965);
-      col *= 1.0 - smoothstep(0.42, 0.95, rad) * (0.3 - amount * 0.28);
+      // Warm golden-hour grade (art-bible.md §3) plus a light vignette.
+      // Keep the corner crush mild — "ışık asla azalmaz"; forgetting veil
+      // already lifts the edge via amount.
+      col *= vec3(1.05, 1.012, 0.94);
+      col *= 1.0 - smoothstep(0.48, 0.98, rad) * (0.16 - amount * 0.12);
 
       gl_FragColor = vec4(col, 1.0);
     }

@@ -776,13 +776,13 @@ function buildNorthSpikeRocks(rand: () => number): THREE.Group {
 function buildDistantHills(rand: () => number): THREE.Group {
   const group = new THREE.Group();
   const nearLayer = {
-    dist: ISLAND.radius + 68,
-    height: 26,
+    dist: ISLAND.radius + 110,
+    height: 12,
     color: 0x8fa8bd,
     count: 12,
   };
 
-  const mat = new THREE.MeshBasicMaterial({ color: nearLayer.color, fog: false });
+  const mat = new THREE.MeshBasicMaterial({ color: nearLayer.color, fog: true });
   for (let i = 0; i < nearLayer.count; i++) {
     const a = (i / nearLayer.count) * Math.PI * 2 + rand() * 0.4;
     const d = nearLayer.dist * (0.9 + rand() * 0.25);
@@ -839,8 +839,9 @@ function buildHillBackdropRing(): THREE.Mesh {
       varying vec2 vUv;
       void main() {
         vec4 c = texture2D(map, vUv);
-        // v=0 is the cylinder's top edge (open into the sky) — fade it out.
-        float topFade = smoothstep(0.0, 0.5, vUv.y);
+        // v=0 is the cylinder's top edge (open into the sky) — fade most of
+        // the wall so it reads as a horizon silhouette, not a blue slab.
+        float topFade = smoothstep(0.0, 0.78, vUv.y);
         gl_FragColor = vec4(c.rgb, topFade);
       }
     `,

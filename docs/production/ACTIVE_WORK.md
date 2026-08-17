@@ -22,8 +22,6 @@ Aynı dosyada/alanda zaten bir satır varsa: ya bekle, ya sahiple/diğer oturuml
 | Kim | Tarih | Dosyalar / alan | Ne yapıyor |
 |---|---|---|---|
 | Cursor (Grok, bu oturum) · `@iris` | 2026-08-17 | `scripts/blender/build_island_kit.py`, `src/world/{islandKit,terrain}.ts`, `public/assets/models/{rock_chalk_*,flora_*}`, `docs/art/specs/lot-28-island-interior.md`, `docs/art/asset-registry.md`, `public/assets/assets.csv` | LOT-28: ada kiti Blender'da (kaya/çim/saz/zeytin/servi). Sahip yönü — Tripo still değil. `sea.ts` dokunulmuyor. |
-| Cursor (Grok, bu oturum) · `@byte` | 2026-08-17 | `src/render/{stage,hazePass}.ts`, `src/constants.ts` (`RENDER` only) | LOT-49: ada ışığı/ambiyans — art-bible §3 üçlü (hemi + sıcak güneş + su dolgusu). `sea.ts` / ada kiti dokunulmuyor. |
-| Cursor (Grok, bu oturum) · `@iris` | 2026-08-17 | `scripts/blender/build_sun_god.py`, `src/render/sunDisk.ts`, `src/constants.ts` (`SUN_DISK`), `public/assets/models/sky_sungod_*` | LOT-50: güneş tanrısı baş+12 ışın (Blender, tasarımsal silüet). Ada kiti / `sea.ts` dokunulmuyor. Sahip v1’i park etti. |
 | Cursor (Grok, bu oturum) · `@iris` | 2026-08-17 | `docs/art/specs/lot-52-hero-home-hull.md` | LOT-52: kahraman ev-gövde tasarım kilidi (mesh yok). Filo görseli düşer; 12 amfora koşu kileri. |
 
 **Not — diğer oturumlar:** ada içi flora/kaya görsel ailesi bu satırdayken ikinci bir G1–G6 slice açmayın (`visual-change-gate.md` §4). Thallope (LOT-39) ayrı aile. `assets.csv` / registry'ye yalnız ASSET-068+ kit satırları ekleniyor (062/063 Doryseus'a ait, ezilmez).
@@ -32,7 +30,7 @@ Aynı dosyada/alanda zaten bir satır varsa: ya bekle, ya sahiple/diğer oturuml
 
 ## Beklemede — üretildi, commit edilmedi, sahip onayı bekliyor
 
-Şu an boş. LOT-28 / LOT-49 / LOT-50 hâlâ aktif tabloda (diskte duruyor, bu push’a girmedi).
+Şu an boş. LOT-28 hâlâ aktif tabloda (ada kiti diskte, bu push’a girmedi).
 
 **Not — diğer oturumlar için (Cursor/Grok dahil), 2026-08-17 (güncel):** Thallope'un ayak rotasyonu sorunu araştırıldı (kök neden: bacak kemiklerinde `bone roll` hiç ayarlanmadı, kutup hedefi düzeltmesi + rotasyon kilitleme denendi, ikisi de etkisiz) — **sahip kararıyla v1 olarak kabul edildi, düzeltilmedi.** Detay: Paca LOT-34. Bu asset'e dokunacak biri (rotasyonu düzeltmeyi denerse) rig'i muhtemelen roll değerleriyle baştan kurup Rigify'yi yeniden üretmesi gerekeceğini bilsin — tek başına foot_ik/kutup hedefi düzeltmesi yetmiyor.
 
@@ -44,6 +42,7 @@ Aynı dosyada/alanda zaten bir satır varsa: ya bekle, ya sahiple/diğer oturuml
 
 | Kim | Tarih | Dosyalar / alan | Ne yapıldı |
 |---|---|---|---|
+| Cursor (Grok, bu oturum) · `@byte` / `@iris` | 2026-08-17 | `src/render/{stage,hazePass,sunDisk}.ts`, `src/constants.ts`, `src/world/terrain.ts` (uzak tepe), `scripts/blender/build_sun_god.py`, `sky_sungod_01_mesh_1200.glb` | LOT-49 ada ışığı (bible §3) + LOT-50 güneş tanrısı v1. Sahip park etti, yine de canlıya istedi. Hash bu oturumun ışık/güneş commit’i. |
 | Cursor (Grok, bu oturum) · `@byte` | 2026-08-17 | `src/world/thallope.ts`, `src/game.ts`, `public/assets/{models,ref}/creature_thallope_*` | Commit `2d6ea69`. LOT-39 Thallope ada spawn. Ayak yaw v1 (LOT-34). Push bu oturum. |
 | Cursor (Grok, bu oturum) · `@glyph` | 2026-08-17 | `src/ui/fullscreen.ts`, `src/ui/hud.css`, `docs/ux/{screens.md,hud.md}` | Commit `11d59f3`. LOT-51 iOS follow-up: Tam ekran düğmesi iPhone'da da görünür, native API yoksa görünür alana sığdırır. Pushlandı. |
 | Cursor (Grok, bu oturum) · `@glyph` | 2026-08-17 | `src/ui/fullscreen.ts`, `src/ui/hud.css`, `src/main.ts`, `src/game.ts`, `docs/ux/{screens.md,hud.md}` | Commit `9b2ceae`. LOT-51 (Paca Done): telefon tarayıcı tam ekran gir/çık + visualViewport kabuk. Pushlandı. |

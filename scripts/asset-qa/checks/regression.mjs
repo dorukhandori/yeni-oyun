@@ -114,14 +114,19 @@ export async function run(_ctx) {
       const diffPath = join(OUT_DIR, `${shot.name}.diff.png`);
       writeFileSync(diffPath, PNG.sync.write(diff));
       writeFileSync(join(OUT_DIR, `${shot.name}.actual.png`), shotBuf);
-      findings.push(
-        finding(
-          "error",
-          `regression/diff/${shot.name}`,
-          `${shot.name}: ${(ratio * 100).toFixed(3)}% of pixels changed (limit ${(MAX_DIFF_RATIO * 100).toFixed(1)}%)`,
-          `diff written to .asset-qa-out/${shot.name}.diff.png — if the change is intended, --update-baseline`,
-        ),
-      );
+      if (writeBaselines) {
+        writeFileSync(baselinePath, shotBuf);
+        notes.push(`${shot.name}: baseline updated (${(ratio * 100).toFixed(3)}% was over limit)`);
+      } else {
+        findings.push(
+          finding(
+            "error",
+            `regression/diff/${shot.name}`,
+            `${shot.name}: ${(ratio * 100).toFixed(3)}% of pixels changed (limit ${(MAX_DIFF_RATIO * 100).toFixed(1)}%)`,
+            `diff written to .asset-qa-out/${shot.name}.diff.png — if the change is intended, --update-baseline`,
+          ),
+        );
+      }
     } else {
       notes.push(`${shot.name.padEnd(12)} ${(ratio * 100).toFixed(3)}% changed`);
       if (writeBaselines) writeFileSync(baselinePath, shotBuf);

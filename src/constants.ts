@@ -725,14 +725,13 @@ export const FLOW = {
 export const DAY = {
   length: 420,
   /**
-   * Elevation at t=0 (degrees). Third-person look-down + FOV 55° leaves only
-   * ~8–11° of sky above the world horizon; anything higher is off the top
-   * of the frame (the disc read as a few haze pixels on the hills). Stay
-   * inside that band for the whole afternoon→dusk clock.
+   * Elevation at t=0 (degrees). Third-person look-down + FOV 55° leaves a
+   * thin sky band; 4.5° sat in the fleet (sun-god read as a nearby creature).
+   * ~10° clears the masts and still stays in frame under the HUD clock.
    */
-  sunStartDeg: 4.5,
-  /** Elevation at dusk (degrees) — still a fat disc, just over the far hills. */
-  sunEndDeg: 2.2,
+  sunStartDeg: 10,
+  /** Elevation at dusk (degrees) — still above the masts, just over the far hills. */
+  sunEndDeg: 7,
   /** Remaining seconds when light turns rose / warn toast. */
   warnRemaining: 90,
 } as const;
@@ -764,27 +763,48 @@ export const FLEET = {
 
 // ------------------------------------------------------------------- visuals
 export const RENDER = {
-  exposure: 1.02,
-  bloomStrength: 0.42,
-  bloomRadius: 0.45,
-  bloomThreshold: 0.86,
-  fogColor: 0xc2e0ea,
+  /** ACES — keep ≤1 so sun + bloom cannot chalk grass (LOT-49). */
+  exposure: 1.0,
+  bloomStrength: 0.28,
+  bloomRadius: 0.42,
+  /** Sky / foam / sun disc only — lawn albedo stays under the knee. */
+  bloomThreshold: 0.92,
+  /** art-bible.md §3 fog `#dfe8ee`. */
+  fogColor: 0xdfe8ee,
   fogDensity: profile.fogDensity,
   skyTop: 0x2f86c9,
   skyHorizon: 0xffe6c2,
-  sunColor: 0xfff0cc,
-  sunIntensity: 3.1,
-  ambientColor: 0xa8c8f0,
-  ambientIntensity: 0.4,
-  bounceSky: 0x8ecbff,
-  bounceGround: 0xd9b478,
-  bounceIntensity: 0.36,
+  /** art-bible.md §2 sıcak yön ışığı `#ffcf94`. */
+  sunColor: 0xffcf94,
+  /**
+   * Key, not a blow-out. Hemisphere carries volume so this can sit under
+   * the ACES/bloom chalk that 3.1 caused on short grass.
+   */
+  sunIntensity: 1.85,
+  /** Tiny cool floor — bible has no AmbientLight; hemi does the fill. */
+  ambientColor: 0x5f7fa8,
+  ambientIntensity: 0.12,
+  bounceSky: 0xc5dff2,
+  /** art-bible.md §2 serin gölge `#5f7fa8` — shadows read blue, not grey. */
+  bounceGround: 0x5f7fa8,
+  /** art-bible.md §3: gökyüzü ışığı yüksek ve güçlü. */
+  bounceIntensity: 0.55,
   /**
    * Upward turquoise fill from the shallows — art-bible.md §3 "sahnenin üçüncü
    * ışığı". Sky channel is unused (black); only the ground colour lifts hulls
    * and character undersides.
    */
-  waterBounceIntensity: 0.26,
+  waterBounceIntensity: 0.16,
+  /**
+   * Shadow camera follows the player (see stage.render). Whole-island ortho
+   * at 4.5° sun made 18 cm texels and stair-step acne on the lawn.
+   */
+  sunShadowDistance: 90,
+  shadowExtent: 44,
+  shadowFar: 180,
+  shadowMapSize: 2048,
+  shadowBias: -0.0024,
+  shadowNormalBias: 0.1,
 } as const;
 
 /**
@@ -795,18 +815,24 @@ export const RENDER = {
 export const SUN_DISK = {
   haloColor: 0xffcf80,
   coreColor: 0xfff6d0,
+  /** LOT-50 Helios head — Blender, vertex colour, unlit in sunDisk.ts. */
+  mesh: "assets/models/sky_sungod_01_mesh_1200.glb",
   /**
-   * Metres from the camera. Far plane is 600; keep this close so the disc
-   * is large in screen space and cannot be clipped.
+   * World metres from the camera along the sun ray. 48 m sat inside the
+   * fleet (parallax = a creature over the water). Past the island, short of
+   * the hill ring / far plane.
    */
-  distance: 48,
-  /** World-unit diameters at `distance` (~10° core; hale stays tight so bloom doesn't erase the rim). */
-  coreScale: 8.4,
-  haloScale: 11.5,
+  distance: 220,
+  /** Native face radius 1 m. Angular size ~4° — a sun, not a nearby giant. */
+  meshScale: 16,
+  /** Fallback disc if the GLB is missing. */
+  coreScale: 18,
+  /** Tight glow behind the head. Hollow ring is hidden once the GLB loads. */
+  haloScale: 22,
   /** Mild sky wash — the opaque disc carries the readable circle. */
-  skyCorePower: 22,
-  skyHaloPower: 4.5,
-  skyHaloGain: 0.55,
+  skyCorePower: 28,
+  skyHaloPower: 7.5,
+  skyHaloGain: 0.28,
   /**
    * atan2(z, x). Default camera sits at +Z looking −Z (inland). The HUD sun
    * clock sits in the top-centre of the frame, so the disc is offset east
@@ -894,9 +920,10 @@ export const SHIP_TEX = {
 
 export const SKY_TEX = {
   /** hill_backdrop_01 (ASSET-023) — textured ring replacing the two farthest procedural cone layers. */
-  hillDistance: ACTIVE_PROFILE === "real" ? 280 : 205,
-  hillHeight: ACTIVE_PROFILE === "real" ? 62 : 46,
-  hillY: 4,
+  hillDistance: ACTIVE_PROFILE === "real" ? 310 : 220,
+  /** Keep this a horizon strip. 62 m at 280 m read as a light-blue wall in front of the sun. */
+  hillHeight: ACTIVE_PROFILE === "real" ? 32 : 24,
+  hillY: 2,
   /** Times the backdrop image repeats around the horizon (it is a single wide shot, not a 360 pan). */
   hillRepeat: 4,
   /** sky_goldenhour_01 (ASSET-022) cloud/horizon detail, blended over the procedural dusk gradient. */
