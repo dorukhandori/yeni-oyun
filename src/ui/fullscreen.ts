@@ -1,7 +1,11 @@
 /**
  * Phone-browser fullscreen enter/exit, plus a visualViewport shell so the
- * URL bar cannot cover the canvas/HUD when the Fullscreen API is missing
- * (iOS Safari) or the player has left fullscreen.
+ * URL bar cannot cover the canvas/HUD.
+ *
+ * Native Fullscreen API works on Android Chrome and iPad Safari. iPhone Safari
+ * still does not implement Element.requestFullscreen (Apple, through iOS 26) —
+ * there the same button enters a CSS immersive fit that pins #app to the
+ * visible viewport and nudges Safari to collapse its toolbar.
  *
  * Enter must be called from a user gesture — Title "Oyna" and the corner
  * toggle are those gestures. Landscape lock stays in orientation.ts.
@@ -10,6 +14,7 @@
 import { isCoarsePointer } from "./orientation";
 
 const BTN_ID = "fsToggle";
+const REFIT_DELAYS_MS = [50, 250, 500];
 
 type FsEl = HTMLElement & {
   webkitRequestFullscreen?: () => Promise<void> | void;
@@ -42,8 +47,12 @@ function canRequestFullscreen(): boolean {
   );
 }
 
+function isCssImmersive(): boolean {
+  return document.documentElement.classList.contains("is-immersive");
+}
+
 export function isFullscreen(): boolean {
-  return fullscreenElement() !== null;
+  return fullscreenElement() !== null || isCssImmersive();
 }
 
 function isStandaloneDisplay(): boolean {
@@ -54,8 +63,12 @@ function isStandaloneDisplay(): boolean {
   );
 }
 
-export async function enterFullscreen(): Promise<boolean> {
-  if (isFullscreen()) return true;
+function setCssImmersive(on: boolean): void {
+  document.documentElement.classList.toggle("is-immersive", on);
+}
+
+async function tryNativeEnter(): Promise<boolean> {
+  if (fullscreenElement()) return true;
   if (!canRequestFullscreen()) return false;
   const el = fsRoot();
   try {
@@ -68,14 +81,14 @@ export async function enterFullscreen(): Promise<boolean> {
     } else {
       await el.webkitRequestFullscreen?.();
     }
-    return isFullscreen();
+    return fullscreenElement() !== null;
   } catch {
     return false;
   }
 }
 
-export async function exitFullscreen(): Promise<void> {
-  if (!isFullscreen()) return;
+async function tryNativeExit(): Promise<void> {
+  if (!fullscreenElement()) return;
   const d = fsDoc();
   try {
     if (typeof document.exitFullscreen === "function") {
@@ -88,6 +101,51 @@ export async function exitFullscreen(): Promise<void> {
   }
 }
 
+/**
+ * iPhone cannot hide Safari chrome via the Fullscreen API. A user-gesture
+ * scroll of 1px is the remaining way to ask the toolbar to collapse; we then
+ * pin #app to the (now larger) visual viewport.
+ */
+function nudgeSafariToolbar(): void {
+  const html = document.documentElement;
+  html.classList.add("shell-nudge");
+  const grow = Math.max(window.innerHeight, window.screen.height) + 64;
+  document.body.style.height = `${grow}px`;
+  window.scrollTo(0, 1);
+  window.setTimeout(() => {
+    window.scrollTo(0, 0);
+    document.body.style.height = "";
+    html.classList.remove("shell-nudge");
+    onVisualViewport();
+  }, 60);
+}
+
+function scheduleRefits(): void {
+  for (const ms of REFIT_DELAYS_MS) {
+    window.setTimeout(onVisualViewport, ms);
+  }
+}
+
+export async function enterFullscreen(): Promise<boolean> {
+  if (isFullscreen()) {
+    onVisualViewport();
+    return true;
+  }
+  await tryNativeEnter();
+  setCssImmersive(true);
+  nudgeSafariToolbar();
+  scheduleRefits();
+  syncMountedToggle();
+  return isFullscreen();
+}
+
+export async function exitFullscreen(): Promise<void> {
+  setCssImmersive(false);
+  await tryNativeExit();
+  onVisualViewport();
+  syncMountedToggle();
+}
+
 export async function toggleFullscreen(): Promise<void> {
   if (isFullscreen()) await exitFullscreen();
   else await enterFullscreen();
@@ -95,8 +153,7 @@ export async function toggleFullscreen(): Promise<void> {
 
 /**
  * Call from a user gesture (Title "Oyna", hub island tap). Desktop is left
- * windowed. iOS Safari has no generic Fullscreen API — this then no-ops and
- * the visualViewport shell is the fallback.
+ * windowed. iPhone uses the CSS immersive fit because the native API is absent.
  */
 export async function requestPlayFullscreen(): Promise<void> {
   if (!isCoarsePointer()) return;
@@ -105,15 +162,22 @@ export async function requestPlayFullscreen(): Promise<void> {
 
 function fitShell(): void {
   const vv = window.visualViewport;
-  const w = vv?.width ?? window.innerWidth;
-  const h = vv?.height ?? window.innerHeight;
-  const x = vv?.offsetLeft ?? 0;
-  const y = vv?.offsetTop ?? 0;
+  const w = Math.max(1, Math.round(vv?.width ?? window.innerWidth));
+  const h = Math.max(1, Math.round(vv?.height ?? window.innerHeight));
+  const x = Math.round(vv?.offsetLeft ?? 0);
+  const y = Math.round(vv?.offsetTop ?? 0);
   const root = document.documentElement;
-  root.style.setProperty("--shell-w", `${Math.round(w)}px`);
-  root.style.setProperty("--shell-h", `${Math.round(h)}px`);
-  root.style.setProperty("--shell-x", `${Math.round(x)}px`);
-  root.style.setProperty("--shell-y", `${Math.round(y)}px`);
+  root.style.setProperty("--shell-w", `${w}px`);
+  root.style.setProperty("--shell-h", `${h}px`);
+  root.style.setProperty("--shell-x", `${x}px`);
+  root.style.setProperty("--shell-y", `${y}px`);
+  const app = document.getElementById("app");
+  if (app) {
+    app.style.left = `${x}px`;
+    app.style.top = `${y}px`;
+    app.style.width = `${w}px`;
+    app.style.height = `${h}px`;
+  }
 }
 
 function onVisualViewport(): void {
@@ -130,9 +194,14 @@ function syncToggle(btn: HTMLButtonElement): void {
   const label = on ? "Tam ekrandan çık" : "Tam ekran";
   btn.setAttribute("aria-label", label);
   btn.title = label;
-  const show = !isStandaloneDisplay() && (canRequestFullscreen() || on);
+  const show = !isStandaloneDisplay();
   btn.hidden = !show;
   document.body.classList.toggle("has-fs-toggle", show);
+}
+
+function syncMountedToggle(): void {
+  const btn = document.getElementById(BTN_ID) as HTMLButtonElement | null;
+  if (btn) syncToggle(btn);
 }
 
 export function mountFullscreenShell(): void {
@@ -144,6 +213,10 @@ export function mountFullscreenShell(): void {
   vv?.addEventListener("resize", onVisualViewport);
   vv?.addEventListener("scroll", onVisualViewport);
   window.addEventListener("resize", fitShell);
+  window.addEventListener("orientationchange", () => {
+    window.setTimeout(onVisualViewport, 400);
+  });
+  window.addEventListener("pageshow", onVisualViewport);
 
   const btn = document.createElement("button");
   btn.id = BTN_ID;
@@ -170,6 +243,7 @@ export function mountFullscreenShell(): void {
   host.appendChild(btn);
 
   const onFsChange = (): void => {
+    if (!fullscreenElement()) setCssImmersive(false);
     syncToggle(btn);
     onVisualViewport();
   };

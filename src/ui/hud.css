@@ -52,6 +52,14 @@ html.shell-fit #app {
   overflow: hidden;
 }
 
+/* Brief unlock so a user-gesture scroll can collapse iOS Safari's toolbar. */
+html.shell-nudge,
+html.shell-nudge body {
+  position: relative;
+  overflow: auto !important;
+  height: auto;
+}
+
 canvas#game {
   display: block;
   width: 100%;

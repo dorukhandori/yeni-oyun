@@ -322,7 +322,7 @@ Telefon tarayıcısının adres/durum çubuğu `100vh` sahnesinin üstünü kese
 
 **Çıkış:** aynı düğme, tarayıcının kendi geri/Esc jesti, veya `exitFullscreen`. PWA (`display-mode: standalone`) zaten çubuksuzdur — düğme gizlenir.
 
-**iOS Safari:** generic Fullscreen API yok. Düğme gizlenir; `visualViewport` `#app`'i görünür deliğe pinler. Ana Ekrana Ekle (`manifest.webmanifest` `display: standalone`) gerçek çubuksuz kipin yolu.
+**iOS Safari:** iPhone `Element.requestFullscreen` vermez (Apple sınırlaması, iPad kısmen verir). Düğme yine görünür: native API yoksa aynı jest görünür alana sığdırır ve araç çubuğunu sıkıştırmayı dener. Çubuksuz gerçek tam ekran için Ana Ekrana Ekle (`manifest.webmanifest` `display: standalone`) hâlâ en temiz yol.
 
 Uygulama: `src/ui/fullscreen.ts`. Portrait çevirme kapısı ayrı durur (`src/ui/orientation.ts`).
 
