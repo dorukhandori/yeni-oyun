@@ -128,7 +128,7 @@ Güncelleme: her kare değil, değer değişince. Titrer/soluma CSS transition.
 
 ## Platform Notes
 
-Klavye + fare. HUD tıklanmaz. Touch yok (MVP). 16:9 referans; 16:10'da üst/alt zone sıkışır, yan boşluk korunur.
+Klavye + fare birincil. HUD tıklanmaz. Kaba işaretçide (telefon) sanal çubuk + bakış alanı + Topla açık. Telefon tarayıcısında tam ekran `src/ui/fullscreen.ts`: Title **Oyna** jesti ve sağ-üst köşe düğmesi girer; aynı düğme (veya tarayıcı Esc) çıkar. iOS Safari generic Fullscreen API vermez — orada `visualViewport` kabuğu sahne/HUD'u görünür alana sığdırır, adres çubuğu üstü örtmez. 16:9 referans; 16:10'da üst/alt zone sıkışır, yan boşluk korunur. Safe-area inset (çentik) üst HUD ve köşe düğmesinde uygulanır.
 
 ---
 

@@ -312,6 +312,22 @@ Kiklop/Sirenler'in kendi beat setleri henüz yok — aynı desen (durak başına
 
 ---
 
+## 12. Mobil kabuk — tam ekran (2026-08-17)
+
+Telefon tarayıcısının adres/durum çubuğu `100vh` sahnesinin üstünü keser. Bu bir ekran *türü* değil, Title/Hub/HUD'un üstünde duran bir kabuk.
+
+**Giriş (jest gerekir — tarayıcı jest dışında reddeder):**
+- Title **Oyna** (ve Hub ada kartı) kaba işaretçide Fullscreen API ister + yatay kilit.
+- Sağ-üst parşömen düğmesi (`Tam ekran` / `Tam ekrandan çık`) her Title/Hub/oyun anında aynı işi yapar.
+
+**Çıkış:** aynı düğme, tarayıcının kendi geri/Esc jesti, veya `exitFullscreen`. PWA (`display-mode: standalone`) zaten çubuksuzdur — düğme gizlenir.
+
+**iOS Safari:** generic Fullscreen API yok. Düğme gizlenir; `visualViewport` `#app`'i görünür deliğe pinler. Ana Ekrana Ekle (`manifest.webmanifest` `display: standalone`) gerçek çubuksuz kipin yolu.
+
+Uygulama: `src/ui/fullscreen.ts`. Portrait çevirme kapısı ayrı durur (`src/ui/orientation.ts`).
+
+---
+
 ## Açık sorular — bu dosyaya özgü
 
 | # | Soru | Kim karar verir |

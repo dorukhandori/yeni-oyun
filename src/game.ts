@@ -28,6 +28,7 @@ import { GameAudio } from "./systems/audio";
 import { Bursts } from "./systems/burst";
 import { Input } from "./systems/input";
 import type { GameState } from "./types";
+import { requestPlayFullscreen } from "./ui/fullscreen";
 import { Hud } from "./ui/hud";
 import { Menu } from "./ui/menu";
 import { requestLandscapeLock } from "./ui/orientation";
@@ -382,11 +383,13 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
 
   /**
    * "Oyna" is the one guaranteed user gesture before play, so it is where the
-   * mobile landscape lock has to be requested — browsers reject the call
-   * outside a gesture. The CSS rotate gate (ui/orientation.ts) is the fallback
-   * for the browsers that refuse anyway (iOS Safari).
+   * mobile landscape lock and fullscreen request have to fire — browsers
+   * reject both outside a gesture. The CSS rotate gate (ui/orientation.ts)
+   * and the visualViewport shell (ui/fullscreen.ts) are the fallbacks for
+   * browsers that refuse (iOS Safari).
    */
   function onPlay(): void {
+    void requestPlayFullscreen();
     void requestLandscapeLock();
     goHub();
   }
@@ -401,8 +404,14 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
 
   const menu = new Menu({
     onPlay,
-    onSelectLotus: () => fullRestart("classic"),
-    onSelectLotusEdge: () => fullRestart("edge"),
+    onSelectLotus: () => {
+      void requestPlayFullscreen();
+      fullRestart("classic");
+    },
+    onSelectLotusEdge: () => {
+      void requestPlayFullscreen();
+      fullRestart("edge");
+    },
     onHubMenu: goTitle,
   });
   menu.showTitle();
