@@ -108,13 +108,21 @@ def flood_key(im: Image.Image, seed: tuple[int, int, int], maxc: int = 14) -> Im
 
 
 def main() -> None:
-    if len(sys.argv) < 3:
-        print("usage: key_and_crop_still.py INPUT.png OUTPUT.png", file=sys.stderr)
+    args = [a for a in sys.argv[1:] if not a.startswith("--tolerance")]
+    tol_args = [a for a in sys.argv[1:] if a.startswith("--tolerance")]
+    tolerance = int(tol_args[0].split("=", 1)[1]) if tol_args else 14
+    if len(args) < 2:
+        print(
+            "usage: key_and_crop_still.py INPUT.png OUTPUT.png [--tolerance=N]  (N default 14 — "
+            "raise for stills with a soft vignette/gradient backdrop that a tight flood-fill can't "
+            "cross)",
+            file=sys.stderr,
+        )
         sys.exit(1)
-    src, dst = Path(sys.argv[1]), Path(sys.argv[2])
+    src, dst = Path(args[0]), Path(args[1])
     im = Image.open(src)
     seed = corner_seed(im) or BG_SEED
-    keyed = flood_key(im, seed)
+    keyed = flood_key(im, seed, maxc=tolerance)
     opaque = sum(1 for p in keyed.getdata() if p[3] > 24)
     total = keyed.size[0] * keyed.size[1]
     if opaque / total > 0.97:

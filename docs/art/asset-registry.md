@@ -187,6 +187,21 @@ CCGS `asset-spec` karşılıkları: `planned`=Needed · `generated`=In Progress 
 
 ---
 
+## P3 — Ambient yaratıklar (yeni, 2026-08-17) **[P]**
+
+> Sahip brifi (17 Ağu 2026): adada dolaşan, tamamen **ambient/süs** (oyuncuyla hiçbir mekanik etkileşimi yok — temas, toplama, unutuş sistemlerinin hiçbiri bu yaratığı okumaz/ondan etkilenmez) küçük mitolojik yaratıklar; iki hareket (yürüme + tavşan-sıçraması). **`docs/design/gdd-lotus-hallucination.md`'deki sanrı figürleriyle karıştırılmamalı** — o aile süt beyazı/yarı-saydam/`#f6f2ea`, yalnız yüksek unutuşta belirir, temas cezası var; bu aile sıcak/opak/her zaman sahnede, sıfır mekanik etki. Ayrıntılı görsel brif ve prompt gövdesi: `@iris` konsültasyon çıktısı (bu satırın kaynağı), tam metin ana oturumun elinde. **Kimlik: "Thallope"** (sahip onayladı, 17 Ağu 2026) — orijinal icat (Homeros'ta yok), lotus-tomurcuğu tüyü + tavşan kulaklı, küçük bir geyik yavrusu/tavşan melezi ada ruhu; adanın "cazibe" kaydını taşır (art-bible §1), unutuş/sis ailesinin görsel zıddı.
+>
+> **İsimlendirme kategorisi: `creature`** (sahip onayladı, 17 Ağu 2026 — `pipeline.md` §6 kategori sözlüğüne eklendi, `char`'dan ayrı: oynanan/hikâye karakteri değil, ambient yaban hayatı).
+>
+> **Üretim durumu (17 Ağu 2026, ana oturum):** mesh + Rigify rig + `walk`+`hop` animasyonları teknik olarak tamamlandı ve workbench'te oynatılarak doğrulandı (`docs/production/ACTIVE_WORK.md`'de ayrıntı). **Henüz bu registry'ye "generated" olarak işlenmedi, `public/assets/`'e ship edilmedi, `assets.csv` satırı yok** — §8 kabul kapısı (palet ölçümü, isimlendirme, IP/stil kontrolü) hâlâ açık, ayrıca bilinen bir görsel hata var: ayaklar bazı karelerde yana dönük duruyor (IK poz sorunu, düzeltilmedi). Aşağıdaki satırlar hâlâ `planned` — bir sonraki tur bunları `generated`'a çekmeli.
+
+| ID | Ad | Sınıf | Tip | Şablon | Durum | Not |
+|---|---|---|---|---|---|---|
+| ASSET-060 | Thallope — 3/4 stüdyo still, image-to-3D kaynağı | `reference` **[P]** | still, tek nesne | `art-source/work/prompt-asset-060-ambient-creature-turnaround.txt` | planned → üretildi (`art-source/raw/creature_thallope_01_ref_1024.png`), registry'ye işlenmedi | Format `docs/art/prompts/meshy-source-still.md`'yi izliyor: 3/4 açı, bej stüdyo (`#aea49a`), düz duruş (Tripo kaynağı). Renk: `#cfd8b8` (gövde), `#f6a8bc` (leke), `#fff4e2` (kulak içi ışıma), `#ffcf80` (ışık zerreleri) — hepsi art-bible §2'de zaten var, yeni renk ailesi yok. |
+| ASSET-061 | Thallope — hacimli mesh + yürüme/sıçrama rig | `scene-mesh` **[P]** | GLB | ASSET-060 + Tripo image-to-3D (`pipeline.md` §5.1) + Blender MCP/Rigify | planned → üretildi (`art-source/raw/creature_thallope_01_animtest.glb`, `walk`+`hop` klipli), registry'ye işlenmedi | **Üretim yolu — gerçekleşen (tavsiye değil, ölçüldü):** mesh **Tripo** (4.778 üçgen, 30 kredi); Tripo `--animate` dört-ayaklı topolojiyi rigleyemedi (`"Unsupported topology"`, API-seviyesi kısıt, kanıtlandı) → rig **Blender MCP + Rigify** (`basic_quadruped` metarig, 283 kemikli üretim rig'i, otomatik ağırlık) ile kuruldu. İki gait keyframe'lendi: yürüme (çapraz tırıs, 1.04s) ve sıçrama (çök→fırla→omurga-kavisli tepe→ön-pati-önce iniş, 0.71s). **Bilinen açık hata:** bazı karelerde ayaklar yana dönük — IK/foot-rotasyon sorunu, düzeltilmedi. |
+
+---
+
 ## P2 — UI **[P]**
 
 > **Unutuş göstergesi listede YOK ve olmayacak.** `docs/design/gdd-memory-system.md` §10: unutuşun barı/sayısı/yüzdesi yoktur, ölçek ekranın kendisidir (süt beyazı vinyet). Sahip'in brief'i "unutma göstergesi çerçevesi" istemişti; GDD bunu açıkça reddediyor ve tasarım otoritesi GDD'dir. **Sahip onayı gereken çelişki.**

@@ -253,7 +253,7 @@ yeni-oyun/
 
 | Parça | Değerler |
 |---|---|
-| kategori | `lotus`, `flora`, `water`, `sand`, `rock`, `ship`, `hill`, `sky`, `ui`, `char`, `fx` |
+| kategori | `lotus`, `flora`, `water`, `sand`, `rock`, `ship`, `hill`, `sky`, `ui`, `char`, `creature`, `fx` |
 | ad | kısa İngilizce isim |
 | varyant | `01`, `02`, … (lotus aşamalarında aşama numarası) |
 | kanal | `albedo`, `normal`, `rough`, `emissive`, `alpha`, `caustic`, `sheet`, `ref`, `mesh` |
