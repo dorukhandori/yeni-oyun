@@ -34,6 +34,7 @@ import { Menu } from "./ui/menu";
 import { requestLandscapeLock } from "./ui/orientation";
 import { buildHallucinations } from "./world/hallucination";
 import { buildLotophagoi } from "./world/lotophagos";
+import { buildThallopes } from "./world/thallope";
 import { buildLotusField, type LotusGateState } from "./world/lotus";
 import { buildSailor } from "./world/sailor";
 import { buildSea } from "./world/sea";
@@ -74,6 +75,8 @@ export interface TestHooks {
   unfreeze(): void;
   /** Point the camera at a world position (frozen shots of the sun, etc.). */
   lookAt(x: number, y: number, z: number): void;
+  /** Place the camera near a world point, then look at it (close-up shots). */
+  frameAt(x: number, y: number, z: number, dist?: number): void;
 }
 
 export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
@@ -87,6 +90,7 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
   const ship = buildShip();
   const lotophagoi = buildLotophagoi();
   const hallucinations = buildHallucinations();
+  const thallopes = buildThallopes();
   const sailor = buildSailor();
   const bursts = new Bursts();
   const audio = new GameAudio();
@@ -100,6 +104,7 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
     ship.group,
     lotophagoi.group,
     hallucinations.group,
+    thallopes.group,
     sailor.root,
     bursts.points,
   );
@@ -335,6 +340,7 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
     hill.reset();
     lotophagoi.reset();
     hallucinations.reset();
+    thallopes.reset();
     st.phase = "play";
     st.carried = 0;
     st.delivered = 0;
@@ -1059,6 +1065,7 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
     updateHillPuzzleVisuals(hill, time);
     ship.update(time, st.depart);
     lotophagoi.update(dt, time, pos, ship.anchor);
+    thallopes.update(dt, time, pos, ship.anchor, terrain.colliders);
     bursts.update(dt);
 
     stage.haze.amount = haze;
@@ -1166,6 +1173,10 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
     },
     lookAt(x, y, z) {
       stage.camera.lookAt(x, y, z);
+    },
+    frameAt(x, y, z, dist = 2.8) {
+      stage.camera.position.set(x + dist * 0.55, y + 1.15, z + dist);
+      stage.camera.lookAt(x, y + 0.2, z);
     },
   };
 }

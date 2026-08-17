@@ -34,6 +34,7 @@ const MIN_SHARE = 0.04;
 function isSceneTexture(file, row) {
   if (file.startsWith("ref/")) return false;
   if (file.startsWith("ui/")) return false;
+  if (file.endsWith(".glb")) return false;
   if (row && row.class !== "scene-texture") return false;
   return true;
 }

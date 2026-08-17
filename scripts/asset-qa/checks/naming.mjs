@@ -18,7 +18,7 @@ export const title = "file naming + resolution ladder (pipeline.md §6)";
 export const requires = [];
 
 const CATEGORIES = new Set([
-  "lotus", "flora", "water", "sand", "rock", "ship", "hill", "sky", "ui", "char", "fx",
+  "lotus", "flora", "water", "sand", "rock", "ship", "hill", "sky", "ui", "char", "creature", "fx",
 ]);
 const CHANNELS = new Set([
   "albedo", "normal", "rough", "emissive", "alpha", "caustic", "sheet", "ref", "mesh",
