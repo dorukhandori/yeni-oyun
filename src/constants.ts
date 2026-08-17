@@ -251,12 +251,15 @@ export const SHIP = {
   relocateMin: 40,
   /** K35 forget: min metres from the player. */
   relocatePlayerMin: 25,
-  /** Brown-stone causeway from the landward bow onto the beach (hull sits in the shallows). */
-  causewayCount: 34,
-  causewayWidth: 2.6,
-  causewayInland: 16,
-  causewayClear: 2.2,
-  causewayBow: 0.62,
+  /** Brown-stone causeway: starts at the hull in the shallows, breaks the surface, then climbs the beach. */
+  causewayCount: 52,
+  causewayWidth: 2.8,
+  causewayInland: 12,
+  /** Stay on the hull — do not jump inland or the whole path lands on grass. */
+  causewayClear: 0.6,
+  causewayBow: 0.28,
+  /** Rock centre in the shallows so the stones poke through the opaque sea. */
+  causewayWaterY: 0.28,
 } as const;
 
 /** Hidden beauties + offer wander (K35, `gdd-lotus-island-run.md` §3.12–3.13). */

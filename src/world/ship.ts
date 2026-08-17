@@ -199,23 +199,16 @@ function causewayPoses(hx: number, hz: number, rotY: number): RockPose[] {
   const bowR = Math.hypot(hx + ax * SHIP.deckHalfL, hz + az * SHIP.deckHalfL);
   const sternR = Math.hypot(hx - ax * SHIP.deckHalfL, hz - az * SHIP.deckHalfL);
   const bow = bowR <= sternR ? 1 : -1;
-  const startX =
-    hx + ix * (SHIP.deckHalfW + SHIP.causewayClear) + ax * bow * SHIP.deckHalfL * SHIP.causewayBow;
-  const startZ =
-    hz + iz * (SHIP.deckHalfW + SHIP.causewayClear) + az * bow * SHIP.deckHalfL * SHIP.causewayBow;
+  // Begin at the hull in the water (landward bow quarter), not already on the grass.
+  const startX = hx + ix * SHIP.causewayClear + ax * bow * SHIP.deckHalfL * SHIP.causewayBow;
+  const startZ = hz + iz * SHIP.causewayClear + az * bow * SHIP.deckHalfL * SHIP.causewayBow;
+  const startR = Math.hypot(startX, startZ);
   const coast = islandRadiusAt(startX, startZ);
-  const ang = Math.atan2(startZ, startX);
-  let endR = Math.max(10, coast - SHIP.causewayInland);
-  let endX = Math.cos(ang) * endR;
-  let endZ = Math.sin(ang) * endR;
-  let dx = endX - startX;
-  let dz = endZ - startZ;
-  if (Math.hypot(dx, dz) < 10) {
-    endX = startX + ix * SHIP.causewayInland;
-    endZ = startZ + iz * SHIP.causewayInland;
-    dx = endX - startX;
-    dz = endZ - startZ;
-  }
+  const endR = Math.max(12, coast - SHIP.causewayInland);
+  const endX = startX + ix * Math.max(12, startR - endR);
+  const endZ = startZ + iz * Math.max(12, startR - endR);
+  const dx = endX - startX;
+  const dz = endZ - startZ;
   const span = Math.hypot(dx, dz) || 1;
   const px = -dz / span;
   const pz = dx / span;
@@ -224,23 +217,24 @@ function causewayPoses(hx: number, hz: number, rotY: number): RockPose[] {
   const n = SHIP.causewayCount;
   for (let i = 0; i < n; i++) {
     const t = i / Math.max(1, n - 1);
-    const side = (rand() - 0.5) * SHIP.causewayWidth * (0.45 + (1 - t) * 0.55);
-    const jitter = (rand() - 0.5) * 0.7;
-    const x = startX + dx * t + px * side + ix * jitter * 0.25;
-    const z = startZ + dz * t + pz * side + iz * jitter * 0.25;
+    const side = (rand() - 0.5) * SHIP.causewayWidth * (0.55 + (1 - t) * 0.45);
+    const jitter = (rand() - 0.5) * 0.55;
+    const x = startX + dx * t + px * side + ix * jitter * 0.2;
+    const z = startZ + dz * t + pz * side + iz * jitter * 0.2;
     const ground = heightAt(x, z);
-    const y = Math.max(ground, 0.02) - 0.08;
-    const s = 0.42 + rand() * 0.7 + (1 - t) * 0.18;
+    const wet = ground < 0.12;
+    const s = wet ? 0.7 + rand() * 0.55 : 0.4 + rand() * 0.55;
+    const y = wet ? SHIP.causewayWaterY : ground - 0.06;
     out.push({
       x,
       y,
       z,
-      sx: s * (0.8 + rand() * 0.5),
-      sy: s * (0.38 + rand() * 0.4),
-      sz: s * (0.8 + rand() * 0.5),
-      rotX: rand() * 1.1,
+      sx: s * (0.85 + rand() * 0.4),
+      sy: wet ? s * (0.7 + rand() * 0.45) : s * (0.36 + rand() * 0.35),
+      sz: s * (0.85 + rand() * 0.4),
+      rotX: rand() * 0.9,
       rotY: rand() * Math.PI * 2,
-      rotZ: (rand() - 0.5) * 0.8,
+      rotZ: (rand() - 0.5) * 0.7,
     });
   }
   return out;
