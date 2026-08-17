@@ -19,9 +19,7 @@ Aynı dosyada/alanda zaten bir satır varsa: ya bekle, ya sahiple/diğer oturuml
 
 ## Şu an aktif olanlar
 
-| Kim | Başladı | Dosyalar / alan | Ne yapıyor |
-|---|---|---|---|
-| Claude (`art-director` / @iris) | 2026-08-17 | `docs/art/asset-registry.md` (yeni satır taslağı, kod yok) | Sahibin yeni içerik isteği: adada dolaşan ambient (mekanik etkileşimi yok) mistik/büyülü küçük yaratıklar, yürüme + tavşan-sıçraması iki hareket. Mevcut "sanrı figürleri" (`gdd-lotus-hallucination.md`) ile karıştırılmaması gereken, tamamen ayrı bir içerik — @iris görsel kimlik + mockup prompt'u + üretim yolu (Blender MCP/Tripo) tavsiyesi hazırlıyor. Pipeline'ın (LOT-34 civarı) ilk gerçek üretim hedefi olacak. |
+*(şu an boş — bkz. aşağıda "beklemede", bu iş bitti ama commit edilmedi)*
 
 ---
 
@@ -29,7 +27,10 @@ Aynı dosyada/alanda zaten bir satır varsa: ya bekle, ya sahiple/diğer oturuml
 
 | Kim | Tarih | Dosyalar / alan | Ne bekliyor |
 |---|---|---|---|
-| Claude (ana oturum) | 2026-08-17 | `docs/production/asset-pipeline-loop-plan.md` (§5, §6 güncellendi) | Küçük bir doküman güncellemesi — Blender MCP bağlantısının artık gerçekten canlı olduğu (`get_addon_status`/`get_scene_info` ile doğrulandı) ve LOT-32/LOT-33'ün Done olduğu işlendi. Sahip onayı + commit bekliyor. |
+| Claude (ana oturum) | 2026-08-17 | `docs/art/pipeline.md` (§6 kategori sözlüğüne `creature` eklendi), `docs/art/asset-registry.md` (@iris'in P3 taslağı) | Sahip iki soruyu onayladı ("Thallope" ismi, yeni `creature` kategorisi) — dokümanlar buna göre güncellendi. Sahip onayı + commit bekliyor. |
+| Claude (ana oturum) | 2026-08-17 | `scripts/lib/key_and_crop_still.py` (`--tolerance` bayrağı eklendi) | Alpha-key script'i yumuşak gradyanlı arkaplanlarda başarısız oluyordu (sabit `maxc=14`); ayarlanabilir hale getirildi. Bu görevde bile yetmedi (arkaplan/yaratık paleti çok yakın), keylenmemiş görsel kullanıldı — ama script artık gelecekte ayarlanabilir. Sahip onayı + commit bekliyor. |
+
+**Kalıcı (git dışı, `art-source/` gitignore'lu — kayıp riski yok ama bilgi amaçlı):** `art-source/raw/creature_thallope_01_{ref_1024.png, mesh.glb, rigtest.glb, animtest.glb}` — Thallope'un mockup'ı, dokusuz mesh'i, Rigify rig'li hâli, ve `walk`+`hop` klipli son hâli. Henüz `pipeline.md §8` kabul kapısından geçmedi, `public/assets/`'e "ship" edilmedi, `assets.csv`'de satırı yok — bir sonraki adım bu (sahip + `art-director`).
 
 **Sahibe açık not (hiçbir commit'i beklemiyor, ayrı bir eylem):** CLAUDE.md'deki "rig'siz Doryseus / bilinen boşluk" satırı artık eski — GLB'de `preset:idle/walk/run` zaten var, ikili düzeyde doğrulandı (2026-08-17). İzin sistemi CLAUDE.md düzenlemesini blokladığı için **sahibin kendi eliyle** güncellemesi gerekiyor.
 
