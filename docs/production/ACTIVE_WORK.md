@@ -21,7 +21,7 @@ Aynı dosyada/alanda zaten bir satır varsa: ya bekle, ya sahiple/diğer oturuml
 
 | Kim | Başladı | Dosyalar / alan | Ne yapıyor |
 |---|---|---|---|
-| — | — | — | — |
+| Claude (`art-director` / @iris) | 2026-08-17 | `docs/art/asset-registry.md` (yeni satır taslağı, kod yok) | Sahibin yeni içerik isteği: adada dolaşan ambient (mekanik etkileşimi yok) mistik/büyülü küçük yaratıklar, yürüme + tavşan-sıçraması iki hareket. Mevcut "sanrı figürleri" (`gdd-lotus-hallucination.md`) ile karıştırılmaması gereken, tamamen ayrı bir içerik — @iris görsel kimlik + mockup prompt'u + üretim yolu (Blender MCP/Tripo) tavsiyesi hazırlıyor. Pipeline'ın (LOT-34 civarı) ilk gerçek üretim hedefi olacak. |
 
 ---
 
