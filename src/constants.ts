@@ -613,6 +613,93 @@ export const HALLUCINATION = {
 } as const;
 
 /**
+ * Ambient island wildlife — Thallope (ASSET-060/061). Completely decorative:
+ * no contact, no memory, no lotus. Not the hallucination family
+ * (`docs/art/asset-registry.md` P3). Homes sit in the core-loop block so the
+ * player actually sees them on the 160 m island.
+ */
+export const THALLOPE = {
+  mesh: "assets/models/creature_thallope_01_mesh_4000.glb",
+  /** Readable wildlife — a bit under Doryseus (1.82 m), not a speck. */
+  height: 1.2,
+  meshYLift: 0.01,
+  /**
+   * Bind-pose nose sits on local +X (head bone x=0.44, tail x=-0.46), while
+   * wander yaw 0 is game +Z — same 90° mismatch as Doryseus. -π/2 maps the
+   * nose onto the travel axis so they hop the way they face.
+   */
+  meshFacing: -Math.PI / 2,
+  seed: 4173,
+  walkSpeed: 1.05,
+  hopSpeed: 1.35,
+  /** Occasional hop; default is grounded walk so they don't read as flying. */
+  hopChance: 0.16,
+  wanderR: ACTIVE_PROFILE === "real" ? 12 : 7,
+  turnSmooth: 0.14,
+  avoidPlayer: 2.2,
+  arriveDist: 0.7,
+  /** Brief pause only after a hop; walk stays continuous. */
+  idleMin: 0.12,
+  idleMax: 0.35,
+  stuckTime: 0.45,
+  radius: 0.42,
+  /** Keep off the delivery deck, not the whole ship trigger disc. */
+  berthKeep: 2.6,
+  shoreKeep: 2.4,
+  /** Stay on the grass shelf, not the lagoon cliff. */
+  lagoonKeep: 2.2,
+  maxStep: 0.42,
+  /** Soft body self-light — keep low so the hale doesn't blow the silhouette. */
+  bodyGlow: 0.1,
+  /** Inner-ear peach on the emissive map. */
+  earGlow: 0.28,
+  /** Bind-pose face offsets in metres, from the head bone world origin (+X = snout). */
+  faceEyeFwd: 0.058,
+  faceEyeUp: 0.024,
+  faceEyeSide: 0.038,
+  faceEyeR: 0.028,
+  faceNoseFwd: 0.078,
+  faceNoseUp: -0.006,
+  faceNoseR: 0.016,
+  faceMouthFwd: 0.062,
+  faceMouthUp: -0.042,
+  faceMouthW: 0.03,
+  /** Drifting paw/body motes — rise and fade (süzülme), not a static halo. */
+  moteCount: 10,
+  moteScale: 0.12,
+  moteScaleMin: 0.06,
+  moteScaleMax: 0.14,
+  moteOpacity: 0.48,
+  moteRise: 0.22,
+  moteDrift: 0.08,
+  moteLifeMin: 1.7,
+  moteLifeMax: 3.2,
+  moteSpawnY: 0.06,
+  moteSpawnR: 0.32,
+  moteY: 0.1,
+  moteZ: 0.2,
+  dustScale: 0.22,
+  dustOpacity: 0.38,
+  /** Tight, dim aureole — sahip: hale kıs, efektler koyu. */
+  haloScale: 1.32,
+  haloCoreScale: 0.78,
+  haloOpacity: 0.22,
+  haloCoreOpacity: 0.28,
+  haloY: 0.48,
+  homes:
+    ACTIVE_PROFILE === "real"
+      ? [
+          { x: 16, z: -72 },
+          { x: -18, z: -88 },
+          { x: 10, z: -108 },
+        ]
+      : [
+          { x: 10, z: 15 },
+          { x: -8, z: 16 },
+        ],
+} as const;
+
+/**
  * Bayılma sunum katmanı — `gdd-memory-system.md` §9.1, `art-bible.md` §4.1,
  * `tuning.md` §5.4. Adds on top of the existing 4 haze layers in
  * `render/hazePass.ts` (desaturate/vignette/fog/blur) — does not replace
@@ -781,7 +868,19 @@ export const FLORA = {
   reedRim: ACTIVE_PROFILE === "real" ? 64 : 24,
   reedPocket: ACTIVE_PROFILE === "real" ? 44 : 20,
   lilyPads: ACTIVE_PROFILE === "real" ? 26 : 12,
-  grassTufts: ACTIVE_PROFILE === "real" ? 72 : 28,
+  /**
+   * 3D grass field. Instance count is the perf budget (hex spacing) — the
+   * whole island is one InstancedMesh with frustumCulled off, so tightening
+   * spacing cubes fill-rate (0.34 m chalked the frame + UnrealBloom).
+   * Short lawn look = squash Y a little and overlap XZ, not more tufts.
+   */
+  grassFieldSpacing: ACTIVE_PROFILE === "real" ? 0.58 : 0.40,
+  /** Native tuft ~0.57 m; ~0.40 → ~23 cm (meadow cut, not reed clumps). */
+  grassHeightScale: 0.4,
+  /** Wider than tall so neighbours overlap into a sward at the spacing above. */
+  grassSpreadScale: 1.55,
+  grassSink: 0.02,
+  grassSway: 0.03,
   treeMinY: 1.7,
   treeMaxY: 14,
   shipKeepout: 18,
@@ -839,4 +938,26 @@ export const PALETTE = {
   trunk: 0x6b5136,
   /** Sanrı figürleri + unutma pusu ailesi (art-bible.md §2/§4.1) — yeni bir renk ailesi getirilmiyor. */
   hallucination: 0xf6f2ea,
+  /**
+   * Thallope albedo — warm white (sahip: beyaz + parlak hare). Face stays
+   * dark so eyes/nose/mouth still read.
+   */
+  thallope: 0xf6f2ea,
+  /** Whisper of blush on white fur. */
+  thallopeSpot: 0xf0d8de,
+  /** Inner-ear peach. */
+  thallopeEar: 0xffe4c4,
+  /** Cream chest. */
+  thallopeBelly: 0xfffbf6,
+  /** Recessed eye sockets — mockup dark circles. */
+  thallopeEye: 0x2a221c,
+  /** Catchlight on the eye. */
+  thallopeEyeShine: 0xf4ebe0,
+  /** Nose bump — mockup pink. */
+  thallopeNose: 0xe8a090,
+  /** Mouth line. */
+  thallopeMouth: 0x3a2a26,
+  /** Paw motes + hale — koyu amber, tebeşir altın değil. */
+  thallopeGlow: 0xc48a3a,
+  thallopeHalo: 0xd4a050,
 } as const;

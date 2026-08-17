@@ -17,6 +17,7 @@ import { mulberry32 } from "./rng";
 import { displace } from "./geo";
 import { assetUrl } from "../assets/paths";
 import { loadAlbedoTexture } from "./sprite";
+import { ISLAND_KIT, placeKit, type KitLook, type KitPose } from "./islandKit";
 
 /**
  * Generated ground/prop textures (`docs/art/asset-registry.md` P1 — Su ve
@@ -27,11 +28,9 @@ const SAND_TEX_URL = "assets/textures/sand_gold_01_albedo_512.webp";
 const SAND_WET_TEX_URL = "assets/textures/sand_wet_01_albedo_1024.webp";
 const ROCK_TEX_URL = "assets/textures/rock_chalk_01_albedo_1024.webp";
 const REED_TEX_URL = "assets/textures/flora_reed_02_alpha_512.webp";
-const GRASS_TUFT_TEX_URL = "assets/textures/flora_grasstuft_01_alpha_512.webp";
 const HILL_BACKDROP_TEX_URL = "assets/skybox/hill_backdrop_01_albedo_2048.webp";
 
 const REED_ASPECT = 512 / 482;
-const GRASS_TUFT_ASPECT = 482 / 350;
 
 function smoothstep(a: number, b: number, x: number): number {
   const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
@@ -378,7 +377,31 @@ function scatterPoint(
   return null;
 }
 
-type Pose = { x: number; z: number; y: number; sx: number; sy: number; sz: number; rotY: number };
+type Pose = {
+  x: number;
+  z: number;
+  y: number;
+  sx: number;
+  sy: number;
+  sz: number;
+  rotY: number;
+  rotX?: number;
+  rotZ?: number;
+};
+
+function toKitPose(p: Pose): KitPose {
+  return {
+    x: p.x,
+    y: p.y,
+    z: p.z,
+    sx: p.sx,
+    sy: p.sy,
+    sz: p.sz,
+    rotY: p.rotY,
+    rotX: p.rotX,
+    rotZ: p.rotZ,
+  };
+}
 
 function fillInstanced(mesh: THREE.InstancedMesh, poses: Pose[]): void {
   const dummy = new THREE.Object3D();
@@ -397,6 +420,19 @@ function fillInstanced(mesh: THREE.InstancedMesh, poses: Pose[]): void {
 export function buildTerrain(): Terrain {
   const group = new THREE.Group();
   const rand = mulberry32(20260814);
+  const kitUpdates: Array<(t: number) => void> = [];
+  const useKit = (
+    legacy: THREE.Object3D,
+    path: string,
+    poses: Pose[],
+    look: KitLook | number = {},
+  ) => {
+    void placeKit(group, path, poses.map(toKitPose), look).then((u) => {
+      if (!u) return;
+      legacy.visible = false;
+      kitUpdates.push(u.update);
+    });
+  };
 
   const geo = new THREE.PlaneGeometry(
     ISLAND.planeSize,
@@ -529,6 +565,7 @@ export function buildTerrain(): Terrain {
     fillInstanced(mesh, cypressPoses);
     mesh.frustumCulled = false;
     group.add(mesh);
+    useKit(mesh, ISLAND_KIT.cypress, cypressPoses);
   }
 
   const olivePoses: Pose[] = [];
@@ -561,15 +598,30 @@ export function buildTerrain(): Terrain {
     fillInstanced(mesh, olivePoses);
     mesh.frustumCulled = false;
     group.add(mesh);
+    useKit(mesh, ISLAND_KIT.olive, olivePoses);
   }
 
   const rockGeo = displace(new THREE.IcosahedronGeometry(1, 0), 0.35, rand);
   const rockPoses: Pose[] = [];
+  const boulderPoses: Pose[] = [];
+  const pebblePoses: Pose[] = [];
   /** `solid` false for lagoon-edge pebbles — shore/inland boulders block, wading debris doesn't. */
   const pushRock = (x: number, z: number, y: number, s: number, solid = true) => {
     const sx = s * (0.85 + rand() * 0.4);
     const sz = s * (0.85 + rand() * 0.4);
-    rockPoses.push({ x, z, y: y - s * 0.22, sx, sy: s * (0.45 + rand() * 0.4), sz, rotY: rand() * 6.28 });
+    const pose: Pose = {
+      x,
+      z,
+      y: y - s * 0.22,
+      sx,
+      sy: s * (0.45 + rand() * 0.4),
+      sz,
+      rotY: rand() * 6.28,
+      rotX: rand() * 1.2,
+      rotZ: rand() * 0.8,
+    };
+    rockPoses.push(pose);
+    (solid ? boulderPoses : pebblePoses).push(pose);
     if (solid) colliders.push({ x, z, radius: ROCK_COLLIDE_FACTOR * ((sx + sz) / 2) });
   };
   for (let i = 0; i < FLORA.rockShore; i++) {
@@ -611,7 +663,7 @@ export function buildTerrain(): Terrain {
       const p = rockPoses[i];
       dummy.position.set(p.x, p.y, p.z);
       dummy.scale.set(p.sx, p.sy, p.sz);
-      dummy.rotation.set(rand() * 1.2, p.rotY, rand() * 0.8);
+      dummy.rotation.set(p.rotX ?? rand() * 1.2, p.rotY, p.rotZ ?? rand() * 0.8);
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);
     }
@@ -619,6 +671,14 @@ export function buildTerrain(): Terrain {
     mesh.castShadow = true;
     mesh.frustumCulled = false;
     group.add(mesh);
+    void Promise.all([
+      placeKit(group, ISLAND_KIT.boulder, boulderPoses.map(toKitPose)),
+      placeKit(group, ISLAND_KIT.pebble, pebblePoses.map(toKitPose)),
+    ]).then(([boulders, pebbles]) => {
+      if (boulders || pebbles) mesh.visible = false;
+      if (boulders) kitUpdates.push(boulders.update);
+      if (pebbles) kitUpdates.push(pebbles.update);
+    });
   }
 
   const reeds = buildReedBeds(rand);
@@ -627,6 +687,18 @@ export function buildTerrain(): Terrain {
   group.add(reeds.group);
   group.add(grass.group);
   group.add(buildNorthSpikeRocks(rand));
+  if (reeds.reedMesh) useKit(reeds.reedMesh, ISLAND_KIT.reed, reeds.poses, 0.08);
+  useKit(grass.group, ISLAND_KIT.grass, grass.poses, {
+    sway: FLORA.grassSway,
+    doubleSide: true,
+    castShadow: false,
+    receiveShadow: false,
+    envMapIntensity: 0,
+    vertexColors: false,
+    color: PALETTE.grassDeep,
+    lambert: true,
+    lumaMax: 0.3,
+  });
 
   // Weathered columns hint at the Lotophagoi's abandoned shrine.
   const shrine = { x: -13, z: -15 + LAYOUT_SHIFT_Z };
@@ -653,6 +725,7 @@ export function buildTerrain(): Terrain {
     update(t) {
       reeds.update(t);
       grass.update(t);
+      for (const u of kitUpdates) u(t);
     },
   };
 }
@@ -781,8 +854,14 @@ function buildHillBackdropRing(): THREE.Mesh {
  * Dense reed clumps along the lagoon rim (art-bible.md §6: sazlık = border)
  * plus a thicker pocket at the tutorial harvest zone.
  */
-function buildReedBeds(rand: () => number): { group: THREE.Group; update: (t: number) => void } {
+function buildReedBeds(rand: () => number): {
+  group: THREE.Group;
+  update: (t: number) => void;
+  reedMesh: THREE.Object3D | null;
+  poses: Pose[];
+} {
   const group = new THREE.Group();
+  const poses: Pose[] = [];
 
   const reedMat = alphaBillboardMat(REED_TEX_URL);
   reedMat.roughness = 0.85;
@@ -795,6 +874,8 @@ function buildReedBeds(rand: () => number): { group: THREE.Group; update: (t: nu
     const h = 1.25 + rand() * 1.15;
     const w = h * REED_ASPECT;
     const yaw = rand() * Math.PI;
+    const s = h / 1.94;
+    poses.push({ x, z, y: y - 0.02, sx: s, sy: s, sz: s, rotY: yaw });
     for (const crossOffset of [0, Math.PI / 2]) {
       const plane = new THREE.PlaneGeometry(w, h);
       plane.translate(0, h * 0.5, 0);
@@ -818,6 +899,7 @@ function buildReedBeds(rand: () => number): { group: THREE.Group; update: (t: nu
     plant(reedZone.cx + Math.cos(a) * r, reedZone.cz + Math.sin(a) * r);
   }
 
+  let reedMesh: THREE.Object3D | null = null;
   if (clumpGeos.length > 0) {
     const merged = mergeGeometries(clumpGeos);
     for (const g of clumpGeos) g.dispose();
@@ -825,6 +907,7 @@ function buildReedBeds(rand: () => number): { group: THREE.Group; update: (t: nu
       const reeds = new THREE.Mesh(merged, reedMat);
       reeds.castShadow = true;
       group.add(reeds);
+      reedMesh = reeds;
     }
   }
 
@@ -851,56 +934,79 @@ function buildReedBeds(rand: () => number): { group: THREE.Group; update: (t: nu
 
   return {
     group,
+    reedMesh,
+    poses,
     update(t) {
       wind.value = t;
     },
   };
 }
 
-/** Sparse dry-grass tufts on open slopes (ASSET-056). */
-function buildGrassTufts(rand: () => number): { group: THREE.Group; update: (t: number) => void } {
+function inNorthSpikeBand(x: number, z: number): boolean {
+  if (LANDMARK.northSpikes.height <= 0) return false;
+  const r = Math.hypot(x, z);
+  const north = Math.max(0, z / Math.max(r, 1));
+  return north >= 0.35 && r >= LANDMARK.northSpikes.startR;
+}
+
+/** Grass (not beach sand, not lagoon water, not the spike rocks). */
+function onGrassField(x: number, z: number): number | null {
+  const y = heightAt(x, z);
+  if (y < 0.12 || y > 16) return null;
+  const r = Math.hypot(x, z);
+  const coast = islandRadiusAt(x, z);
+  if (r > coast - 1.6) return null;
+  const beachT = smoothstep(coast - ISLAND.beachWidth, coast - 1.5, r);
+  if (beachT > 0.42) return null;
+  const ld = lagoonDist(x, z);
+  const lr = lagoonRadiusAt(x, z);
+  if (ld < lr + 0.35) return null;
+  const lagoonT = smoothstep(lr + 3.8, lr - 0.5, ld);
+  if (lagoonT > 0.5) return null;
+  if (inNorthSpikeBand(x, z)) return null;
+  if (nearLotus(x, z, 0.55)) return null;
+  return y;
+}
+
+/** Island-wide 3D grass carpet (ASSET-070). Billboard fallback only if the kit GLB is missing. */
+function buildGrassTufts(rand: () => number): {
+  group: THREE.Group;
+  update: (t: number) => void;
+  poses: Pose[];
+} {
   const group = new THREE.Group();
-  const mat = alphaBillboardMat(GRASS_TUFT_TEX_URL);
-  const wind = attachSway(mat, 0.11);
-
-  const geos: THREE.BufferGeometry[] = [];
-  for (let i = 0; i < FLORA.grassTufts; i++) {
-    const p = scatterPoint(rand, (x, z) => {
-      const y = heightAt(x, z);
-      if (y < 0.2 || y > 11) return null;
-      if (lagoonDist(x, z) < lagoonRadiusAt(x, z) + 0.6) return null;
-      if (Math.hypot(x - SHIP.pos.x, z - SHIP.pos.z) < 10) return null;
-      if (nearLotus(x, z, 0.9)) return null;
-      if (Math.hypot(x, z) > islandRadiusAt(x, z) - 2.2) return null;
-      return y;
-    });
-    if (!p) continue;
-    const h = 0.38 + rand() * 0.55;
-    const w = h * GRASS_TUFT_ASPECT;
-    const yaw = rand() * Math.PI;
-    for (const crossOffset of [0, Math.PI / 2]) {
-      const plane = new THREE.PlaneGeometry(w, h);
-      plane.translate(0, h * 0.5, 0);
-      plane.rotateY(yaw + crossOffset);
-      plane.translate(p.x, p.y - 0.02, p.z);
-      geos.push(plane);
-    }
-  }
-
-  if (geos.length > 0) {
-    const merged = mergeGeometries(geos);
-    for (const g of geos) g.dispose();
-    if (merged) {
-      const mesh = new THREE.Mesh(merged, mat);
-      mesh.castShadow = true;
-      group.add(mesh);
+  const poses: Pose[] = [];
+  const spacing = FLORA.grassFieldSpacing;
+  const hexH = spacing * 0.8660254;
+  const reach = ISLAND.radius + 2;
+  let row = 0;
+  for (let z = -reach; z <= reach; z += hexH) {
+    const ox = (row % 2) * spacing * 0.5;
+    row++;
+    for (let x = -reach; x <= reach; x += spacing) {
+      const jx = x + ox + (rand() - 0.5) * spacing * 0.38;
+      const jz = z + (rand() - 0.5) * hexH * 0.38;
+      const y = onGrassField(jx, jz);
+      if (y === null) continue;
+      const spread = FLORA.grassSpreadScale * (0.9 + rand() * 0.2);
+      const h = FLORA.grassHeightScale * (0.85 + rand() * 0.3);
+      poses.push({
+        x: jx,
+        z: jz,
+        y: y - FLORA.grassSink,
+        sx: spread,
+        sy: h,
+        sz: spread,
+        rotY: rand() * Math.PI * 2,
+      });
     }
   }
 
   return {
     group,
-    update(t) {
-      wind.value = t;
+    poses,
+    update() {
+      /* Kit InstancedMesh owns sway once loaded. */
     },
   };
 }
