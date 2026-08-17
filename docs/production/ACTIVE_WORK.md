@@ -19,21 +19,22 @@ Aynı dosyada/alanda zaten bir satır varsa: ya bekle, ya sahiple/diğer oturuml
 
 ## Şu an aktif olanlar
 
-*(şu an boş — bkz. aşağıda "beklemede", bu iş bitti ama commit edilmedi)*
+| Kim | Tarih | Dosyalar / alan | Ne yapıyor |
+|---|---|---|---|
+| Cursor (Grok, bu oturum) · `@iris` | 2026-08-17 | `scripts/blender/build_island_kit.py`, `src/world/{islandKit,terrain}.ts`, `public/assets/models/{rock_chalk_*,flora_*}`, `docs/art/specs/lot-28-island-interior.md`, `docs/art/asset-registry.md`, `public/assets/assets.csv` | LOT-28: ada kiti Blender'da (kaya/çim/saz/zeytin/servi). Sahip yönü — Tripo still değil. `sea.ts` dokunulmuyor. |
+| Cursor (Grok, bu oturum) · `@byte` | 2026-08-17 | `src/render/{stage,hazePass}.ts`, `src/constants.ts` (`RENDER` only) | LOT-49: ada ışığı/ambiyans — art-bible §3 üçlü (hemi + sıcak güneş + su dolgusu). `sea.ts` / ada kiti dokunulmuyor. |
+| Cursor (Grok, bu oturum) · `@iris` | 2026-08-17 | `scripts/blender/build_sun_god.py`, `src/render/sunDisk.ts`, `src/constants.ts` (`SUN_DISK`), `public/assets/models/sky_sungod_*` | LOT-50: güneş tanrısı baş+12 ışın (Blender, tasarımsal silüet). Ada kiti / `sea.ts` dokunulmuyor. Sahip v1’i park etti. |
+| Cursor (Grok, bu oturum) · `@iris` | 2026-08-17 | `docs/art/specs/lot-52-hero-home-hull.md` | LOT-52: kahraman ev-gövde tasarım kilidi (mesh yok). Filo görseli düşer; 12 amfora koşu kileri. |
+
+**Not — diğer oturumlar:** ada içi flora/kaya görsel ailesi bu satırdayken ikinci bir G1–G6 slice açmayın (`visual-change-gate.md` §4). Thallope (LOT-39) ayrı aile. `assets.csv` / registry'ye yalnız ASSET-068+ kit satırları ekleniyor (062/063 Doryseus'a ait, ezilmez).
 
 ---
 
 ## Beklemede — üretildi, commit edilmedi, sahip onayı bekliyor
 
-| Kim | Tarih | Dosyalar / alan | Ne bekliyor |
-|---|---|---|---|
-| — | — | — | — |
+Şu an boş. LOT-28 / LOT-49 / LOT-50 hâlâ aktif tabloda (diskte duruyor, bu push’a girmedi).
 
-**Not — diğer oturumlar için (Cursor/Grok dahil), 2026-08-17 (güncel):** Thallope'un ayak rotasyonu sorunu araştırıldı (kök neden: bacak kemiklerinde `bone roll` hiç ayarlanmadı, kutup hedefi düzeltmesi + rotasyon kilitleme denendi, ikisi de etkisiz) — **sahip kararıyla v1 olarak kabul edildi, düzeltilmedi.** Detay: Paca LOT-34 son yorumu, `docs/art/asset-registry.md` P3 notu. Bu asset'e dokunacak biri (rotasyonu düzeltmeyi denerse) rig'i muhtemelen roll değerleriyle baştan kurup Rigify'yi yeniden üretmesi gerekeceğini bilsin — tek başına foot_ik/kutup hedefi düzeltmesi yetmiyor.
-
-**Not — diğer oturumlar için (Cursor/Grok dahil), 2026-08-17:** `docs/art/pipeline.md` (§6 `creature` kategorisi), `docs/art/asset-registry.md` (P3 — Thallope) ve `scripts/lib/key_and_crop_still.py` (`--tolerance` bayrağı) commit `600752f` ile pushlandı, güncel. Thallope'un mesh+rig+animasyon çıktısı hâlâ `art-source/raw/`'da (git dışı, gitignore'lu) — `public/assets/`'e **ship edilmedi**, `assets.csv` satırı yok, §8 kapısı açık. **Bilinen açık hata:** workbench'te oynatılırken bazı karelerde ayaklar yana dönük duruyor (IK poz/rotasyon sorunu) — sahip playtest'te yakaladı, ana oturum şu an araştırıyor. Bu asset'e dokunacak biri önce bu satırı ve Paca LOT-34 yorumlarını okusun.
-
-**Kalıcı (git dışı, `art-source/` gitignore'lu — kayıp riski yok ama bilgi amaçlı):** `art-source/raw/creature_thallope_01_{ref_1024.png, mesh.glb, rigtest.glb, animtest.glb}` — Thallope'un mockup'ı, dokusuz mesh'i, Rigify rig'li hâli, ve `walk`+`hop` klipli son hâli. Henüz `pipeline.md §8` kabul kapısından geçmedi, `public/assets/`'e "ship" edilmedi, `assets.csv`'de satırı yok — bir sonraki adım bu (sahip + `art-director`).
+**Not — diğer oturumlar için (Cursor/Grok dahil), 2026-08-17 (güncel):** Thallope'un ayak rotasyonu sorunu araştırıldı (kök neden: bacak kemiklerinde `bone roll` hiç ayarlanmadı, kutup hedefi düzeltmesi + rotasyon kilitleme denendi, ikisi de etkisiz) — **sahip kararıyla v1 olarak kabul edildi, düzeltilmedi.** Detay: Paca LOT-34. Bu asset'e dokunacak biri (rotasyonu düzeltmeyi denerse) rig'i muhtemelen roll değerleriyle baştan kurup Rigify'yi yeniden üretmesi gerekeceğini bilsin — tek başına foot_ik/kutup hedefi düzeltmesi yetmiyor.
 
 **Sahibe açık not (hiçbir commit'i beklemiyor, ayrı bir eylem):** CLAUDE.md'deki "rig'siz Doryseus / bilinen boşluk" satırı artık eski — GLB'de `preset:idle/walk/run` zaten var, ikili düzeyde doğrulandı (2026-08-17). İzin sistemi CLAUDE.md düzenlemesini blokladığı için **sahibin kendi eliyle** güncellemesi gerekiyor.
 
@@ -43,6 +44,9 @@ Aynı dosyada/alanda zaten bir satır varsa: ya bekle, ya sahiple/diğer oturuml
 
 | Kim | Tarih | Dosyalar / alan | Ne yapıldı |
 |---|---|---|---|
+| Cursor (Grok, bu oturum) · `@byte` | 2026-08-17 | `src/world/thallope.ts`, `src/game.ts`, `public/assets/{models,ref}/creature_thallope_*` | Commit `2d6ea69`. LOT-39 Thallope ada spawn. Ayak yaw v1 (LOT-34). Push bu oturum. |
+| Cursor (Grok, bu oturum) · `@glyph` | 2026-08-17 | `src/ui/fullscreen.ts`, `src/ui/hud.css`, `docs/ux/{screens.md,hud.md}` | Commit `11d59f3`. LOT-51 iOS follow-up: Tam ekran düğmesi iPhone'da da görünür, native API yoksa görünür alana sığdırır. Pushlandı. |
+| Cursor (Grok, bu oturum) · `@glyph` | 2026-08-17 | `src/ui/fullscreen.ts`, `src/ui/hud.css`, `src/main.ts`, `src/game.ts`, `docs/ux/{screens.md,hud.md}` | Commit `9b2ceae`. LOT-51 (Paca Done): telefon tarayıcı tam ekran gir/çık + visualViewport kabuk. Pushlandı. |
 | Claude (ana oturum + `producer`/@nile + `ui-programmer`/@glyph) | 2026-08-17 | `docs/production/asset-pipeline-loop-plan.md` (yeni), `workbench.html`, `src/workbench/{main.ts,viewer.ts,workbench.css}` (yeni), `vite.config.ts` | Commit `ab05d22`. LOT-32 (Paca Done): jenerik GLB/animasyon önizleme sahnesi + `/__workbench/models` dev-only listeleme endpoint'i + "dış klip ekle" (ayrı dosyanın kliplerini yüklü modele bağlama, LOT-37'nin ihtiyacı). Üç gerçek hata bulunup düzeltildi: (1) `[hidden]` CSS'te eziliyordu, (2) `<canvas>`'ın flexbox min-width'i paneli ekran dışına itiyordu (sahip "bomboş sahne" diye yakaladı), (3) dış-klip-ekle klipsiz modelde erişilemezdi (asıl kullanım senaryosu). Ayrıca: Blender kuruldu (Homebrew), `ahujasid/blender-mcp` seçilip Claude Code'a bağlandı (`claude_desktop_config.json` düzenlendi, restart sonrası doğrulandı), eklenti dosyası Blender'a kopyalandı — Blender içi etkinleştirme adımı hâlâ sahipte. Sahip onayladı ("HARIKA PUSHLA!"), pushlandı. |
 | Claude (bu oturum) | 2026-08-17 | `src/constants.ts`, `src/game.ts`, `src/world/terrain.ts`, `scripts/gen-tripo-retexture.mjs`, `public/assets/models/char_doryseus_02_{textured,rig}_8000.glb` | Commit `04ba77f`. LOT-27 gerçek çözüm: Tripo'nun kendi `texture_model` retexture'ı (Meshy değil), gerçek doku, `cardinalViews.ts` silindi. Ardından iki playtest hatası ölçülerek düzeltildi: uçma (`meshYLift` 0.08→0.01) ve yanlış yön (`meshFacing` π→-π/2). Sonra rig: Tripo rig+retarget, `preset:idle/walk/run`, gerçek WASD ile yürüme animasyonu doğrulandı. Ayrıca hareket motoru denetimi: statik nesnelerle (kaya/ağaç/sütun) çarpışma yoktu, `terrain.ts` + `game.ts`'e eklendi, gerçek `step()`'e karşı doğrulandı. Sahip onayladı, push edildi.
 | Cursor (Grok, bu oturum) | 2026-08-16 | `src/world/sailor.ts`, `src/world/gltf.ts`, `public/assets/models/`, `scripts/gen-mesh.mjs`, `scripts/gen-meshy.mjs` | LOT-27: Tripo Doryseus GLB playable (`meshFacing` π, Hip bind pin). Sprite-projeksiyon shader iptal (beyaz boya). Meshy 4-view retexture script hazır; `MESHY_API_KEY` yok. |
