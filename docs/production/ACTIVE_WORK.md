@@ -21,7 +21,7 @@ Aynı dosyada/alanda zaten bir satır varsa: ya bekle, ya sahiple/diğer oturuml
 
 | Kim | Başladı | Dosyalar / alan | Ne yapıyor |
 |---|---|---|---|
-| — | — | — | — |
+| Claude (bu oturum) | 2026-08-17 | `docs/production/asset-pipeline-loop-plan.md` (yeni dosya) | Chong-U videosu (Grok+Blender MCP+Meshy+Unity) temelinde, Tripo+Three.js'e uyarlanmış görsel-geri-bildirimli asset üretim döngüsü planı — kod yok, yalnızca plan dokümanı |
 
 ---
 
