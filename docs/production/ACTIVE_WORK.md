@@ -27,8 +27,9 @@ Aynı dosyada/alanda zaten bir satır varsa: ya bekle, ya sahiple/diğer oturuml
 
 | Kim | Tarih | Dosyalar / alan | Ne bekliyor |
 |---|---|---|---|
-| Claude (ana oturum) | 2026-08-17 | `docs/art/pipeline.md` (§6 kategori sözlüğüne `creature` eklendi), `docs/art/asset-registry.md` (@iris'in P3 taslağı) | Sahip iki soruyu onayladı ("Thallope" ismi, yeni `creature` kategorisi) — dokümanlar buna göre güncellendi. Sahip onayı + commit bekliyor. |
-| Claude (ana oturum) | 2026-08-17 | `scripts/lib/key_and_crop_still.py` (`--tolerance` bayrağı eklendi) | Alpha-key script'i yumuşak gradyanlı arkaplanlarda başarısız oluyordu (sabit `maxc=14`); ayarlanabilir hale getirildi. Bu görevde bile yetmedi (arkaplan/yaratık paleti çok yakın), keylenmemiş görsel kullanıldı — ama script artık gelecekte ayarlanabilir. Sahip onayı + commit bekliyor. |
+| — | — | — | — |
+
+**Not — diğer oturumlar için (Cursor/Grok dahil), 2026-08-17:** `docs/art/pipeline.md` (§6 `creature` kategorisi), `docs/art/asset-registry.md` (P3 — Thallope) ve `scripts/lib/key_and_crop_still.py` (`--tolerance` bayrağı) commit `600752f` ile pushlandı, güncel. Thallope'un mesh+rig+animasyon çıktısı hâlâ `art-source/raw/`'da (git dışı, gitignore'lu) — `public/assets/`'e **ship edilmedi**, `assets.csv` satırı yok, §8 kapısı açık. **Bilinen açık hata:** workbench'te oynatılırken bazı karelerde ayaklar yana dönük duruyor (IK poz/rotasyon sorunu) — sahip playtest'te yakaladı, ana oturum şu an araştırıyor. Bu asset'e dokunacak biri önce bu satırı ve Paca LOT-34 yorumlarını okusun.
 
 **Kalıcı (git dışı, `art-source/` gitignore'lu — kayıp riski yok ama bilgi amaçlı):** `art-source/raw/creature_thallope_01_{ref_1024.png, mesh.glb, rigtest.glb, animtest.glb}` — Thallope'un mockup'ı, dokusuz mesh'i, Rigify rig'li hâli, ve `walk`+`hop` klipli son hâli. Henüz `pipeline.md §8` kabul kapısından geçmedi, `public/assets/`'e "ship" edilmedi, `assets.csv`'de satırı yok — bir sonraki adım bu (sahip + `art-director`).
 
