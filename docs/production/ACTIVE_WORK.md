@@ -21,9 +21,7 @@ Aynı dosyada/alanda zaten bir satır varsa: ya bekle, ya sahiple/diğer oturuml
 
 | Kim | Başladı | Dosyalar / alan | Ne yapıyor |
 |---|---|---|---|
-| Claude (ana oturum) | 2026-08-17 | `docs/production/asset-pipeline-loop-plan.md` (§2, §4.5, §5, §6 düzeltildi) + Paca (Sprint 3, LOT-32..38) | `producer` raporunu işledi: Paca Sprint 3 + 7 kart açıldı (producer'ın REST erişimi yoktu, ana oturumun MCP'si çalıştı). Blender kuruldu + doğrulandı (Homebrew, 5.2.0). `ahujasid/blender-mcp` seçildi (sahip onayı) — Claude Code kaydı (`claude mcp add`) ve eklenti kopyalama (`uvx blender-mcp install-addon`) sahibin elinde iki adıma takıldı (CLI bu sandboxta yok, Blender hiç açılmamış). `ui-programmer` (@glyph, LOT-32) workbench için başlatıldı. **Sahibe not:** CLAUDE.md'deki "rig'siz Doryseus / bilinen boşluk" satırı artık eski (rig'de idle/walk/run zaten var, `producer` GLB'yi ikili düzeyde doğruladı) — CLAUDE.md düzenlemeleri izin sistemi tarafından bloklandığı için bu satırı sahibin kendi eliyle güncellemesi gerekiyor. |
-| Claude (`producer` / @nile) | 2026-08-17 | Sadece bu dosya + Paca (kod dosyası yok) | Planlama turu bitti, ana oturuma devretti (yukarıki satır) — kapandı. |
-| Claude (`ui-programmer` / @glyph) | 2026-08-17 | `workbench.html` (yeni), `src/workbench/**` (yeni) | LOT-32'yi build ediyor — dev sunucusu 5173'te zaten çalışıyor, ikinci sunucu başlatmıyor. |
+| — | — | — | — |
 
 ---
 
@@ -31,8 +29,9 @@ Aynı dosyada/alanda zaten bir satır varsa: ya bekle, ya sahiple/diğer oturuml
 
 | Kim | Tarih | Dosyalar / alan | Ne bekliyor |
 |---|---|---|---|
-| Claude (bu oturum) | 2026-08-17 | `docs/production/asset-pipeline-loop-plan.md` (yeni dosya) | Sahip onayı — Chong-U videosu (Grok+Blender MCP+Meshy+Unity) temelinde, Tripo+Three.js'e uyarlanmış görsel-geri-bildirimli asset üretim döngüsü planı (taslak). Kod yok, yalnızca plan. §4'teki iki açık soru (Blender kurulu mu, MCP nereye bağlanacak) ve §6 açık sorular sahibi bekliyor. |
-| — | — | — | — |
+| Claude (bu oturum) | 2026-08-17 | `docs/production/asset-pipeline-loop-plan.md` (yeni dosya, güncellendi) | Sahip onayı. §2/§4.5/§5/§6 gerçek bulgularla düzeltildi (Blender kuruldu, `ahujasid/blender-mcp` seçildi, GLB'de zaten idle/walk/run var). §5'teki son iki soru sahibi bekliyor (Claude Code MCP kaydı + Blender'ı bir kere açma — restart sonrası MCP bağlandı, `uvx blender-mcp install-addon` tekrar denenecek). |
+| Claude (ana oturum, `@glyph`'in yarım kalan işini devraldı) | 2026-08-17 | `workbench.html` (yeni), `src/workbench/{main.ts, viewer.ts, workbench.css}` (yeni) | LOT-32 **tamamlandı ve tarayıcıda doğrulandı** (Paca'da Done). `@glyph` restart'ta kesildi, kod diskte kalmıştı; ana oturum gerçek yükleme/tıklama testiyle doğruladı, bir CSS hatası (`[hidden]` ezilmesi — sekmeler üst üste görünüyordu) bulup düzeltti. Altı kabul kriteri de geçti (ayrıntı: LOT-32 Paca yorumu). Sahip onayı + commit bekliyor. |
+| CLAUDE.md (dosyanın kendisi, düzenlenemedi) | 2026-08-17 | "rig'siz Doryseus / bilinen boşluk" satırı | Bu satır artık eski — GLB'de `preset:idle/walk/run` zaten var, ikili düzeyde doğrulandı. İzin sistemi CLAUDE.md düzenlemesini blokladığı için **sahibin kendi eliyle** güncellemesi gerekiyor. |
 
 ---
 
