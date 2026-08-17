@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Asset Workbench</title>
+    <link rel="stylesheet" href="/src/workbench/workbench.css" />
+  </head>
+  <body>
+    <!--
+      Generic GLB/GLTF preview + animation-playback devtool.
+      NOT part of the game: no import from src/game.ts or src/types.ts, no
+      Lotophagoi state. Second Vite entry, served only by `npm run dev` /
+      `vite preview`; `vite build`'s default single-entry (index.html) never
+      pulls this file or src/workbench/** into dist/ (docs/production/
+      asset-pipeline-loop-plan.md §4.3).
+    -->
+    <div id="wb-app">
+      <canvas id="wb-canvas"></canvas>
+
+      <aside id="wb-panel">
+        <header class="wb-header">
+          <h1>Asset Workbench</h1>
+          <p class="wb-sub">
+            Herhangi bir GLB/GLTF'yi boş bir sahnede yükle, döndür, klip
+            listesini oynat. Oyunun state machine'ine hiç girmiyor —
+            manifeste/oyuna hiçbir şey yazmaz.
+          </p>
+        </header>
+
+        <nav class="wb-tabs" role="tablist">
+          <button type="button" class="wb-tab active" id="wb-tab-model" data-tab="model" role="tab">
+            Model
+          </button>
+          <button type="button" class="wb-tab" id="wb-tab-anim" data-tab="anim" role="tab">
+            Animasyon
+          </button>
+        </nav>
+
+        <!-- ============================================================ MODEL -->
+        <section class="wb-tab-panel" id="wb-panel-model" role="tabpanel">
+          <div class="wb-group">
+            <div class="wb-drop" id="wb-drop">
+              <p>GLB/GLTF dosyasını buraya sürükle</p>
+              <p class="wb-drop-or">ya da</p>
+              <button type="button" class="wb-btn" id="wb-file-pick">Dosya seç…</button>
+              <input type="file" id="wb-file-input" accept=".glb,.gltf" hidden />
+            </div>
+          </div>
+
+          <div class="wb-group">
+            <label class="wb-label" for="wb-model-list">Var olan assetler (public/assets/models/)</label>
+            <select id="wb-model-list" class="wb-input">
+              <option value="">— seç —</option>
+            </select>
+          </div>
+
+          <div class="wb-group">
+            <label class="wb-label" for="wb-path-input">
+              Yol (dev sunucusunun kökü — <code>public/</code> altına göre)
+            </label>
+            <input
+              type="text"
+              id="wb-path-input"
+              class="wb-input"
+              placeholder="assets/models/….glb"
+              autocomplete="off"
+              spellcheck="false"
+            />
+            <div class="wb-row">
+              <button type="button" class="wb-btn" id="wb-load-bundle">
+                Bundle yükle (loadGltfBundle — klip var/yok)
+              </button>
+            </div>
+            <div class="wb-row">
+              <button type="button" class="wb-btn ghost" id="wb-load-model">
+                Sadece model yükle (loadGltf, klipsiz)
+              </button>
+            </div>
+          </div>
+
+          <div class="wb-group">
+            <label class="wb-check">
+              <input type="checkbox" id="wb-fit-enable" checked />
+              Yüksekliğe göre ölçekle + ayakları yere otur (fitGltfHeight)
+            </label>
+            <div class="wb-row wb-inline">
+              <label for="wb-fit-meters">metre</label>
+              <input type="number" id="wb-fit-meters" class="wb-input small" value="1.8" min="0.1" step="0.1" />
+            </div>
+          </div>
+
+          <div class="wb-group">
+            <label class="wb-check">
+              <input type="checkbox" id="wb-tint-enable" />
+              Düz renkle boya (tintGltf — dokusuz Tripo çıktısını kontrol için)
+            </label>
+            <div class="wb-row wb-inline">
+              <label for="wb-tint-color">renk</label>
+              <input type="color" id="wb-tint-color" value="#8899aa" />
+            </div>
+          </div>
+
+          <div class="wb-group">
+            <button type="button" class="wb-btn danger" id="wb-clear">Sahneyi temizle</button>
+          </div>
+
+          <div class="wb-group wb-info" id="wb-info">
+            <p class="wb-empty">Henüz bir model yüklenmedi.</p>
+          </div>
+        </section>
+
+        <!-- ========================================================= ANIMATION -->
+        <section class="wb-tab-panel" id="wb-panel-anim" role="tabpanel" hidden>
+          <p class="wb-empty" id="wb-anim-empty">Önce Model sekmesinden bir model yükleyin.</p>
+
+          <!-- Shown whenever *any* model is loaded — independent of whether it
+               ships its own clips, because "add a clip to a clipless mesh" is
+               a real use case (a Tripo mesh without --animate, or a fresh
+               static export), not just "browse this model's own clips". -->
+          <div id="wb-anim-loaded" hidden>
+            <div class="wb-group">
+              <label class="wb-label" for="wb-extra-clip-list">
+                Dış klip ekle (aynı model/iskelet üzerinde dene)
+              </label>
+              <select id="wb-extra-clip-list" class="wb-input">
+                <option value="">— var olan assetlerden seç —</option>
+              </select>
+              <p class="wb-drop-or" style="text-align: left">ya da elle yol yaz</p>
+              <input
+                type="text"
+                id="wb-extra-clip-path"
+                class="wb-input"
+                placeholder="assets/models/….glb (yalnızca klipleri alınır)"
+                autocomplete="off"
+                spellcheck="false"
+              />
+              <div class="wb-row">
+                <button type="button" class="wb-btn" id="wb-extra-clip-add">Klip ekle</button>
+              </div>
+              <p class="wb-note">
+                Mevcut modeli değiştirmez — dosyadaki klip(ler) mevcut
+                iskeletin `AnimationMixer`'ına eklenir. Kemik isimleri
+                eşleşmiyorsa klip sessizce hiçbir şeyi oynatmaz (Three.js
+                isme göre eşler, hata vermez).
+              </p>
+            </div>
+
+            <p class="wb-empty" id="wb-clips-empty">
+              Bu modelde kendi animasyon klibi yok. Yukarıdan "Dış klip
+              ekle" ile bir klip dosyası seçip deneyebilirsin.
+            </p>
+
+            <div id="wb-clip-controls" hidden>
+              <div class="wb-group">
+                <label class="wb-label">Klipler</label>
+                <div class="wb-clip-list" id="wb-clip-list"></div>
+              </div>
+
+              <div class="wb-group">
+                <div class="wb-row">
+                  <button type="button" class="wb-btn" id="wb-anim-toggle">Duraklat</button>
+                </div>
+                <label class="wb-check">
+                  <input type="checkbox" id="wb-anim-loop" checked />
+                  Döngüde oynat (LoopRepeat)
+                </label>
+                <label class="wb-label" for="wb-anim-speed">
+                  Hız — <span id="wb-anim-speed-val">1.00</span>×
+                </label>
+                <input type="range" id="wb-anim-speed" min="0.1" max="2" step="0.05" value="1" />
+              </div>
+
+              <div class="wb-group">
+                <label class="wb-check">
+                  <input type="checkbox" id="wb-pin-enable" checked />
+                  Root/Hip pozisyonunu bağlama pozuna sabitle
+                </label>
+                <p class="wb-note">
+                  gltf.ts <code>restBonePositions</code> +
+                  <code>pinClipBonePositions</code> — bilinen Tripo klip
+                  hatasının düzeltmesi (bkz. sailor.ts). Kapatınca ham klip
+                  oynar, kalça pozisyon track'i pelvis'i düşürebilir.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <footer class="wb-status" id="wb-status">Hazır.</footer>
+      </aside>
+    </div>
+    <script type="module" src="/src/workbench/main.ts"></script>
+  </body>
+</html>

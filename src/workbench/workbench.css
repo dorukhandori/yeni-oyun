@@ -1,0 +1,262 @@
+/* Devtool chrome — deliberately not hud.css's parchment palette. This panel
+   never ships in the game, so it owes nothing to art-bible.md. */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: #16171b;
+  color: #e6e7eb;
+  font: 13px/1.45 -apple-system, "Segoe UI", sans-serif;
+}
+
+#wb-app {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+#wb-canvas {
+  flex: 1 1 auto;
+  display: block;
+  width: 100%;
+  height: 100%;
+  /* <canvas> is a replaced element — flexbox floors its shrink at the
+     drawing-buffer size (canvas.width/height attrs) unless min-width/
+     min-height are reset. Without this, renderer.setSize() growing the
+     buffer to the full window pushes #wb-panel off-screen. */
+  min-width: 0;
+  min-height: 0;
+}
+
+#wb-panel {
+  flex: 0 0 360px;
+  width: 360px;
+  height: 100%;
+  overflow-y: auto;
+  background: #1d1f26;
+  border-left: 1px solid #2c2f38;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.wb-header h1 {
+  margin: 0 0 4px;
+  font-size: 16px;
+}
+
+.wb-sub {
+  margin: 0;
+  color: #9aa0ab;
+  font-size: 12px;
+}
+
+.wb-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid #2c2f38;
+}
+
+.wb-tab {
+  flex: 1;
+  background: none;
+  border: none;
+  color: #9aa0ab;
+  padding: 8px 6px;
+  cursor: pointer;
+  font-size: 13px;
+  border-bottom: 2px solid transparent;
+}
+
+.wb-tab.active {
+  color: #e6e7eb;
+  border-bottom-color: #6f9bff;
+}
+
+.wb-tab-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.wb-tab-panel[hidden] {
+  display: none;
+}
+
+.wb-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #24262d;
+}
+
+.wb-group:last-child {
+  border-bottom: none;
+}
+
+.wb-drop {
+  border: 1px dashed #3c4050;
+  border-radius: 6px;
+  padding: 18px 10px;
+  text-align: center;
+  color: #9aa0ab;
+}
+
+.wb-drop.dragover {
+  border-color: #6f9bff;
+  color: #e6e7eb;
+  background: rgba(111, 155, 255, 0.08);
+}
+
+.wb-drop p {
+  margin: 4px 0;
+}
+
+.wb-drop-or {
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.wb-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #9aa0ab;
+}
+
+.wb-input {
+  width: 100%;
+  background: #14151a;
+  border: 1px solid #33363f;
+  border-radius: 4px;
+  color: #e6e7eb;
+  padding: 6px 8px;
+  font-size: 12px;
+}
+
+.wb-input.small {
+  width: 72px;
+}
+
+.wb-row {
+  display: flex;
+  gap: 8px;
+}
+
+.wb-row.wb-inline {
+  align-items: center;
+  font-size: 12px;
+  color: #9aa0ab;
+}
+
+.wb-btn {
+  background: #2a2d38;
+  border: 1px solid #3c4050;
+  color: #e6e7eb;
+  padding: 7px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  flex: 1;
+}
+
+.wb-btn:hover {
+  background: #333744;
+  border-color: #6f9bff;
+}
+
+.wb-btn.ghost {
+  background: transparent;
+}
+
+.wb-btn.danger {
+  border-color: #6b3838;
+  color: #e0a3a3;
+}
+
+.wb-btn.danger:hover {
+  border-color: #c96060;
+}
+
+.wb-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.wb-note {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: #767c88;
+}
+
+.wb-info dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 3px 10px;
+  font-size: 12px;
+}
+
+.wb-info dt {
+  color: #9aa0ab;
+}
+
+.wb-info dd {
+  margin: 0;
+  text-align: right;
+}
+
+.wb-empty {
+  color: #767c88;
+  font-size: 12px;
+}
+
+.wb-clip-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.wb-clip-btn {
+  text-align: left;
+  background: #14151a;
+  border: 1px solid #2c2f38;
+  color: #c7cad2;
+  border-radius: 4px;
+  padding: 6px 8px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.wb-clip-btn.active {
+  border-color: #6f9bff;
+  color: #e6e7eb;
+}
+
+.wb-status {
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid #2c2f38;
+  font-size: 11px;
+  color: #767c88;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+code {
+  font-family: ui-monospace, monospace;
+  background: #14151a;
+  border-radius: 3px;
+  padding: 0 3px;
+}
