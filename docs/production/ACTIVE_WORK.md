@@ -21,7 +21,9 @@ Aynı dosyada/alanda zaten bir satır varsa: ya bekle, ya sahiple/diğer oturuml
 
 | Kim | Başladı | Dosyalar / alan | Ne yapıyor |
 |---|---|---|---|
-| Claude (ana oturum) | 2026-08-17 | `docs/production/asset-pipeline-loop-plan.md` uygulanıyor — Paca sprint/kart açılıyor, `producer`'a devredildi | Sahip planı onayladı ("beğendim, uçtan uca kuralım"). Blender Homebrew ile arka planda kuruluyor. `producer` sprint+kart açıp workbench'i (§4, bağımsız) başlatıyor olacak. |
+| Claude (ana oturum) | 2026-08-17 | `docs/production/asset-pipeline-loop-plan.md` (§2, §4.5, §5, §6 düzeltildi) + Paca (Sprint 3, LOT-32..38) | `producer` raporunu işledi: Paca Sprint 3 + 7 kart açıldı (producer'ın REST erişimi yoktu, ana oturumun MCP'si çalıştı). Blender kuruldu + doğrulandı (Homebrew, 5.2.0). `ahujasid/blender-mcp` seçildi (sahip onayı) — Claude Code kaydı (`claude mcp add`) ve eklenti kopyalama (`uvx blender-mcp install-addon`) sahibin elinde iki adıma takıldı (CLI bu sandboxta yok, Blender hiç açılmamış). `ui-programmer` (@glyph, LOT-32) workbench için başlatıldı. **Sahibe not:** CLAUDE.md'deki "rig'siz Doryseus / bilinen boşluk" satırı artık eski (rig'de idle/walk/run zaten var, `producer` GLB'yi ikili düzeyde doğruladı) — CLAUDE.md düzenlemeleri izin sistemi tarafından bloklandığı için bu satırı sahibin kendi eliyle güncellemesi gerekiyor. |
+| Claude (`producer` / @nile) | 2026-08-17 | Sadece bu dosya + Paca (kod dosyası yok) | Planlama turu bitti, ana oturuma devretti (yukarıki satır) — kapandı. |
+| Claude (`ui-programmer` / @glyph) | 2026-08-17 | `workbench.html` (yeni), `src/workbench/**` (yeni) | LOT-32'yi build ediyor — dev sunucusu 5173'te zaten çalışıyor, ikinci sunucu başlatmıyor. |
 
 ---
 
