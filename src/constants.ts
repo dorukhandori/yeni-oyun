@@ -519,7 +519,13 @@ export const SAILOR = {
    * Same textured mesh, rigged + retargeted by Tripo (`rig-check` →`rig`→
    * `retarget`, `scripts/gen-mesh.mjs --animate --glb`) onto the exact GLB
    * above — texture/material carried through (`export_with_geometry`), not
-   * re-baked. Clips: `preset:idle`/`preset:walk`/`preset:run`, 2026-08-17.
+   * re-baked. Clips: `preset:idle`/`preset:walk`/`preset:run`, 2026-08-17;
+   * `preset:biped:dig` added 2026-08-18 (sahip: "lotusu koparma animasyonu
+   * yok, ekle") — Tripo's legacy biped catalog (90+ presets, checked in
+   * full) has no exact pick/harvest/gather preset, so `dig` (a repeated
+   * bend-and-reach toward the ground) stands in as the closest physical
+   * match. `sailor.ts` plays it whenever `harvest > 0.08`. Swap for a
+   * bespoke Blender clip if/when LOT-37 gets unblocked.
    */
   meshRig: "assets/models/char_doryseus_02_rig_8000.glb",
   meshEnabled: true,
@@ -565,6 +571,24 @@ export const SAILOR = {
   harvestHip: 0.46,
   /** Extra reach toward the bloom while bent (metres, local Z). */
   harvestReach: 0.05,
+  /**
+   * The 3D rig path (`meshLive`) never applied any of the bend/lean/reach
+   * above — those only ever ran on the flat billboard fallback. Sahip
+   * 2026-08-18: "zemine uyumlu bir eğilme ve uzanma hareketi yok" (no
+   * floor-appropriate bend/reach) — `preset:biped:dig`'s own rotation
+   * channels give *some* lean, but with nothing added on top it read as too
+   * upright to pass as reaching for a lotus at water level. These layer a
+   * whole-rig forward pitch + downward/forward offset on top of whatever the
+   * clip already does, driven by the same `hinge`/`knee` curves the
+   * billboard path uses. Kept smaller than the billboard's own
+   * `harvestLean` (0.38) since the clip is already contributing bend —
+   * this is a top-up, not the whole motion.
+   */
+  meshHarvestLean: 0.22,
+  /** Extra downward sink (metres) at full harvest hinge, on top of `meshYLift`. */
+  meshHarvestDrop: 0.14,
+  /** Extra forward reach (metres, local Z) at full harvest hinge. */
+  meshHarvestReach: 0.08,
   /** Crossfade seconds when the 8-way billboard changes facing (smoothstep). */
   viewFade: 0.16,
   /**
