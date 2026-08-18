@@ -943,8 +943,31 @@ export const RENDER = {
   /** art-bible.md §3 fog `#dfe8ee`. */
   fogColor: 0xdfe8ee,
   fogDensity: profile.fogDensity,
-  skyTop: 0x2f86c9,
-  skyHorizon: 0xffe6c2,
+  /**
+   * Dusk fog. art-bible.md §2 has no brown in the sky family — the previous
+   * `#c9a090` was off-palette mud and, stacked with the cloud photo and the
+   * haze grade, flattened the whole dusk frame to one beige. Rose horizon
+   * (`#e08a86`) lifted toward the base fog so distance still reads as haze.
+   */
+  fogDusk: 0xe9b6a8,
+  /** art-bible.md §2 gökyüzü zenit `#7fb8dd`. */
+  skyTop: 0x7fb8dd,
+  /**
+   * art-bible.md §2 horizon clock: altın → kehribar → gül. The bible calls
+   * this sequence the real time-of-day read, so all three stops live here
+   * instead of the two the shader used to lerp between.
+   */
+  skyHorizon: 0xf5d29a,
+  skyHorizonAmber: 0xeeae6a,
+  skyHorizonRose: 0xe08a86,
+  /**
+   * art-bible.md §2 [P] "Zenit mavisi sabit kalır — ışık asla azalmaz."
+   * The zenith used to lerp 85% toward a navy `#2a3a6a`, which is what made
+   * mid-day read mauve and dusk read grey. Kept as a near-hold; raise only
+   * with a game-designer/art-director call, not silently.
+   */
+  skyTopDuskShift: 0.08,
+  skyTopDusk: 0x6f9fc4,
   /** art-bible.md §2 sıcak yön ışığı `#ffcf94`. */
   sunColor: 0xffcf94,
   /**

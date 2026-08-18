@@ -56,8 +56,14 @@ function paintGod(root: THREE.Object3D): THREE.MeshBasicMaterial[] {
       color: 0xe2c48a,
       fog: false,
       toneMapped: true,
+      // Never writes depth (it is a sky element), but it MUST test: with
+      // depthTest off the Helios head painted straight over the hull, the
+      // sail, the masts and the HUD sun clock. It sits 220 m out along the
+      // sun ray, so honest depth just means real geometry in front of it
+      // occludes it — which is what "the sun is behind the ship" should look
+      // like.
       depthWrite: false,
-      depthTest: false,
+      depthTest: true,
       side: THREE.DoubleSide,
     });
     mesh.material = mat;
@@ -91,7 +97,9 @@ export function createSunDisk(): SunDisk {
     color: 0xffffff,
     blending: THREE.AdditiveBlending,
     depthWrite: false,
-    depthTest: false,
+    // Same reason as paintGod() below — the glow tracked the head through
+    // solid geometry too.
+    depthTest: true,
     fog: false,
     transparent: true,
     toneMapped: true,
@@ -107,7 +115,7 @@ export function createSunDisk(): SunDisk {
     color: 0xffffff,
     transparent: true,
     depthWrite: false,
-    depthTest: false,
+    depthTest: true,
     fog: false,
     toneMapped: true,
     side: THREE.DoubleSide,

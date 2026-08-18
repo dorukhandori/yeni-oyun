@@ -43,11 +43,14 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
   const camera = new THREE.PerspectiveCamera(CAMERA.fov, 16 / 9, 0.1, 600);
   camera.position.set(0, 6, 24);
 
+  // art-bible.md §2 "Uzak ve gökyüzü" — every stop below is a bible hex via
+  // constants.ts, not an eyeballed value. The horizon walks altın → kehribar
+  // → gül across the day; the zenith holds (bible [P] "ışık asla azalmaz").
   const skyTop = new THREE.Color(RENDER.skyTop);
   const skyHorizon = new THREE.Color(RENDER.skyHorizon);
-  const duskTop = new THREE.Color(0x2a3a6a);
-  const duskHorizon = new THREE.Color(0xe08a86);
-  const warnHorizon = new THREE.Color(0xffb08a);
+  const duskTop = new THREE.Color(RENDER.skyTopDusk);
+  const amberHorizon = new THREE.Color(RENDER.skyHorizonAmber);
+  const duskHorizon = new THREE.Color(RENDER.skyHorizonRose);
 
   // ------------------------------------------------------------------- sky
   const skyGeo = new THREE.SphereGeometry(360, 64, 40);
@@ -117,6 +120,10 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
     opacity: 0,
     depthWrite: false,
     fog: false,
+    // Must match the gradient sphere underneath. The gradient is `toneMapped:
+    // false`; leaving the photo on the default `true` meant ACES graded one
+    // layer and not the other, so the blend shifted hue as it faded in.
+    toneMapped: false,
   });
   const cloudMesh = new THREE.Mesh(new THREE.SphereGeometry(SKY_TEX.cloudRadius, 24, 16), cloudMat);
   cloudMesh.renderOrder = -1;
@@ -178,7 +185,7 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
   const sunColorDay = new THREE.Color(RENDER.sunColor);
   const sunColorDusk = new THREE.Color(0xff8a6a);
   const fogDay = new THREE.Color(RENDER.fogColor);
-  const fogDusk = new THREE.Color(0xc9a090);
+  const fogDusk = new THREE.Color(RENDER.fogDusk);
 
   // ------------------------------------------------------------------ passes
   const composer = new EffectComposer(renderer);
@@ -232,9 +239,16 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
       sunDisk.setDusk(t);
 
       const warn = Math.max(0, (t - 0.78) / 0.22);
-      tmpA.copy(skyTop).lerp(duskTop, t * 0.85);
-      tmpB.copy(skyHorizon).lerp(warnHorizon, Math.min(1, warn + t * 0.4));
-      tmpB.lerp(duskHorizon, t);
+      // Zenith holds — art-bible.md §2 [P]. Only a token shift so the sky is
+      // not literally frozen; the horizon carries the clock.
+      tmpA.copy(skyTop).lerp(duskTop, t * RENDER.skyTopDuskShift);
+      // Horizon: altın → kehribar (first half) → gül (second half), the exact
+      // sequence art-bible.md §2 names as the time-of-day read.
+      if (t <= 0.5) tmpB.copy(skyHorizon).lerp(amberHorizon, t / 0.5);
+      else tmpB.copy(amberHorizon).lerp(duskHorizon, (t - 0.5) / 0.5);
+      // Warn window (DAY.warnRemaining) pushes further along the same ramp
+      // rather than off-palette, so "az kaldı" still reads without a new hue.
+      if (warn > 0) tmpB.lerp(duskHorizon, warn * 0.5);
       (skyMat.uniforms.top.value as THREE.Color).copy(tmpA);
       (skyMat.uniforms.horizon.value as THREE.Color).copy(tmpB);
       cloudMat.opacity = t * SKY_TEX.cloudMaxOpacity;
