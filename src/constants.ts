@@ -1020,14 +1020,27 @@ export const SUN_DISK = {
   /** Native face radius 1 m. Angular size ~4° — a sun, not a nearby giant. */
   meshScale: 16,
   /**
-   * Disc radius in world units at `distance` (220 m) — an angular size of
-   * ~10.8°. The disc used to be *hidden* the moment the GLB loaded, which left
-   * the sun with no crisp edge at all: just a soft `pow(sunDot, n)` bloom
-   * smear the cream head then disappeared into. It now always draws.
+   * Disc radius in world units at `distance` (220 m). Was 42 (~10.8° angular
+   * radius, ~21.6° across — nearly 40% of the 55° vertical FOV, big enough to
+   * read as a nearby giant rather than a distant body). 18 Aug 2026 (sahip:
+   * "güneşi küçült ve daha gerçekçi yap"): dropped to 18 (~4.68° radius, ~9.4°
+   * across, ~17% of the vertical FOV) — visibly smaller and read as a distant
+   * bright body, while staying well above real-sun scale (~0.5°) so it still
+   * works as the day/dusk clock element the HUD leans on. The disc used to be
+   * *hidden* the moment the GLB loaded, which left the sun with no crisp edge
+   * at all: just a soft `pow(sunDot, n)` bloom smear the cream head then
+   * disappeared into. It now always draws.
    */
-  coreRadius: 42,
-  /** Soft outer glow. Carries no edge of its own — it only lifts the sky. */
-  haloRadius: 98,
+  coreRadius: 18,
+  /**
+   * Soft outer glow. Carries no edge of its own — it only lifts the sky. Was
+   * 98; kept at the same ~2.33x ratio to `coreRadius` the original tuning
+   * used (98/42 ≈ 2.33), so it shrinks in step with the disc rather than
+   * suddenly reading oversized next to a smaller core. 42 puts the halo's own
+   * angular footprint (~10.8°) right about where the *old* core disc's edge
+   * used to sit — the whole sun is smaller, not just its hard edge.
+   */
+  haloRadius: 42,
   /**
    * Draw the LOT-50 Helios head inside the disc.
    *
@@ -1053,10 +1066,28 @@ export const SUN_DISK = {
    * near-point highlight (was 28 — broad enough to read as the sun itself and
    * fight the mesh) and the halo is a defined glow rather than the sheet of
    * white that used to swallow the sunward third of the frame (was 7.5/0.28).
+   *
+   * 18 Aug 2026: `coreRadius`/`haloRadius` above dropped so the disc itself
+   * reads smaller (see their comments). `corePower` is angle-based, not
+   * radius-based — `pow(sunDot, corePower)` doesn't know the disc shrank — so
+   * left alone it would now paint a "point highlight" that's proportionally
+   * *bigger* than the new, smaller disc it's supposed to sit near-point
+   * inside of. Raised 140 → 210 (higher exponent = a tighter falloff, i.e. a
+   * *smaller*-looking hot point) to keep that near-point relationship rather
+   * than fully matching the disc's shrink 1:1 (the small-angle math for a
+   * proportional match lands closer to 500-700, but at these angles the
+   * approximation gets rough and this is a stylized wash, not a physically
+   * derived one — a conservative tighten here, checked live, beats a large
+   * unverified jump). `haloGain` nudged down 0.34 → 0.30 (10%) so the broad
+   * atmospheric wash doesn't now read as carrying more visual weight than the
+   * sun disc it surrounds. `haloPower` (breadth of that same wash) is left
+   * untouched — it's atmosphere, not the disc's edge, and this exact value
+   * is the one that already fixed the "swallowed the sunward third of the
+   * frame" failure mode once (see above); no reason it's currently wrong.
    */
-  skyCorePower: 140,
+  skyCorePower: 210,
   skyHaloPower: 14,
-  skyHaloGain: 0.34,
+  skyHaloGain: 0.3,
   /** Tint of the in-shader core highlight. Was hardcoded in stage.ts. */
   skyCoreTint: 0xffe9b8,
   skyCoreGain: 0.32,
