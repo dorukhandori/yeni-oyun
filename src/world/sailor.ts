@@ -260,8 +260,8 @@ export function buildSailor(): Sailor {
   body.add(meshHold);
   let meshLive = false;
   let mixer: THREE.AnimationMixer | null = null;
-  let clipName: "idle" | "walk" | "run" = "idle";
-  const acts: Partial<Record<"idle" | "walk" | "run", THREE.AnimationAction>> = {};
+  let clipName: "idle" | "walk" | "run" | "harvest" = "idle";
+  const acts: Partial<Record<"idle" | "walk" | "run" | "harvest", THREE.AnimationAction>> = {};
 
   const pickClip = (clips: THREE.AnimationClip[], keys: string[]) => {
     for (const key of keys) {
@@ -288,18 +288,26 @@ export function buildSailor(): Sailor {
     meshLive = true;
     card.visible = false;
     mixer = null;
-    acts.idle = acts.walk = acts.run = undefined;
+    acts.idle = acts.walk = acts.run = acts.harvest = undefined;
     if (clips.length > 0) {
       mixer = new THREE.AnimationMixer(scene);
       const idleSrc = pickClip(clips, ["idle", "wait", "stand"]) ?? clips[0];
       const walkSrc = pickClip(clips, ["walk"]) ?? clips[Math.min(1, clips.length - 1)];
       const runSrc = pickClip(clips, ["run", "sprint"]) ?? walkSrc;
+      // No exact "pick/harvest" preset exists in Tripo's biped catalog
+      // (checked 2026-08-18: 90+ presets, nothing named pick/gather/harvest).
+      // `preset:biped:dig` is the closest physical match — a repeated
+      // bend-and-reach toward the ground — so it stands in for "koparma"
+      // until/unless a bespoke Blender clip replaces it (LOT-37).
+      const harvestSrc = pickClip(clips, ["dig", "harvest", "pick", "gather"]);
       const idleClip = idleSrc ? pinClipBonePositions(idleSrc, rest) : undefined;
       const walkClip = walkSrc ? pinClipBonePositions(walkSrc, rest) : undefined;
       const runClip = runSrc ? pinClipBonePositions(runSrc, rest) : undefined;
+      const harvestClip = harvestSrc ? pinClipBonePositions(harvestSrc, rest) : undefined;
       if (idleClip) acts.idle = mixer.clipAction(idleClip);
       if (walkClip) acts.walk = mixer.clipAction(walkClip);
       if (runClip) acts.run = mixer.clipAction(runClip);
+      if (harvestClip) acts.harvest = mixer.clipAction(harvestClip);
       for (const action of Object.values(acts)) {
         if (!action) continue;
         action.setLoop(THREE.LoopRepeat, Infinity);
@@ -602,8 +610,16 @@ export function buildSailor(): Sailor {
 
       if (mixer) {
         mixer.update(Number.isFinite(dt) ? dt : 0);
-        const next: "idle" | "walk" | "run" =
-          harvest > 0.08 ? "idle" : moving > SAILOR.gaitMin ? (running ? "run" : "walk") : "idle";
+        const next: "idle" | "walk" | "run" | "harvest" =
+          harvest > 0.08
+            ? acts.harvest
+              ? "harvest"
+              : "idle"
+            : moving > SAILOR.gaitMin
+              ? running
+                ? "run"
+                : "walk"
+              : "idle";
         if (next !== clipName && acts[next]) {
           acts[clipName]?.fadeOut(0.16);
           acts[next]?.reset().fadeIn(0.16).play();
@@ -614,6 +630,11 @@ export function buildSailor(): Sailor {
         }
         if (clipName === "run" && acts.run) {
           acts.run.timeScale = 0.95 + Math.min(1, moving) * 0.25;
+        }
+        if (clipName === "harvest" && acts.harvest) {
+          // Loop the dig cycle at a steady pace — not tied to gait speed
+          // since the character is stationary while harvesting.
+          acts.harvest.timeScale = 1;
         }
       }
 
@@ -669,9 +690,18 @@ export function buildSailor(): Sailor {
         body.position.y = 0;
         body.position.z = 0;
         meshHold.scale.set(1, 1, 1);
-        meshHold.position.set(0, SAILOR.meshYLift, 0);
+        // The rig clip (`preset:biped:dig`) supplies some of its own bend,
+        // but nothing here used to add to it — see SAILOR.meshHarvestLean.
+        // `hinge`/`knee` are the same 0..1 harvest-progress curves the
+        // billboard path below uses, so the two paths ease in together.
+        const meshLean = hinge * SAILOR.meshHarvestLean;
+        meshHold.position.set(
+          0,
+          SAILOR.meshYLift - knee * SAILOR.meshHarvestDrop,
+          hinge * SAILOR.meshHarvestReach,
+        );
         // meshYaw lives in SAILOR so a constants HMR still turns the body.
-        meshHold.rotation.set(0, SAILOR.meshYaw, 0);
+        meshHold.rotation.set(meshLean, SAILOR.meshYaw, 0);
         for (const child of meshHold.children) child.rotation.y = 0;
       } else {
         hips.rotation.x = -lean;

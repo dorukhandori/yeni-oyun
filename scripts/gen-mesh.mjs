@@ -106,6 +106,9 @@ function parseArgs(argv) {
     else if (a === "--animate") opts.animate = true;
     else if (a === "--task") opts.task = argv[++i];
     else if (a === "--glb") opts.glb = resolve(argv[++i]);
+    // Comma-separated Tripo preset names, e.g. "preset:idle,preset:biped:dig".
+    // Defaults to the idle/walk/run trio already shipped on SAILOR.meshRig.
+    else if (a === "--animations") opts.animations = argv[++i].split(",").map((s) => s.trim());
   }
   return opts;
 }
@@ -287,7 +290,7 @@ async function animateCharacter(apiKey, opts) {
     "/v3/animations/retarget",
     {
       input: rigId,
-      animations: ["preset:idle", "preset:walk", "preset:run"],
+      animations: opts.animations ?? ["preset:idle", "preset:walk", "preset:run"],
       out_format: "glb",
       bake_animation: true,
       animate_in_place: true,
@@ -333,6 +336,7 @@ function usage() {
     "  node scripts/gen-mesh.mjs --task <id> -o art-source/raw/name.glb   # resume poll + download\n" +
     "  node scripts/gen-mesh.mjs --animate --task <generation_task_id> [-o art-source/raw/name.glb]\n" +
     "  node scripts/gen-mesh.mjs --animate --glb art-source/raw/char.glb [-o …]\n" +
+    "  Add --animations preset:idle,preset:walk,preset:run,preset:biped:dig to override the default trio.\n" +
     "  Agent does not generate without sahip G1."
   );
 }
