@@ -1019,14 +1019,47 @@ export const SUN_DISK = {
   distance: 220,
   /** Native face radius 1 m. Angular size ~4° — a sun, not a nearby giant. */
   meshScale: 16,
-  /** Fallback disc if the GLB is missing. */
-  coreScale: 18,
-  /** Tight glow behind the head. Hollow ring is hidden once the GLB loads. */
-  haloScale: 22,
-  /** Mild sky wash — the opaque disc carries the readable circle. */
-  skyCorePower: 28,
-  skyHaloPower: 7.5,
-  skyHaloGain: 0.28,
+  /**
+   * Disc radius in world units at `distance` (220 m) — an angular size of
+   * ~10.8°. The disc used to be *hidden* the moment the GLB loaded, which left
+   * the sun with no crisp edge at all: just a soft `pow(sunDot, n)` bloom
+   * smear the cream head then disappeared into. It now always draws.
+   */
+  coreRadius: 42,
+  /** Soft outer glow. Carries no edge of its own — it only lifts the sky. */
+  haloRadius: 98,
+  /**
+   * Draw the LOT-50 Helios head inside the disc.
+   *
+   * **Off by default, and that is an open art-direction question for sahip,
+   * not a settled call.** `sky_sungod_01_mesh_1200.glb` is a cartoon
+   * smiley-face sun — round face, dot eyes, curved smile, triangular rays. It
+   * reads as a weather-app icon and has nothing to do with `art-bible.md`'s
+   * Aegean painterly register. Until it is redesigned (which means a Blender
+   * regeneration via `scripts/blender/build_sun_god.py`, i.e. an asset step
+   * sahip has to approve), the plain painterly disc is the better sun. Flip
+   * this to `true` to see the head again — nothing else needs to change.
+   */
+  showGod: false,
+  /**
+   * Bronze Helios so the silhouette reads *against* the disc. The old cream
+   * `#e2c48a` was lighter than the blown-out sky behind it, so the god was
+   * invisible in every sunward frame. Only used when `showGod` is on.
+   */
+  godDay: 0xb4763c,
+  godDusk: 0x8f4f2c,
+  /**
+   * Sky wash. The disc carries the circle now, so the in-shader core is a
+   * near-point highlight (was 28 — broad enough to read as the sun itself and
+   * fight the mesh) and the halo is a defined glow rather than the sheet of
+   * white that used to swallow the sunward third of the frame (was 7.5/0.28).
+   */
+  skyCorePower: 140,
+  skyHaloPower: 14,
+  skyHaloGain: 0.34,
+  /** Tint of the in-shader core highlight. Was hardcoded in stage.ts. */
+  skyCoreTint: 0xffe9b8,
+  skyCoreGain: 0.32,
   /**
    * atan2(z, x). Default camera sits at +Z looking −Z (inland). The HUD sun
    * clock sits in the top-centre of the frame, so the disc is offset east
@@ -1149,8 +1182,79 @@ export const SKY_TEX = {
   hillRepeat: 4,
   /** sky_goldenhour_01 (ASSET-022) cloud/horizon detail, blended over the procedural dusk gradient. */
   cloudRadius: 350,
-  /** Opacity the cloud layer reaches at full dusk (t=1); 0 at t=0, matching today's look exactly. */
-  cloudMaxOpacity: 0.5,
+  /**
+   * Opacity the sky *photo* reaches at full dusk. Dropped from 0.5 once the
+   * procedural deck (`CLOUDS` below) took over cloud duty: at 0.5 this still
+   * is a single wide photo stretched over the whole dome, and stacked with
+   * dusk fog it was what flattened the dusk frame into one cream wash. It now
+   * survives only as a faint horizon-detail wash under the real clouds.
+   */
+  cloudMaxOpacity: 0.18,
+} as const;
+
+/**
+ * Procedural cloud deck — `src/render/clouds.ts`.
+ *
+ * Before this block the game had no cloud system at all: `SKY_TEX` above put a
+ * still photo on a second sphere that was fully transparent at t=0, so for
+ * most of a run the sky was a bare gradient. Every colour here is derived from
+ * an `art-bible.md` §2 hex rather than eyeballed — see the table there.
+ */
+export const CLOUDS = {
+  /** Inside the gradient sphere (360) and the photo sphere (350). */
+  domeRadius: 340,
+  /** Draw after both sky spheres (−3 gradient, −2 photo), before the world. */
+  renderOrder: -1,
+  /** Baked once at startup. 512² of value noise costs a few ms of CPU, once. */
+  textureSize: 512,
+  seed: 20260818,
+  /** FBM shape. `baseCells` is the coarsest lattice across one tile. */
+  octaves: 5,
+  gain: 0.5,
+  baseCells: 4,
+  /**
+   * Coverage threshold — the single most visible knob. Higher = fewer, more
+   * separated clouds and more open blue; lower = overcast. `softness` is the
+   * width of the ramp above it, i.e. how wispy the edges are.
+   */
+  coverage: 0.45,
+  softness: 0.2,
+  /**
+   * Deck altitude in metres for the ray→plane projection. Together with the
+   * scales below this sets apparent cloud size: taller deck + larger scale =
+   * bigger, slower, further clouds.
+   */
+  planeHeight: 900,
+  /** Metres per texture repeat. A = silhouette layer, B = edge-breakup layer. */
+  scaleA: 1400,
+  scaleB: 520,
+  /** UV units per second. ~2 m/s of apparent drift at `scaleA` — a breeze. */
+  windA: [0.0016, 0.0009],
+  windB: [0.0026, -0.0013],
+  /**
+   * Elevation (view-ray `y`) where the deck fades in. Kept low on purpose:
+   * normal play looks roughly at the horizon, so a high fade-in would mean
+   * "clouds exist but only if you look straight up".
+   */
+  horizonFadeLow: 0.02,
+  horizonFadeHigh: 0.14,
+  /** Silver lining falloff around the sun. */
+  rimPower: 8,
+  rimGain: 0.75,
+  opacity: 0.92,
+  opacityDusk: 0.98,
+  /**
+   * art-bible.md §2: sunlit face sits just above yelken bezi `#efe6d2`;
+   * shaded face is sisli tepe `#8fa5b8` lifted toward zenit `#7fb8dd`; the
+   * rim reuses the güneş halesi hex `#ffcf80` exactly.
+   */
+  litDay: 0xfbf1de,
+  shadeDay: 0xb9c9d8,
+  rimDay: 0xffcf80,
+  /** Dusk: tops toward altın `#f5d29a`, shade toward gül `#e08a86` desaturated. */
+  litDusk: 0xf6d3a4,
+  shadeDusk: 0xc69a9c,
+  rimDusk: 0xe08a86,
 } as const;
 
 export const PALETTE = {

@@ -1073,6 +1073,9 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
 
     stage.haze.amount = haze;
     stage.haze.time = time;
+    // Cloud drift rides the simulation clock, not wall time, so `freeze()`
+    // holds the deck still and screenshot baselines stay byte-identical.
+    stage.skyTime = time;
     hud.update(st, haze);
 
     input.endFrame();

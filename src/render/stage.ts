@@ -6,6 +6,7 @@ import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { CAMERA, DAY, PALETTE, RENDER, SKY_TEX, SUN_DISK } from "../constants";
 import { HazePass } from "./hazePass";
 import { createSunDisk } from "./sunDisk";
+import { createClouds } from "./clouds";
 import { assetUrl } from "../assets/paths";
 import { loadAlbedoTexture } from "../world/sprite";
 
@@ -19,6 +20,12 @@ export interface Stage {
   haze: HazePass;
   /** Transient bloom kick on top of the base strength (decays in game loop). */
   bloomBoost: number;
+  /**
+   * Simulation seconds, fed by the game loop, driving cloud drift. Deliberately
+   * not `performance.now()`: the freeze seam used for screenshot regression
+   * requires every time-driven uniform to hold when the sim is paused.
+   */
+  skyTime: number;
   /** Drive sun + sky from day progress 0 (afternoon) → 1 (dusk). */
   setDayProgress(p: number): void;
   render(): void;
@@ -67,6 +74,8 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
       corePower: { value: SUN_DISK.skyCorePower },
       haloPower: { value: SUN_DISK.skyHaloPower },
       haloGain: { value: SUN_DISK.skyHaloGain },
+      coreTint: { value: new THREE.Color(SUN_DISK.skyCoreTint) },
+      coreGain: { value: SUN_DISK.skyCoreGain },
     },
     vertexShader: /* glsl */ `
       varying vec3 vPos;
@@ -83,6 +92,8 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
       uniform float corePower;
       uniform float haloPower;
       uniform float haloGain;
+      uniform vec3 coreTint;
+      uniform float coreGain;
       varying vec3 vPos;
       void main() {
         float h = clamp(normalize(vPos).y * 1.6 + 0.12, 0.0, 1.0);
@@ -91,14 +102,17 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
         vec3 viewDir = normalize(vPos);
         float sunDot = max(dot(viewDir, sunDir), 0.0);
         c += haloColor * pow(sunDot, haloPower) * haloGain;
+        // Near-point highlight only. The opaque disc in sunDisk.ts draws the
+        // sun's actual circumference; this just keeps the sky hot right at it.
         float disc = pow(sunDot, corePower);
-        c += vec3(0.55, 0.38, 0.12) * disc;
+        c += coreTint * (disc * coreGain);
         gl_FragColor = vec4(c, 1.0);
       }
     `,
   });
   const skyMesh = new THREE.Mesh(skyGeo, skyMat);
-  skyMesh.renderOrder = -2;
+  // Sky stack, back to front: gradient (−3) → photo wash (−2) → cloud deck (−1).
+  skyMesh.renderOrder = -3;
   skyMesh.frustumCulled = false;
   scene.add(skyMesh);
 
@@ -126,9 +140,14 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
     toneMapped: false,
   });
   const cloudMesh = new THREE.Mesh(new THREE.SphereGeometry(SKY_TEX.cloudRadius, 24, 16), cloudMat);
-  cloudMesh.renderOrder = -1;
+  cloudMesh.renderOrder = -2;
   cloudMesh.frustumCulled = false;
   scene.add(cloudMesh);
+
+  // The real cloud deck (`clouds.ts`) — procedural, drifting, visible all day.
+  // The photo above is now only a faint horizon wash underneath it.
+  const clouds = createClouds();
+  scene.add(clouds.mesh);
 
   // ------------------------------------------------------------------ lights
   // art-bible.md §3 trio: high sky hemi, warm key, turquoise water fill.
@@ -224,6 +243,7 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
     camera,
     haze,
     bloomBoost: 0,
+    skyTime: 0,
     setDayProgress(p: number) {
       const t = Math.min(1, Math.max(0, p));
       const elev = THREE.MathUtils.degToRad(
@@ -252,6 +272,7 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
       (skyMat.uniforms.top.value as THREE.Color).copy(tmpA);
       (skyMat.uniforms.horizon.value as THREE.Color).copy(tmpB);
       cloudMat.opacity = t * SKY_TEX.cloudMaxOpacity;
+      clouds.setDayProgress(t);
 
       sun.color.copy(sunColorDay).lerp(sunColorDusk, t * 0.85 + warn * 0.15);
       // art-bible.md §3 / §4: light never drops — dusk is a hue shift, not a dim.
@@ -272,6 +293,8 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
       // beach, not as a world prop around the origin.
       skyMesh.position.copy(camera.position);
       cloudMesh.position.copy(camera.position);
+      clouds.mesh.position.copy(camera.position);
+      clouds.update(stage.skyTime, sunDir);
       placeSunLight();
       sunDisk.group.position.set(
         camera.position.x + sunDir.x * SUN_DISK.distance,
