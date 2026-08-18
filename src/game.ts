@@ -441,9 +441,11 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
     st.memory = Math.max(0, st.memory - 0.18);
     rig.kick(0.22);
     sailor.pulse(0.55);
+    sailor.playDelivery();
     pulseBloom(FEEL.deliverBloomPulse);
     if (!WORLD.k35 && st.delivered >= LOTUS.target) {
       st.phase = "departing";
+      sailor.playWave();
       hud.say("Yeter bu kadar — yelken aç!");
     } else if (WORLD.k35 && st.delivered >= LOTUS.target) {
       hud.say("Yeter. Dümene geç.");
@@ -454,6 +456,7 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
     if (st.delivered < LOTUS.target) return;
     menu.setCyclopsReady(true);
     st.phase = "departing";
+    sailor.playWave();
     hud.say("Ağlayarak kürek çektiler. Bağladım onları sıraların altına.");
   }
 

@@ -29,6 +29,10 @@ export interface Sailor {
   setCarried(n: number): void;
   pulse(strength: number): void;
   land(strength: number): void;
+  /** One-shot goodbye wave (SAILOR.gesturesFile). No-op on the billboard fallback. */
+  playWave(): void;
+  /** One-shot delivery bow, fired from game.ts's deliver(). Same fallback note. */
+  playDelivery(): void;
 }
 
 type Cardinal = "front" | "right" | "left" | "back";
@@ -260,8 +264,15 @@ export function buildSailor(): Sailor {
   body.add(meshHold);
   let meshLive = false;
   let mixer: THREE.AnimationMixer | null = null;
-  let clipName: "idle" | "walk" | "run" | "harvest" = "idle";
-  const acts: Partial<Record<"idle" | "walk" | "run" | "harvest", THREE.AnimationAction>> = {};
+  type ClipName = "idle" | "walk" | "run" | "harvest" | "wave" | "deliver";
+  let clipName: ClipName = "idle";
+  const acts: Partial<Record<ClipName, THREE.AnimationAction>> = {};
+  // One-shot gesture pulses (wave, delivery bow) — set by playWave()/
+  // playDelivery(), counted down in update(). Real movement still wins over
+  // these (see the `next` ternary below) so walking away early-outs them
+  // rather than dragging a stationary pose across the ground.
+  let oneShotClip: "wave" | "deliver" | null = null;
+  let oneShotT = 0;
 
   const pickClip = (clips: THREE.AnimationClip[], keys: string[]) => {
     for (const key of keys) {
@@ -288,7 +299,7 @@ export function buildSailor(): Sailor {
     meshLive = true;
     card.visible = false;
     mixer = null;
-    acts.idle = acts.walk = acts.run = acts.harvest = undefined;
+    acts.idle = acts.walk = acts.run = acts.harvest = acts.wave = acts.deliver = undefined;
     if (clips.length > 0) {
       mixer = new THREE.AnimationMixer(scene);
       const idleSrc = pickClip(clips, ["idle", "wait", "stand"]) ?? clips[0];
@@ -300,14 +311,30 @@ export function buildSailor(): Sailor {
       // bend-and-reach toward the ground — so it stands in for "koparma"
       // until/unless a bespoke Blender clip replaces it (LOT-37).
       const harvestSrc = pickClip(clips, ["dig", "harvest", "pick", "gather"]);
+      // wave/deliver come from SAILOR.gesturesFile, merged into `clips`
+      // before mountMesh() is called — see the loader chain below. Same
+      // "no exact preset" story: `wave_goodbye_02` (not `_01`, which turned
+      // out to be a seated pose) and `bow` (a real forward bow with an
+      // offering arm, not just a greeting) were picked by eye in the
+      // workbench out of wave_goodbye_01/02, bow, greet_01 (2026-08-18).
+      const waveSrc = pickClip(clips, ["wave"]);
+      const deliverSrc = pickClip(clips, ["bow", "greet", "deliver", "give"]);
       const idleClip = idleSrc ? pinClipBonePositions(idleSrc, rest) : undefined;
       const walkClip = walkSrc ? pinClipBonePositions(walkSrc, rest) : undefined;
       const runClip = runSrc ? pinClipBonePositions(runSrc, rest) : undefined;
       const harvestClip = harvestSrc ? pinClipBonePositions(harvestSrc, rest) : undefined;
+      // wave/deliver are one-shot pulses, not in-place loops — pinning
+      // Root/Hip here would strip the bow's own forward weight-shift the
+      // same way it would have stripped a translating crouch (see
+      // meshHarvestLean's comment); leave them unpinned.
+      const waveClip = waveSrc;
+      const deliverClip = deliverSrc;
       if (idleClip) acts.idle = mixer.clipAction(idleClip);
       if (walkClip) acts.walk = mixer.clipAction(walkClip);
       if (runClip) acts.run = mixer.clipAction(runClip);
       if (harvestClip) acts.harvest = mixer.clipAction(harvestClip);
+      if (waveClip) acts.wave = mixer.clipAction(waveClip);
+      if (deliverClip) acts.deliver = mixer.clipAction(deliverClip);
       for (const action of Object.values(acts)) {
         if (!action) continue;
         action.setLoop(THREE.LoopRepeat, Infinity);
@@ -320,10 +347,22 @@ export function buildSailor(): Sailor {
   };
 
   if (SAILOR.meshEnabled) {
-    loadGltfBundle(SAILOR.meshRig)
-      .then((bundle) => {
+    Promise.all([
+      loadGltfBundle(SAILOR.meshRig),
+      // Clip-only donor file (mesh/skin already stripped — see
+      // scripts/gltf-strip-to-anim.mjs). Same technique as the workbench's
+      // "dış klip ekle": AnimationMixer binds tracks by bone *name*, so a
+      // second file's clips attach fine as long as the skeleton naming
+      // matches (same Tripo rig lineage). Best-effort: a missing/broken
+      // gestures file must not break the base rig.
+      loadGltfBundle(SAILOR.gesturesFile).catch((err) => {
+        console.warn("[sailor] gestures GLB missing, wave/deliver stay off", err);
+        return { scene: new THREE.Group(), animations: [] as THREE.AnimationClip[] };
+      }),
+    ])
+      .then(([bundle, gestures]) => {
         if (bundle.animations.length === 0) throw new Error("rig GLB has no clips");
-        mountMesh(cloneGltfBundle(bundle), bundle.animations);
+        mountMesh(cloneGltfBundle(bundle), [...bundle.animations, ...gestures.animations]);
       })
       .catch(() =>
         loadGltf(SAILOR.mesh).then((scene) => {
@@ -593,6 +632,16 @@ export function buildSailor(): Sailor {
     land(strength: number) {
       landSquash = Math.max(landSquash, strength);
     },
+    playWave() {
+      if (!acts.wave) return;
+      oneShotClip = "wave";
+      oneShotT = acts.wave.getClip().duration;
+    },
+    playDelivery() {
+      if (!acts.deliver) return;
+      oneShotClip = "deliver";
+      oneShotT = acts.deliver.getClip().duration;
+    },
     faceCamera(camera, dt) {
       if (meshLive) return;
       const yaw = Math.atan2(
@@ -608,9 +657,14 @@ export function buildSailor(): Sailor {
       lastHarvest = harvest;
       lastRunning = running;
 
+      if (oneShotT > 0) {
+        oneShotT = Math.max(0, oneShotT - (Number.isFinite(dt) ? dt : 0));
+        if (oneShotT === 0) oneShotClip = null;
+      }
+
       if (mixer) {
         mixer.update(Number.isFinite(dt) ? dt : 0);
-        const next: "idle" | "walk" | "run" | "harvest" =
+        const next: ClipName =
           harvest > 0.08
             ? acts.harvest
               ? "harvest"
@@ -619,7 +673,13 @@ export function buildSailor(): Sailor {
               ? running
                 ? "run"
                 : "walk"
-              : "idle";
+              : // Real movement above always wins over a wave/deliver pulse —
+                // walking away early-outs the gesture instead of dragging a
+                // stationary pose across the ground (oneShotT just decays
+                // unseen in the background).
+                oneShotClip && acts[oneShotClip]
+                ? oneShotClip
+                : "idle";
         if (next !== clipName && acts[next]) {
           acts[clipName]?.fadeOut(0.16);
           acts[next]?.reset().fadeIn(0.16).play();

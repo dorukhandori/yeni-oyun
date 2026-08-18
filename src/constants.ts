@@ -528,6 +528,25 @@ export const SAILOR = {
    * bespoke Blender clip if/when LOT-37 gets unblocked.
    */
   meshRig: "assets/models/char_doryseus_02_rig_8000.glb",
+  /**
+   * Clip-only donor GLB — `preset:biped:wave_goodbye_02` (departure wave)
+   * and `preset:biped:bow` (delivery gesture), 2026-08-18 (sahip: "diğer
+   * jestleri de (wave, delivery) yap"). Chosen by eye in the workbench out
+   * of `wave_goodbye_01`/`_02`, `bow`, `greet_01`: `_01` turned out to be a
+   * seated pose (wrong), `greet_01` an overhead cheer-wave (too big for a
+   * quiet delivery moment) — `_02` and `bow` were the only two that actually
+   * read right. Kept in a **separate** file from `meshRig` rather than
+   * folded in: Tripo's retarget caps a request at 5 presets/call, and
+   * `sailor.ts` attaches this file's clips onto the main rig's mixer at
+   * runtime purely by bone-name match (same trick as the workbench's "dış
+   * klip ekle") — no merge step needed. Stripped to skeleton+animation only
+   * via `scripts/gltf-strip-to-anim.mjs` (6.96 MB raw Tripo export → 546 KB)
+   * since Tripo's `export_with_geometry` always re-bakes the full mesh even
+   * for a 2-clip request, and this repo is already over its K37 download
+   * budget (roadmap.md) — shipping the raw export would have made that worse
+   * for zero benefit (the donor's own mesh/skin is discarded on load).
+   */
+  gesturesFile: "assets/models/char_doryseus_02_gestures_8000.glb",
   meshEnabled: true,
   /**
    * Added to `root.rotation.y`. char_doryseus_02's own local "front" axis
