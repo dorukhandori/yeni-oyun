@@ -9,6 +9,7 @@
     "build:pages": "GITHUB_PAGES=true npm run build",
     "preview": "vite preview",
     "test:assets": "node scripts/asset-qa/run.mjs",
+    "test:workbench": "node scripts/workbench-smoke.mjs",
     "gen:assets": "node scripts/gen-assets.mjs",
     "gen:mesh": "node scripts/gen-mesh.mjs",
     "gen:island-kit": "blender --background --python scripts/blender/build_island_kit.py",
