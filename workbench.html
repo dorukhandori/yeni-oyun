@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <title>Asset Workbench</title>
     <link rel="stylesheet" href="/src/workbench/workbench.css" />
   </head>
@@ -12,25 +13,28 @@
 
       <aside id="wb-panel">
         <header class="wb-header">
-          <h1>Asset Workbench</h1>
-          <p class="wb-sub">Ne izlemek istediğini seç — gerisi otomatik.</p>
+          <h1>Asset Workbench <span class="wb-ver">v2</span></h1>
+          <p class="wb-sub">Preset seç — hepsi tek ekranda.</p>
         </header>
 
         <section class="wb-group">
-          <label class="wb-label">Hızlı önizleme</label>
+          <label class="wb-label">Önizleme</label>
           <div class="wb-preset-grid" id="wb-preset-grid"></div>
         </section>
 
-        <section class="wb-group" id="wb-live-controls" hidden>
-          <label class="wb-label" id="wb-live-title">Canlı kontroller</label>
+        <section class="wb-group">
+          <label class="wb-label" for="wb-model-list">veya model listesi</label>
+          <select id="wb-model-list" class="wb-input">
+            <option value="">— dosya seç —</option>
+          </select>
+        </section>
+
+        <section class="wb-group" id="wb-controls">
+          <label class="wb-label">Kontroller</label>
 
           <div id="wb-scene-controls" hidden>
-            <p class="wb-note" id="wb-scene-note">
-              Gemi ve dalgalar GLB klibi değil — oyundaki <code>ship.ts</code> +
-              <code>sea.ts</code> aynen burada koşuyor.
-            </p>
             <label class="wb-label" for="wb-depart">
-              Ayrılış (departing) — <span id="wb-depart-val">0.00</span>
+              Ayrılış — <span id="wb-depart-val">0.00</span>
             </label>
             <input type="range" id="wb-depart" min="0" max="1" step="0.01" value="0" />
             <label class="wb-label" for="wb-day">
@@ -40,75 +44,44 @@
           </div>
 
           <div id="wb-clip-controls" hidden>
-            <label class="wb-label">Klipler</label>
+            <label class="wb-label">Animasyon</label>
             <div class="wb-clip-list" id="wb-clip-list"></div>
-            <div class="wb-row">
-              <button type="button" class="wb-btn" id="wb-anim-toggle">Duraklat</button>
-              <button type="button" class="wb-btn ghost" id="wb-anim-restart">Başa sar</button>
-            </div>
             <label class="wb-label" for="wb-anim-scrub">
-              Zaman — <span id="wb-anim-scrub-val">0.00</span>s /
+              Kare — <span id="wb-anim-scrub-val">0.00</span>s /
               <span id="wb-anim-dur">0.00</span>s
             </label>
             <input type="range" id="wb-anim-scrub" min="0" max="1" step="0.001" value="0" disabled />
           </div>
 
           <label class="wb-label" for="wb-time-speed">
-            Zaman hızı — <span id="wb-time-speed-val">1.00</span>×
+            Hız — <span id="wb-time-speed-val">1.00</span>×
           </label>
           <input type="range" id="wb-time-speed" min="0" max="2" step="0.05" value="1" />
-        </section>
 
-        <section class="wb-group wb-info" id="wb-info">
-          <p class="wb-empty">Henüz bir önizleme seçilmedi.</p>
-        </section>
-
-        <details class="wb-advanced" id="wb-advanced">
-          <summary>Gelişmiş — elle GLB yükle</summary>
-          <div class="wb-advanced-body">
-            <div class="wb-drop" id="wb-drop">
-              <p>GLB sürükle ya da dosya seç</p>
-              <button type="button" class="wb-btn" id="wb-file-pick">Dosya seç…</button>
-              <input type="file" id="wb-file-input" accept=".glb,.gltf" hidden />
-            </div>
-            <label class="wb-label" for="wb-model-list">Tüm modeller</label>
-            <select id="wb-model-list" class="wb-input">
-              <option value="">— seç —</option>
-            </select>
-            <input type="text" id="wb-path-input" class="wb-input" placeholder="assets/models/….glb" />
-            <div class="wb-row">
-              <button type="button" class="wb-btn" id="wb-load-bundle">Klip ile yükle</button>
-              <button type="button" class="wb-btn ghost" id="wb-load-model">Klipsiz yükle</button>
-            </div>
-            <label class="wb-check">
-              <input type="checkbox" id="wb-fit-enable" checked />
-              Yüksekliğe göre oturt (fitGltfHeight)
-            </label>
-            <div class="wb-row wb-inline">
-              <label for="wb-fit-meters">metre</label>
-              <input type="number" id="wb-fit-meters" class="wb-input small" value="1.8" min="0.1" step="0.1" />
-            </div>
-            <label class="wb-check">
-              <input type="checkbox" id="wb-pin-enable" checked />
-              Hip/Root pozisyonunu sabitle (Tripo klip düzeltmesi)
-            </label>
-            <label class="wb-check">
-              <input type="checkbox" id="wb-anim-loop" checked />
-              Klip döngüsü
-            </label>
-            <label class="wb-label" for="wb-extra-clip-list">Dış klip ekle</label>
-            <select id="wb-extra-clip-list" class="wb-input">
-              <option value="">— seç —</option>
-            </select>
-            <button type="button" class="wb-btn" id="wb-extra-clip-add">Klip ekle</button>
+          <div class="wb-row">
+            <button type="button" class="wb-btn" id="wb-anim-toggle">Duraklat</button>
+            <button type="button" class="wb-btn ghost" id="wb-anim-restart">Başa sar</button>
+            <button type="button" class="wb-btn ghost danger" id="wb-clear">Temizle</button>
           </div>
-        </details>
+        </section>
 
-        <div class="wb-row">
-          <button type="button" class="wb-btn danger" id="wb-clear">Temizle</button>
-        </div>
+        <section class="wb-group wb-info" id="wb-info"></section>
 
-        <footer class="wb-status" id="wb-status">Hazır — yukarıdan bir önizleme seç.</footer>
+        <footer class="wb-status" id="wb-status">Yükleniyor…</footer>
+
+        <!-- Gelişmiş — gizli inputlar, JS bağlantısı için -->
+        <input type="file" id="wb-file-input" accept=".glb,.gltf" hidden />
+        <input type="text" id="wb-path-input" hidden />
+        <input type="checkbox" id="wb-fit-enable" checked hidden />
+        <input type="number" id="wb-fit-meters" value="1.8" hidden />
+        <input type="checkbox" id="wb-pin-enable" checked hidden />
+        <input type="checkbox" id="wb-anim-loop" checked hidden />
+        <select id="wb-extra-clip-list" hidden></select>
+        <button type="button" id="wb-extra-clip-add" hidden></button>
+        <button type="button" id="wb-load-bundle" hidden></button>
+        <button type="button" id="wb-load-model" hidden></button>
+        <div id="wb-drop" hidden></div>
+        <button type="button" id="wb-file-pick" hidden></button>
       </aside>
     </div>
     <script type="module" src="/src/workbench/main.ts"></script>

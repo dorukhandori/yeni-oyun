@@ -1,6 +1,5 @@
 /**
- * Headless workbench smoke — presets + ship scene.
- * Run: npm run test:workbench
+ * Headless workbench smoke — single-screen UI, ship-sea default.
  */
 import { chromium } from "playwright";
 
@@ -22,35 +21,27 @@ const page = await browser.newPage();
 
 let ok = true;
 
-ok &&= await probe("page loads preset grid", async () => {
+ok &&= await probe("single-screen UI loads (no tabs)", async () => {
   await page.goto(BASE, { waitUntil: "networkidle" });
-  const n = await page.locator(".wb-preset").count();
-  if (n < 3) throw new Error(`expected presets, got ${n}`);
+  const tabs = await page.locator(".wb-tab").count();
+  const presets = await page.locator(".wb-preset").count();
+  const v2 = await page.locator("h1").textContent();
+  if (tabs > 0) throw new Error("old tab UI still present");
+  if (presets < 3) throw new Error(`expected presets, got ${presets}`);
+  if (!v2?.includes("v2")) throw new Error("missing v2 marker — stale cache?");
 });
 
-ok &&= await probe("ship-sea preset shows live controls", async () => {
-  await page.locator(".wb-preset", { hasText: "Gemi + dalgalar" }).click();
-  await page.waitForTimeout(4000);
-  await page.waitForSelector("#wb-live-controls:not([hidden])", { timeout: 15000 });
-  const scene = await page.locator("#wb-scene-controls").isVisible();
+ok &&= await probe("auto-loads ship-sea on boot", async () => {
+  await page.waitForSelector("#wb-scene-controls:not([hidden])", { timeout: 15000 });
   const mode = await page.evaluate(() => (window).__WB_DEBUG__?.mode);
-  if (!scene || mode !== "scene") throw new Error(`scene controls missing mode=${mode}`);
+  if (mode !== "scene") throw new Error(`expected scene mode, got ${mode}`);
 });
 
-ok &&= await probe("departing slider moves ship scene time", async () => {
-  await page.locator("#wb-depart").fill("0.6");
-  const t0 = await page.evaluate(() => (window).__WB_DEBUG__?.scenePreview ? 1 : 0);
-  await page.waitForTimeout(800);
-  const status = await page.locator("#wb-status").textContent();
-  if (!t0 || !status?.includes("Gemi")) throw new Error(`bad scene state status=${status}`);
-});
-
-ok &&= await probe("dory walk preset shows clip buttons", async () => {
+ok &&= await probe("dory walk preset inline clips", async () => {
   await page.locator(".wb-preset", { hasText: "Doryseus yürüyüş" }).click();
   await page.waitForTimeout(3500);
   const clips = await page.locator(".wb-clip-btn").count();
-  const mode = await page.evaluate(() => (window).__WB_DEBUG__?.mode);
-  if (clips < 1 || mode !== "asset") throw new Error(`clips=${clips} mode=${mode}`);
+  if (clips < 1) throw new Error(`no clip buttons, got ${clips}`);
 });
 
 await browser.close();

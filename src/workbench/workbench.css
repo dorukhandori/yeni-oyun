@@ -47,15 +47,16 @@ body {
   gap: 14px;
 }
 
+.wb-ver {
+  font-size: 11px;
+  color: #6f9bff;
+  font-weight: normal;
+}
+
 .wb-header h1 {
   margin: 0 0 4px;
   font-size: 16px;
-}
-
-.wb-sub {
-  margin: 0;
-  color: #9aa0ab;
-  font-size: 12px;
+  color: #e6e7eb;
 }
 
 .wb-tabs {

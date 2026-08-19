@@ -26,8 +26,6 @@ type Mode = "none" | "scene" | "asset";
 const canvas = document.getElementById("wb-canvas") as HTMLCanvasElement;
 const statusEl = document.getElementById("wb-status") as HTMLElement;
 const presetGrid = document.getElementById("wb-preset-grid") as HTMLElement;
-const liveControls = document.getElementById("wb-live-controls") as HTMLElement;
-const liveTitle = document.getElementById("wb-live-title") as HTMLElement;
 const sceneControls = document.getElementById("wb-scene-controls") as HTMLElement;
 const clipControls = document.getElementById("wb-clip-controls") as HTMLElement;
 const infoBox = document.getElementById("wb-info") as HTMLElement;
@@ -97,13 +95,7 @@ function setPresetActive(id: string): void {
   }
 }
 
-function showLiveControls(kind: "scene" | "asset" | "none", title: string): void {
-  if (kind === "none") {
-    liveControls.hidden = true;
-    return;
-  }
-  liveControls.hidden = false;
-  liveTitle.textContent = title;
+function showLiveControls(kind: "scene" | "asset" | "none"): void {
   sceneControls.hidden = kind !== "scene";
   clipControls.hidden = kind !== "asset";
 }
@@ -122,9 +114,10 @@ function clearAll(): void {
   viewer.setMixer(null);
   viewer.setModel(null);
   viewer.setBackdrop("studio");
-  showLiveControls("none", "");
+  showLiveControls("none");
   clipList.innerHTML = "";
-  infoBox.innerHTML = `<p class="wb-empty">Henüz bir önizleme seçilmedi.</p>`;
+  modelListSelect.value = "";
+  infoBox.innerHTML = `<p class="wb-empty">Temizlendi.</p>`;
 }
 
 function activeAction(): THREE.AnimationAction | null {
@@ -258,7 +251,7 @@ function mountAsset(scene: THREE.Group, animations: THREE.AnimationClip[], label
 
   bundle = { scene, animations };
   rebuildActions();
-  showLiveControls("asset", "Karakter klipleri");
+  showLiveControls("asset");
 }
 
 async function appendClipsFromPath(path: string): Promise<number> {
@@ -364,8 +357,8 @@ function loadScenePreset(preset: WorkbenchPreset): void {
     </dl>
   `);
 
-  showLiveControls("scene", "Gemi + dalgalar");
-  setStatus(`${preset.label} — canlı önizleme. Ayrılış kaydırıcısını dene.`);
+  showLiveControls("scene");
+  setStatus(`${preset.label} — Ayrılış kaydırıcısını dene.`);
 }
 
 /** Ship is large (~42 m); default orbit is too tight on the hull. */
@@ -526,7 +519,8 @@ extraClipListSelect.addEventListener("change", () => {
 
 clearBtn.addEventListener("click", () => {
   clearAll();
-  setStatus("Temizlendi.");
+  setStatus("Temizlendi — Gemi + dalgalar yeniden yükleniyor…");
+  void runPreset(WORKBENCH_PRESETS.find((p) => p.id === "ship-sea")!);
 });
 
 async function loadModelList(): Promise<void> {
@@ -575,7 +569,9 @@ if (import.meta.env.DEV) {
   };
 }
 
-// Deep-link: ?preset=ship-sea
+// Varsayılan: gemi+dalgalar (URL ?preset=… ile override)
 const presetParam = new URLSearchParams(location.search).get("preset");
 const linked = WORKBENCH_PRESETS.find((p) => p.id === presetParam);
-if (linked) void runPreset(linked);
+const boot = linked ?? WORKBENCH_PRESETS.find((p) => p.id === "ship-sea");
+if (boot) void runPreset(boot);
+else setStatus("Hazır.");
