@@ -1294,11 +1294,14 @@ body[data-ui-phase="hub"] #touch {
   }
 }
 
-/* ---------------------------------------------------------- fullscreen toggle
-   Mounted by src/ui/fullscreen.ts. Lives on body (not #hud) so it stays
-   tappable above Title/Hub (z-index 20) and the look-pad, and below the
-   portrait rotate-gate (z-index 100). */
-.fs-toggle {
+/* ---------------------------------------------------------- chrome toggles
+   `#fsToggle` (fullscreen.ts) and `#muteToggle` (mute.ts). Live on #app
+   (not #hud) so they stay tappable above Title/Hub (z-index 20) and the
+   look-pad, and below the portrait rotate-gate (z-index 100). Mute sits
+   in the same corner; when the fullscreen button is showing it shifts
+   left by one 44px cell + 8px gap. */
+.fs-toggle,
+.mute-toggle {
   position: absolute;
   top: max(10px, env(safe-area-inset-top));
   right: max(10px, env(safe-area-inset-right));
@@ -1320,21 +1323,30 @@ body[data-ui-phase="hub"] #touch {
   touch-action: manipulation;
 }
 
-.fs-toggle[hidden] {
+body.has-fs-toggle .mute-toggle {
+  right: calc(max(10px, env(safe-area-inset-right)) + 52px);
+}
+
+.fs-toggle[hidden],
+.mute-toggle[hidden] {
   display: none;
 }
 
 .fs-toggle:hover,
-.fs-toggle:focus-visible {
+.fs-toggle:focus-visible,
+.mute-toggle:hover,
+.mute-toggle:focus-visible {
   background: rgba(255, 230, 170, 0.98);
 }
 
-.fs-toggle:focus-visible {
+.fs-toggle:focus-visible,
+.mute-toggle:focus-visible {
   outline: 2px solid #c99a3c;
   outline-offset: 2px;
 }
 
-.fs-toggle .fs-icon {
+.fs-toggle .fs-icon,
+.mute-toggle .mute-icon {
   display: flex;
 }
 
@@ -1347,8 +1359,18 @@ body[data-ui-phase="hub"] #touch {
   display: flex;
 }
 
+.mute-toggle .mute-icon-off,
+.mute-toggle.is-muted .mute-icon-on {
+  display: none;
+}
+
+.mute-toggle.is-muted .mute-icon-off {
+  display: flex;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .fs-toggle {
+  .fs-toggle,
+  .mute-toggle {
     transition: none;
   }
 }

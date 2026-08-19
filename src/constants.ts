@@ -497,6 +497,21 @@ export const FEEL = {
 } as const;
 
 /**
+ * Procedural WebAudio bed (`src/systems/audio.ts`). No asset files —
+ * oscillators / filtered noise. Mute is a player preference, not a
+ * gameplay number, but the bus level and ramp live here so HUD chrome
+ * and the audio graph share one source.
+ */
+export const AUDIO = {
+  /** Master bus when unmuted. */
+  masterGain: 0.55,
+  /** Mute/unmute linear ramp (seconds). Long enough to kill a click. */
+  muteRamp: 0.08,
+  /** localStorage key. Safari private mode may throw; callers try/catch. */
+  muteStorageKey: "lotophagoi.muted",
+} as const;
+
+/**
  * Doryseus billboard (ASSET-041..044). Y-axis only — a full THREE.Sprite
  * tilts toward the shoulder camera and reads as floating.
  */

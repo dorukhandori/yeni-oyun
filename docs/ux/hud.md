@@ -128,7 +128,7 @@ Güncelleme: her kare değil, değer değişince. Titrer/soluma CSS transition.
 
 ## Platform Notes
 
-Klavye + fare birincil. HUD tıklanmaz. Kaba işaretçide (telefon) sanal çubuk + bakış alanı + Topla açık. Telefon tarayıcısında tam ekran `src/ui/fullscreen.ts`: Title **Oyna** jesti ve sağ-üst köşe düğmesi girer; aynı düğme (veya tarayıcı Esc) çıkar. iPhone Safari native Fullscreen API vermez — düğme yine görünür, aynı jest oyunu görünür alana sığdırır. 16:9 referans; 16:10'da üst/alt zone sıkışır, yan boşluk korunur. Safe-area inset (çentik) üst HUD ve köşe düğmesinde uygulanır.
+Klavye + fare birincil. HUD tıklanmaz. Kaba işaretçide (telefon) sanal çubuk + bakış alanı + Topla açık. Telefon tarayıcısında tam ekran `src/ui/fullscreen.ts`: Title **Oyna** jesti ve sağ-üst köşe düğmesi girer; aynı düğme (veya tarayıcı Esc) çıkar. iPhone Safari native Fullscreen API vermez — düğme yine görünür, aynı jest oyunu görünür alana sığdırır. Title/Hub sağ-üstte ayrıca sesi kapat ikonu (`src/ui/mute.ts`) — oynanışta gizlenir, mute durumu kalır. 16:9 referans; 16:10'da üst/alt zone sıkışır, yan boşluk korunur. Safe-area inset (çentik) üst HUD ve köşe düğmesinde uygulanır.
 
 ---
 

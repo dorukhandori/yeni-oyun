@@ -3,6 +3,24 @@
  * Resumes on first user gesture (browser autoplay policy).
  */
 
+import { AUDIO } from "../constants";
+
+function readStoredMute(): boolean {
+  try {
+    return window.localStorage.getItem(AUDIO.muteStorageKey) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function writeStoredMute(muted: boolean): void {
+  try {
+    window.localStorage.setItem(AUDIO.muteStorageKey, muted ? "1" : "0");
+  } catch {
+    /* Safari private mode / quota — preference lives only for this session. */
+  }
+}
+
 export class GameAudio {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
@@ -10,6 +28,27 @@ export class GameAudio {
   private filter: BiquadFilterNode | null = null;
   private started = false;
   private waveNodes: AudioNode[] = [];
+  private muted = readStoredMute();
+
+  isMuted(): boolean {
+    return this.muted;
+  }
+
+  setMuted(muted: boolean): void {
+    if (this.muted === muted) {
+      writeStoredMute(muted);
+      return;
+    }
+    this.muted = muted;
+    writeStoredMute(muted);
+    this.applyMasterGain(false);
+  }
+
+  /** Returns the new muted state. */
+  toggleMute(): boolean {
+    this.setMuted(!this.muted);
+    return this.muted;
+  }
 
   /** Call from a click / key / pointer so the context can unlock. */
   unlock(): void {
@@ -20,7 +59,8 @@ export class GameAudio {
     if (!AC) return;
     this.ctx = new AC();
     this.master = this.ctx.createGain();
-    this.master.gain.value = 0.55;
+    // Honour a stored mute immediately — never open at masterGain then slam to 0.
+    this.master.gain.value = this.muted ? 0 : AUDIO.masterGain;
     this.master.connect(this.ctx.destination);
 
     this.filter = this.ctx.createBiquadFilter();
@@ -35,6 +75,19 @@ export class GameAudio {
     this.startWaves();
     this.started = true;
     void this.ctx.resume();
+  }
+
+  private applyMasterGain(immediate: boolean): void {
+    if (!this.master || !this.ctx) return;
+    const t = this.ctx.currentTime;
+    const target = this.muted ? 0 : AUDIO.masterGain;
+    this.master.gain.cancelScheduledValues(t);
+    this.master.gain.setValueAtTime(this.master.gain.value, t);
+    if (immediate) {
+      this.master.gain.setValueAtTime(target, t);
+    } else {
+      this.master.gain.linearRampToValueAtTime(target, t + AUDIO.muteRamp);
+    }
   }
 
   private startWaves(): void {

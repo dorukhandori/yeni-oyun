@@ -33,6 +33,7 @@ import { formatRunTime } from "./format";
 import { submitScore, type SubmitResult } from "./net/leaderboard";
 import { Hud } from "./ui/hud";
 import { Menu, type SubmitStatus } from "./ui/menu";
+import { mountMuteToggle, syncMuteChrome } from "./ui/mute";
 import { requestLandscapeLock } from "./ui/orientation";
 import { buildHallucinations } from "./world/hallucination";
 import { buildLotophagoi } from "./world/lotophagos";
@@ -170,6 +171,7 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
   const input = new Input();
   input.attach(canvas);
   const hud = new Hud(input.touchActive);
+  mountMuteToggle(audio);
 
   const unlockAudio = () => audio.unlock();
   window.addEventListener("pointerdown", unlockAudio, { once: true });
@@ -643,9 +645,11 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
     // "Hub'da zaman donar") — no physics, camera, memory, day clock, or
     // world-object animation runs; `time` itself doesn't advance either.
     if (st.phase === "title" || st.phase === "hub") {
+      syncMuteChrome(true);
       input.endFrame();
       return;
     }
+    syncMuteChrome(false);
 
     const dt = STEP / 1000;
     time += dt;

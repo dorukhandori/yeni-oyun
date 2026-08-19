@@ -36,6 +36,7 @@ Toplam **11 ekran** (Başlık, Nasıl oynanır, Hakkında, Hub, Açılış×N du
 - **Nasıl oynanır**
 - **Hakkında**
 - **Sıralama** (19 Ağu 2026, sahip isteği) — K35 "Beş yeter" online tablosunu açar. `#hubScreen`'deki "Sıralama" ile **aynı modal**, kopya değil.
+- Sağ-üst **sesi kapat** ikonu (`#muteToggle`, LOT-67) — Title ve Hub'da görünür. Tercih `localStorage`'da kalır; oyun fazında ikon kaybolur ama ses kapalı kalır. Tam ekran düğmesinin solunda, aynı parşömen ailesi.
 
 **Neden Welcome + giriş menüsü ayrılmadı:** `ia.md`'nin kuruluş ilkesi "tek seviye, alt menü yok, ayarlar ormanı yok." İkinci bir "giriş menüsü" ekranı eklemek üç yeni geçiş (fade/tık) ve bir ekstra "geri" düğmesi demek, kazanılan hiçbir şey yok — Başlık zaten üç eylemden fazlasını taşımıyor. Hub eklenmesi zaten akışa bir ekran ekliyor; gereksiz ikinci bir ekran eklemek yerine mevcut tek-ekran modelini koruyorum. **Alternatif** (ayrı bir "Giriş" ekranı, key art'ı tam ekran bir "splash" olarak ayrı tutmak) mümkün ama önerilmiyor — sahip isterse ayrı bir tur ister.
 
@@ -347,12 +348,13 @@ Telefon tarayıcısının adres/durum çubuğu `100vh` sahnesinin üstünü kese
 **Giriş (jest gerekir — tarayıcı jest dışında reddeder):**
 - Title **Oyna** (ve Hub ada kartı) kaba işaretçide Fullscreen API ister + yatay kilit.
 - Sağ-üst parşömen düğmesi (`Tam ekran` / `Tam ekrandan çık`) her Title/Hub/oyun anında aynı işi yapar.
+- Sağ-üst **sesi kapat** ikonu yalnızca Title ve Hub'da durur (`src/ui/mute.ts`). Mute *durumu* oyun içinde de geçerlidir — kontrol kaybolur, sessizlik kaybolmaz. Tam ekran jest zincirine bağlanmaz.
 
 **Çıkış:** aynı düğme, tarayıcının kendi geri/Esc jesti, veya `exitFullscreen`. PWA (`display-mode: standalone`) zaten çubuksuzdur — düğme gizlenir.
 
 **iOS Safari:** iPhone `Element.requestFullscreen` vermez (Apple sınırlaması, iPad kısmen verir). Düğme yine görünür: native API yoksa aynı jest görünür alana sığdırır ve araç çubuğunu sıkıştırmayı dener. Çubuksuz gerçek tam ekran için Ana Ekrana Ekle (`manifest.webmanifest` `display: standalone`) hâlâ en temiz yol.
 
-Uygulama: `src/ui/fullscreen.ts`. Portrait çevirme kapısı ayrı durur (`src/ui/orientation.ts`).
+Uygulama: `src/ui/fullscreen.ts`, `src/ui/mute.ts`. Portrait çevirme kapısı ayrı durur (`src/ui/orientation.ts`).
 
 ---
 
