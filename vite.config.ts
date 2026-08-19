@@ -1,7 +1,25 @@
 import { execSync } from "node:child_process";
-import { readdirSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 import { defineConfig, type Plugin } from "vite";
+import { classifyAsset, type AssetCatalogEntry } from "./src/workbench/catalog.ts";
 import pkg from "./package.json" with { type: "json" };
+
+function readGlbCatalogEntry(file: string): AssetCatalogEntry {
+  const buf = readFileSync(join("public/assets/models", file));
+  const jsonLen = buf.readUInt32LE(12);
+  const json = JSON.parse(buf.slice(20, 20 + jsonLen).toString("utf8")) as {
+    meshes?: unknown[];
+    skins?: unknown[];
+    animations?: { name?: string }[];
+  };
+  const meshes = json.meshes?.length ?? 0;
+  const skins = json.skins?.length ?? 0;
+  const anims = json.animations?.length ?? 0;
+  const animNames = (json.animations ?? []).map((a, i) => a.name ?? `anim_${i}`);
+  const kind = classifyAsset({ meshes, skins, anims });
+  return { file, meshes, skins, anims, animNames, kind };
+}
 
 /**
  * Dev-only endpoint for the asset workbench (docs/production/
@@ -16,10 +34,11 @@ function workbenchAssetListPlugin(): Plugin {
       server.middlewares.use("/__workbench/models", (_req, res) => {
         res.setHeader("Content-Type", "application/json");
         try {
-          const files = readdirSync("public/assets/models")
+          const catalog = readdirSync("public/assets/models")
             .filter((f) => /\.(glb|gltf)$/i.test(f))
-            .sort();
-          res.end(JSON.stringify(files));
+            .sort()
+            .map((f) => readGlbCatalogEntry(f));
+          res.end(JSON.stringify(catalog));
         } catch (err) {
           res.statusCode = 500;
           res.end(JSON.stringify({ error: String(err) }));

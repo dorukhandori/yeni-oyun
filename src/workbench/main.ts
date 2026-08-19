@@ -11,6 +11,13 @@ import {
   tintGltf,
   type GltfBundle,
 } from "../world/gltf";
+import {
+  findClipDonors,
+  findRigForAnimPreview,
+  findVisibleMesh,
+  formatOptionLabel,
+  type AssetCatalogEntry,
+} from "./catalog";
 import { createViewer } from "./viewer";
 
 /**
@@ -48,12 +55,17 @@ const infoBox = document.getElementById("wb-info") as HTMLElement;
 const animEmpty = document.getElementById("wb-anim-empty") as HTMLElement;
 const animLoaded = document.getElementById("wb-anim-loaded") as HTMLElement;
 const clipsEmpty = document.getElementById("wb-clips-empty") as HTMLElement;
+const clipHint = document.getElementById("wb-clip-hint") as HTMLElement;
 const clipControls = document.getElementById("wb-clip-controls") as HTMLElement;
 const clipList = document.getElementById("wb-clip-list") as HTMLElement;
 const animToggle = document.getElementById("wb-anim-toggle") as HTMLButtonElement;
+const animRestart = document.getElementById("wb-anim-restart") as HTMLButtonElement;
 const animLoop = document.getElementById("wb-anim-loop") as HTMLInputElement;
 const animSpeed = document.getElementById("wb-anim-speed") as HTMLInputElement;
 const animSpeedVal = document.getElementById("wb-anim-speed-val") as HTMLElement;
+const animScrub = document.getElementById("wb-anim-scrub") as HTMLInputElement;
+const animScrubVal = document.getElementById("wb-anim-scrub-val") as HTMLElement;
+const animDur = document.getElementById("wb-anim-dur") as HTMLElement;
 const pinEnable = document.getElementById("wb-pin-enable") as HTMLInputElement;
 
 const extraClipListSelect = document.getElementById("wb-extra-clip-list") as HTMLSelectElement;
@@ -64,12 +76,16 @@ const extraClipAdd = document.getElementById("wb-extra-clip-add") as HTMLButtonE
 const viewer = createViewer(canvas);
 const rawLoader = new GLTFLoader();
 
+let catalog: AssetCatalogEntry[] = [];
 let bundle: GltfBundle | null = null;
+let animRoot: THREE.Object3D | null = null;
 let restMap: Map<string, THREE.Vector3> = new Map();
 let mixer: THREE.AnimationMixer | null = null;
 let actions: THREE.AnimationAction[] = [];
 let activeClipIndex = -1;
 let playing = true;
+let scrubDragging = false;
+let loadedFromLabel = "";
 
 function setStatus(msg: string): void {
   statusEl.textContent = msg;
@@ -84,6 +100,10 @@ function switchTab(which: "model" | "anim"): void {
 }
 tabModel.addEventListener("click", () => switchTab("model"));
 tabAnim.addEventListener("click", () => switchTab("anim"));
+
+function assetPath(entry: AssetCatalogEntry): string {
+  return `assets/models/${entry.file}`;
+}
 
 // ------------------------------------------------------------------- stats
 function computeStats(root: THREE.Object3D): { meshes: number; tris: number; hasSkin: boolean } {
@@ -103,7 +123,7 @@ function computeStats(root: THREE.Object3D): { meshes: number; tris: number; has
   return { meshes, tris: Math.round(tris), hasSkin };
 }
 
-function renderInfo(root: THREE.Object3D, clipCount: number): void {
+function renderInfo(root: THREE.Object3D, clipCount: number, note?: string): void {
   const { meshes, tris, hasSkin } = computeStats(root);
   const box = new THREE.Box3().setFromObject(root);
   const size = new THREE.Vector3();
@@ -115,9 +135,37 @@ function renderInfo(root: THREE.Object3D, clipCount: number): void {
       <dt>Rig (skin)</dt><dd>${hasSkin ? "var" : "yok"}</dd>
       <dt>Animasyon klibi</dt><dd>${clipCount}</dd>
       <dt>Kutu (m)</dt><dd>${size.x.toFixed(2)} × ${size.y.toFixed(2)} × ${size.z.toFixed(2)}</dd>
+      ${note ? `<dt>Not</dt><dd style="text-align:left">${note}</dd>` : ""}
     </dl>
   `;
 }
+
+function activeAction(): THREE.AnimationAction | null {
+  return activeClipIndex >= 0 ? actions[activeClipIndex] ?? null : null;
+}
+
+function updateScrubberUi(): void {
+  const action = activeAction();
+  if (!action) {
+    animScrub.disabled = true;
+    animScrub.value = "0";
+    animScrubVal.textContent = "0.00";
+    animDur.textContent = "0.00";
+    return;
+  }
+  const clip = action.getClip();
+  const dur = clip.duration > 0 ? clip.duration : 1;
+  animScrub.disabled = false;
+  animScrub.max = String(dur);
+  const t = scrubDragging ? Number(animScrub.value) : action.time;
+  animScrub.value = String(Math.min(t, dur));
+  animScrubVal.textContent = Number(animScrub.value).toFixed(2);
+  animDur.textContent = dur.toFixed(2);
+}
+
+viewer.setFrameHook(() => {
+  if (!scrubDragging) updateScrubberUi();
+});
 
 // -------------------------------------------------------------- animation UI
 function stopMixer(): void {
@@ -125,37 +173,55 @@ function stopMixer(): void {
   mixer = null;
   actions = [];
   activeClipIndex = -1;
+  updateScrubberUi();
+}
+
+function showClipHint(msg: string): void {
+  if (!msg) {
+    clipHint.hidden = true;
+    clipHint.textContent = "";
+    return;
+  }
+  clipHint.hidden = false;
+  clipHint.textContent = msg;
 }
 
 function rebuildActions(): void {
-  // Tier 1: is *any* model loaded at all? "Dış klip ekle" must stay reachable
-  // even when the loaded model ships zero clips of its own — that's the
-  // whole point of testing an external clip against a clipless mesh.
-  if (!bundle) {
+  if (!bundle || !animRoot) {
     animEmpty.hidden = false;
     animLoaded.hidden = true;
     stopMixer();
     viewer.setMixer(null);
+    showClipHint("");
     return;
   }
   animEmpty.hidden = true;
   animLoaded.hidden = false;
 
-  // Tier 2: does it currently have any clips to actually play?
   if (bundle.animations.length === 0) {
     clipsEmpty.hidden = false;
     clipControls.hidden = true;
     stopMixer();
     viewer.setMixer(null);
+    const rig = loadedFromLabel ? findRigForAnimPreview(
+      catalog.find((e) => e.file === loadedFromLabel) ?? { file: loadedFromLabel, meshes: 1, skins: 0, anims: 0, animNames: [], kind: "mesh" },
+      catalog,
+    ) : null;
+    showClipHint(
+      rig
+        ? `Bu dosyada iskelet/klip yok. Animasyon için listeden "${rig.file}" seçin.`
+        : "",
+    );
     return;
   }
   clipsEmpty.hidden = true;
   clipControls.hidden = false;
+  showClipHint("");
 
   const prevIndex = activeClipIndex;
-  const root = viewer.modelRoot;
   stopMixer();
-  mixer = new THREE.AnimationMixer(root);
+  // Mixer root must be the loaded glTF scene (bones live here), not the empty wrapper group.
+  mixer = new THREE.AnimationMixer(animRoot);
   viewer.setMixer(mixer);
 
   const pin = pinEnable.checked;
@@ -194,17 +260,27 @@ function playClip(index: number): void {
   action.paused = !playing;
   action.play();
   [...clipList.children].forEach((el, i) => el.classList.toggle("active", i === index));
+  updateScrubberUi();
 }
 
 animToggle.addEventListener("click", () => {
   playing = !playing;
   animToggle.textContent = playing ? "Duraklat" : "Oynat";
-  const action = actions[activeClipIndex];
+  const action = activeAction();
   if (action) action.paused = !playing;
 });
 
+animRestart.addEventListener("click", () => {
+  const action = activeAction();
+  if (!action) return;
+  action.reset();
+  action.paused = !playing;
+  action.play();
+  updateScrubberUi();
+});
+
 animLoop.addEventListener("change", () => {
-  const action = actions[activeClipIndex];
+  const action = activeAction();
   if (!action) return;
   action.setLoop(animLoop.checked ? THREE.LoopRepeat : THREE.LoopOnce, Infinity);
   action.clampWhenFinished = !animLoop.checked;
@@ -216,38 +292,56 @@ animSpeed.addEventListener("input", () => {
   for (const a of actions) a.timeScale = v;
 });
 
+animScrub.addEventListener("pointerdown", () => {
+  scrubDragging = true;
+  playing = false;
+  animToggle.textContent = "Oynat";
+  const action = activeAction();
+  if (action) action.paused = true;
+});
+
+animScrub.addEventListener("input", () => {
+  const action = activeAction();
+  if (!action) return;
+  action.time = Number(animScrub.value);
+  mixer?.update(0);
+  animScrubVal.textContent = Number(animScrub.value).toFixed(2);
+});
+
+animScrub.addEventListener("pointerup", () => {
+  scrubDragging = false;
+});
+
 pinEnable.addEventListener("change", () => rebuildActions());
 
-/**
- * Load a second GLB/GLTF purely for its clips (its own mesh/scene is
- * discarded) and append them onto the *currently loaded* model's mixer.
- * Three.js's AnimationMixer binds tracks by bone name, not by object
- * reference, so this "just works" as long as the source clip was authored
- * against the same skeleton naming as the loaded model (true for Doryseus
- * variants — same Tripo rig lineage) — no explicit retargeting step needed.
- * Silent-mismatch note lives in the HTML copy next to the input.
- * Shared by the dropdown (pick + auto-add) and the manual path + button.
- */
-async function addExtraClip(path: string): Promise<void> {
-  if (!path) {
-    setStatus("Önce bir klip dosyası seçin ya da yol girin.");
-    return;
-  }
+async function appendClipsFromPath(path: string, quiet = false): Promise<number> {
+  if (!path) return 0;
   if (!bundle) {
-    setStatus("Önce Model sekmesinden bir model yükleyin — klip tek başına oynatılamaz.");
-    return;
+    if (!quiet) setStatus("Önce Model sekmesinden bir model yükleyin — klip tek başına oynatılamaz.");
+    return 0;
   }
-  setStatus(`Klip yükleniyor: ${path}`);
+  if (!quiet) setStatus(`Klip yükleniyor: ${path}`);
+  const extra = await loadGltfBundle(path);
+  if (extra.animations.length === 0) {
+    if (!quiet) setStatus(`Yüklendi ama klip yok: ${path}`);
+    return 0;
+  }
+  const existing = new Set(bundle.animations.map((c) => c.name));
+  const fresh = extra.animations.filter((c) => !existing.has(c.name));
+  if (fresh.length === 0) {
+    if (!quiet) setStatus(`Klipler zaten yüklü: ${path}`);
+    return 0;
+  }
+  bundle.animations = [...bundle.animations, ...fresh];
+  rebuildActions();
+  if (!quiet) setStatus(`${fresh.length} klip eklendi: ${path}`);
+  return fresh.length;
+}
+
+async function addExtraClip(path: string): Promise<void> {
   try {
-    const extra = await loadGltfBundle(path);
-    if (extra.animations.length === 0) {
-      setStatus(`Yüklendi ama klip yok: ${path}`);
-      return;
-    }
-    bundle.animations = [...bundle.animations, ...extra.animations];
-    rebuildActions();
-    setStatus(`${extra.animations.length} klip eklendi: ${path}`);
     extraClipPath.value = "";
+    await appendClipsFromPath(path);
   } catch (err) {
     setStatus(`Klip yükleme hatası (${path}): ${(err as Error)?.message ?? err}`);
   }
@@ -259,7 +353,7 @@ extraClipListSelect.addEventListener("change", () => {
   const path = extraClipListSelect.value;
   if (!path) return;
   void addExtraClip(path);
-  extraClipListSelect.value = ""; // same file can be re-picked without a no-op "change"
+  extraClipListSelect.value = "";
 });
 
 // ------------------------------------------------------------------- loading
@@ -267,22 +361,23 @@ function currentTintHex(): number {
   return parseInt(tintColor.value.replace("#", ""), 16);
 }
 
-async function loadFromPath(withAnimations: boolean): Promise<void> {
+async function loadFromPath(withAnimations: boolean, label = ""): Promise<void> {
   const path = pathInput.value.trim();
   if (!path) {
     setStatus("Önce bir yol girin (public/ köküne göre, ör. assets/models/foo.glb).");
     return;
   }
+  loadedFromLabel = label || path.split("/").pop() || path;
   setStatus(`Yükleniyor: ${path}`);
   try {
     if (withAnimations) {
       const b = await loadGltfBundle(path);
       const scene = cloneGltfBundle(b);
-      mountModel(scene, b.animations);
+      mountModel(scene, b.animations, label);
     } else {
       const tint = tintEnable.checked ? currentTintHex() : undefined;
       const scene = await loadGltf(path, tint);
-      mountModel(scene, []);
+      mountModel(scene, [], label);
     }
     setStatus(`Yüklendi: ${path}`);
   } catch (err) {
@@ -308,18 +403,20 @@ function loadFromFile(file: File): Promise<{ scene: THREE.Group; animations: THR
 }
 
 async function handleFile(file: File): Promise<void> {
+  loadedFromLabel = file.name;
   setStatus(`Yükleniyor (yerel dosya): ${file.name}`);
   try {
     const { scene, animations } = await loadFromFile(file);
-    mountModel(scene, animations);
+    mountModel(scene, animations, file.name);
     setStatus(`Yüklendi (yerel dosya): ${file.name}`);
+    if (animations.length > 0) switchTab("anim");
   } catch (err) {
     setStatus(`Ayrıştırma hatası (${file.name}): ${(err as Error)?.message ?? err}. Draco-sıkıştırılmış ya da harici (.bin/texture) referanslı .gltf desteklenmiyor v1'de.`);
   }
 }
 
 /** Mirrors sailor.ts's mountMesh ordering — same known-good sequence. */
-function mountModel(scene: THREE.Group, animations: THREE.AnimationClip[]): void {
+function mountModel(scene: THREE.Group, animations: THREE.AnimationClip[], label = ""): void {
   lightGltf(scene);
   if (tintEnable.checked) tintGltf(scene, currentTintHex());
   scene.traverse((obj) => {
@@ -333,12 +430,57 @@ function mountModel(scene: THREE.Group, animations: THREE.AnimationClip[]): void
     fitGltfHeight(scene, meters);
   }
 
+  animRoot = scene;
   viewer.setModel(scene);
   viewer.frameModel();
-  renderInfo(scene, animations.length);
+  renderInfo(scene, animations.length, label ? `Kaynak: ${label}` : undefined);
 
   bundle = { scene, animations };
   rebuildActions();
+  if (animations.length > 0) switchTab("anim");
+}
+
+/**
+ * Dropdown smart-load: clip-only rows attach to a visible rig; mesh-only
+ * character rows redirect to the rig variant so walk/run can actually play.
+ */
+async function loadCatalogEntry(entry: AssetCatalogEntry): Promise<void> {
+  pathInput.value = assetPath(entry);
+  loadedFromLabel = entry.file;
+
+  if (entry.kind === "clip-only") {
+    const meshEntry = findVisibleMesh(entry, catalog);
+    const rigEntry = meshEntry?.skins ? meshEntry : findRigForAnimPreview(
+      { ...entry, meshes: 0, skins: 0 },
+      catalog,
+    );
+    if (!rigEntry) {
+      setStatus(`"${entry.file}" yalnızca klip — önce rig'li bir model yükleyin.`);
+      return;
+    }
+    setStatus(`"${entry.file}" klip dosyası — görünür model: ${rigEntry.file}`);
+    pathInput.value = assetPath(rigEntry);
+    await loadFromPath(true, rigEntry.file);
+    await appendClipsFromPath(assetPath(entry), true);
+    switchTab("anim");
+    return;
+  }
+
+  const rigRedirect = findRigForAnimPreview(entry, catalog);
+  if (rigRedirect) {
+    setStatus(
+      `"${entry.file}" iskeletsiz (animasyon oynatılamaz) — rig sürümü yükleniyor: ${rigRedirect.file}`,
+    );
+    pathInput.value = assetPath(rigRedirect);
+    await loadFromPath(true, rigRedirect.file);
+    const donors = findClipDonors(entry, catalog);
+    for (const donor of donors) {
+      await appendClipsFromPath(assetPath(donor), true);
+    }
+    return;
+  }
+
+  await loadFromPath(entry.anims > 0, entry.file);
 }
 
 // -------------------------------------------------------------------- events
@@ -366,6 +508,8 @@ dropZone.addEventListener("drop", (e) => {
 
 clearBtn.addEventListener("click", () => {
   bundle = null;
+  animRoot = null;
+  loadedFromLabel = "";
   stopMixer();
   viewer.setMixer(null);
   viewer.setModel(null);
@@ -373,23 +517,19 @@ clearBtn.addEventListener("click", () => {
   animEmpty.hidden = false;
   animLoaded.hidden = true;
   clipList.innerHTML = "";
+  showClipHint("");
   setStatus("Sahne temizlendi.");
 });
 
-// -------------------------------------------------------- existing-asset list
-// Dev-only convenience: /__workbench/models comes from vite.config.ts's
-// workbenchAssetListPlugin, never exists in a production build. Same file
-// list feeds two selects: "load as the model" (Model tab) and "add just its
-// clips onto whatever's already loaded" (Animation tab) — there's no
-// separate clip-only asset category yet, a GLB is a GLB either way.
-function fillOptions(select: HTMLSelectElement, files: string[], emptyMsg: string): void {
-  for (const f of files) {
+function fillCatalogOptions(select: HTMLSelectElement, entries: AssetCatalogEntry[], emptyMsg: string): void {
+  for (const entry of entries) {
     const opt = document.createElement("option");
-    opt.value = `assets/models/${f}`;
-    opt.textContent = f;
+    opt.value = assetPath(entry);
+    opt.textContent = formatOptionLabel(entry);
+    opt.dataset.kind = entry.kind;
     select.appendChild(opt);
   }
-  if (files.length === 0) {
+  if (entries.length === 0) {
     const opt = document.createElement("option");
     opt.disabled = true;
     opt.textContent = emptyMsg;
@@ -401,13 +541,13 @@ async function loadModelList(): Promise<void> {
   try {
     const res = await fetch("/__workbench/models");
     if (!res.ok) throw new Error(`${res.status}`);
-    const files = (await res.json()) as string[];
-    fillOptions(modelListSelect, files, "(public/assets/models/ boş)");
-    fillOptions(extraClipListSelect, files, "(public/assets/models/ boş)");
+    catalog = (await res.json()) as AssetCatalogEntry[];
+    fillCatalogOptions(modelListSelect, catalog, "(public/assets/models/ boş)");
+    fillCatalogOptions(extraClipListSelect, catalog.filter((e) => e.anims > 0), "(klipsiz klasör)");
   } catch (err) {
     const msg = "(liste alınamadı — dev sunucusu mu kapalı?)";
-    fillOptions(modelListSelect, [], msg);
-    fillOptions(extraClipListSelect, [], msg);
+    fillCatalogOptions(modelListSelect, [], msg);
+    fillCatalogOptions(extraClipListSelect, [], msg);
     console.warn("workbench: model list fetch failed", err);
   }
 }
@@ -416,8 +556,24 @@ void loadModelList();
 modelListSelect.addEventListener("change", () => {
   const path = modelListSelect.value;
   if (!path) return;
-  pathInput.value = path;
-  void loadFromPath(true);
+  const file = path.split("/").pop() ?? path;
+  const entry = catalog.find((e) => e.file === file);
+  if (entry) void loadCatalogEntry(entry);
+  else void loadFromPath(true, file);
 });
 
-setStatus("Hazır. Bir GLB sürükleyin ya da yol girin.");
+if (import.meta.env.DEV) {
+  (window as unknown as { __WB_DEBUG__: object }).__WB_DEBUG__ = {
+    get mixer() {
+      return mixer;
+    },
+    get bundle() {
+      return bundle;
+    },
+    get animRoot() {
+      return animRoot;
+    },
+  };
+}
+
+setStatus("Hazır. Bir GLB sürükleyin ya da listeden seçin — [rig] satırları animasyon içerir.");

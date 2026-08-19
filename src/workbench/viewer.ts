@@ -14,6 +14,8 @@ export interface Viewer {
   setModel(root: THREE.Object3D | null): void;
   /** Drive an external mixer from the render loop (workbench owns no mixer itself). */
   setMixer(mixer: THREE.AnimationMixer | null): void;
+  /** Optional per-frame hook (scrubber UI, dev probes). */
+  setFrameHook(fn: ((dt: number) => void) | null): void;
   /** Recenter + redistance the orbit camera around whatever is loaded. */
   frameModel(): void;
 }
@@ -54,6 +56,7 @@ export function createViewer(canvas: HTMLCanvasElement): Viewer {
   scene.add(modelRoot);
 
   let mixer: THREE.AnimationMixer | null = null;
+  let frameHook: ((dt: number) => void) | null = null;
 
   const resize = () => {
     const w = canvas.clientWidth || window.innerWidth;
@@ -71,6 +74,7 @@ export function createViewer(canvas: HTMLCanvasElement): Viewer {
     requestAnimationFrame(tick);
     const dt = clock.getDelta();
     if (mixer) mixer.update(dt);
+    frameHook?.(dt);
     controls.update();
     renderer.render(scene, camera);
   };
@@ -86,6 +90,9 @@ export function createViewer(canvas: HTMLCanvasElement): Viewer {
     },
     setMixer(m) {
       mixer = m;
+    },
+    setFrameHook(fn) {
+      frameHook = fn;
     },
     frameModel() {
       const box = new THREE.Box3().setFromObject(modelRoot);

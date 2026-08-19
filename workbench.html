@@ -147,9 +147,12 @@
             </div>
 
             <p class="wb-empty" id="wb-clips-empty">
-              Bu modelde kendi animasyon klibi yok. Yukarıdan "Dış klip
-              ekle" ile bir klip dosyası seçip deneyebilirsin.
+              Bu dosyada animasyon klibi yok. İskeletsiz mesh dosyaları (ör.
+              <code>*_textured_*</code>, <code>*_mesh_*</code>) yürüyemez —
+              aynı karakterin <code>*_rig_*</code> satırını seçin. Alternatif:
+              yukarıdan "Dış klip ekle".
             </p>
+            <p class="wb-note" id="wb-clip-hint" hidden></p>
 
             <div id="wb-clip-controls" hidden>
               <div class="wb-group">
@@ -160,7 +163,13 @@
               <div class="wb-group">
                 <div class="wb-row">
                   <button type="button" class="wb-btn" id="wb-anim-toggle">Duraklat</button>
+                  <button type="button" class="wb-btn ghost" id="wb-anim-restart">Başa sar</button>
                 </div>
+                <label class="wb-label" for="wb-anim-scrub">
+                  Zaman — <span id="wb-anim-scrub-val">0.00</span>s /
+                  <span id="wb-anim-dur">0.00</span>s
+                </label>
+                <input type="range" id="wb-anim-scrub" min="0" max="1" step="0.001" value="0" disabled />
                 <label class="wb-check">
                   <input type="checkbox" id="wb-anim-loop" checked />
                   Döngüde oynat (LoopRepeat)
