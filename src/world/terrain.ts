@@ -135,12 +135,30 @@ export function heightAt(x: number, z: number): number {
   const spike = northSpikeLandmark(x, z);
 
   // Beyond the shoreline the sea floor drops away — northern rocks may pierce it.
+  // A shelf + ramp replaces the old cliff (`h = shoreDrop` the instant r > coast)
+  // so the waterline is a beach, not a pool lip (art-bible.md §5).
   if (r > coast) {
     const out = r - coast;
-    h = ISLAND.shoreDrop - out * 0.09;
+    const shelf = ISLAND.shoreShelf;
+    const ramp = ISLAND.shoreRamp;
+    const waterline = ISLAND.waterlineY;
+    const toe = ISLAND.shoreDrop;
+    if (out <= shelf) {
+      // Ankle-deep shelf under the sea sheet — hides the terrain's polygonal
+      // coast edge, which read as a cyan cliff when it sat above the water.
+      h = waterline - (out / shelf) * 0.18;
+    } else {
+      const t = Math.min(1, (out - shelf) / ramp);
+      const s = t * t * (3 - 2 * t);
+      const shelfY = waterline - 0.18;
+      h = shelfY * (1 - s) + toe * s;
+      if (out > shelf + ramp) h = toe - (out - shelf - ramp) * 0.09;
+    }
     h = Math.max(h, spike * smoothstep(22, 0, out));
   } else {
     h += spike;
+    const beachT = smoothstep(coast - ISLAND.beachWidth, coast, r);
+    if (beachT > 0) h = h * (1 - beachT) + ISLAND.waterlineY * beachT;
   }
 
   // Lagoon basin carved into the island.
@@ -216,6 +234,7 @@ function buildGroundMaterial(pathMask: PathMask): THREE.MeshStandardMaterial {
     shader.uniforms.uGrassTile = { value: TERRAIN_TEX.grassTileMeters };
     shader.uniforms.uSandTile = { value: TERRAIN_TEX.sandTileMeters };
     shader.uniforms.uSandWetTile = { value: TERRAIN_TEX.sandWetTileMeters };
+    shader.uniforms.uSandWetTint = { value: new THREE.Color(PALETTE.sandWet) };
     // LOT-53 footpaths: one prebaked mask fetch, no extra geometry.
     shader.uniforms.tPath = { value: pathMask.texture };
     shader.uniforms.uPathExtent = { value: pathMask.extent };
@@ -252,6 +271,7 @@ uniform sampler2D tSandWet;
 uniform float uGrassTile;
 uniform float uSandTile;
 uniform float uSandWetTile;
+uniform vec3 uSandWetTint;
 uniform sampler2D tPath;
 uniform float uPathExtent;
 uniform float uPathStrength;
@@ -265,7 +285,7 @@ varying vec2 vWorldXZ;`,
         `#include <color_fragment>
 vec3 groundGrass = texture2D(tGrass, vWorldXZ / uGrassTile).rgb * vTint;
 vec3 groundSandDry = texture2D(tSand, vWorldXZ / uSandTile).rgb;
-vec3 groundSandWet = texture2D(tSandWet, vWorldXZ / uSandWetTile).rgb;
+vec3 groundSandWet = texture2D(tSandWet, vWorldXZ / uSandWetTile).rgb * uSandWetTint;
 vec3 groundSand = mix(groundSandDry, groundSandWet, vWeights.y);
 diffuseColor.rgb = mix(groundGrass, groundSand, vWeights.x);
 // Worn footpath (LOT-53). Packed earth is the dry-sand albedo pushed darker
@@ -537,10 +557,14 @@ export function buildTerrain(): Terrain {
 
     const lr = lagoonRadiusAt(x, z);
     const coast = islandRadiusAt(x, z);
-    const beachT = smoothstep(coast - ISLAND.beachWidth, coast - 1.5, r);
+    const sandIn = smoothstep(coast - ISLAND.beachWidth, coast - 2.2, r);
+    const sandOut = 1 - smoothstep(coast + 2.2, coast + ISLAND.shoreShelf + ISLAND.shoreRamp * 0.7, r);
+    const beachT = sandIn * sandOut;
     const lagoonT = smoothstep(lr + 3.8, lr - 0.5, ld);
     weights[i * 2] = Math.max(beachT, lagoonT);
-    weights[i * 2 + 1] = smoothstep(0.45, -0.15, y);
+    // Wet strip by proximity to the waterline, not by height — a height gate
+    // painted the whole flattened pancake as wet-white.
+    weights[i * 2 + 1] = smoothstep(coast - 6.2, coast + 0.6, r);
   }
 
   geo.setAttribute("aTint", new THREE.BufferAttribute(tints, 3));

@@ -168,6 +168,16 @@ export class GameAudio {
     this.blip(210, 0.3, "sine", 0.06);
   }
 
+  /** Step onto the hero deck via the causeway (LOT-63). Wood, not a fanfare. */
+  board(): void {
+    this.blip(165, 0.18, "triangle", 0.11);
+    this.blip(98, 0.28, "sine", 0.08, 0.05);
+  }
+
+  disembark(): void {
+    this.blip(140, 0.16, "sine", 0.07);
+  }
+
   /**
    * Hallucination-figure contact (Lotus Adası only). Deliberately not a
    * "hit"/damage sound — the figure is an information disruption, not an
