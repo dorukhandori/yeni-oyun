@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { assetUrl } from "../assets/paths";
 import {
   fitGltfHeight,
   lightGltf,
@@ -525,7 +526,10 @@ clearBtn.addEventListener("click", () => {
 
 async function loadModelList(): Promise<void> {
   try {
-    const res = await fetch("/__workbench/models");
+    const catalogUrl = import.meta.env.DEV
+      ? "/__workbench/models"
+      : assetUrl("workbench-models.json");
+    const res = await fetch(catalogUrl);
     if (!res.ok) throw new Error(`${res.status}`);
     catalog = (await res.json()) as AssetCatalogEntry[];
     for (const entry of catalog) {
@@ -541,7 +545,7 @@ async function loadModelList(): Promise<void> {
       extraClipListSelect.appendChild(opt);
     }
   } catch {
-    setStatus("Model listesi alınamadı — dev sunucusu açık mı?");
+    setStatus("Model listesi alınamadı — sayfayı yenileyin veya dev sunucusunu kontrol edin.");
   }
 }
 void loadModelList();

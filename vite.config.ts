@@ -1,6 +1,6 @@
 import { execSync } from "node:child_process";
 import { readFileSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { defineConfig, type Plugin } from "vite";
 import { classifyAsset, type AssetCatalogEntry } from "./src/workbench/catalog.ts";
 import pkg from "./package.json" with { type: "json" };
@@ -21,11 +21,17 @@ function readGlbCatalogEntry(file: string): AssetCatalogEntry {
   return { file, meshes, skins, anims, animNames, kind };
 }
 
+function listGlbCatalog(): AssetCatalogEntry[] {
+  return readdirSync("public/assets/models")
+    .filter((f) => /\.(glb|gltf)$/i.test(f))
+    .sort()
+    .map((f) => readGlbCatalogEntry(f));
+}
+
 /**
- * Dev-only endpoint for the asset workbench (docs/production/
- * asset-pipeline-loop-plan.md §4): lists public/assets/models/*.glb so the
- * "Var olan assetler" dropdown doesn't need hand-typed paths. Never touches
- * the production build — configureServer only runs under `vite dev`.
+ * Workbench model catalog: dev middleware + static JSON on production build
+ * (`workbench-models.json`) so GitHub Pages can serve the dropdown without a
+ * Node backend.
  */
 function workbenchAssetListPlugin(): Plugin {
   return {
@@ -34,11 +40,7 @@ function workbenchAssetListPlugin(): Plugin {
       server.middlewares.use("/__workbench/models", (_req, res) => {
         res.setHeader("Content-Type", "application/json");
         try {
-          const catalog = readdirSync("public/assets/models")
-            .filter((f) => /\.(glb|gltf)$/i.test(f))
-            .sort()
-            .map((f) => readGlbCatalogEntry(f));
-          res.end(JSON.stringify(catalog));
+          res.end(JSON.stringify(listGlbCatalog()));
         } catch (err) {
           res.statusCode = 500;
           res.end(JSON.stringify({ error: String(err) }));
@@ -73,6 +75,14 @@ export default defineConfig(({ command }) => ({
   server: {
     host: true,
     port: 5173,
+  },
+  build: {
+    rollupOptions: {
+      input: {
+        main: resolve(__dirname, "index.html"),
+        workbench: resolve(__dirname, "workbench.html"),
+      },
+    },
   },
   plugins: [workbenchAssetListPlugin()],
 }));
