@@ -116,6 +116,10 @@
             <button type="button" class="menu-btn primary" id="btnPlay">Oyna</button>
             <button type="button" class="menu-btn" id="btnHow">Nasıl oynanır</button>
             <button type="button" class="menu-btn" id="btnAbout">Hakkında</button>
+            <!-- Read-only: opens the same board modal, never starts a run and
+                 never touches the fullscreen/orientation gesture chain — "Oyna"
+                 stays the one guaranteed gesture (docs/ux/screens.md §1). -->
+            <button type="button" class="menu-btn" id="btnBoardTitle">Sıralama</button>
           </div>
         </div>
 
@@ -245,31 +249,35 @@
           </div>
         </div>
 
-        <!-- Leaderboard — reachable from the Hub and opened automatically after a
-             finished K35 run (Paca LOT-58). Four states: loading / empty /
-             offline-failed / submit-failed, plus the "kept" success case. -->
-        <div
-          class="sub-panel"
-          id="boardPanel"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="boardTitle"
-        >
-          <div class="sub-panel-inner board-inner parchment-panel">
-            <h2 id="boardTitle">En hızlılar — Beş yeter</h2>
-            <p class="board-status" id="boardSubmit" hidden>
-              <span class="board-status-icon" aria-hidden="true"></span>
-              <span class="board-status-text"></span>
-            </p>
-            <p class="board-status" id="boardStatus" role="status">
-              <span class="board-status-icon" aria-hidden="true"></span>
-              <span class="board-status-text"></span>
-            </p>
-            <ol class="board-list" id="boardList"></ol>
-            <div class="nick-actions">
-              <button type="button" class="menu-btn ghost" id="btnBoardRetry" hidden>Yeniden dene</button>
-              <button type="button" class="menu-btn ghost" id="btnBoardBack">Geri</button>
-            </div>
+      </div>
+
+      <!-- Leaderboard. Deliberately a sibling of the screens, NOT a child of
+           #hubScreen: it is opened from the Title menu, from the Hub, and
+           automatically after a finished K35 run. Nested inside a screen it
+           would inherit that screen's `display: none` and simply not exist on
+           Title. Closing it just drops .on, so whatever screen was underneath
+           is still there — "Geri" needs no memory of who opened it. -->
+      <div
+        class="sub-panel board-modal"
+        id="boardPanel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="boardTitle"
+      >
+        <div class="sub-panel-inner board-inner parchment-panel">
+          <h2 id="boardTitle">En hızlılar — Beş yeter</h2>
+          <p class="board-status" id="boardSubmit" hidden>
+            <span class="board-status-icon" aria-hidden="true"></span>
+            <span class="board-status-text"></span>
+          </p>
+          <p class="board-status" id="boardStatus" role="status">
+            <span class="board-status-icon" aria-hidden="true"></span>
+            <span class="board-status-text"></span>
+          </p>
+          <ol class="board-list" id="boardList"></ol>
+          <div class="nick-actions">
+            <button type="button" class="menu-btn ghost" id="btnBoardRetry" hidden>Yeniden dene</button>
+            <button type="button" class="menu-btn ghost" id="btnBoardBack">Geri</button>
           </div>
         </div>
       </div>

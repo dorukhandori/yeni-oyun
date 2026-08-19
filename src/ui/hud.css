@@ -1482,6 +1482,14 @@ body[data-ui-phase="hub"] #touch {
 }
 
 /* ------------------------------------------------------------------ board */
+/* The board is a sibling of the screens, not a child of one — it opens from
+   Title, from the Hub, and after a finished run. So it needs a z-index above
+   .screen (20), .sub-panel (21) and the fullscreen toggle (40); a modal that
+   the corner button pokes through is not a modal. */
+.board-modal {
+  z-index: 45;
+}
+
 .board-inner {
   max-width: 460px;
   width: min(460px, 92vw);

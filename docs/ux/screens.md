@@ -35,12 +35,20 @@ Toplam **11 ekran** (Başlık, Nasıl oynanır, Hakkında, Hub, Açılış×N du
 - **Oyna** (varsayılan odak) — artık doğrudan oyuna değil, **Hub'a** açılıyor.
 - **Nasıl oynanır**
 - **Hakkında**
+- **Sıralama** (19 Ağu 2026, sahip isteği) — K35 "Beş yeter" online tablosunu açar. `#hubScreen`'deki "Sıralama" ile **aynı modal**, kopya değil.
 
 **Neden Welcome + giriş menüsü ayrılmadı:** `ia.md`'nin kuruluş ilkesi "tek seviye, alt menü yok, ayarlar ormanı yok." İkinci bir "giriş menüsü" ekranı eklemek üç yeni geçiş (fade/tık) ve bir ekstra "geri" düğmesi demek, kazanılan hiçbir şey yok — Başlık zaten üç eylemden fazlasını taşımıyor. Hub eklenmesi zaten akışa bir ekran ekliyor; gereksiz ikinci bir ekran eklemek yerine mevcut tek-ekran modelini koruyorum. **Alternatif** (ayrı bir "Giriş" ekranı, key art'ı tam ekran bir "splash" olarak ayrı tutmak) mümkün ama önerilmiyor — sahip isterse ayrı bir tur ister.
 
 **Giriş:** boot, Pause→Ana menü, Koşu sonu→Ana menü.
-**Çıkış:** Oyna → Hub; Nasıl oynanır → how; Hakkında → about.
-**Erişilebilirlik:** kontrast ≥ 4.5:1 (scrim ile); odak halkası görünür; Enter = Oyna; Tab sırası Oyna → Nasıl oynanır → Hakkında.
+**Çıkış:** Oyna → Hub; Nasıl oynanır → how; Hakkında → about; Sıralama → leaderboard modalı (aynı ekranın üstünde, "Geri" ile Title'a döner).
+**Erişilebilirlik:** kontrast ≥ 4.5:1 (scrim ile); odak halkası görünür; Enter = Oyna; Tab sırası Oyna → Nasıl oynanır → Hakkında → **Sıralama**. Sıralama en sonda: "Oyna" varsayılan odak ve tek gerçek eylem olarak kalsın diye.
+
+**Leaderboard modalının konumu (19 Ağu 2026).** `#boardPanel` artık `#hubScreen`'in **çocuğu değil**, ekranların kardeşi (`#app` altında, `z-index: 45`). Bir ekranın içinde kalsaydı o ekranın `display: none`'ını miras alır ve Title'da hiç var olmazdı. Sonuçları:
+
+- Üç giriş noktası, tek bileşen: Title "Sıralama", Hub "Sıralama", bitmiş bir K35 koşusundan Hub'a dönüş. Mantık `Menu.showBoard()` içinde tek yerde.
+- "Geri" nereden açıldığını **hatırlamak zorunda değil** — modal sadece bir katman; altındaki ekran (Title ya da Hub) hiç kaybolmadı, `.on` kalkınca geri görünür. Yalnız klavye odağı açan düğmeye geri veriliyor.
+- Title'daki "Sıralama" **salt okuma**: `fullRestart` çağırmıyor, `requestPlayFullscreen()`/`requestLandscapeLock()` tetiklemiyor. Title'daki tek garantili jest hâlâ "Oyna" (§3.6'daki jest zinciri uyarısı burada da geçerli).
+- `fetchTop()` hiçbir `GameState`/`WORLD.k35` alanına bakmıyor — düz bir GET. Tablo, hiç koşu oynanmadan açılabiliyor; ölçüldü.
 
 ---
 

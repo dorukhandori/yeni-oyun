@@ -90,8 +90,9 @@ export class Menu {
   private btnNickStart = must("btnNickStart") as HTMLButtonElement;
   private btnNickCancel = must("btnNickCancel") as HTMLButtonElement;
 
-  // ---- leaderboard
+  // ---- leaderboard (one modal, three entry points: Title, Hub, end of a run)
   private btnBoard = must("btnBoard") as HTMLButtonElement;
+  private btnBoardTitle = must("btnBoardTitle") as HTMLButtonElement;
   private boardPanel = must("boardPanel");
   private boardStatus = must("boardStatus");
   private boardSubmit = must("boardSubmit");
@@ -103,6 +104,8 @@ export class Menu {
   private boardRequest = 0;
   /** Nick to highlight in the list — the one this browser just played as. */
   private ownNickKey = "";
+  /** Control that opened the board, so focus returns there on close. */
+  private boardOpener: HTMLElement | null = null;
 
   constructor(private handlers: MenuHandlers) {
     this.btnPlay.addEventListener("click", () => handlers.onPlay());
@@ -138,11 +141,15 @@ export class Menu {
       if (e.key === "Escape") this.closeNick();
     });
 
+    // Same modal, two manual entry points. The board is read-only, so the Title
+    // button starts nothing and requests no fullscreen — "Oyna" is still the
+    // only guaranteed gesture on that screen (docs/ux/screens.md §1).
     this.btnBoard.addEventListener("click", () => this.showBoard());
-    this.btnBoardBack.addEventListener("click", () => this.boardPanel.classList.remove("on"));
+    this.btnBoardTitle.addEventListener("click", () => this.showBoard());
+    this.btnBoardBack.addEventListener("click", () => this.closeBoard());
     this.btnBoardRetry.addEventListener("click", () => void this.refreshBoard());
     this.boardPanel.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") this.boardPanel.classList.remove("on");
+      if (e.key === "Escape") this.closeBoard();
     });
   }
 
@@ -232,8 +239,16 @@ export class Menu {
    * shown as its own line above the table because "gönderiliyor" / "kaydedildi"
    * / "eski rekorun daha iyiydi" / "gönderilemedi" are four different things
    * the player needs told apart.
+   *
+   * Callable from ANY screen — Title, Hub, or the return from a finished run.
+   * The read path (fetchTop) needs no GameState and no WORLD.k35; it is a plain
+   * GET, so the board works before a single run has ever been started.
    */
   showBoard(submit?: SubmitStatus): void {
+    // Remember who opened it so focus can go back there on close — the modal is
+    // no longer inside a screen, so there is no implicit "parent" to return to.
+    const opener = document.activeElement;
+    this.boardOpener = opener instanceof HTMLElement ? opener : null;
     // Highlight the row belonging to this browser even on a fresh load, before
     // any run has been played this session.
     if (!this.ownNickKey) this.ownNickKey = loadSavedNick().toLowerCase();
@@ -241,6 +256,17 @@ export class Menu {
     this.boardPanel.classList.add("on");
     window.setTimeout(() => this.btnBoardBack.focus(), 0);
     void this.refreshBoard();
+  }
+
+  /**
+   * Closes the board back to whatever was underneath. Nothing to restore: the
+   * modal is an overlay sibling of the screens, so the Title or Hub behind it
+   * never went away.
+   */
+  private closeBoard(): void {
+    this.boardPanel.classList.remove("on");
+    this.boardOpener?.focus();
+    this.boardOpener = null;
   }
 
   /** Updates just the submit line on an already-open board (the async result landing). */
