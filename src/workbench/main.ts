@@ -273,6 +273,14 @@ async function appendClipsFromPath(path: string): Promise<number> {
 }
 
 async function loadCatalogEntry(entry: AssetCatalogEntry, clipName?: string): Promise<void> {
+  if (/ship_hero.*\.glb$/i.test(entry.file)) {
+    const shipPreset = WORKBENCH_PRESETS.find((p) => p.id === "ship-sea");
+    if (shipPreset) {
+      setStatus(`"${entry.file}" statik mesh — gemi+dalga canlı sahnesi açılıyor…`);
+      loadScenePreset(shipPreset);
+      return;
+    }
+  }
   pendingClipName = clipName ?? "";
   if (entry.kind === "clip-only") {
     const rig =

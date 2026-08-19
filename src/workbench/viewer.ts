@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { RENDER } from "../constants";
 
 /**
  * Bare Three.js viewer for the workbench — deliberately generic, no game
@@ -126,6 +127,15 @@ export function createViewer(canvas: HTMLCanvasElement): Viewer {
       const bg = scene.background;
       if (bg instanceof THREE.Color) bg.setHex(mode === "ocean" ? OCEAN_BG : STUDIO_BG);
       grid.visible = mode === "studio";
+      if (mode === "ocean") {
+        // sea.ts fragment shader already #includes <tonemapping_fragment> — pairing
+        // that with renderer ACES duplicates GLSL tonemap helpers and breaks WebGL.
+        renderer.toneMapping = THREE.NoToneMapping;
+        scene.fog = new THREE.FogExp2(RENDER.fogColor, RENDER.fogDensity);
+      } else {
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        scene.fog = null;
+      }
     },
   };
 }
