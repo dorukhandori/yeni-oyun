@@ -30,6 +30,8 @@ export interface Ship {
   reset(): void;
   /** World Y of the walkable deck, or null if the point is not on the hull. */
   deckY(x: number, z: number): number | null;
+  /** Landward bow / causeway band — the only boarding gate. */
+  atRamp(x: number, z: number): boolean;
 }
 
 /** Single hero home-hull (LOT-52). Sisters are gone. */
@@ -45,6 +47,8 @@ export function buildShip(): Ship {
   let heroRot: number = SHIP.rotY;
   const anchor = heroBerth.clone();
   const local = new THREE.Vector3();
+  const bowA = new THREE.Vector3();
+  const bowB = new THREE.Vector3();
   const jars: THREE.Mesh[] = [];
   let sailMesh: THREE.Mesh | null = null;
   let bellyIndex = -1;
@@ -90,6 +94,19 @@ export function buildShip(): Ship {
       hull.worldToLocal(local);
       if (Math.abs(local.x) > SHIP.deckHalfW || Math.abs(local.z) > SHIP.deckHalfL) return null;
       return hull.position.y + SHIP.deckY;
+    },
+    atRamp(x, z) {
+      local.set(x, hull.position.y, z);
+      hull.worldToLocal(local);
+      if (Math.abs(local.x) > SHIP.boardRampBeam) return false;
+      bowA.set(0, 0, SHIP.deckHalfL);
+      bowB.set(0, 0, -SHIP.deckHalfL);
+      hull.localToWorld(bowA);
+      hull.localToWorld(bowB);
+      const landward = Math.hypot(bowA.x, bowA.z) <= Math.hypot(bowB.x, bowB.z) ? 1 : -1;
+      const along = local.z * landward;
+      const bow = SHIP.deckHalfL * SHIP.boardBowFrac;
+      return along > bow && along < SHIP.deckHalfL + SHIP.boardRampAlong;
     },
     setDelivered(n) {
       for (let i = 0; i < jars.length; i++) {
@@ -168,10 +185,16 @@ export function buildShip(): Ship {
         SHIP.deckHalfL * 0.62,
         SHIP.deckHalfW * 0.7,
       );
-      const floorY = Math.min(heroBerth.y, -0.12);
-      hull.position.y = Math.max(floorY, wave.y * SEA_TEX.hullFollow - SEA_TEX.hullDraft) + d * 0.3;
-      hull.rotation.x = wave.pitch * SEA_TEX.hullPitchFollow * live;
-      hull.rotation.z = wave.roll * SEA_TEX.hullRollFollow * live;
+      const grounded = d < 0.04;
+      if (grounded) {
+        hull.position.y = heroBerth.y - SHIP.keelBury + wave.y * SHIP.groundFollow;
+        hull.rotation.x = SHIP.listPitch + wave.pitch * SHIP.groundPitchFollow;
+        hull.rotation.z = SHIP.listRoll + wave.roll * SHIP.groundRollFollow;
+      } else {
+        hull.position.y = wave.y * SEA_TEX.hullFollow - SEA_TEX.hullDraft + d * 0.3;
+        hull.rotation.x = wave.pitch * SEA_TEX.hullPitchFollow * live;
+        hull.rotation.z = wave.roll * SEA_TEX.hullRollFollow * live;
+      }
       hull.rotation.y = heroRot;
       anchor.set(hull.position.x, hull.position.y, hull.position.z);
     },
@@ -292,7 +315,46 @@ function plantHero(scene: THREE.Object3D): void {
   const planted = new THREE.Box3().setFromObject(scene);
   scene.position.x -= (planted.min.x + planted.max.x) * 0.5;
   scene.position.z -= (planted.min.z + planted.max.z) * 0.5;
-  scene.position.y -= planted.min.y;
+  // AABB min.y is the oar tips on this Tripo blob, not the keel. Sit on the
+  // hull-bottom quantile so the galley rests in the sand instead of hovering.
+  scene.position.y -= hullKeelY(scene);
+}
+
+/** World Y of the hull seating plane, ignoring oars / rudder that set AABB min.y. */
+function hullKeelY(root: THREE.Object3D): number {
+  const ys: number[] = [];
+  const v = new THREE.Vector3();
+  const box = new THREE.Box3();
+  const c = new THREE.Vector3();
+  const size = new THREE.Vector3();
+  root.updateMatrixWorld(true);
+  box.setFromObject(root);
+  box.getCenter(c);
+  box.getSize(size);
+  const alongX = size.x >= size.z;
+  const beamLim = Math.min(size.x, size.z) * SHIP.keelBeamFrac;
+  const lenLim = Math.max(size.x, size.z) * SHIP.keelLengthFrac;
+  root.traverse((obj) => {
+    const mesh = obj as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    const pos = mesh.geometry?.getAttribute("position");
+    if (!pos) return;
+    const m = mesh.matrixWorld;
+    for (let i = 0; i < pos.count; i += 2) {
+      v.fromBufferAttribute(pos, i);
+      v.applyMatrix4(m);
+      const lateral = alongX ? Math.abs(v.z - c.z) : Math.abs(v.x - c.x);
+      const along = alongX ? Math.abs(v.x - c.x) : Math.abs(v.z - c.z);
+      if (lateral > beamLim || along > lenLim) continue;
+      ys.push(v.y);
+    }
+  });
+  if (ys.length < 8) return box.min.y + size.y * SHIP.keelFromAabb;
+  ys.sort((a, b) => a - b);
+  const at = (q: number) => ys[Math.min(ys.length - 1, Math.floor(ys.length * q))];
+  // Skip the oar/rudder cluster (aabb min is ~-9.5 m). The hull body sits
+  // well above that; planting on min.y hovers the galley by several metres.
+  return at(SHIP.keelQuantile);
 }
 
 function paintHero(root: THREE.Object3D): void {

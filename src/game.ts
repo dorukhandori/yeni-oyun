@@ -89,9 +89,12 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
   const stones = buildSteppingStones();
   const hill = buildHillPuzzle();
   const ship = buildShip();
+  let onShip = false;
   standY = (x, z) => {
-    const deck = ship.deckY(x, z);
-    if (deck != null) return deck;
+    if (onShip) {
+      const deck = ship.deckY(x, z);
+      if (deck != null) return deck;
+    }
     return Math.max(heightAt(x, z), PLAYER.wadeFloor);
   };
   const lotophagoi = buildLotophagoi();
@@ -227,6 +230,7 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
 
   function respawnAtShip(): void {
     pos.set(PLAYER.spawn.x, 0, PLAYER.spawn.z);
+    onShip = false;
     pos.y = standY(pos.x, pos.z);
     vel.set(0, 0, 0);
     st.playerX = pos.x;
@@ -397,6 +401,7 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
     harvestIndex = null;
     harvestT = 0;
     pos.set(PLAYER.spawn.x, 0, PLAYER.spawn.z);
+    onShip = false;
     pos.y = standY(pos.x, pos.z);
     vel.set(0, 0, 0);
     st.playerX = pos.x;
@@ -860,18 +865,32 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
     if (boundaryHintTimer > 0) boundaryHintTimer -= dt;
     pos.x = nx;
     pos.z = nz;
+    const wasOnShip = onShip;
+    if (ship.atRamp(pos.x, pos.z)) onShip = true;
+    else if (ship.deckY(pos.x, pos.z) == null) onShip = false;
+    if (onShip && !wasOnShip) {
+      hud.say("Tahta ısınır ayak altında.");
+      audio.board();
+      rig.kick(SHIP.boardKick);
+    } else if (!onShip && wasOnShip) {
+      hud.say("Kum yine.");
+      audio.disembark();
+    }
     const groundY = standY(pos.x, pos.z);
     const drop = prevGroundY - groundY;
-    // Climb: snap up. The old 14/s lerp lagged ~16 cm below a 30° slope at
-    // run speed, so the billboard's calves sat inside the hill. Descend still
-    // eases, so land squash has a moment to read.
     const probeY = standY(
       pos.x + Math.sin(facing) * SAILOR.slopeProbe,
       pos.z + Math.cos(facing) * SAILOR.slopeProbe,
     );
     const wantY = groundY + Math.max(0, probeY - groundY) * SAILOR.slopeLift;
-    if (wantY >= pos.y) pos.y = wantY;
-    else pos.y += (wantY - pos.y) * Math.min(1, 14 * dt);
+    const rise = wantY - pos.y;
+    if (rise > 1.2) {
+      pos.y += rise * Math.min(1, SHIP.boardRise * dt);
+    } else if (rise >= 0) {
+      pos.y = wantY;
+    } else {
+      pos.y += (wantY - pos.y) * Math.min(1, 14 * dt);
+    }
     if (drop > 0.12 && Math.hypot(vel.x, vel.z) > FEEL.landImpactSpeed * 0.4) {
       sailor.land(Math.min(0.7, drop * 1.4));
       rig.kick(Math.min(0.12, drop * 0.25));

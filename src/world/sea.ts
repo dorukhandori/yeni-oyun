@@ -52,9 +52,12 @@ function oceanMaterial(): THREE.ShaderMaterial {
   const crest = new THREE.Color(PALETTE.seaCrest);
   const sun = new THREE.Color(RENDER.sunColor);
   const sky = new THREE.Color(RENDER.skyHorizon);
+  const sandWet = new THREE.Color(PALETTE.sandWet);
 
   return new THREE.ShaderMaterial({
     fog: true,
+    transparent: true,
+    depthWrite: false,
     uniforms: THREE.UniformsUtils.merge([
       THREE.UniformsLib.fog,
       {
@@ -76,6 +79,10 @@ function oceanMaterial(): THREE.ShaderMaterial {
         uEnableWaves: { value: 1 },
         uHullChop: { value: SEA_TEX.hullChop },
         uFoamShore: { value: SEA_TEX.foamShoreMeters },
+        uFoamOffset: { value: SEA_TEX.foamOffsetMeters },
+        uFoamMix: { value: SEA_TEX.foamMix },
+        uShoreAlpha: { value: SEA_TEX.shoreAlpha },
+        uDeepAlpha: { value: SEA_TEX.deepAlpha },
         uSpecPower: { value: SEA_TEX.specPower },
         uSpecGain: { value: SEA_TEX.specGain },
         uShallow: { value: shallow },
@@ -83,6 +90,7 @@ function oceanMaterial(): THREE.ShaderMaterial {
         uDeep: { value: deep },
         uFoam: { value: foam },
         uCrest: { value: crest },
+        uSandWet: { value: sandWet },
         uSunDir: { value: sunDirection(0) },
         uSunColor: { value: sun },
         uSky: { value: sky },
@@ -202,12 +210,17 @@ function oceanMaterial(): THREE.ShaderMaterial {
       uniform vec3 uDeep;
       uniform vec3 uFoam;
       uniform vec3 uCrest;
+      uniform vec3 uSandWet;
       uniform vec3 uSunDir;
       uniform vec3 uSunColor;
       uniform vec3 uSky;
       uniform float uSpecPower;
       uniform float uSpecGain;
       uniform float uFoamShore;
+      uniform float uFoamOffset;
+      uniform float uFoamMix;
+      uniform float uShoreAlpha;
+      uniform float uDeepAlpha;
       uniform float uOverlap;
       uniform float uTime;
       uniform float uIslandR;
@@ -243,25 +256,47 @@ function oceanMaterial(): THREE.ShaderMaterial {
         vec3 V = normalize(cameraPosition - vWorld);
         vec3 L = normalize(uSunDir);
         float ndv = max(dot(n, V), 0.0);
-        float fresnel = mix(0.05, 0.58, pow(1.0 - ndv, 5.0));
+        float fresnel = mix(0.04, 0.48, pow(1.0 - ndv, 5.0));
+        // Grazing sky reflection on the shallows read as a white void between
+        // sand and sea. Keep turquoise readable at the beach; open water still
+        // picks up the horizon.
+        fresnel *= mix(0.1, 1.0, smoothstep(0.05, 0.58, vDeep));
 
-        vec3 water = mix(uShallow, uMid, smoothstep(0.0, 0.42, vDeep));
+        vec3 water = mix(uShallow, uMid, smoothstep(0.0, 0.28, vDeep));
         water = mix(water, uDeep, smoothstep(0.42, 1.0, vDeep));
         water = mix(water, uCrest, vCrest * (1.0 - vDeep) * 0.18);
+        // Fake the seafloor at grazing angles (real alpha would punch sky
+        // through the waterline). Looking down still uses real alpha.
+        water = mix(uSandWet, water, smoothstep(0.04, 0.42, vDeep));
 
         vec3 R = reflect(-L, n);
         float spec = pow(max(dot(R, V), 0.0), uSpecPower) * uSpecGain;
         spec *= mix(0.16, 0.85, vDeep);
         spec = min(spec, 0.2);
 
-        vec3 col = mix(water, mix(water, uSky, 0.65), fresnel);
+        vec3 col = mix(water, mix(water, uSky, 0.38), fresnel);
         col += uSunColor * spec;
 
-        float shoreBand = 1.0 - smoothstep(-uOverlap * 0.4, uFoamShore, r - coast);
-        float foam = max(shoreBand * (0.42 + 0.58 * vCrest), vHull * (0.72 + 0.28 * vCrest));
-        col = mix(col, uFoam, clamp(foam, 0.0, 1.0) * 0.9);
+        float dist = r - coast;
+        float swash = 0.5 + 0.5 * sin(uTime * 0.78 + r * 0.09);
+        float center = uFoamOffset + (swash - 0.5) * 2.2;
+        float halfW = uFoamShore * 0.5;
+        float shoreBand = 1.0 - smoothstep(0.0, halfW, abs(dist - center));
+        float chop = 0.55 + 0.45 * sin(vOrig.x * 0.58 + vOrig.y * 0.44 + uTime * 0.5);
+        shoreBand *= chop;
+        float hullFoam = pow(max(vHull, 0.0), 3.4) * 0.5;
+        float foam = max(
+          shoreBand * (0.72 + 0.28 * vCrest),
+          max(hullFoam, vCrest * (1.0 - vDeep) * 0.38)
+        );
+        foam = clamp(foam, 0.0, 1.0);
+        col = mix(col, uFoam, foam * uFoamMix);
 
-        gl_FragColor = vec4(col, 1.0);
+        float lookDown = smoothstep(0.14, 0.58, ndv);
+        float alpha = mix(uDeepAlpha, mix(uShoreAlpha, uDeepAlpha, vDeep), lookDown);
+        alpha = max(alpha, foam * 0.88);
+
+        gl_FragColor = vec4(col, alpha);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
         #include <fog_fragment>

@@ -168,7 +168,22 @@ export const ISLAND = {
   hillAmp: ACTIVE_PROFILE === "real" ? 1.8 : 1.6,
   hillFreq: 0.14,
   /** Width of the golden sand ring at the shoreline. */
-  beachWidth: 8,
+  beachWidth: ACTIVE_PROFILE === "real" ? 14 : 6,
+  /**
+   * Sand height at the geometric coast. Stays a few centimetres above
+   * `SEA_TEX.floorY` so the beach is a shelf the camera cannot look under,
+   * not a lip and not a pancake at sea level.
+   */
+  waterlineY: 0.0,
+  /** Almost-flat wet shelf seaward of the coast, before the drop. */
+  shoreShelf: ACTIVE_PROFILE === "real" ? 8 : 4,
+  /**
+   * Metres of seaward slope past the shelf. Without this, `heightAt`
+   * snaps to `shoreDrop` the instant r exceeds the coast — a 55 cm cliff
+   * that reads as a tiled pool edge, not a beach (art-bible.md §5 "Kum ve
+   * kıyı: yumuşak, dalgalı, uzun yatay hatlar").
+   */
+  shoreRamp: ACTIVE_PROFILE === "real" ? 20 : 10,
   /** Angular wobble so the coast is a set of bays, not a circle. */
   wobbleA: 0.07,
   wobbleB: 0.035,
@@ -401,6 +416,41 @@ export const SHIP = {
   causewayBow: 0.28,
   /** Rock centre in the shallows so the stones poke through the opaque sea. */
   causewayWaterY: 0.28,
+  /**
+   * Boarding (LOT-63) — enter only via the landward bow / causeway band, not
+   * the whole hull rectangle. Heights are metres / lerp rates.
+   */
+  boardRampAlong: 6.5,
+  boardRampBeam: 3.6,
+  boardBowFrac: 0.58,
+  boardRise: 3.4,
+  boardKick: 0.08,
+  /**
+   * Grounded pose (LOT-66). The mesh origin sits this many metres below the
+   * sampled sand so the keel reads buried, not hovering on a water plane.
+   */
+  keelBury: 0.55,
+  /**
+   * Plant using midships verts inside this fraction of beam / half-length.
+   * AABB min.y on this Tripo blob is the oar tips, which hovered the galley.
+   */
+  keelBeamFrac: 0.18,
+  keelLengthFrac: 0.34,
+  /**
+   * Midships Y quantile used as the seating plane. 0 = oar tips (hover);
+   * ~0.28 skips oars/rudder on this Tripo blob (p25≈-4.6 m = hull seat;
+   * p45≈0 left the galley sitting on its waist).
+   */
+  keelQuantile: 0.28,
+  /** Fallback when the mesh has too few midships verts. */
+  keelFromAabb: 0.22,
+  /** Residual Gerstner ride while aground — lapping shallows, not a float. */
+  groundFollow: 0.09,
+  groundPitchFollow: 0.07,
+  groundRollFollow: 0.05,
+  /** Static heel toward the sea (radians). Negative lists the south berth seaward. */
+  listPitch: 0.018,
+  listRoll: -0.1,
 } as const;
 
 /** Hidden beauties + offer wander (K35, `gdd-lotus-island-run.md` §3.12–3.13). */
@@ -444,7 +494,7 @@ export const PLAYER = {
   /** Deepest the sailor sinks while wading. */
   wadeFloor: -0.42,
   /** How far past the shoreline he may wade before being held back. */
-  shoreLimit: 1,
+  shoreLimit: ACTIVE_PROFILE === "real" ? 8 : 2,
   /**
    * Width of the resistance zone before `shoreLimit` (playtest bug: hard
    * invisible-wall stop at the boundary). Outward velocity is progressively
@@ -720,13 +770,14 @@ export const LOTUS = {
   },
   /** Active plants in the edge quest (classic uses `count`). */
   edgeCount: 5,
-  /** Minimum spacing when scattering plants across the lagoon. */
+  /** Minimum spacing when scattering plants across the island (LOT-64). */
   get minSpacing(): number {
-    return isEdgeRun() ? 18 : 1.75;
+    return isEdgeRun() ? 18 : 16;
   },
   /**
-   * Three harvest pockets (reed shore / deep lagoon / north cove).
-   * Counts should sum to `count`.
+   * Mesh-pool sizes for the plant instances (reed / deep / cove). Placement
+   * is island-wide scatter now; these counts only decide how many groups
+   * exist before `LOTUS.count` trims the surplus.
    */
   zones: [
     { name: "reed", cx: -5.5, cz: 8.5 + LAYOUT_SHIFT_Z, radius: 5.2, count: 12, spacing: 1.55 },
@@ -1214,14 +1265,31 @@ export const SEA_TEX = {
   shoreCalm: 22,
   /** Amplitude scale right at the waterline — 0 so Gerstner cannot tear holes in the beach. */
   shoreMin: 0,
-  /** How far the sheet overlaps the wet-sand ring (art-bible beach). */
-  overlapMeters: 10,
-  /** Troughs never drop below this, so sand cannot show through. */
-  floorY: 0.05,
+  /**
+   * How far the sheet overlaps the wet-sand ring. Transparent shallows let
+   * the sand read through, so this can sit on the beach without hiding it.
+   */
+  overlapMeters: 5,
+  /**
+   * Sea surface rest height. Positive values flooded the beach (LOT-66
+   * playtest); a little under y = 0 lets the ramp show as ankle-deep sand.
+   */
+  floorY: -0.16,
   /** Static flood under the Gerstner chop — covers the seafloor to the horizon. */
   floodMeters: 1100,
   floodSegments: 48,
-  foamShoreMeters: 11,
+  /** Width of the swash/foam strip (metres). */
+  foamShoreMeters: 7.5,
+  /**
+   * Metres seaward of the geometric coast where the foam lip sits. The
+   * visible waterline is past the sand shelf, not at r = coast.
+   */
+  foamOffsetMeters: 4.2,
+  /** How hard shore/hull foam tints toward PALETTE.seaFoam (0–1). */
+  foamMix: 0.82,
+  /** Shallow-water alpha when looking down. Grazing stays more opaque. */
+  shoreAlpha: 0.48,
+  deepAlpha: 0.9,
   /** Extra Gerstner steepness piled against the hull (shader only). */
   hullChop: 0.7,
   specPower: 72,

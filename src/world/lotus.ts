@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { LAGOON, LOTUS, LOTUS_FX, LOTUS_PHYSICS, PALETTE, PUZZLE, WORLD } from "../constants";
+import { BEAUTY, LAGOON, LOTUS, LOTUS_FX, LOTUS_PHYSICS, PALETTE, WORLD } from "../constants";
 import type { LotusStage } from "../types";
 import { springStep, type SpringState } from "../systems/spring";
 import { assetUrl } from "../assets/paths";
@@ -26,16 +26,19 @@ interface Plant {
   /** Billboard sprite carrying the generated lotus still per stage (ASSET-002, `art-bible.md` §8). */
   bloom: THREE.Sprite;
   halo: THREE.Sprite;
+  pads: THREE.Mesh[];
   phase: number;
   /** Collect punch scale residual. */
   pop: number;
   zone: string;
   gate: LotusGate;
+  /** True when the plant sits in lagoon water (lily pads + swell). */
+  wet: boolean;
   /** Vertical spring — pad riding the lagoon swell. */
   bob: SpringState;
   /** Roll spring — whole plant tilting with the same swell. */
   roll: SpringState;
-  /** Classic-run home berth; edge scatter writes over `pos` only. */
+  /** Classic-run home berth; scatter writes this on each reset. */
   homeX: number;
   homeZ: number;
   homeY: number;
@@ -192,23 +195,98 @@ export function buildLotusField(): LotusField {
     spots.push({ x, z, zone: "fallback", indexInZone: spots.length });
   }
 
-  const coveCount = spots.filter((s) => s.zone === "cove").length;
-  let coveGatedLeft = Math.ceil(coveCount * PUZZLE.coveGatedRatio);
+  function isWetCell(x: number, z: number): boolean {
+    return (
+      heightAt(x, z) <= LAGOON.waterY + 0.12 &&
+      lagoonDist(x, z) < lagoonRadiusAt(x, z) + 0.8
+    );
+  }
+
+  function dressPlant(p: Plant): void {
+    p.wet = isWetCell(p.pos.x, p.pos.z);
+    const y = plantGroundY(p.pos.x, p.pos.z);
+    p.pos.y = y;
+    p.group.position.set(p.pos.x, y, p.pos.z);
+    for (const pad of p.pads) pad.visible = p.wet;
+    if (!p.wet) {
+      p.bob.value = 0;
+      p.bob.velocity = 0;
+      p.roll.value = 0;
+      p.roll.velocity = 0;
+      p.group.rotation.z = 0;
+    }
+  }
+
+  function assignClassicGates(live: Plant[]): void {
+    for (const p of live) p.gate = null;
+    if (live.length === 0) return;
+    let hx = 0;
+    let hz = 0;
+    for (const c of BEAUTY.cairnSpots) {
+      hx += c.x;
+      hz += c.z;
+    }
+    hx /= BEAUTY.cairnSpots.length;
+    hz /= BEAUTY.cairnSpots.length;
+    const nearest = (tx: number, tz: number, skip: Plant | null): Plant => {
+      let best = live[0];
+      let bestD = Infinity;
+      for (const p of live) {
+        if (p === skip) continue;
+        const d = Math.hypot(p.pos.x - tx, p.pos.z - tz);
+        if (d < bestD) {
+          bestD = d;
+          best = p;
+        }
+      }
+      return best;
+    };
+    const stones = nearest(LAGOON.center.x, LAGOON.center.z, null);
+    stones.gate = "stones";
+    nearest(hx, hz, stones).gate = "hill";
+  }
+
+  function scatterField(rand: () => number, n: number, gated: boolean): void {
+    const placed: Array<{ x: number; z: number }> = [];
+    plants.forEach((p, i) => {
+      if (i >= n) {
+        p.group.visible = false;
+        return;
+      }
+      p.group.visible = true;
+      const c = sampleLotusCell(rand, placed, spawnCtx);
+      placed.push(c);
+      p.pos.set(c.x, 0, c.z);
+      dressPlant(p);
+      p.homeX = p.pos.x;
+      p.homeZ = p.pos.z;
+      p.homeY = p.pos.y;
+      p.pop = 0;
+      p.bob.value = 0;
+      p.bob.velocity = 0;
+      p.roll.value = 0;
+      p.roll.velocity = 0;
+      p.group.rotation.z = 0;
+    });
+    const live = plants.filter((p) => p.group.visible);
+    if (gated) {
+      assignClassicGates(live);
+      for (const p of live) p.homeGate = p.gate;
+    } else {
+      for (const p of live) {
+        p.gate = null;
+        p.homeGate = null;
+      }
+    }
+  }
 
   for (const s of spots) {
-    let gate: LotusGate = null;
-    if (s.zone === "deep" && s.indexInZone >= PUZZLE.deepGatedFromIndex) {
-      gate = "stones";
-    } else if (s.zone === "cove" && coveGatedLeft > 0) {
-      gate = "hill";
-      coveGatedLeft -= 1;
-    }
-
     const g = new THREE.Group();
     const gy = LAGOON.waterY;
     g.position.set(s.x, gy, s.z);
     g.rotation.y = rand() * Math.PI * 2;
 
+    const pads: THREE.Mesh[] = [];
     const padCount = 2 + Math.floor(rand() * 3);
     for (let p = 0; p < padCount; p++) {
       const pad = new THREE.Mesh(padGeo, rand() < 0.4 ? padMatLight : padMat);
@@ -219,6 +297,7 @@ export function buildLotusField(): LotusField {
       pad.position.set(Math.cos(pa) * pd, 0.015 + p * 0.004, Math.sin(pa) * pd);
       pad.rotation.y = rand() * Math.PI * 2;
       g.add(pad);
+      pads.push(pad);
     }
 
     const stem = new THREE.Mesh(stemGeo, stemMat);
@@ -255,18 +334,21 @@ export function buildLotusField(): LotusField {
       group: g,
       bloom,
       halo,
+      pads,
       phase: rand() * 6.28,
       pop: 0,
       zone: s.zone,
-      gate,
+      gate: null,
+      wet: false,
       bob: { value: 0, velocity: 0 },
       roll: { value: 0, velocity: 0 },
       homeX: s.x,
       homeZ: s.z,
       homeY: gy,
-      homeGate: gate,
+      homeGate: null,
     };
     plants.push(plant);
+    dressPlant(plant);
     applyStage(plant);
   }
 
@@ -292,7 +374,10 @@ export function buildLotusField(): LotusField {
     const c = sampleLotusCell(rand, others, spawnCtx);
     const y = plantGroundY(c.x, c.z);
     p.pos.set(c.x, y, c.z);
-    p.group.position.set(c.x, y, c.z);
+    dressPlant(p);
+    p.homeX = p.pos.x;
+    p.homeZ = p.pos.z;
+    p.homeY = p.pos.y;
     p.stage = "bud";
     p.timer = 0;
     p.duration = baseDuration("bud");
@@ -367,19 +452,19 @@ export function buildLotusField(): LotusField {
         p.pop = Math.max(0, p.pop - dt * 4.5);
         const popScale = 1 + p.pop * 0.55;
 
-        // Lagoon swell. A two-sine wave is the *target*; springs chase it so
-        // each pad lags the water slightly instead of riding the sine exactly
-        // — that lag is what makes a field of them read as floating.
-        const wave =
-          Math.sin(t * 1.15 + p.phase) * LOTUS_PHYSICS.bobWaveAmp +
-          Math.sin(t * 2.35 + p.phase * 1.6) * LOTUS_PHYSICS.bobWaveAmp * 0.45;
+        const wet = p.wet;
+        const wave = wet
+          ? Math.sin(t * 1.15 + p.phase) * LOTUS_PHYSICS.bobWaveAmp +
+            Math.sin(t * 2.35 + p.phase * 1.6) * LOTUS_PHYSICS.bobWaveAmp * 0.45
+          : 0;
         springStep(p.bob, wave, LOTUS_PHYSICS.bobStiffness, LOTUS_PHYSICS.bobDamping, dt);
 
-        const rollTarget = Math.sin(t * 0.85 + p.phase * 1.2) * LOTUS_PHYSICS.rollWaveAmp;
+        const rollTarget = wet
+          ? Math.sin(t * 0.85 + p.phase * 1.2) * LOTUS_PHYSICS.rollWaveAmp
+          : 0;
         springStep(p.roll, rollTarget, LOTUS_PHYSICS.rollStiffness, LOTUS_PHYSICS.rollDamping, dt);
-        // Roll tilts the whole plant (pads + stem). The bloom is a billboard
-        // sprite, so it only translates with the tilt — it never shears.
         p.group.rotation.z = p.roll.value;
+        if (!wet) p.group.position.y = plantGroundY(p.pos.x, p.pos.z);
 
         const look = LOOK[p.stage];
         const baseY = look.y + p.bob.value;
@@ -476,7 +561,6 @@ export function buildLotusField(): LotusField {
       if (ctx) spawnCtx = ctx;
       const re = mulberry32(ctx?.seed ?? 77002);
       if (WORLD.k35) {
-        const placed: Array<{ x: number; z: number }> = [];
         const stages: LotusStage[] = ["ripe", "half", "bud", "bud", "half"];
         for (let i = stages.length - 1; i > 0; i--) {
           const j = Math.floor(re() * (i + 1));
@@ -484,46 +568,23 @@ export function buildLotusField(): LotusField {
           stages[i] = stages[j];
           stages[j] = tmp;
         }
+        scatterField(re, LOTUS.edgeCount, false);
         plants.forEach((p, i) => {
-          if (i >= LOTUS.edgeCount) {
-            p.group.visible = false;
-            return;
-          }
-          p.group.visible = true;
-          p.gate = null;
-          const c = sampleLotusCell(re, placed, spawnCtx);
-          placed.push(c);
-          const y = plantGroundY(c.x, c.z);
-          p.pos.set(c.x, y, c.z);
-          p.group.position.set(c.x, y, c.z);
+          if (!p.group.visible) return;
           p.stage = stages[i] ?? "bud";
           p.timer = re() * baseDuration(p.stage) * 0.4;
           p.duration = baseDuration(p.stage);
-          p.pop = 0;
-          p.bob.value = 0;
-          p.bob.velocity = 0;
-          p.roll.value = 0;
-          p.roll.velocity = 0;
-          p.group.rotation.z = 0;
           applyStage(p);
         });
         highlight.visible = false;
         return;
       }
+      scatterField(re, LOTUS.count, true);
       for (const p of plants) {
-        p.group.visible = true;
-        p.gate = p.homeGate;
-        p.pos.set(p.homeX, p.homeY, p.homeZ);
-        p.group.position.set(p.homeX, p.homeY, p.homeZ);
+        if (!p.group.visible) continue;
         p.stage = STAGE_ORDER[Math.floor(re() * 4)];
         p.timer = re() * baseDuration(p.stage);
         p.duration = baseDuration(p.stage) * (1 + (re() - 0.5) * LOTUS.timeJitter);
-        p.pop = 0;
-        p.bob.value = 0;
-        p.bob.velocity = 0;
-        p.roll.value = 0;
-        p.roll.velocity = 0;
-        p.group.rotation.z = 0;
         applyStage(p);
       }
       highlight.visible = false;
