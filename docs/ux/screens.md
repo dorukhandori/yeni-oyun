@@ -146,7 +146,27 @@ Lotus Adası’nın **uydusu**, dördüncü durak değil. Haritada ada düğüm�
 | Tıklanınca | Asıl Lotus koşusu (12, batış kayıp) | K35 kenar görev (5, gün döner) |
 | Kiklop kilidi | 5 teslim + dümen | Aynı — ayrı sayaç yok |
 
-Kiklop/Sirenler’e kenar görev yok. Tab sırası: kenar görev → Lotus → (kilitliler) → Ana menü.
+Kiklop/Sirenler’e kenar görev yok. Tab sırası: kenar görev → Lotus → (kilitliler) → **Sıralama** → Ana menü.
+
+**Speedrun eklentisi (19 Ağu 2026, Paca LOT-58).** Kenar görev tıklaması artık koşuyu doğrudan başlatmıyor; araya bir **takma ad modalı** giriyor (`#nickPanel`). Kurallar:
+
+- Modal `role="dialog" aria-modal="true"`, Esc kapatır, kapanınca odak kenar görev düğmesine döner.
+- **Koşuyu başlatan gerçek kullanıcı jesti artık modaldaki “Başla” düğmesidir.** `requestPlayFullscreen()` bu düğmenin tıklama işleyicisine taşındı — harita tıklamasında kalırsa mobilde tam ekran sessizce çalışmaz. Landscape kilidi bu yola **eklenmedi**: bu yolda hiç yoktu, `Oyna` girişte zaten istiyor ve komşu Lotus kartı da aynı şekilde davranıyor.
+- Ad alanı 2–16 karakter, harf/rakamla başlar ve biter; kural sunucudakiyle birebir aynı (`gdd-lotus-island-run.md` §10.4). Girdi punto’su 17 px — iOS Safari 16 px altında odakta sayfayı zorla yakınlaştırıyor.
+- **Sıralama** ekranı (`#boardPanel`) Hub’dan “Sıralama” düğmesiyle ve bitmiş bir K35 koşusundan Hub’a dönüldüğünde otomatik açılır. Dört durum + bir başarı varyantı: yükleniyor · boş · çevrimdışı/alınamadı (+ “Yeniden dene”) · gönderilemedi · **`kept`** (“gönderildi ama eski rekorun daha hızlıydı” — hata değil).
+- Durum satırları **ikon + metin** taşır, yalnız renk değil (§3.5). Süreler `MM:SS.cc` ve `font-variant-numeric: tabular-nums`.
+- Modal ve sıralama düğmeleri `min-height: 44px` — `.menu-btn.ghost` kendi başına ~43 px’te kalıyordu.
+
+**Canlı koşu sayacı (HUD, sahip isteği 19 Ağu 2026).** Koşu sırasında ekranda `MM:SS.cc` bir sayaç var (`#runClock`, `hud.ts` + `hud.css`):
+
+- **Yalnız K35.** `WORLD.k35` **ve** faz `play` ya da `departing` iken görünür — yani `st.runSteps`’in arttığı tam iki faz (`gdd-lotus-island-run.md` §10.2), böylece ekrandaki sayı ile tabloya giden sayı asla ayrışamaz. Klasik 12’li koşu bu elemanı hiç görmez; `real` profilde unutuş barının olmaması kuralının aynısı.
+- **Yer:** güneş saatinin altında, ortada. Sol üst görev paneli, sağ üst unutuş barı + tam ekran düğmesi tarafından tutulu; çakışmayan tek şerit bu.
+- **Biçim:** `src/format.ts`’teki `formatRunTime` — leaderboard sütunuyla **aynı fonksiyon**, `font-variant-numeric: tabular-nums`. Santisaniyeye yuvarlamıyor, kırpıyor (ileri atlamış gibi okunmasın).
+- **Okunabilirlik:** unutuş sisiyle sönüyor ama `RUN_CLOCK.minOpacity` (0,55) tabanının altına inmiyor — HUD’ın geri kalanı 0,18’e kadar sönüyor; bir yarış aleti okunamaz hâle gelirse oyuncu aynı hatadan iki kez cezalanır. Kontrast ölçüldü: değer 12,83:1, etiket 7,4:1.
+- **Temizlenme:** `goHub()` / `goTitle()` sayacı açıkça gizliyor. Title/Hub’da `step()` erken döndüğü için `update()` hiç çalışmaz ve son değer menülerin arkasında donmuş kalırdı.
+- Salt bilgi metni, `pointer-events: none` — dokunma hedefi kuralı geçerli değil, sekme sırasına girmiyor.
+
+Ekran görüntüsü koşum takımı (`scripts/asset-qa`) `fullRestart()`’ı test kancasından çağırdığı için modaldan **etkilenmiyor**; kanca menüyü hiç kullanmıyor.
 
 ### Wireframe — Hub
 

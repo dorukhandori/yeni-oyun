@@ -968,6 +968,58 @@ export const LOTOPHAGOS = {
   ],
 };
 
+/**
+ * Live K35 run clock shown in the HUD (docs/ux/screens.md §3.6). Only the
+ * numbers the HUD code needs live here; the clock's colours and geometry are
+ * ordinary CSS in ui/hud.css, same as every other HUD panel.
+ */
+export const RUN_CLOCK = {
+  /**
+   * Opacity floor under the memory haze. The rest of the HUD sinks to 0.18 as
+   * forgetting takes hold (that IS the memory system), but this readout is a
+   * competition instrument, not a diegetic panel — a speedrunner who cannot
+   * read their own time has been punished twice for the same mistake. It still
+   * dims, just never past legibility.
+   */
+  minOpacity: 0.55,
+} as const;
+
+/**
+ * K35 "Beş yeter" online speedrun leaderboard — the project's only network
+ * dependency (docs/design/gdd-lotus-island-run.md §10, Paca LOT-54..59).
+ *
+ * These numbers are a MIRROR, not the authority: the real gate lives in
+ * scripts/supabase/k35-leaderboard.sql. The client copy exists so an obviously
+ * invalid submission is caught before a round trip, never as a security
+ * boundary — a static client cannot enforce anything (GDD §10.6).
+ */
+export const NET = {
+  leaderboard: {
+    /**
+     * Abort a submit/fetch after this long. Deliberately larger than
+     * FLOW.departSeconds (7 s) so a slow network cannot outlive the departure
+     * cinematic the submit is fired behind.
+     */
+    timeoutMs: 8000,
+    /** Rows pulled for the board — one readable screenful (GDD §10.4). */
+    topLimit: 20,
+    /**
+     * Floor for an accepted run, ms. PLACEHOLDER, NOT A MEASUREMENT — chosen
+     * deliberately low so no legitimate run is ever rejected. QA replaces it
+     * with ~60% of a real measured speedrun (tuning.md §11.6, Paca LOT-59) and
+     * must update the SQL in the same pass.
+     */
+    minTimeMs: 45_000,
+    /** Ceiling for an accepted run, ms (2 h) — overflow/garbage filter. */
+    maxTimeMs: 7_200_000,
+    /** Nick length bounds — byte-for-byte the server rule (GDD §10.4). */
+    nickMin: 2,
+    nickMax: 16,
+  },
+  /** localStorage key for the remembered nick. Safari private mode throws on write — always guarded. */
+  nickStorageKey: "lotophagoi.k35.nick",
+} as const;
+
 /** Hero home hull only — twelve-ship fleet retired (LOT-52). */
 export const FLEET = {
   count: 1,

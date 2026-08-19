@@ -61,6 +61,15 @@
           <div class="sun-label" id="sunLabel">Öğleden sonra</div>
         </div>
 
+        <!-- Live K35 run clock. Hidden by default and only ever unhidden for
+             the "Beş yeter" run (hud.ts) — the classic 12-lotus run has no
+             timer at all. Sits under the sun clock: top-left is the quest
+             panel, top-right the memory bar + fullscreen toggle. -->
+        <div class="run-clock" id="runClock" hidden>
+          <span class="run-clock-label">Süre</span>
+          <span class="run-clock-value" id="runClockValue">00:00.00</span>
+        </div>
+
         <div class="prompt" id="prompt"></div>
         <div class="toast" id="toast"></div>
 
@@ -192,7 +201,76 @@
               </div>
             </div>
           </div>
-          <button type="button" class="menu-btn ghost" id="btnHubMenu">Ana menü</button>
+          <div class="hub-actions">
+            <button type="button" class="menu-btn ghost" id="btnBoard">Sıralama</button>
+            <button type="button" class="menu-btn ghost" id="btnHubMenu">Ana menü</button>
+          </div>
+        </div>
+
+        <!-- Nick modal — sits between the "Beş yeter" click and fullRestart("edge").
+             Its "Başla" button is now the guaranteed user gesture the fullscreen
+             request rides on (docs/ux/screens.md §3.6, Paca LOT-58). -->
+        <div
+          class="sub-panel"
+          id="nickPanel"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="nickTitle"
+        >
+          <div class="sub-panel-inner parchment-panel">
+            <h2 id="nickTitle">Beş yeter</h2>
+            <p>Süre tutulur. Bitirdiğinde adın ve sürenle tabloya yazılırsın.</p>
+            <label class="nick-label" for="nickInput">Denizci adın</label>
+            <input
+              type="text"
+              id="nickInput"
+              class="nick-input"
+              maxlength="16"
+              autocomplete="nickname"
+              autocapitalize="off"
+              autocorrect="off"
+              spellcheck="false"
+              placeholder="Doryseus"
+              aria-describedby="nickHint nickError"
+            />
+            <p class="nick-hint" id="nickHint">2–16 karakter. Harf veya rakamla başla ve bitir.</p>
+            <p class="board-status" id="nickError" role="alert" hidden>
+              <span class="board-status-icon" aria-hidden="true"></span>
+              <span class="board-status-text"></span>
+            </p>
+            <div class="nick-actions">
+              <button type="button" class="menu-btn primary" id="btnNickStart">Başla</button>
+              <button type="button" class="menu-btn ghost" id="btnNickCancel">Vazgeç</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Leaderboard — reachable from the Hub and opened automatically after a
+             finished K35 run (Paca LOT-58). Four states: loading / empty /
+             offline-failed / submit-failed, plus the "kept" success case. -->
+        <div
+          class="sub-panel"
+          id="boardPanel"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="boardTitle"
+        >
+          <div class="sub-panel-inner board-inner parchment-panel">
+            <h2 id="boardTitle">En hızlılar — Beş yeter</h2>
+            <p class="board-status" id="boardSubmit" hidden>
+              <span class="board-status-icon" aria-hidden="true"></span>
+              <span class="board-status-text"></span>
+            </p>
+            <p class="board-status" id="boardStatus" role="status">
+              <span class="board-status-icon" aria-hidden="true"></span>
+              <span class="board-status-text"></span>
+            </p>
+            <ol class="board-list" id="boardList"></ol>
+            <div class="nick-actions">
+              <button type="button" class="menu-btn ghost" id="btnBoardRetry" hidden>Yeniden dene</button>
+              <button type="button" class="menu-btn ghost" id="btnBoardBack">Geri</button>
+            </div>
+          </div>
         </div>
       </div>
 

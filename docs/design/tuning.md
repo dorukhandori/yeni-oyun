@@ -308,6 +308,15 @@ Bu üç değer **oynanır sürüm elde olmadan değiştirilmeyecek.** Masa baş�
 - **Karar kriteri:** oyuncular figürleri hiç fark etmiyorsa (ya eşik çok geç geliyor ya da temas riski hiç hissedilmiyor) `HALLUCINATION_THRESHOLD` düşürülür ve/veya `HALLUCINATION_CREATURE_COUNT`/`HALLUCINATION_ROUTE_BIAS_RADIUS` artırılır. Temas sıklıkla oluyor ve oyuncular "adaletsiz" buluyorsa `HALLUCINATION_CONTACT_MEM_SPIKE` düşürülür ya da `HALLUCINATION_CONTACT_RADIUS` daraltılır.
 - **Uyarı:** bu ikisi `MEM_SEA_RECOVER`/`MEM_PER_DELIVERED` çiftiyle aynı anda değiştirilmez — sanrı sisteminin kendi bütçesi, unutuşun temel oranlarından ayrı ölçülmeli, yoksa hangi değişikliğin işe yaradığı belirsizleşir.
 
+### 11.6 `NET.leaderboard.minTimeMs` = 45 000 ms 🔬 (yeni, 19 Ağu 2026 — yalnız K35)
+
+- **Ne:** K35 "Beş yeter" online leaderboard'unun kabul ettiği **en kısa** süre. Bunun altındaki gönderimler sunucu tarafında reddedilir (`time_invalid`).
+- **Statü: bu bir ölçüm değil, placeholder.** Meşru hiçbir koşuyu reddetmesin diye kasten çok düşük seçildi. Şu an gerçek bir speedrun süresi elimizde yok.
+- **Ölçülecek:** `real` profilde bilerek yapılmış, oyunu bilen bir oyuncunun 5 lotusu teslim edip dümene geçtiği en hızlı koşunun süresi (ayrılış sinematiği dahil — bkz. `gdd-lotus-island-run.md` §10.2, `FLOW.departSeconds` skora dahildir).
+- **Karar kriteri:** ölçülen en hızlı sürenin **~%60'ı** yeni değer olur. Yani 3:00'lık bir speedrun ölçülürse eşik ~108 000 ms'ye çıkar.
+- **Uyarı:** bu sayı **iki yerde** yaşıyor — `src/constants.ts` (`NET.leaderboard.minTimeMs`, yalnız erken uyarı kopyası) ve `scripts/supabase/k35-leaderboard.sql` (otorite). **İkisi aynı anda güncellenmeli**, yoksa istemci geçirdiği bir skorun sunucudan reddedildiğini görür. Eşiğin tasarım evi `gdd-lotus-island-run.md` §10.5'tir.
+- **Sahibi:** QA — Paca LOT-59.
+
 ### Playtest ölçüm listesi (kısa)
 
 | # | Ölçülen | Nasıl | Eşik |
@@ -320,6 +329,7 @@ Bu üç değer **oynanır sürüm elde olmadan değiştirilmeyecek.** Masa baş�
 | 6 | Kayıp finaline ulaşma oranı | Otomatik log | %0 ise unutuş etkisiz, %80+ ise çok sert |
 | 7 | Durak geçişinde taşınan unutuşun sonraki durağı ne kadar zorlaştırdığı | Otomatik log | Bkz. §11.4 |
 | 8 | Sanrı figürü temas sıklığı ve oyuncu tepkisi | Otomatik log + sözlü | Bkz. §11.5 |
+| 9 | K35 bilinçli speedrun'un en hızlı süresi | Elle ölçüm (`real`, tek koşu) | Bkz. §11.6 — `minTimeMs` = ölçülenin %60'ı |
 
 ---
 

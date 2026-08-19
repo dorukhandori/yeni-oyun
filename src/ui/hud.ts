@@ -1,4 +1,5 @@
-import { DAY, LOTUS, MEMORY, WORLD } from "../constants";
+import { DAY, LOTUS, MEMORY, RUN_CLOCK, STEP, WORLD } from "../constants";
+import { formatRunTime } from "../format";
 import type { GameState } from "../types";
 
 const NOTES: Array<[number, string]> = [
@@ -30,10 +31,15 @@ export class Hud {
   private sunArcFill = must("sunArcFill") as unknown as SVGGeometryElement;
   private sunDot = must("sunDot") as unknown as SVGCircleElement;
   private sunLabel = must("sunLabel");
+  private runClock = must("runClock");
+  private runClockValue = must("runClockValue");
   private toastTimer = 0;
   private cardShown = false;
   private onRestart: (() => void) | null = null;
   private warnedDusk = false;
+  /** Last string written to the clock — guards against a DOM write every frame. */
+  private runClockText = "";
+  private runClockOn = false;
 
   constructor(touch = false) {
     this.target.textContent = String(LOTUS.target);
@@ -110,6 +116,18 @@ export class Hud {
     this.card.classList.remove("on");
   }
 
+  /**
+   * Explicit clear for the leaving-the-world paths (goHub / goTitle). update()
+   * hides the clock on its own for every in-world phase change, but Title and
+   * Hub freeze the world — step() early-returns there, so update() never runs
+   * and the last value would stay frozen on screen behind the menus.
+   */
+  hideRunClock(): void {
+    this.runClockOn = false;
+    this.runClockText = "";
+    this.runClock.hidden = true;
+  }
+
   update(st: GameState, haze: number): void {
     this.target.textContent = String(LOTUS.target);
     if (WORLD.k35) {
@@ -131,6 +149,29 @@ export class Hud {
     }
 
     const fade = 1 - Math.min(1, st.memory / MEMORY.blindThreshold);
+
+    // ------------------------------------------------------------- run clock
+    // K35 only, and only while the clock is actually counting — the same two
+    // phases game.ts ticks st.runSteps in (gdd-lotus-island-run.md §10.2), so
+    // the number on screen can never disagree with the number submitted.
+    // The classic 12-lotus run has no timer and never sees this element.
+    const clockOn = WORLD.k35 && (st.phase === "play" || st.phase === "departing");
+    if (clockOn !== this.runClockOn) {
+      this.runClockOn = clockOn;
+      this.runClock.hidden = !clockOn;
+    }
+    if (clockOn) {
+      // formatRunTime truncates to centiseconds, so at 60 Hz this string only
+      // actually changes every other frame or so — comparing before writing
+      // keeps that from being a layout invalidation 60 times a second.
+      const text = formatRunTime(st.runSteps * STEP);
+      if (text !== this.runClockText) {
+        this.runClockText = text;
+        this.runClockValue.textContent = text;
+      }
+      this.runClock.style.opacity = String(Math.max(RUN_CLOCK.minOpacity, 0.18 + fade * 0.82));
+    }
+
     this.quest.style.opacity = String(0.18 + fade * 0.82);
     this.quest.style.filter = `blur(${Math.pow(1 - fade, 1.8) * 3.2}px)`;
     this.prompt.style.opacity = this.prompt.classList.contains("on")

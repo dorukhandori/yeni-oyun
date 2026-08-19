@@ -1,0 +1,61 @@
+name: Supabase keepalive
+
+# Supabase's free tier pauses a project after 7 days with no activity, which
+# would silently kill the K35 leaderboard between play sessions. One cheap read
+# a week keeps it awake.
+#
+# Setup: scripts/supabase/README.md §5-6. Until those are configured this job is
+# a deliberate no-op — it must never turn the repo's Actions tab red just
+# because the backend does not exist yet.
+
+on:
+  schedule:
+    # 06:17 UTC every Monday. Odd minute on purpose: GitHub's scheduler is
+    # heavily oversubscribed on the hour and drops/delays those runs.
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-keepalive
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST
+        env:
+          SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${SUPABASE_URL}" ] || [ -z "${SUPABASE_ANON_KEY}" ]; then
+            echo "Supabase env not configured yet — skipping (this is not a failure)."
+            echo "See scripts/supabase/README.md step 5."
+            exit 0
+          fi
+
+          url="${SUPABASE_URL%/}/rest/v1/k35_leaderboard?select=nick&limit=1"
+
+          # --fail is deliberately NOT used: we want to see and report the code
+          # ourselves rather than get a bare exit 22.
+          code=$(curl -sS -o /tmp/keepalive.json -w '%{http_code}' \
+            --max-time 30 \
+            -H "apikey: ${SUPABASE_ANON_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+            "${url}")
+
+          echo "HTTP ${code}"
+          head -c 400 /tmp/keepalive.json || true
+          echo
+
+          if [ "${code}" != "200" ]; then
+            echo "::error::Supabase keepalive got HTTP ${code} (expected 200). The project may be paused, the key rotated, or scripts/supabase/k35-leaderboard.sql not run."
+            exit 1
+          fi
+
+          echo "Supabase project is awake."
