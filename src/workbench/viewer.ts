@@ -18,6 +18,9 @@ export interface Viewer {
   setFrameHook(fn: ((dt: number) => void) | null): void;
   /** Recenter + redistance the orbit camera around whatever is loaded. */
   frameModel(): void;
+  /** Frame an arbitrary object (scene presets). */
+  frameObject(target: THREE.Object3D): void;
+  setBackdrop(mode: "studio" | "ocean"): void;
 }
 
 export function createViewer(canvas: HTMLCanvasElement): Viewer {
@@ -28,7 +31,9 @@ export function createViewer(canvas: HTMLCanvasElement): Viewer {
   renderer.toneMappingExposure = 1.0;
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x1b1d22);
+  const STUDIO_BG = 0x1b1d22;
+  const OCEAN_BG = 0x4a7a9a;
+  scene.background = new THREE.Color(STUDIO_BG);
 
   const camera = new THREE.PerspectiveCamera(45, 1, 0.05, 500);
   camera.position.set(2.4, 1.8, 3.2);
@@ -51,6 +56,25 @@ export function createViewer(canvas: HTMLCanvasElement): Viewer {
 
   const grid = new THREE.GridHelper(10, 20, 0x555a66, 0x2c2f38);
   scene.add(grid);
+
+  function frameObject(target: THREE.Object3D): void {
+    const box = new THREE.Box3().setFromObject(target);
+    if (box.isEmpty()) return;
+    const size = new THREE.Vector3();
+    const center = new THREE.Vector3();
+    box.getSize(size);
+    box.getCenter(center);
+    const radius = Math.max(size.length() * 0.5, 0.4);
+    controls.target.copy(center);
+    const dir = new THREE.Vector3().subVectors(camera.position, controls.target);
+    if (dir.lengthSq() < 1e-6) dir.set(0.6, 0.4, 1);
+    dir.normalize();
+    camera.position.copy(center).addScaledVector(dir, radius * 2.4);
+    camera.near = Math.max(0.01, radius / 100);
+    camera.far = Math.max(500, radius * 100);
+    camera.updateProjectionMatrix();
+    controls.update();
+  }
 
   const modelRoot = new THREE.Group();
   scene.add(modelRoot);
@@ -95,22 +119,13 @@ export function createViewer(canvas: HTMLCanvasElement): Viewer {
       frameHook = fn;
     },
     frameModel() {
-      const box = new THREE.Box3().setFromObject(modelRoot);
-      if (box.isEmpty()) return;
-      const size = new THREE.Vector3();
-      const center = new THREE.Vector3();
-      box.getSize(size);
-      box.getCenter(center);
-      const radius = Math.max(size.length() * 0.5, 0.4);
-      controls.target.copy(center);
-      const dir = new THREE.Vector3().subVectors(camera.position, controls.target);
-      if (dir.lengthSq() < 1e-6) dir.set(0.6, 0.4, 1);
-      dir.normalize();
-      camera.position.copy(center).addScaledVector(dir, radius * 2.4);
-      camera.near = Math.max(0.01, radius / 100);
-      camera.far = Math.max(500, radius * 100);
-      camera.updateProjectionMatrix();
-      controls.update();
+      frameObject(modelRoot);
+    },
+    frameObject,
+    setBackdrop(mode) {
+      const bg = scene.background;
+      if (bg instanceof THREE.Color) bg.setHex(mode === "ocean" ? OCEAN_BG : STUDIO_BG);
+      grid.visible = mode === "studio";
     },
   };
 }

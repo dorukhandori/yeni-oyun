@@ -8,7 +8,6 @@ import {
   cloneGltfBundle,
   pinClipBonePositions,
   restBonePositions,
-  tintGltf,
   type GltfBundle,
 } from "../world/gltf";
 import {
@@ -18,126 +17,114 @@ import {
   formatOptionLabel,
   type AssetCatalogEntry,
 } from "./catalog";
+import { WORKBENCH_PRESETS, type WorkbenchPreset } from "./presets";
+import { buildShipSeaPreview, type ScenePreview } from "./scenePreview";
 import { createViewer } from "./viewer";
 
-/**
- * Asset workbench entry — standalone, no `src/game.ts` import anywhere in
- * this module or its dependencies. `docs/production/asset-pipeline-loop-plan.md`
- * §4: a devtool for looking at a GLB/animation, not a game screen.
- */
+type Mode = "none" | "scene" | "asset";
 
-// ------------------------------------------------------------------- DOM refs
 const canvas = document.getElementById("wb-canvas") as HTMLCanvasElement;
 const statusEl = document.getElementById("wb-status") as HTMLElement;
-
-const tabModel = document.getElementById("wb-tab-model") as HTMLButtonElement;
-const tabAnim = document.getElementById("wb-tab-anim") as HTMLButtonElement;
-const panelModel = document.getElementById("wb-panel-model") as HTMLElement;
-const panelAnim = document.getElementById("wb-panel-anim") as HTMLElement;
-
-const dropZone = document.getElementById("wb-drop") as HTMLElement;
-const filePick = document.getElementById("wb-file-pick") as HTMLButtonElement;
-const fileInput = document.getElementById("wb-file-input") as HTMLInputElement;
-
-const modelListSelect = document.getElementById("wb-model-list") as HTMLSelectElement;
-const pathInput = document.getElementById("wb-path-input") as HTMLInputElement;
-const loadBundleBtn = document.getElementById("wb-load-bundle") as HTMLButtonElement;
-const loadModelBtn = document.getElementById("wb-load-model") as HTMLButtonElement;
-const clearBtn = document.getElementById("wb-clear") as HTMLButtonElement;
-
-const fitEnable = document.getElementById("wb-fit-enable") as HTMLInputElement;
-const fitMeters = document.getElementById("wb-fit-meters") as HTMLInputElement;
-const tintEnable = document.getElementById("wb-tint-enable") as HTMLInputElement;
-const tintColor = document.getElementById("wb-tint-color") as HTMLInputElement;
-
+const presetGrid = document.getElementById("wb-preset-grid") as HTMLElement;
+const liveControls = document.getElementById("wb-live-controls") as HTMLElement;
+const liveTitle = document.getElementById("wb-live-title") as HTMLElement;
+const sceneControls = document.getElementById("wb-scene-controls") as HTMLElement;
+const clipControls = document.getElementById("wb-clip-controls") as HTMLElement;
 const infoBox = document.getElementById("wb-info") as HTMLElement;
 
-const animEmpty = document.getElementById("wb-anim-empty") as HTMLElement;
-const animLoaded = document.getElementById("wb-anim-loaded") as HTMLElement;
-const clipsEmpty = document.getElementById("wb-clips-empty") as HTMLElement;
-const clipHint = document.getElementById("wb-clip-hint") as HTMLElement;
-const clipControls = document.getElementById("wb-clip-controls") as HTMLElement;
+const departSlider = document.getElementById("wb-depart") as HTMLInputElement;
+const departVal = document.getElementById("wb-depart-val") as HTMLElement;
+const daySlider = document.getElementById("wb-day") as HTMLInputElement;
+const dayVal = document.getElementById("wb-day-val") as HTMLElement;
+const timeSpeed = document.getElementById("wb-time-speed") as HTMLInputElement;
+const timeSpeedVal = document.getElementById("wb-time-speed-val") as HTMLElement;
+
 const clipList = document.getElementById("wb-clip-list") as HTMLElement;
 const animToggle = document.getElementById("wb-anim-toggle") as HTMLButtonElement;
 const animRestart = document.getElementById("wb-anim-restart") as HTMLButtonElement;
 const animLoop = document.getElementById("wb-anim-loop") as HTMLInputElement;
-const animSpeed = document.getElementById("wb-anim-speed") as HTMLInputElement;
-const animSpeedVal = document.getElementById("wb-anim-speed-val") as HTMLElement;
 const animScrub = document.getElementById("wb-anim-scrub") as HTMLInputElement;
 const animScrubVal = document.getElementById("wb-anim-scrub-val") as HTMLElement;
 const animDur = document.getElementById("wb-anim-dur") as HTMLElement;
 const pinEnable = document.getElementById("wb-pin-enable") as HTMLInputElement;
 
+const dropZone = document.getElementById("wb-drop") as HTMLElement;
+const filePick = document.getElementById("wb-file-pick") as HTMLButtonElement;
+const fileInput = document.getElementById("wb-file-input") as HTMLInputElement;
+const modelListSelect = document.getElementById("wb-model-list") as HTMLSelectElement;
+const pathInput = document.getElementById("wb-path-input") as HTMLInputElement;
+const loadBundleBtn = document.getElementById("wb-load-bundle") as HTMLButtonElement;
+const loadModelBtn = document.getElementById("wb-load-model") as HTMLButtonElement;
+const fitEnable = document.getElementById("wb-fit-enable") as HTMLInputElement;
+const fitMeters = document.getElementById("wb-fit-meters") as HTMLInputElement;
 const extraClipListSelect = document.getElementById("wb-extra-clip-list") as HTMLSelectElement;
-const extraClipPath = document.getElementById("wb-extra-clip-path") as HTMLInputElement;
 const extraClipAdd = document.getElementById("wb-extra-clip-add") as HTMLButtonElement;
+const clearBtn = document.getElementById("wb-clear") as HTMLButtonElement;
 
-// -------------------------------------------------------------------- state
 const viewer = createViewer(canvas);
 const rawLoader = new GLTFLoader();
 
 let catalog: AssetCatalogEntry[] = [];
+let mode: Mode = "none";
+
+// Asset mode
 let bundle: GltfBundle | null = null;
 let animRoot: THREE.Object3D | null = null;
 let restMap: Map<string, THREE.Vector3> = new Map();
 let mixer: THREE.AnimationMixer | null = null;
 let actions: THREE.AnimationAction[] = [];
 let activeClipIndex = -1;
+let pendingClipName = "";
+
+// Scene mode
+let scenePreview: ScenePreview | null = null;
+let sceneTime = 0;
+let departing = 0;
+let day01 = 0.35;
+
+// Shared playback
 let playing = true;
 let scrubDragging = false;
-let loadedFromLabel = "";
+let timeScale = 1;
 
 function setStatus(msg: string): void {
   statusEl.textContent = msg;
 }
 
-function switchTab(which: "model" | "anim"): void {
-  const onModel = which === "model";
-  tabModel.classList.toggle("active", onModel);
-  tabAnim.classList.toggle("active", !onModel);
-  panelModel.hidden = !onModel;
-  panelAnim.hidden = onModel;
-}
-tabModel.addEventListener("click", () => switchTab("model"));
-tabAnim.addEventListener("click", () => switchTab("anim"));
-
-function assetPath(entry: AssetCatalogEntry): string {
-  return `assets/models/${entry.file}`;
+function setPresetActive(id: string): void {
+  for (const btn of presetGrid.querySelectorAll<HTMLButtonElement>(".wb-preset")) {
+    btn.classList.toggle("active", btn.dataset.presetId === id);
+  }
 }
 
-// ------------------------------------------------------------------- stats
-function computeStats(root: THREE.Object3D): { meshes: number; tris: number; hasSkin: boolean } {
-  let meshes = 0;
-  let tris = 0;
-  let hasSkin = false;
-  root.traverse((obj) => {
-    const mesh = obj as THREE.Mesh;
-    if (!mesh.isMesh) return;
-    meshes += 1;
-    const geo = mesh.geometry;
-    const idx = geo.getIndex();
-    const posCount = geo.getAttribute("position")?.count ?? 0;
-    tris += idx ? idx.count / 3 : posCount / 3;
-    if ((mesh as THREE.SkinnedMesh).isSkinnedMesh) hasSkin = true;
-  });
-  return { meshes, tris: Math.round(tris), hasSkin };
+function showLiveControls(kind: "scene" | "asset" | "none", title: string): void {
+  if (kind === "none") {
+    liveControls.hidden = true;
+    return;
+  }
+  liveControls.hidden = false;
+  liveTitle.textContent = title;
+  sceneControls.hidden = kind !== "scene";
+  clipControls.hidden = kind !== "asset";
 }
 
-function renderInfo(root: THREE.Object3D, clipCount: number, note?: string): void {
-  const { meshes, tris, hasSkin } = computeStats(root);
-  const box = new THREE.Box3().setFromObject(root);
-  const size = new THREE.Vector3();
-  box.getSize(size);
-  infoBox.innerHTML = `
-    <dl>
-      <dt>Mesh</dt><dd>${meshes}</dd>
-      <dt>Üçgen</dt><dd>${tris.toLocaleString("tr-TR")}</dd>
-      <dt>Rig (skin)</dt><dd>${hasSkin ? "var" : "yok"}</dd>
-      <dt>Animasyon klibi</dt><dd>${clipCount}</dd>
-      <dt>Kutu (m)</dt><dd>${size.x.toFixed(2)} × ${size.y.toFixed(2)} × ${size.z.toFixed(2)}</dd>
-      ${note ? `<dt>Not</dt><dd style="text-align:left">${note}</dd>` : ""}
-    </dl>
-  `;
+function clearAll(): void {
+  mode = "none";
+  setPresetActive("");
+  bundle = null;
+  animRoot = null;
+  scenePreview = null;
+  sceneTime = 0;
+  if (mixer) mixer.stopAllAction();
+  mixer = null;
+  actions = [];
+  activeClipIndex = -1;
+  viewer.setMixer(null);
+  viewer.setModel(null);
+  viewer.setBackdrop("studio");
+  showLiveControls("none", "");
+  clipList.innerHTML = "";
+  infoBox.innerHTML = `<p class="wb-empty">Henüz bir önizleme seçilmedi.</p>`;
 }
 
 function activeAction(): THREE.AnimationAction | null {
@@ -148,13 +135,11 @@ function updateScrubberUi(): void {
   const action = activeAction();
   if (!action) {
     animScrub.disabled = true;
-    animScrub.value = "0";
     animScrubVal.textContent = "0.00";
     animDur.textContent = "0.00";
     return;
   }
-  const clip = action.getClip();
-  const dur = clip.duration > 0 ? clip.duration : 1;
+  const dur = action.getClip().duration > 0 ? action.getClip().duration : 1;
   animScrub.disabled = false;
   animScrub.max = String(dur);
   const t = scrubDragging ? Number(animScrub.value) : action.time;
@@ -163,64 +148,28 @@ function updateScrubberUi(): void {
   animDur.textContent = dur.toFixed(2);
 }
 
-viewer.setFrameHook(() => {
+viewer.setFrameHook((dt) => {
+  if (!playing || timeScale <= 0) return;
+  const step = dt * timeScale;
+
+  if (mode === "scene" && scenePreview) {
+    sceneTime += step;
+    scenePreview.update(sceneTime, departing, viewer.camera, day01);
+    return;
+  }
+
   if (!scrubDragging) updateScrubberUi();
 });
 
-// -------------------------------------------------------------- animation UI
-function stopMixer(): void {
-  if (mixer) mixer.stopAllAction();
-  mixer = null;
-  actions = [];
-  activeClipIndex = -1;
-  updateScrubberUi();
-}
-
-function showClipHint(msg: string): void {
-  if (!msg) {
-    clipHint.hidden = true;
-    clipHint.textContent = "";
-    return;
-  }
-  clipHint.hidden = false;
-  clipHint.textContent = msg;
-}
-
 function rebuildActions(): void {
-  if (!bundle || !animRoot) {
-    animEmpty.hidden = false;
-    animLoaded.hidden = true;
-    stopMixer();
+  if (mode !== "asset" || !bundle || !animRoot) {
     viewer.setMixer(null);
-    showClipHint("");
     return;
   }
-  animEmpty.hidden = true;
-  animLoaded.hidden = false;
-
-  if (bundle.animations.length === 0) {
-    clipsEmpty.hidden = false;
-    clipControls.hidden = true;
-    stopMixer();
-    viewer.setMixer(null);
-    const rig = loadedFromLabel ? findRigForAnimPreview(
-      catalog.find((e) => e.file === loadedFromLabel) ?? { file: loadedFromLabel, meshes: 1, skins: 0, anims: 0, animNames: [], kind: "mesh" },
-      catalog,
-    ) : null;
-    showClipHint(
-      rig
-        ? `Bu dosyada iskelet/klip yok. Animasyon için listeden "${rig.file}" seçin.`
-        : "",
-    );
-    return;
-  }
-  clipsEmpty.hidden = true;
-  clipControls.hidden = false;
-  showClipHint("");
 
   const prevIndex = activeClipIndex;
-  stopMixer();
-  // Mixer root must be the loaded glTF scene (bones live here), not the empty wrapper group.
+  const prevName = bundle.animations[prevIndex]?.name ?? pendingClipName;
+  if (mixer) mixer.stopAllAction();
   mixer = new THREE.AnimationMixer(animRoot);
   viewer.setMixer(mixer);
 
@@ -230,7 +179,6 @@ function rebuildActions(): void {
     const action = mixer!.clipAction(src);
     action.setLoop(animLoop.checked ? THREE.LoopRepeat : THREE.LoopOnce, Infinity);
     action.clampWhenFinished = !animLoop.checked;
-    action.timeScale = Number(animSpeed.value) || 1;
     return action;
   });
 
@@ -244,15 +192,21 @@ function rebuildActions(): void {
     clipList.appendChild(btn);
   });
 
-  const startIndex = prevIndex >= 0 && prevIndex < actions.length ? prevIndex : 0;
-  playClip(startIndex);
+  let start = 0;
+  if (prevName) {
+    const idx = bundle.animations.findIndex((c) => c.name === prevName);
+    if (idx >= 0) start = idx;
+  } else if (prevIndex >= 0 && prevIndex < actions.length) {
+    start = prevIndex;
+  }
+  playClip(start);
+  pendingClipName = "";
 }
 
 function playClip(index: number): void {
   if (!actions[index]) return;
   actions.forEach((a, i) => {
-    if (i === index) return;
-    a.stop();
+    if (i !== index) a.stop();
   });
   activeClipIndex = index;
   const action = actions[index];
@@ -263,6 +217,191 @@ function playClip(index: number): void {
   updateScrubberUi();
 }
 
+function renderInfo(html: string): void {
+  infoBox.innerHTML = html;
+}
+
+function mountAsset(scene: THREE.Group, animations: THREE.AnimationClip[], label: string): void {
+  lightGltf(scene);
+  scene.traverse((obj) => {
+    const skinned = obj as THREE.SkinnedMesh;
+    if (skinned.isSkinnedMesh) skinned.frustumCulled = false;
+  });
+  restMap = restBonePositions(scene);
+  if (fitEnable.checked) fitGltfHeight(scene, Number(fitMeters.value) || 1.8);
+
+  animRoot = scene;
+  viewer.setBackdrop("studio");
+  viewer.setModel(scene);
+  viewer.frameModel();
+
+  let skin = false;
+  let tris = 0;
+  scene.traverse((obj) => {
+    const mesh = obj as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    const geo = mesh.geometry;
+    const idx = geo.getIndex();
+    const pos = geo.getAttribute("position")?.count ?? 0;
+    tris += idx ? idx.count / 3 : pos / 3;
+    if ((mesh as THREE.SkinnedMesh).isSkinnedMesh) skin = true;
+  });
+
+  renderInfo(`
+    <dl>
+      <dt>Kaynak</dt><dd>${label}</dd>
+      <dt>Rig</dt><dd>${skin ? "var" : "yok"}</dd>
+      <dt>Klip</dt><dd>${animations.length}</dd>
+      <dt>Üçgen</dt><dd>${Math.round(tris).toLocaleString("tr-TR")}</dd>
+    </dl>
+  `);
+
+  bundle = { scene, animations };
+  rebuildActions();
+  showLiveControls("asset", "Karakter klipleri");
+}
+
+async function appendClipsFromPath(path: string): Promise<number> {
+  if (!bundle) return 0;
+  const extra = await loadGltfBundle(path);
+  const existing = new Set(bundle.animations.map((c) => c.name));
+  const fresh = extra.animations.filter((c) => !existing.has(c.name));
+  if (fresh.length === 0) return 0;
+  bundle.animations = [...bundle.animations, ...fresh];
+  rebuildActions();
+  return fresh.length;
+}
+
+async function loadCatalogEntry(entry: AssetCatalogEntry, clipName?: string): Promise<void> {
+  pendingClipName = clipName ?? "";
+  if (entry.kind === "clip-only") {
+    const rig =
+      findVisibleMesh(entry, catalog)?.skins
+        ? findVisibleMesh(entry, catalog)
+        : findRigForAnimPreview({ ...entry, meshes: 0, skins: 0 }, catalog);
+    if (!rig) {
+      setStatus(`"${entry.file}" için rig bulunamadı.`);
+      return;
+    }
+    const b = await loadGltfBundle(`assets/models/${rig.file}`);
+    mountAsset(cloneGltfBundle(b), b.animations, rig.file);
+    await appendClipsFromPath(`assets/models/${entry.file}`);
+    setStatus(`Yüklendi: ${entry.file} (+ rig ${rig.file})`);
+    return;
+  }
+
+  const rigRedirect = findRigForAnimPreview(entry, catalog);
+  if (rigRedirect) {
+    const b = await loadGltfBundle(`assets/models/${rigRedirect.file}`);
+    mountAsset(cloneGltfBundle(b), b.animations, rigRedirect.file);
+    setStatus(`"${entry.file}" iskeletsiz — rig yüklendi: ${rigRedirect.file}`);
+    for (const donor of findClipDonors(entry, catalog)) {
+      await appendClipsFromPath(`assets/models/${donor.file}`);
+    }
+    return;
+  }
+
+  const path = `assets/models/${entry.file}`;
+  if (entry.anims > 0) {
+    const b = await loadGltfBundle(path);
+    mountAsset(cloneGltfBundle(b), b.animations, entry.file);
+  } else {
+    const scene = await loadGltf(path);
+    mountAsset(scene, [], entry.file);
+  }
+  setStatus(`Yüklendi: ${entry.file}`);
+  if (clipName) {
+    const idx = bundle?.animations.findIndex((c) => c.name === clipName) ?? -1;
+    if (idx >= 0) playClip(idx);
+  }
+}
+
+async function loadAssetPreset(preset: WorkbenchPreset): Promise<void> {
+  clearAll();
+  mode = "asset";
+  setPresetActive(preset.id);
+  setStatus(`Yükleniyor: ${preset.label}…`);
+  const file = preset.path?.split("/").pop() ?? "";
+  const entry = catalog.find((e) => e.file === file);
+  if (entry) {
+    await loadCatalogEntry(entry, preset.clip);
+  } else if (preset.path) {
+    pathInput.value = preset.path;
+    const b = await loadGltfBundle(preset.path);
+    mountAsset(cloneGltfBundle(b), b.animations, preset.path);
+    if (preset.clip) {
+      const idx = bundle?.animations.findIndex((c) => c.name === preset.clip) ?? -1;
+      if (idx >= 0) playClip(idx);
+    }
+    setStatus(`Yüklendi: ${preset.path}`);
+  }
+}
+
+function loadScenePreset(preset: WorkbenchPreset): void {
+  clearAll();
+  mode = "scene";
+  setPresetActive(preset.id);
+  scenePreview = buildShipSeaPreview();
+  viewer.setBackdrop("ocean");
+  viewer.setModel(scenePreview.group);
+  viewer.frameObject(scenePreview.frameTarget());
+  cameraPullBackForSea();
+
+  renderInfo(`
+    <dl>
+      <dt>Sahne</dt><dd>Gemi + Gerstner deniz</dd>
+      <dt>Gemi GLB</dt><dd>statik mesh — hareket kodda</dd>
+      <dt>Dalgalar</dt><dd>shader + sampleOceanHull</dd>
+      <dt>İpucu</dt><dd style="text-align:left">"Ayrılış" kaydırıcısını artır — gemi uzaklaşır, yelken şişer.</dd>
+    </dl>
+  `);
+
+  showLiveControls("scene", "Gemi + dalgalar");
+  setStatus(`${preset.label} — canlı önizleme. Ayrılış kaydırıcısını dene.`);
+}
+
+/** Ship is large (~42 m); default orbit is too tight on the hull. */
+function cameraPullBackForSea(): void {
+  const cam = viewer.camera;
+  cam.position.multiplyScalar(1.55);
+  cam.position.y += 8;
+  cam.updateProjectionMatrix();
+}
+
+async function runPreset(preset: WorkbenchPreset): Promise<void> {
+  if (preset.kind === "scene") {
+    loadScenePreset(preset);
+    return;
+  }
+  await loadAssetPreset(preset);
+}
+
+// Preset grid
+for (const preset of WORKBENCH_PRESETS) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "wb-preset";
+  btn.dataset.presetId = preset.id;
+  btn.innerHTML = `<strong>${preset.label}</strong><span>${preset.hint}</span>`;
+  btn.addEventListener("click", () => void runPreset(preset));
+  presetGrid.appendChild(btn);
+}
+
+// Scene sliders
+departSlider.addEventListener("input", () => {
+  departing = Number(departSlider.value);
+  departVal.textContent = departing.toFixed(2);
+});
+daySlider.addEventListener("input", () => {
+  day01 = Number(daySlider.value);
+  dayVal.textContent = day01.toFixed(2);
+});
+
+timeSpeed.addEventListener("input", () => {
+  timeScale = Number(timeSpeed.value);
+  timeSpeedVal.textContent = timeScale.toFixed(2);
+});
+
 animToggle.addEventListener("click", () => {
   playing = !playing;
   animToggle.textContent = playing ? "Duraklat" : "Oynat";
@@ -271,6 +410,10 @@ animToggle.addEventListener("click", () => {
 });
 
 animRestart.addEventListener("click", () => {
+  if (mode === "scene") {
+    sceneTime = 0;
+    return;
+  }
   const action = activeAction();
   if (!action) return;
   action.reset();
@@ -279,18 +422,8 @@ animRestart.addEventListener("click", () => {
   updateScrubberUi();
 });
 
-animLoop.addEventListener("change", () => {
-  const action = activeAction();
-  if (!action) return;
-  action.setLoop(animLoop.checked ? THREE.LoopRepeat : THREE.LoopOnce, Infinity);
-  action.clampWhenFinished = !animLoop.checked;
-});
-
-animSpeed.addEventListener("input", () => {
-  const v = Number(animSpeed.value) || 1;
-  animSpeedVal.textContent = v.toFixed(2);
-  for (const a of actions) a.timeScale = v;
-});
+animLoop.addEventListener("change", () => rebuildActions());
+pinEnable.addEventListener("change", () => rebuildActions());
 
 animScrub.addEventListener("pointerdown", () => {
   scrubDragging = true;
@@ -299,7 +432,6 @@ animScrub.addEventListener("pointerdown", () => {
   const action = activeAction();
   if (action) action.paused = true;
 });
-
 animScrub.addEventListener("input", () => {
   const action = activeAction();
   if (!action) return;
@@ -307,191 +439,46 @@ animScrub.addEventListener("input", () => {
   mixer?.update(0);
   animScrubVal.textContent = Number(animScrub.value).toFixed(2);
 });
-
 animScrub.addEventListener("pointerup", () => {
   scrubDragging = false;
 });
 
-pinEnable.addEventListener("change", () => rebuildActions());
-
-async function appendClipsFromPath(path: string, quiet = false): Promise<number> {
-  if (!path) return 0;
-  if (!bundle) {
-    if (!quiet) setStatus("Önce Model sekmesinden bir model yükleyin — klip tek başına oynatılamaz.");
-    return 0;
-  }
-  if (!quiet) setStatus(`Klip yükleniyor: ${path}`);
-  const extra = await loadGltfBundle(path);
-  if (extra.animations.length === 0) {
-    if (!quiet) setStatus(`Yüklendi ama klip yok: ${path}`);
-    return 0;
-  }
-  const existing = new Set(bundle.animations.map((c) => c.name));
-  const fresh = extra.animations.filter((c) => !existing.has(c.name));
-  if (fresh.length === 0) {
-    if (!quiet) setStatus(`Klipler zaten yüklü: ${path}`);
-    return 0;
-  }
-  bundle.animations = [...bundle.animations, ...fresh];
-  rebuildActions();
-  if (!quiet) setStatus(`${fresh.length} klip eklendi: ${path}`);
-  return fresh.length;
-}
-
-async function addExtraClip(path: string): Promise<void> {
-  try {
-    extraClipPath.value = "";
-    await appendClipsFromPath(path);
-  } catch (err) {
-    setStatus(`Klip yükleme hatası (${path}): ${(err as Error)?.message ?? err}`);
-  }
-}
-
-extraClipAdd.addEventListener("click", () => void addExtraClip(extraClipPath.value.trim()));
-
-extraClipListSelect.addEventListener("change", () => {
-  const path = extraClipListSelect.value;
-  if (!path) return;
-  void addExtraClip(path);
-  extraClipListSelect.value = "";
-});
-
-// ------------------------------------------------------------------- loading
-function currentTintHex(): number {
-  return parseInt(tintColor.value.replace("#", ""), 16);
-}
-
-async function loadFromPath(withAnimations: boolean, label = ""): Promise<void> {
+// Advanced GLB loaders
+async function loadFromPath(withAnimations: boolean): Promise<void> {
   const path = pathInput.value.trim();
-  if (!path) {
-    setStatus("Önce bir yol girin (public/ köküne göre, ör. assets/models/foo.glb).");
-    return;
-  }
-  loadedFromLabel = label || path.split("/").pop() || path;
+  if (!path) return;
+  clearAll();
+  mode = "asset";
   setStatus(`Yükleniyor: ${path}`);
-  try {
-    if (withAnimations) {
-      const b = await loadGltfBundle(path);
-      const scene = cloneGltfBundle(b);
-      mountModel(scene, b.animations, label);
-    } else {
-      const tint = tintEnable.checked ? currentTintHex() : undefined;
-      const scene = await loadGltf(path, tint);
-      mountModel(scene, [], label);
-    }
-    setStatus(`Yüklendi: ${path}`);
-  } catch (err) {
-    setStatus(`Yükleme hatası (${path}): ${(err as Error)?.message ?? err}`);
+  if (withAnimations) {
+    const b = await loadGltfBundle(path);
+    mountAsset(cloneGltfBundle(b), b.animations, path);
+  } else {
+    mountAsset(await loadGltf(path), [], path);
   }
+  setStatus(`Yüklendi: ${path}`);
 }
 
-function loadFromFile(file: File): Promise<{ scene: THREE.Group; animations: THREE.AnimationClip[] }> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const buf = reader.result as ArrayBuffer;
-      rawLoader.parse(
-        buf,
-        "",
-        (gltf) => resolve({ scene: gltf.scene as THREE.Group, animations: gltf.animations.slice() }),
-        (err) => reject(err),
-      );
-    };
-    reader.onerror = () => reject(reader.error ?? new Error("dosya okunamadı"));
-    reader.readAsArrayBuffer(file);
-  });
-}
-
-async function handleFile(file: File): Promise<void> {
-  loadedFromLabel = file.name;
-  setStatus(`Yükleniyor (yerel dosya): ${file.name}`);
-  try {
-    const { scene, animations } = await loadFromFile(file);
-    mountModel(scene, animations, file.name);
-    setStatus(`Yüklendi (yerel dosya): ${file.name}`);
-    if (animations.length > 0) switchTab("anim");
-  } catch (err) {
-    setStatus(`Ayrıştırma hatası (${file.name}): ${(err as Error)?.message ?? err}. Draco-sıkıştırılmış ya da harici (.bin/texture) referanslı .gltf desteklenmiyor v1'de.`);
-  }
-}
-
-/** Mirrors sailor.ts's mountMesh ordering — same known-good sequence. */
-function mountModel(scene: THREE.Group, animations: THREE.AnimationClip[], label = ""): void {
-  lightGltf(scene);
-  if (tintEnable.checked) tintGltf(scene, currentTintHex());
-  scene.traverse((obj) => {
-    const skinned = obj as THREE.SkinnedMesh;
-    if (skinned.isSkinnedMesh) skinned.frustumCulled = false;
-  });
-  restMap = restBonePositions(scene);
-  scene.rotation.set(0, 0, 0);
-  if (fitEnable.checked) {
-    const meters = Number(fitMeters.value) || 1.8;
-    fitGltfHeight(scene, meters);
-  }
-
-  animRoot = scene;
-  viewer.setModel(scene);
-  viewer.frameModel();
-  renderInfo(scene, animations.length, label ? `Kaynak: ${label}` : undefined);
-
-  bundle = { scene, animations };
-  rebuildActions();
-  if (animations.length > 0) switchTab("anim");
-}
-
-/**
- * Dropdown smart-load: clip-only rows attach to a visible rig; mesh-only
- * character rows redirect to the rig variant so walk/run can actually play.
- */
-async function loadCatalogEntry(entry: AssetCatalogEntry): Promise<void> {
-  pathInput.value = assetPath(entry);
-  loadedFromLabel = entry.file;
-
-  if (entry.kind === "clip-only") {
-    const meshEntry = findVisibleMesh(entry, catalog);
-    const rigEntry = meshEntry?.skins ? meshEntry : findRigForAnimPreview(
-      { ...entry, meshes: 0, skins: 0 },
-      catalog,
-    );
-    if (!rigEntry) {
-      setStatus(`"${entry.file}" yalnızca klip — önce rig'li bir model yükleyin.`);
-      return;
-    }
-    setStatus(`"${entry.file}" klip dosyası — görünür model: ${rigEntry.file}`);
-    pathInput.value = assetPath(rigEntry);
-    await loadFromPath(true, rigEntry.file);
-    await appendClipsFromPath(assetPath(entry), true);
-    switchTab("anim");
-    return;
-  }
-
-  const rigRedirect = findRigForAnimPreview(entry, catalog);
-  if (rigRedirect) {
-    setStatus(
-      `"${entry.file}" iskeletsiz (animasyon oynatılamaz) — rig sürümü yükleniyor: ${rigRedirect.file}`,
-    );
-    pathInput.value = assetPath(rigRedirect);
-    await loadFromPath(true, rigRedirect.file);
-    const donors = findClipDonors(entry, catalog);
-    for (const donor of donors) {
-      await appendClipsFromPath(assetPath(donor), true);
-    }
-    return;
-  }
-
-  await loadFromPath(entry.anims > 0, entry.file);
-}
-
-// -------------------------------------------------------------------- events
 loadBundleBtn.addEventListener("click", () => void loadFromPath(true));
 loadModelBtn.addEventListener("click", () => void loadFromPath(false));
 
 filePick.addEventListener("click", () => fileInput.click());
 fileInput.addEventListener("change", () => {
   const f = fileInput.files?.[0];
-  if (f) void handleFile(f);
+  if (!f) return;
   fileInput.value = "";
+  void (async () => {
+    clearAll();
+    mode = "asset";
+    const buf = await f.arrayBuffer();
+    await new Promise<void>((resolve, reject) => {
+      rawLoader.parse(buf, "", (gltf) => {
+        mountAsset(gltf.scene as THREE.Group, gltf.animations.slice(), f.name);
+        resolve();
+      }, reject);
+    });
+    setStatus(`Yüklendi: ${f.name}`);
+  })();
 });
 
 dropZone.addEventListener("dragover", (e) => {
@@ -503,52 +490,56 @@ dropZone.addEventListener("drop", (e) => {
   e.preventDefault();
   dropZone.classList.remove("dragover");
   const f = e.dataTransfer?.files?.[0];
-  if (f) void handleFile(f);
+  if (!f) return;
+  void (async () => {
+    clearAll();
+    mode = "asset";
+    const buf = await f.arrayBuffer();
+    await new Promise<void>((resolve, reject) => {
+      rawLoader.parse(buf, "", (gltf) => {
+        mountAsset(gltf.scene as THREE.Group, gltf.animations.slice(), f.name);
+        resolve();
+      }, reject);
+    });
+    setStatus(`Yüklendi: ${f.name}`);
+  })();
+});
+
+extraClipAdd.addEventListener("click", () => {
+  const path = extraClipListSelect.value;
+  if (path) void appendClipsFromPath(path).then((n) => setStatus(n ? `${n} klip eklendi` : "Klip zaten yüklü"));
+});
+extraClipListSelect.addEventListener("change", () => {
+  const path = extraClipListSelect.value;
+  if (!path) return;
+  void appendClipsFromPath(path);
+  extraClipListSelect.value = "";
 });
 
 clearBtn.addEventListener("click", () => {
-  bundle = null;
-  animRoot = null;
-  loadedFromLabel = "";
-  stopMixer();
-  viewer.setMixer(null);
-  viewer.setModel(null);
-  infoBox.innerHTML = `<p class="wb-empty">Henüz bir model yüklenmedi.</p>`;
-  animEmpty.hidden = false;
-  animLoaded.hidden = true;
-  clipList.innerHTML = "";
-  showClipHint("");
-  setStatus("Sahne temizlendi.");
+  clearAll();
+  setStatus("Temizlendi.");
 });
-
-function fillCatalogOptions(select: HTMLSelectElement, entries: AssetCatalogEntry[], emptyMsg: string): void {
-  for (const entry of entries) {
-    const opt = document.createElement("option");
-    opt.value = assetPath(entry);
-    opt.textContent = formatOptionLabel(entry);
-    opt.dataset.kind = entry.kind;
-    select.appendChild(opt);
-  }
-  if (entries.length === 0) {
-    const opt = document.createElement("option");
-    opt.disabled = true;
-    opt.textContent = emptyMsg;
-    select.appendChild(opt);
-  }
-}
 
 async function loadModelList(): Promise<void> {
   try {
     const res = await fetch("/__workbench/models");
     if (!res.ok) throw new Error(`${res.status}`);
     catalog = (await res.json()) as AssetCatalogEntry[];
-    fillCatalogOptions(modelListSelect, catalog, "(public/assets/models/ boş)");
-    fillCatalogOptions(extraClipListSelect, catalog.filter((e) => e.anims > 0), "(klipsiz klasör)");
-  } catch (err) {
-    const msg = "(liste alınamadı — dev sunucusu mu kapalı?)";
-    fillCatalogOptions(modelListSelect, [], msg);
-    fillCatalogOptions(extraClipListSelect, [], msg);
-    console.warn("workbench: model list fetch failed", err);
+    for (const entry of catalog) {
+      const opt = document.createElement("option");
+      opt.value = `assets/models/${entry.file}`;
+      opt.textContent = formatOptionLabel(entry);
+      modelListSelect.appendChild(opt);
+    }
+    for (const entry of catalog.filter((e) => e.anims > 0)) {
+      const opt = document.createElement("option");
+      opt.value = `assets/models/${entry.file}`;
+      opt.textContent = formatOptionLabel(entry);
+      extraClipListSelect.appendChild(opt);
+    }
+  } catch {
+    setStatus("Model listesi alınamadı — dev sunucusu açık mı?");
   }
 }
 void loadModelList();
@@ -556,24 +547,27 @@ void loadModelList();
 modelListSelect.addEventListener("change", () => {
   const path = modelListSelect.value;
   if (!path) return;
-  const file = path.split("/").pop() ?? path;
+  pathInput.value = path;
+  const file = path.split("/").pop() ?? "";
   const entry = catalog.find((e) => e.file === file);
-  if (entry) void loadCatalogEntry(entry);
-  else void loadFromPath(true, file);
+  void (entry ? loadCatalogEntry(entry) : loadFromPath(true));
 });
 
 if (import.meta.env.DEV) {
   (window as unknown as { __WB_DEBUG__: object }).__WB_DEBUG__ = {
+    get mode() {
+      return mode;
+    },
     get mixer() {
       return mixer;
     },
-    get bundle() {
-      return bundle;
-    },
-    get animRoot() {
-      return animRoot;
+    get scenePreview() {
+      return scenePreview;
     },
   };
 }
 
-setStatus("Hazır. Bir GLB sürükleyin ya da listeden seçin — [rig] satırları animasyon içerir.");
+// Deep-link: ?preset=ship-sea
+const presetParam = new URLSearchParams(location.search).get("preset");
+const linked = WORKBENCH_PRESETS.find((p) => p.id === presetParam);
+if (linked) void runPreset(linked);

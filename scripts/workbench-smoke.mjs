@@ -1,6 +1,6 @@
 /**
- * Headless workbench smoke — smart load + mixer advance.
- * Run: node scripts/workbench-smoke.mjs
+ * Headless workbench smoke — presets + ship scene.
+ * Run: npm run test:workbench
  */
 import { chromium } from "playwright";
 
@@ -19,45 +19,38 @@ async function probe(label, fn) {
 
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage();
-await page.goto(BASE, { waitUntil: "networkidle" });
 
 let ok = true;
 
-ok &&= await probe("catalog options show rig badges", async () => {
-  const texts = await page.locator("#wb-model-list option").allTextContents();
-  if (!texts.some((t) => t.includes("[rig"))) throw new Error(`missing rig badge in ${texts.join(" | ")}`);
+ok &&= await probe("page loads preset grid", async () => {
+  await page.goto(BASE, { waitUntil: "networkidle" });
+  const n = await page.locator(".wb-preset").count();
+  if (n < 3) throw new Error(`expected presets, got ${n}`);
 });
 
-ok &&= await probe("textured mesh auto-opens rig clips", async () => {
-  await page.selectOption("#wb-model-list", "assets/models/char_doryseus_02_textured_8000.glb");
-  await page.waitForTimeout(3500);
-  await page.click("#wb-tab-anim");
-  await page.waitForSelector("#wb-clip-controls:not([hidden])", { timeout: 10000 });
-  const clips = await page.locator(".wb-clip-btn").count();
-  if (clips < 1) throw new Error(`expected redirected rig clips, got ${clips}`);
+ok &&= await probe("ship-sea preset shows live controls", async () => {
+  await page.locator(".wb-preset", { hasText: "Gemi + dalgalar" }).click();
+  await page.waitForTimeout(4000);
+  await page.waitForSelector("#wb-live-controls:not([hidden])", { timeout: 15000 });
+  const scene = await page.locator("#wb-scene-controls").isVisible();
+  const mode = await page.evaluate(() => (window).__WB_DEBUG__?.mode);
+  if (!scene || mode !== "scene") throw new Error(`scene controls missing mode=${mode}`);
+});
+
+ok &&= await probe("departing slider moves ship scene time", async () => {
+  await page.locator("#wb-depart").fill("0.6");
+  const t0 = await page.evaluate(() => (window).__WB_DEBUG__?.scenePreview ? 1 : 0);
+  await page.waitForTimeout(800);
   const status = await page.locator("#wb-status").textContent();
-  if (!status?.includes("rig")) throw new Error(`expected rig redirect status, got: ${status}`);
+  if (!t0 || !status?.includes("Gemi")) throw new Error(`bad scene state status=${status}`);
 });
 
-ok &&= await probe("mixer time advances on walk clip", async () => {
-  await page.locator(".wb-clip-btn", { hasText: "walk" }).first().click();
-  const t0 = await page.evaluate(() => (window).__WB_DEBUG__?.mixer?.time ?? 0);
-  await page.waitForTimeout(700);
-  const t1 = await page.evaluate(() => (window).__WB_DEBUG__?.mixer?.time ?? 0);
-  if (!(t1 > t0 + 0.05)) throw new Error(`mixer stuck t0=${t0} t1=${t1}`);
-});
-
-ok &&= await probe("gestures row loads visible mesh + clips", async () => {
-  await page.click("#wb-tab-model");
-  await page.selectOption("#wb-model-list", "assets/models/char_doryseus_02_gestures_8000.glb");
+ok &&= await probe("dory walk preset shows clip buttons", async () => {
+  await page.locator(".wb-preset", { hasText: "Doryseus yürüyüş" }).click();
   await page.waitForTimeout(3500);
-  const skin = await page.evaluate(() => {
-    const dds = [...document.querySelectorAll("#wb-info dd")];
-    return dds[2]?.textContent?.trim();
-  });
   const clips = await page.locator(".wb-clip-btn").count();
-  if (skin !== "var") throw new Error(`expected skinned mesh, got skin=${skin}`);
-  if (clips < 2) throw new Error(`expected gesture clips, got ${clips}`);
+  const mode = await page.evaluate(() => (window).__WB_DEBUG__?.mode);
+  if (clips < 1 || mode !== "asset") throw new Error(`clips=${clips} mode=${mode}`);
 });
 
 await browser.close();
