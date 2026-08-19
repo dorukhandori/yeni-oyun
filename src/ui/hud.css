@@ -141,6 +141,62 @@ canvas#game {
   color: #8a3e36;
 }
 
+/* -------------------------------------------------------------- run clock */
+/* Live K35 speedrun time. Only unhidden for the "Beş yeter" run (ui/hud.ts) —
+   the classic 12-lotus run has no timer, exactly like the memory bar is absent
+   from the `real` profile. Sits centred under the sun clock: the quest panel
+   owns top-left, the memory bar + fullscreen toggle own top-right, so this is
+   the one free lane where it cannot overlap anything.
+   Opacity is driven from hud.ts (memory haze, floored at RUN_CLOCK.minOpacity)
+   — do not set it here or the two will fight. */
+.run-clock {
+  position: absolute;
+  top: calc(max(14px, env(safe-area-inset-top)) + 86px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 12px;
+  background: var(--parchment);
+  border: 1px solid rgba(150, 116, 58, 0.45);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(40, 26, 10, 0.2);
+  pointer-events: none;
+  transition: opacity 400ms ease;
+}
+
+.run-clock-label {
+  font-size: 10px;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  /* #6d4a16 on the parchment sheet ≈ 6:1 — over the 4.5:1 floor even at the
+     smaller size (screens.md §3.5). */
+  color: #6d4a16;
+}
+
+.run-clock-value {
+  /* Same format and the same tabular figures as the leaderboard column
+     (src/format.ts), so the ticking number and the submitted number are
+     visibly the same thing. Without tabular-nums the whole readout twitches
+     sideways at 60 Hz, which is unreadable. */
+  font-variant-numeric: tabular-nums;
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--ink);
+}
+
+@media (max-width: 560px) {
+  .run-clock {
+    top: calc(max(14px, env(safe-area-inset-top)) + 76px);
+    padding: 3px 9px;
+  }
+  .run-clock-value {
+    font-size: 16px;
+  }
+}
+
 .quest-line {
   font-size: 15px;
   line-height: 1.55;
@@ -295,6 +351,10 @@ body.has-fs-toggle .memory {
   color: #5c452a;
   max-width: 520px;
   line-height: 1.6;
+  /* The K35 win card appends the run time on its own line via a \n in
+     textContent (game.ts). textContent never produces markup, which is the
+     point — nicks and times are not trusted as HTML. */
+  white-space: pre-line;
 }
 
 .card.lost h1 {
@@ -1291,4 +1351,191 @@ body[data-ui-phase="hub"] #touch {
   .fs-toggle {
     transition: none;
   }
+}
+
+/* ============================================================ K35 leaderboard */
+/* Nick modal + board, Paca LOT-58. Both are Hub furniture and reuse
+   .sub-panel / .parchment-panel / .menu-btn wholesale — this block only adds
+   what those three cannot express. Design rules: gdd-lotus-island-run.md §10,
+   docs/ux/screens.md §3.5-3.6.
+
+   [hidden] is restated with !important because .sub-panel/.board-status set
+   `display` themselves and a bare attribute selector loses that specificity
+   fight — the exact bug that shipped a "hidden" workbench panel once already. */
+[hidden] {
+  display: none !important;
+}
+
+.hub-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* Touch target floor (screens.md §3.5: ≥44 px). .menu-btn's padding lands at
+   ~43 px on the ghost variant, which is a fail by one pixel. */
+.hub-actions .menu-btn,
+.nick-actions .menu-btn {
+  min-height: 44px;
+}
+
+/* ------------------------------------------------------------- nick modal */
+.nick-label {
+  display: block;
+  margin: 6px 0 6px;
+  font-size: 13px;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: #6d4a16;
+}
+
+.nick-input {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid rgba(120, 90, 30, 0.65);
+  border-radius: 4px;
+  background: rgba(255, 252, 244, 0.96);
+  /* #3a2a17 on #fffcf4 ≈ 12:1 — well over the 4.5:1 floor. */
+  color: var(--ink);
+  font: 500 17px/1.3 "Optima", "Palatino Linotype", "Georgia", serif;
+  /* 17px, not 15px: iOS Safari force-zooms the page on focus below 16px. */
+}
+
+.nick-input:focus-visible {
+  outline: 2px solid #8a6410;
+  outline-offset: 1px;
+}
+
+.nick-hint {
+  margin: 7px 0 4px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #5c452a;
+}
+
+.nick-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.nick-actions .menu-btn {
+  min-width: 0;
+  flex: 1 1 auto;
+  padding: 11px 18px;
+}
+
+/* ------------------------------------------------------- status line (both) */
+/* Icon + text carry the meaning; colour is redundant reinforcement only
+   (screens.md §3.5 — never colour alone). Every tone below is checked against
+   the parchment sheet (#fff6e3-ish) and clears 4.5:1. */
+.board-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 8px 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: #4a3520;
+}
+
+.board-status-icon {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  background: rgba(120, 90, 30, 0.16);
+  color: #4a3520;
+}
+
+.board-status[data-tone="good"] {
+  color: #2f5c1f;
+}
+.board-status[data-tone="good"] .board-status-icon {
+  background: rgba(63, 107, 42, 0.2);
+  color: #2f5c1f;
+}
+
+.board-status[data-tone="warn"] {
+  color: #7a4a08;
+}
+.board-status[data-tone="warn"] .board-status-icon {
+  background: rgba(201, 154, 60, 0.28);
+  color: #7a4a08;
+}
+
+.board-status[data-tone="bad"] {
+  color: #8a2512;
+}
+.board-status[data-tone="bad"] .board-status-icon {
+  background: rgba(138, 37, 18, 0.16);
+  color: #8a2512;
+}
+
+/* ------------------------------------------------------------------ board */
+.board-inner {
+  max-width: 460px;
+  width: min(460px, 92vw);
+}
+
+.board-list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: min(46vh, 340px);
+  overflow-y: auto;
+}
+
+.board-row {
+  display: grid;
+  grid-template-columns: 2.6em 1fr auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 34px;
+  padding: 5px 8px;
+  border-radius: 3px;
+  font-size: 15px;
+  color: var(--ink);
+}
+
+.board-row:nth-child(odd) {
+  background: rgba(120, 90, 30, 0.07);
+}
+
+.board-row.mine {
+  background: rgba(201, 154, 60, 0.26);
+  box-shadow: inset 0 0 0 1px rgba(120, 90, 30, 0.5);
+}
+
+.board-rank {
+  color: #6d4a16;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.board-nick {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.board-time {
+  /* Without tabular-nums the whole column jitters between rows — the times are
+     the one thing a speedrun board must be scannable on. */
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  letter-spacing: 0.3px;
 }

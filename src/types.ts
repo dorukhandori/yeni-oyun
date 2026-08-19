@@ -29,6 +29,18 @@ export interface GameState {
   cardTimer: number;
   /** Seconds since dawn (caps at DAY.length). */
   dayTime: number;
+  /**
+   * K35 speedrun clock, in fixed 60 Hz simulation steps — NOT seconds and NOT
+   * wall clock (gdd-lotus-island-run.md §10.2). `dayTime` cannot be used: on
+   * K35 it wraps modulo DAY.length, so it is not monotonic.
+   *
+   * Ticks only while `phase` is "play" or "departing"; the departure cinematic
+   * counts because the finish moment is the "won" transition, not startDepart()
+   * (GDD §10.1 H3 — sahip's ruling, and the reason FLOW.departSeconds lands in
+   * every score). Reset only in fullRestart(); the forget event deliberately
+   * never touches it (H1).
+   */
+  runSteps: number;
   /** World-space player position (XZ, y omitted — minimap/HUD only needs the ground plane). Updated every step() while playing. */
   playerX: number;
   playerZ: number;

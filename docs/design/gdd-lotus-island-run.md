@@ -342,6 +342,8 @@ if grace <= 0: runForgetEvent()
 
 Hepsi `constants.ts`. Sahnede sihirli sayı yok.
 
+Speedrun/leaderboard knob'ları (`NET.leaderboard`) ayrı tutulur — bkz. §10.4. Oynanışı değiştirmezler, yalnız süre kaydını çerçevelerler.
+
 ---
 
 ## 8. Kabul
@@ -383,6 +385,66 @@ Hepsi `constants.ts`. Sahnede sihirli sayı yok.
 10. `scenario.md` HUD (A3, M2/M4, F1–F3, U3/U4).
 
 Her madde tek oturumda oynanır bırakır.
+
+---
+
+## 10. Speedrun hükmü — online leaderboard (19 Ağu 2026)
+
+> **Karar sahibi:** sahip. Paca LOT-54 (epic) / LOT-55 (tasarım) / LOT-56 (backend).
+> **Statü:** kilitli. Yeni bilgi olmadan yeniden açılmaz.
+> Bu bölüm K35 koşusunun *süre* tanımını sabitler. Klasik 12'li Lotus koşusunu (`real` kart) **hiç ilgilendirmez** — orada saat de leaderboard da yoktur.
+
+### 10.1 Hükümler
+
+| # | Soru | Hüküm | Gerekçe |
+|---|---|---|---|
+| H1 | Unutuş olayı süreyi cezalandırır mı? | **Hayır — ek kod yok.** Saat durmaz, sabit ceza eklenmez, koşu geçersiz sayılmaz. | Çanta sıfırlanıp gemi ≥40 m kayınca oyuncu zaten saniye kaybediyor; **doğal ceza yeter.** Uydurma bir sayı eklemek §3.5'in "unutmak ölmek değil, yolu kaybetmektir" çerçevesini bozar. LOT-55 Q1 seçenek (a). |
+| H2 | Gün döngüsü saati etkiler mi? | **Hayır.** Koşu saati tek ve monotondur; `dayTime`'ın 420 s'de modulo sıfırlanmasıyla hiçbir ilgisi yoktur. | `st.dayTime` sayaç olarak kullanılamaz (§3.8 modulo). Saat ayrı bir alandır (`st.runSteps`). LOT-55 Q2. |
+| H3 | Saat ne zaman durur? | **Ayrılış animasyonu bitince** — yani `phase` `"won"`a geçtiği an. `startDepart()` **değil.** | Sahip kararı, `startDepart()` önerisinin bilinçli tersi. Sonucu kabul edilmiştir: `FLOW.departSeconds` (7 s) **her skora eklenir**. Sabit olduğu için sıralamayı değiştirmez, yalnız görünen süreleri büyütür. Oyuncuya "bitiş" olarak gösterilen an ile skorun kapandığı an aynıdır — okunabilirlik bunun bedelini ödemeye değer. |
+| H4 | Leaderboard kayıt politikası? | **Nick başına tek satır, yalnız kişisel en iyi.** | Speedrun geleneği; hesapsız açık bir tabloda "her deneme bir satır" tek kişinin tabloyu boğmasına izin verir. DB seviyesinde garanti (`where excluded.time_ms < l.time_ms`), istemci sözleşmesi değil. LOT-55 Q4. |
+| H5 | Koşuyu terk etmek? | Menüden "Hub'a dön" koşuyu **sessizce iptal eder**, hiçbir gönderim yapılmaz. | §3.2 madde 6'nın zaten yaptığı şey (`goHub()`); ek kural gerekmiyor. LOT-55 Q5. |
+| H6 | Nick sahipliği / gasp? | **Kabul edilir. `claim_hash` yok.** İlk gelen `nick_key`'i alır, aynı nick'i yazan herkes o satırı paylaşır. | "Kabul et, basit kal" — sahip kararı. Hesap yokken "kendi satırın" diye bir kavram zaten yok; localStorage UUID'ye dayalı bir sahiplik iddiası da tarayıcı temizliğinde buharlaşan sahte bir güvenceydi. LOT-56 açık nokta (1). |
+| H7 | Alt-tab / arka plan sekme? | **Bedava duraklar.** Saat simülasyon-zamanıdır (`phase === "play"` iken sabit adım sayımı), duvar saati değil. | Duvar saati zayıf donanımı ve sekme değiştirmeyi cezalandırır; simülasyon zamanı en kötü ihtimalle "sekmeyi kapatıp düşünmek" istismarını açar — bu, tek kişilik bir keşif oyununda kabul edilebilir bir kötüye kullanım. LOT-56 açık nokta (3). |
+| H8 | Kiklop rozeti ne zaman açılır? | **Değişmiyor** — dümende (`startDepart()`), 5. teslimde değil. | Mevcut davranış; leaderboard bunu değiştirmez. LOT-56 açık nokta (2). |
+
+### 10.2 Sayaç kuralı (H2 + H3 birlikte okunur)
+
+Saat, sabit 60 Hz adım sayacıdır: `st.runSteps` her `step()`'te **yalnız** `phase` `"play"` **veya** `"departing"` iken bir artar. Süre `runMs = round(runSteps * STEP)`.
+
+- `"play"` → koşunun kendisi.
+- `"departing"` → H3'ün gereği. Sayaç burada da işlemezse `"won"` anında yakalanan değer `startDepart()` anındakiyle **bire bir aynı** olur ve H3'ün kabul edilmiş sonucu ("`departSeconds` her skora eklenir") gerçekleşmez. İki cümle ancak böyle tutarlı olur.
+- `"title"` / `"hub"` → `step()` zaten erken dönüyor, saat bedava durur.
+- `"dusk"` / `"lost"` / `"gameover"` → K35'te erişilemez fazlar; yine de sayaç işlemez.
+
+Sıfırlama **yalnız** `fullRestart()`'ta. `runForgetEvent()` saate **hiç dokunmaz** — H1 "hiçbir şey ekleme" ile uygulanır.
+
+Saat koşu sırasında **ekranda görünür** (HUD, güneş saatinin altında, `MM:SS.cc`) — sahip isteği, 19 Ağu 2026. Görünürlük koşulu tam olarak yukarıdaki iki fazdır, yani oyuncunun izlediği sayı ile tabloya giden sayı tanım gereği aynıdır. Yerleşim/erişilebilirlik ayrıntısı: `docs/ux/screens.md` §3.6.
+
+### 10.3 Gönderim kapısı
+
+Skor yalnız şu üçü birden doğruyken gönderilir: koşu K35 (`WORLD.k35`), profil `real`, ve sabit tohum verilmemiş (`seedOverride === undefined`). `?profile=test` sandbox'ı ve `scripts/asset-qa` regresyon koşuları tabloya **asla** yazamaz. Bitmiş bir koşu **tam bir** gönderim denemesi üretir (`won` bloğu her karede çalıştığı için bayrak şart).
+
+### 10.4 Yeni sabitler — `NET.leaderboard`
+
+Hepsi `src/constants.ts`; `game.ts`/`net/` içinde çıplak sayı yok. Otorite SQL tarafındadır, buradaki kopya **erken uyarı** içindir (kullanıcı sunucuya boşuna gidip reddedilmesin).
+
+| Knob | Varsayılan | Tür | Gerekçe |
+|---|---|---|---|
+| `timeoutMs` | 8000 | feel | Ayrılış sinematiği 7 s; ağ bunu kilitlemesin. |
+| `topLimit` | 20 | feel | Tek ekranda okunur tablo. |
+| `minTimeMs` | 45 000 | gate | **Placeholder — ölçüm değil.** Bkz. §10.5. |
+| `maxTimeMs` | 7 200 000 | gate | 2 saat; taşma/çöp değer süzgeci. |
+| `nickMin` / `nickMax` | 2 / 16 | gate | Sunucu kuralının birebir aynası. |
+
+Nick kuralı (istemci + sunucu **aynı**): 2–16 karakter, `^[[:alnum:]][[:alnum:] ._-]*[[:alnum:]]$`. İstemcideki `normalizeNick` bir **nezaket kontrolüdür, otorite değildir** — JS `\p{L}` ile Postgres `[[:alnum:]]` birebir aynı küme olmadığı için istemciden geçen bir nick sunucudan `nick_invalid` dönebilir; UI bunu göstermeye hazır olmalıdır.
+
+### 10.5 Açık kalan tek sayı — `minTimeMs`
+
+**45 000 ms bir tahmindir, ölçüm değildir.** Meşru hiçbir koşuyu reddetmemesi için kasten çok düşük seçildi. QA (Paca LOT-59) `real` profilde bilerek bir speedrun yapıp gerçek en hızlı sürenin ~%60'ını bu alana yazmalı ve **hem burayı hem `scripts/supabase/k35-leaderboard.sql` içindeki eşiği** aynı anda güncellemelidir. Eşiğin evi bu dokümandır; SQL yalnızca aynalar.
+
+### 10.6 Hile — sahibin bilmesi gereken cümle
+
+Statik bir istemcide, sunucu tarafında simülasyon olmadan **tam anti-cheat mümkün değildir.** Konsolu açan herkes istediği süreyi gönderebilir. Alınan önlemler (süre alt/üst sınırı, sunucu damgalı `created_at`, IP-hash'li hız sınırı, yalnız-iyileştiren upsert, nick beyaz listesi) **eşiği yükseltir, deliği kapatmaz.** Asıl çare panelden manuel moderasyondur. Anahtarı gizlemek güvenlik tiyatrosudur ve yapılmayacaktır.
 
 ---
 

@@ -29,8 +29,10 @@ import { Bursts } from "./systems/burst";
 import { Input } from "./systems/input";
 import type { GameState } from "./types";
 import { requestPlayFullscreen } from "./ui/fullscreen";
+import { formatRunTime } from "./format";
+import { submitScore, type SubmitResult } from "./net/leaderboard";
 import { Hud } from "./ui/hud";
-import { Menu } from "./ui/menu";
+import { Menu, type SubmitStatus } from "./ui/menu";
 import { requestLandscapeLock } from "./ui/orientation";
 import { buildHallucinations } from "./world/hallucination";
 import { buildLotophagoi } from "./world/lotophagos";
@@ -185,6 +187,7 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
     depart: 0,
     cardTimer: 0,
     dayTime: 0,
+    runSteps: 0,
     playerX: PLAYER.spawn.x,
     playerZ: PLAYER.spawn.z,
   };
@@ -195,6 +198,24 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
   const focus = new THREE.Vector3();
   const driftAxis = new THREE.Vector3(0, 1, 0);
   let time = 0;
+
+  // ------------------------------------------------- K35 speedrun run tracking
+  // docs/design/gdd-lotus-island-run.md §10. All four of these are reset in
+  // fullRestart() and nowhere else — in particular runForgetEvent() must never
+  // touch them (§10.1 H1: the forget event costs the player real seconds, and
+  // that natural loss IS the penalty; no extra rule is added on top).
+  /** Nick typed in the Hub modal for this run. Empty = classic run or a test-hook start. */
+  let runNick = "";
+  /** True when fullRestart() got a fixed seed, i.e. this is an asset-qa regression run. */
+  let runSeeded = false;
+  /** ms, captured once when phase flips to "won". null while the run is unfinished. */
+  let finalRunMs: number | null = null;
+  /** One submission per finished run — the "won" branch re-runs every frame. */
+  let runSubmitted = false;
+  /** Latest submission state, replayed onto the board when the player reaches the Hub. */
+  let lastSubmit: SubmitStatus | null = null;
+  /** Set when a K35 run finished; makes the next goHub() open the board once. */
+  let showBoardOnHub = false;
 
   const shipDist = () => Math.hypot(ship.anchor.x - pos.x, ship.anchor.z - pos.z);
 
@@ -331,6 +352,7 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
     hud.hideCard();
     ship.reset();
     const runSeed = seedOverride ?? ((Math.random() * 1e9) | 0);
+    runSeeded = seedOverride !== undefined;
     if (WORLD.k35) console.debug("[lotus-run] seed", runSeed);
     field.reset({
       seed: runSeed,
@@ -357,6 +379,14 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
     st.depart = 0;
     st.cardTimer = 0;
     st.dayTime = 0;
+    // The ONLY reset of the speedrun clock (GDD §10.2). A new run starts here
+    // whether it came from the Hub, the win card, or a test hook.
+    st.runSteps = 0;
+    finalRunMs = null;
+    runSubmitted = false;
+    runNick = "";
+    lastSubmit = null;
+    showBoardOnHub = false;
     wonSoundPlayed = false;
     duskSoundPlayed = false;
     warnSoundPlayed = false;
@@ -386,8 +416,17 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
   /** Title -> Hub (docs/ux/screens.md §1 "Oyna"). */
   function goHub(): void {
     hud.hideCard();
+    hud.hideRunClock();
     st.phase = "hub";
     menu.showHub();
+    // "Shown after a finished run" (LOT-58) — the board rides the return to the
+    // Hub instead of fighting the WebGL win card for the screen. Abandoning a
+    // run mid-play also lands here, but showBoardOnHub was never set in that
+    // case, so an abandoned run stays silent exactly as GDD §10.1 H5 requires.
+    if (showBoardOnHub) {
+      showBoardOnHub = false;
+      menu.showBoard(lastSubmit ?? undefined);
+    }
   }
 
   /**
@@ -406,6 +445,7 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
   /** Hub "Ana menü" -> Title. Also boot's initial state via menu.showTitle() below. */
   function goTitle(): void {
     hud.hideCard();
+    hud.hideRunClock();
     menu.setCyclopsReady(false);
     st.phase = "title";
     menu.showTitle();
@@ -417,9 +457,23 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
       void requestPlayFullscreen();
       fullRestart("classic");
     },
-    onSelectLotusEdge: () => {
+    /**
+     * Fires from the nick modal's "Başla" press, not from the map click.
+     *
+     * requestPlayFullscreen() MOVED HERE with the modal (Paca LOT-58): the
+     * fullscreen API is rejected outside a user gesture, and the map click is
+     * no longer the gesture that starts the run. Keep this call first and keep
+     * it synchronous — anything awaited before it loses the activation.
+     *
+     * Landscape lock is deliberately NOT added here: it never was on this path,
+     * onPlay() already requested it on the way into the Hub, and the sibling
+     * Lotus card behaves identically. One less asymmetry to explain later.
+     */
+    onSelectLotusEdge: (nick: string) => {
       void requestPlayFullscreen();
       fullRestart("edge");
+      // After fullRestart, which clears it.
+      runNick = nick;
     },
     onHubMenu: goTitle,
   });
@@ -458,6 +512,38 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
     st.phase = "departing";
     sailor.playWave();
     hud.say("Ağlayarak kürek çektiler. Bağladım onları sıraların altına.");
+  }
+
+  /**
+   * The finish instant — called exactly once, when the departure animation ends
+   * and `phase` becomes "won" (GDD §10.1 H3, sahip's ruling; deliberately NOT
+   * startDepart()).
+   *
+   * Submission gate (§10.3), all three required: this is the K35 edge run, the
+   * world profile is `real`, and no fixed seed was supplied. That last one is
+   * what keeps the asset-qa screenshot harness (which drives fullRestart with a
+   * seed) out of the public table.
+   */
+  function finishRun(): void {
+    if (finalRunMs !== null) return;
+    finalRunMs = Math.round(st.runSteps * STEP);
+
+    const eligible = WORLD.k35 && WORLD.profile === "real" && !runSeeded && runNick.length > 0;
+    if (!eligible || runSubmitted) return;
+    runSubmitted = true;
+    showBoardOnHub = true;
+
+    const nick = runNick;
+    const ms = finalRunMs;
+    lastSubmit = { state: "pending" };
+    menu.setSubmitStatus(lastSubmit);
+    // Fire-and-forget on purpose: the win card must never wait on the network.
+    // submitScore() is contractually incapable of rejecting, so there is no
+    // catch — a .catch here would be dead code pretending to be safety.
+    void submitScore(nick, ms).then((result: SubmitResult) => {
+      lastSubmit = { state: "done", result };
+      menu.setSubmitStatus(lastSubmit);
+    });
   }
 
   function pick(index: number): void {
@@ -563,6 +649,18 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
 
     const dt = STEP / 1000;
     time += dt;
+
+    // K35 speedrun clock — counted in fixed 60 Hz STEPS, not wall clock
+    // (gdd-lotus-island-run.md §10.2). Consequences sahip chose knowingly:
+    // a backgrounded tab pauses the run for free (§10.1 H7), and Title/Hub
+    // stop it for free because step() already returned above.
+    //
+    // "departing" is in here on purpose. The finish moment is the "won"
+    // transition, not startDepart() (§10.1 H3) — if the clock stopped at
+    // startDepart(), the value captured at "won" would be bit-identical to the
+    // one at startDepart() and FLOW.departSeconds would silently NOT land in
+    // the score, contradicting the ruling's own stated consequence.
+    if (st.phase === "play" || st.phase === "departing") st.runSteps += 1;
 
     stage.bloomBoost = Math.max(0, stage.bloomBoost - FEEL.bloomPulseDecay * dt);
 
@@ -1003,6 +1101,7 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
       st.memory = Math.max(0, st.memory - dt * 0.35);
       if (st.depart >= 1) {
         st.phase = "won";
+        finishRun();
       }
     }
     if (st.phase === "won") {
@@ -1014,7 +1113,12 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
         "won",
         "İthake'ye doğru",
         WORLD.k35
-          ? "Ada arkamızda küçüldü. Kimse dönüp bakmadı. Bakmamak için."
+          ? // The time is shown here as well as on the board: this card is the
+            // first thing a runner looks at, and finalRunMs is already final
+            // (captured on the transition into "won" — GDD §10.1 H3).
+            `Ada arkamızda küçüldü. Kimse dönüp bakmadı. Bakmamak için.${
+              finalRunMs === null ? "" : `\n\nSüren: ${formatRunTime(finalRunMs)}`
+            }`
           : `${st.delivered} olgun lotus ambarda. Unutuşu geride bıraktın.`,
         { restart: true },
       );
@@ -1160,6 +1264,7 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
       // Test-only, so the restart's real semantics stay unchanged.
       time = 0;
       st.dayTime = 0;
+      st.runSteps = 0;
       stage.bloomBoost = 0;
     },
     runSteps(n) {
