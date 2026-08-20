@@ -56,6 +56,7 @@ LOT-52 kahraman gövdesi yerelde duruyor (GLB + `constants.ts` filo=1); sahip ca
 
 | Kim | Tarih | Dosyalar / alan | Ne yapıldı |
 |---|---|---|---|
+| Cursor (Grok, bu oturum) · `@glyph` | 2026-08-20 | `index.html` | LOT-70 GoatCounter → Cloudflare Web Analytics (`ovarlak.games` RUM beacon). |
 | Cursor (Grok, bu oturum) · `@glyph` | 2026-08-20 | `index.html` | LOT-69 hostname bug: GoatCounter `lotophagoi.ovarlak.games` üzerinde de çalışır; github.io kilidi kaldırıldı. |
 | Cursor (Grok, bu oturum) · `@nile` / `@glyph` | 2026-08-20 | `index.html` | LOT-69 canlı ziyaretçi sayacı: GoatCounter, yalnız `dorukhandori.github.io`, site `ovarlakgames`. Oyun koduna dokunulmadı. |
 | Cursor (Grok, bu oturum) · `@nile` / `@byte` | 2026-08-19 | `src/world/{terrain,ship,sea,lotus}.ts`, `src/game.ts`, `src/systems/audio.ts`, `src/constants.ts` | LOT-66 sahil rampası + karaya oturan gövde; LOT-64 klasik 12 tarlayı adaya yayma; LOT-63 iskeleden binme. LOT-68 yelken süsü sahip isteğiyle geri alındı. |
