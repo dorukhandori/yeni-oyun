@@ -284,6 +284,19 @@
 
       <div id="loading">Ada yükleniyor…</div>
     </div>
+    <!-- Live visitor count only. GoatCounter skips cookies; localhost never
+         loads the script so playtests stay off the dashboard. Site:
+         ovarlakgames.goatcounter.com -->
+    <script>
+      (function () {
+        if (location.hostname !== "dorukhandori.github.io") return;
+        var s = document.createElement("script");
+        s.async = true;
+        s.src = "https://gc.zgo.at/count.js";
+        s.dataset.goatcounter = "https://ovarlakgames.goatcounter.com/count";
+        document.head.appendChild(s);
+      })();
+    </script>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
