@@ -56,6 +56,7 @@ LOT-52 kahraman gövdesi yerelde duruyor (GLB + `constants.ts` filo=1); sahip ca
 
 | Kim | Tarih | Dosyalar / alan | Ne yapıldı |
 |---|---|---|---|
+| Cursor (Grok, bu oturum) · `@glyph` | 2026-08-20 | `index.html` | LOT-69 hostname bug: GoatCounter `lotophagoi.ovarlak.games` üzerinde de çalışır; github.io kilidi kaldırıldı. |
 | Cursor (Grok, bu oturum) · `@nile` / `@glyph` | 2026-08-20 | `index.html` | LOT-69 canlı ziyaretçi sayacı: GoatCounter, yalnız `dorukhandori.github.io`, site `ovarlakgames`. Oyun koduna dokunulmadı. |
 | Cursor (Grok, bu oturum) · `@nile` / `@byte` | 2026-08-19 | `src/world/{terrain,ship,sea,lotus}.ts`, `src/game.ts`, `src/systems/audio.ts`, `src/constants.ts` | LOT-66 sahil rampası + karaya oturan gövde; LOT-64 klasik 12 tarlayı adaya yayma; LOT-63 iskeleden binme. LOT-68 yelken süsü sahip isteğiyle geri alındı. |
 | Cursor (Grok, bu oturum) · `@glyph` | 2026-08-19 | `src/systems/audio.ts`, **yeni** `src/ui/mute.ts`, `src/ui/hud.css`, `src/game.ts`, `src/constants.ts` (`AUDIO`), `docs/ux/{screens.md,hud.md}` | LOT-67 Title/Hub sesi kapat ikonu. Claude oturumu yarıda kalmıştı; alt ajan kod yazmamıştı. Mute API + `localStorage` + `#fsToggle` ailesinde köşe ikonu. Oynanışta ikon yok, mute durumu kalır. Sahip push istedi. |
