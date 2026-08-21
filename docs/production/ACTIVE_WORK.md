@@ -56,6 +56,7 @@ LOT-52 kahraman gövdesi yerelde duruyor (GLB + `constants.ts` filo=1); sahip ca
 
 | Kim | Tarih | Dosyalar / alan | Ne yapıldı |
 |---|---|---|---|
+| Cursor (Grok, bu oturum) · `@byte` | 2026-08-21 | `src/constants.ts` (`SAILOR.meshFacing`) | LOT-75 follow-up: 08 bind yüz +X, oyun facing +Z. `meshFacing` 0 → −π/2. Sahip onayladı, canlıya. |
 | Cursor (Grok, bu oturum) · `@byte` | 2026-08-21 | `char_doryseus_08_rig_clean6_5000.glb`, `SAILOR.meshRig`, `humanoidRig.ts` | LOT-75: Doryseus 08 Tripo auto-rig (idle/walk/run/dig), gölge plakası kesildi, sahip onayıyla canlı `SAILOR`. |
 | Cursor (Grok, bu oturum) · `@glyph` | 2026-08-21 | `index.html` | LOT-70: zone RUM token CORS 0 veriyordu; `lotophagoi.ovarlak.games` hostname sitesi + `type=module` beacon. |
 | Cursor (Grok, bu oturum) · `@glyph` | 2026-08-20 | `index.html` | LOT-70 GoatCounter → Cloudflare Web Analytics (`ovarlak.games` RUM beacon). |

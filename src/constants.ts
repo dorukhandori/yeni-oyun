@@ -580,10 +580,11 @@ export const SAILOR = {
   meshRigBytes: 1015268,
   meshEnabled: true,
   /**
-   * Added to `root.rotation.y`. 08 faces walk-forward in the workbench
-   * with no extra yaw (textured 02 needed -π/2; that does not apply here).
+   * Added to `root.rotation.y`. 08's bind face is local +X (toes toward +X);
+   * game `facing=0` is world +Z. -π/2 makes W (away from the shoulder cam)
+   * show the back and S show the face — same offset as textured 02.
    */
-  meshFacing: 0,
+  meshFacing: -Math.PI / 2,
   /** Extra yaw on the GLB inside the sailor root. 0 while meshFacing holds the value above. */
   meshYaw: 0,
   /**
