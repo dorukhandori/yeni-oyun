@@ -56,6 +56,7 @@ LOT-52 kahraman gövdesi yerelde duruyor (GLB + `constants.ts` filo=1); sahip ca
 
 | Kim | Tarih | Dosyalar / alan | Ne yapıldı |
 |---|---|---|---|
+| Cursor (Grok, bu oturum) · `@glyph` | 2026-08-21 | `index.html` | LOT-70: zone RUM token CORS 0 veriyordu; `lotophagoi.ovarlak.games` hostname sitesi + `type=module` beacon. |
 | Cursor (Grok, bu oturum) · `@glyph` | 2026-08-20 | `index.html` | LOT-70 GoatCounter → Cloudflare Web Analytics (`ovarlak.games` RUM beacon). |
 | Cursor (Grok, bu oturum) · `@glyph` | 2026-08-20 | `index.html` | LOT-69 hostname bug: GoatCounter `lotophagoi.ovarlak.games` üzerinde de çalışır; github.io kilidi kaldırıldı. |
 | Cursor (Grok, bu oturum) · `@nile` / `@glyph` | 2026-08-20 | `index.html` | LOT-69 canlı ziyaretçi sayacı: GoatCounter, yalnız `dorukhandori.github.io`, site `ovarlakgames`. Oyun koduna dokunulmadı. |

@@ -284,23 +284,15 @@
 
       <div id="loading">Ada yükleniyor…</div>
     </div>
-    <!-- Cloudflare Web Analytics for ovarlak.games (existing RUM site,
-         2026-08-16). auto_install cannot inject into GitHub Pages HTML, so
-         the public beacon goes here. Localhost playtests are skipped. -->
-    <script>
-      (function () {
-        var h = location.hostname;
-        if (h === "localhost" || h === "127.0.0.1") return;
-        var s = document.createElement("script");
-        s.defer = true;
-        s.src = "https://static.cloudflareinsights.com/beacon.min.js";
-        s.setAttribute(
-          "data-cf-beacon",
-          '{"token": "2f667864de4c49f5af9969f8334e217d"}'
-        );
-        document.head.appendChild(s);
-      })();
-    </script>
+    <!-- Cloudflare Web Analytics — dedicated hostname site for the GitHub
+         Pages game. The zone site (ovarlak.games, auto_install) POSTs to
+         /cdn-cgi/rum on this host (GitHub 404) and CORS-drops the beacon.
+         Token is the public RUM site_token, not the API key. -->
+    <script
+      type="module"
+      src="https://static.cloudflareinsights.com/beacon.min.js"
+      data-cf-beacon='{"token": "9efe68838b1e48b6830800a39ea863ab"}'
+    ></script>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
