@@ -1,5 +1,7 @@
 /** One-click workbench presets — asset rows and live scene slices. */
 
+import { SAILOR } from "../constants";
+
 export type PresetKind = "scene" | "asset";
 
 export interface WorkbenchPreset {
@@ -24,27 +26,28 @@ export const WORKBENCH_PRESETS: WorkbenchPreset[] = [
     scene: "ship-sea",
   },
   {
-    id: "dory-walk",
-    label: "Doryseus yürüyüş",
-    hint: "Rig + walk klip",
-    kind: "asset",
-    path: "assets/models/char_doryseus_02_rig_8000.glb",
-    clip: "preset:walk",
-  },
-  {
     id: "dory-idle",
     label: "Doryseus idle",
-    hint: "Rig + idle klip",
+    hint: "LOT-75 Tripo auto-rig + preset:idle — SAILOR.meshRig.",
     kind: "asset",
-    path: "assets/models/char_doryseus_02_rig_8000.glb",
+    path: SAILOR.meshRig,
     clip: "preset:idle",
   },
   {
-    id: "dory-gestures",
-    label: "Doryseus jestler",
-    hint: "Rig + wave/bow klipleri",
+    id: "dory-walk",
+    label: "Doryseus walk",
+    hint: "LOT-75 Tripo auto-rig + preset:walk. Gölge plakası kesildi.",
     kind: "asset",
-    path: "assets/models/char_doryseus_02_gestures_8000.glb",
+    path: SAILOR.meshRig,
+    clip: "preset:walk",
+  },
+  {
+    id: "dory-run",
+    label: "Doryseus run",
+    hint: "LOT-75 Tripo auto-rig + preset:run.",
+    kind: "asset",
+    path: SAILOR.meshRig,
+    clip: "preset:run",
   },
   {
     id: "thallope",

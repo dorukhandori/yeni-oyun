@@ -57,7 +57,8 @@ export function cloneGltfBundle(bundle: GltfBundle): THREE.Group {
   return cloneSkinned(bundle.scene) as THREE.Group;
 }
 
-const ROOT_BONES = /^(Root|Hip|Hips|Armature|Pelvis|Waist)$/i;
+/** Hip + Root only — Pelvis/Waist pins freeze the torso into bind. */
+const ROOT_BONES = /^(Root|Hip|Hips)$/i;
 
 /**
  * Bind-pose translations for locomotion bones. Tripo in-place clips often
@@ -106,7 +107,25 @@ export function fitGltfHeight(root: THREE.Object3D, meters: number): void {
   root.position.y -= planted.min.y;
 }
 
-/** Keep shipped albedo; make the mesh take island sun + shadows. */
+/**
+ * GLTFLoader binds the skeleton at export scale. `fitGltfHeight` then
+ * scales a parent, so bone.matrixWorld and inverseBindMatrices disagree
+ * and the shader stays on bind pose (bones move, mesh doesn't). Rebind
+ * after the scale so skinning and animation share the same space.
+ */
+export function rebindSkinned(root: THREE.Object3D): void {
+  root.updateMatrixWorld(true);
+  root.traverse((obj) => {
+    const mesh = obj as THREE.SkinnedMesh;
+    if (!mesh.isSkinnedMesh) return;
+    // No bindMatrix arg: bind() recaptures inverseBindMatrices from the
+    // current (already scaled) bone worlds. Passing matrixWorld ourselves
+    // skipped that and left export-scale IBMs in a scaled graph.
+    mesh.bind(mesh.skeleton);
+  });
+}
+
+/** Shadows + keep shipped albedo. Do not clamp metal/rough — that greys Tripo cloth. */
 export function lightGltf(root: THREE.Object3D): void {
   root.traverse((obj) => {
     const mesh = obj as THREE.Mesh;
@@ -117,9 +136,7 @@ export function lightGltf(root: THREE.Object3D): void {
     for (const m of mats) {
       const std = m as THREE.MeshStandardMaterial;
       if (std.isMeshStandardMaterial) {
-        std.metalness = Math.min(std.metalness ?? 0, 0.08);
-        std.roughness = Math.max(std.roughness ?? 0.7, 0.55);
-        std.envMapIntensity = 0.35;
+        if (std.map) std.map.colorSpace = THREE.SRGBColorSpace;
         std.side = THREE.FrontSide;
         std.needsUpdate = true;
       }

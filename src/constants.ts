@@ -562,156 +562,48 @@ export const AUDIO = {
 } as const;
 
 /**
- * Doryseus billboard (ASSET-041..044). Y-axis only — a full THREE.Sprite
- * tilts toward the shoulder camera and reads as floating.
+ * Doryseus — a real skinned/rigged glTF humanoid (`src/world/humanoidRig.ts`
+ * loads it, `src/world/sailor.ts` drives it).
  */
 export const SAILOR = {
-  /** World height of the 512² canvas (feet on the bottom pad). */
+  /** World height in metres, feet planted at y=0 (`fitGltfHeight`). */
   height: 1.82,
   /**
-   * ASSET-058 v2 — Tripo `multiview-to-model` (geometry) + Tripo's own
-   * `texture_model` retexture (`POST /v3/models/texture`, not Meshy —
-   * sahip 2026-08-16: "meshy değil, tripo kullanıyoruz"), same locked
-   * ASSET-041..044 stills as texture direction. Verified per-angle (frozen
-   * test-hook rotation, LOT-27 QA 2026-08-16): 0°/180° are correct mirrored
-   * side profiles, 90° is a real back (short hair, no face), 270° is a real
-   * front. No projection hack needed — `cardinalViews.ts` (the runtime
-   * sprite-projection workaround) is retired and deleted. Untextured/unrigged
-   * fallback only reached if `meshRig` below fails to load.
+   * Unskinned fallback if `meshRig` fails to load.
    */
   mesh: "assets/models/char_doryseus_02_textured_8000.glb",
   /**
-   * Same textured mesh, rigged + retargeted by Tripo (`rig-check` →`rig`→
-   * `retarget`, `scripts/gen-mesh.mjs --animate --glb`) onto the exact GLB
-   * above — texture/material carried through (`export_with_geometry`), not
-   * re-baked. Clips: `preset:idle`/`preset:walk`/`preset:run`, 2026-08-17;
-   * `preset:biped:dig` added 2026-08-18 (sahip: "lotusu koparma animasyonu
-   * yok, ekle") — Tripo's legacy biped catalog (90+ presets, checked in
-   * full) has no exact pick/harvest/gather preset, so `dig` (a repeated
-   * bend-and-reach toward the ground) stands in as the closest physical
-   * match. `sailor.ts` plays it whenever `harvest > 0.08`. Swap for a
-   * bespoke Blender clip if/when LOT-37 gets unblocked.
+   * LOT-75 — Tripo H3.1 Smart Mesh + auto-rig (idle/walk/run/dig), shadow
+   * sheet and inner-leg webbing removed. Sahip 2026-08-21: ship this.
    */
-  meshRig: "assets/models/char_doryseus_02_rig_8000.glb",
-  /**
-   * Clip-only donor GLB — `preset:biped:wave_goodbye_02` (departure wave)
-   * and `preset:biped:bow` (delivery gesture), 2026-08-18 (sahip: "diğer
-   * jestleri de (wave, delivery) yap"). Chosen by eye in the workbench out
-   * of `wave_goodbye_01`/`_02`, `bow`, `greet_01`: `_01` turned out to be a
-   * seated pose (wrong), `greet_01` an overhead cheer-wave (too big for a
-   * quiet delivery moment) — `_02` and `bow` were the only two that actually
-   * read right. Kept in a **separate** file from `meshRig` rather than
-   * folded in: Tripo's retarget caps a request at 5 presets/call, and
-   * `sailor.ts` attaches this file's clips onto the main rig's mixer at
-   * runtime purely by bone-name match (same trick as the workbench's "dış
-   * klip ekle") — no merge step needed. Stripped to skeleton+animation only
-   * via `scripts/gltf-strip-to-anim.mjs` (6.96 MB raw Tripo export → 546 KB)
-   * since Tripo's `export_with_geometry` always re-bakes the full mesh even
-   * for a 2-clip request, and this repo is already over its K37 download
-   * budget (roadmap.md) — shipping the raw export would have made that worse
-   * for zero benefit (the donor's own mesh/skin is discarded on load).
-   */
-  gesturesFile: "assets/models/char_doryseus_02_gestures_8000.glb",
+  meshRig: "assets/models/char_doryseus_08_rig_clean6_5000.glb",
+  meshRigBytes: 1015268,
   meshEnabled: true,
   /**
-   * Added to `root.rotation.y`. char_doryseus_02's own local "front" axis
-   * sits 90° off the `facing` convention (confirmed via frozen rotation
-   * sweep, LOT-27 QA 2026-08-17: at `facing=0` the mesh shows a side
-   * profile, not front/back). -π/2 makes the mesh's real face point the
-   * same way `facing` does, so W (away from camera) shows the real back
-   * and S (toward camera) shows the real face — verified both ways with
-   * `__LOTOPHAGOI_TEST_HOOKS__.freeze()` + a forced `facing` value, not
-   * just derived on paper (this exact constant has flipped wrong before).
+   * Added to `root.rotation.y`. 08 faces walk-forward in the workbench
+   * with no extra yaw (textured 02 needed -π/2; that does not apply here).
    */
-  meshFacing: -Math.PI / 2,
+  meshFacing: 0,
   /** Extra yaw on the GLB inside the sailor root. 0 while meshFacing holds the value above. */
   meshYaw: 0,
   /**
-   * Extra metres under the 3D soles. Was 0.08 for the old low-poly mesh's
-   * jagged peaks; measured against char_doryseus_02 (LOT-27 QA 2026-08-17,
-   * `fitGltfHeight` + terrain raycast both checked directly) the real
-   * planted gap is ~0 — sahip saw "havada uçuyor" with the old value. Small
-   * safety margin only, not a deliberate lift.
+   * Extra metres under the 3D soles. Measured against char_doryseus_02
+   * (`fitGltfHeight` + terrain raycast both checked directly) the real
+   * planted gap is ~0 — small safety margin only, not a deliberate lift.
    */
   meshYLift: 0.01,
-  /** Empty rows under the soles in the 512 canvas (measured 10px). */
-  feetPad: 10 / 512,
-  /** Fallback squash if no walk sheet is loaded. Sheet playback must not add this. */
-  walkStepSquash: 0.03,
-  walkStepStretch: 0.01,
-  /** Disabled — lateral sway read as a drunken stagger on the back walk. */
-  walkHipShift: 0,
-  walkHipRoll: 0,
-  /** Extra Y-squash while holding a harvest (knees compress before the hinge). */
-  harvestBend: 0.06,
-  /** Forward hip hinge while picking (radians). Pivot at harvestHip. Never pitch the camera-facing plane. */
-  harvestLean: 0.38,
-  /**
-   * When the harvest sheet already draws the pose, keep only a whisper of
-   * hinge so we do not double-bend (sheet + card pitch).
-   */
-  harvestSheetLean: 0.07,
-  /** Hip height as a fraction of billboard height. */
-  harvestHip: 0.46,
-  /** Extra reach toward the bloom while bent (metres, local Z). */
-  harvestReach: 0.05,
-  /**
-   * The 3D rig path (`meshLive`) never applied any of the bend/lean/reach
-   * above — those only ever ran on the flat billboard fallback. Sahip
-   * 2026-08-18: "zemine uyumlu bir eğilme ve uzanma hareketi yok" (no
-   * floor-appropriate bend/reach) — `preset:biped:dig`'s own rotation
-   * channels give *some* lean, but with nothing added on top it read as too
-   * upright to pass as reaching for a lotus at water level. These layer a
-   * whole-rig forward pitch + downward/forward offset on top of whatever the
-   * clip already does, driven by the same `hinge`/`knee` curves the
-   * billboard path uses. Kept smaller than the billboard's own
-   * `harvestLean` (0.38) since the clip is already contributing bend —
-   * this is a top-up, not the whole motion.
-   */
-  meshHarvestLean: 0.22,
-  /** Extra downward sink (metres) at full harvest hinge, on top of `meshYLift`. */
-  meshHarvestDrop: 0.14,
-  /** Extra forward reach (metres, local Z) at full harvest hinge. */
-  meshHarvestReach: 0.08,
-  /** Crossfade seconds when the 8-way billboard changes facing (smoothstep). */
-  viewFade: 0.16,
-  /**
-   * Extra radians past an octant centre before switching. Profile (D/A) sits
-   * next to diagonal octants — a short hold stopped W+D flicker; a bit more
-   * stops left↔frontLeft chatter while strafing.
-   */
-  viewHold: Math.PI * 0.09,
-  /** Play a walk/run sheet once moving (or wish) exceeds this (0–1). */
+  /** Crossfade seconds between idle/walk/run/dig on the 3D mixer. */
+  meshClipFade: 0.16,
+  /** Play walk/run (over idle) once moving (or wish) exceeds this (0–1). */
   gaitMin: 0.04,
   /**
-   * Warm linen multiply so the studio still sits in the Aegean sun
-   * (`art-bible.md` §2 sand / sail / skin) instead of reading as unlit plastic.
-   */
-  sunTint: 0xf0e0c4,
-  roughness: 0.88,
-  metalness: 0,
-  /** Warm fill — wrap lighting keeps this from reading as a sticker. */
-  emissive: 0x6e4e28,
-  emissiveIntensity: 0.38,
-  /** Half-Lambert wrap (0.5 = NdotL remapped to 0.5–1). Never fully dark. */
-  wrapLight: 0.5,
-  /**
-   * Metres ahead (along facing) to sample ground. A vertical billboard
-   * intersects the uphill mesh; we lift by that delta so calves don't clip
-   * (playtest: "yokuş çıkarken bacaklar zemine gömülüyor").
+   * Metres ahead (along facing) to sample ground, so calves don't clip
+   * into an uphill slope (playtest: "yokuş çıkarken bacaklar zemine
+   * gömülüyor").
    */
   slopeProbe: 0.42,
   /** How much of the uphill delta becomes extra root height. */
   slopeLift: 0.85,
-  /**
-   * Fallback column count before a sheet's image reports its size.
-   * Live playback uses width/height (square cells).
-   */
-  walkFrames: 8,
-  /** Seconds for one two-step walk cycle. Dense sheets + blend hide the seam. */
-  walkCycle: 1.12,
-  /** Seconds for one two-step run cycle. */
-  runCycle: 0.78,
 } as const;
 
 // --------------------------------------------------------------------- lotus
