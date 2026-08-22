@@ -12,6 +12,7 @@ import {
   type SubmitResult,
 } from "../net/leaderboard";
 import { loadSavedSkin, PLAYER_SKINS, saveSkin, type SkinId } from "../skins";
+import { createSkinPreview, type SkinPreview } from "./skinPreview";
 import "./skin.css";
 
 export interface MenuHandlers {
@@ -66,7 +67,7 @@ function mountSkinChrome(): {
   back: HTMLButtonElement;
 } {
   const existing = document.getElementById("skinPanel");
-  if (existing) {
+  if (existing && document.getElementById("skinPreviewCanvas")) {
     return {
       btnTitle: must("btnSkinTitle") as HTMLButtonElement,
       btnHub: must("btnSkinHub") as HTMLButtonElement,
@@ -75,6 +76,9 @@ function mountSkinChrome(): {
       back: must("btnSkinBack") as HTMLButtonElement,
     };
   }
+  existing?.remove();
+  document.getElementById("btnSkinTitle")?.remove();
+  document.getElementById("btnSkinHub")?.remove();
 
   const btnTitle = document.createElement("button");
   btnTitle.type = "button";
@@ -106,7 +110,13 @@ function mountSkinChrome(): {
     <div class="sub-panel-inner board-inner parchment-panel">
       <h2 id="skinTitle">Görünüm</h2>
       <p class="nick-hint">Koşuya hangi kıyafetle çıkacağını seç. Tercih bu tarayıcıda kalır.</p>
-      <div class="skin-grid" id="skinGrid" role="listbox" aria-label="Kıyafetler"></div>
+      <div class="skin-layout">
+        <div class="skin-grid" id="skinGrid" role="listbox" aria-label="Kıyafetler"></div>
+        <figure class="skin-preview-frame">
+          <canvas id="skinPreviewCanvas" width="160" height="220" aria-label="Konfuse 3B önizleme"></canvas>
+          <figcaption>Konfuse — sürükle, dönsün</figcaption>
+        </figure>
+      </div>
       <div class="nick-actions">
         <button type="button" class="menu-btn ghost" id="btnSkinBack">Geri</button>
       </div>
@@ -162,6 +172,7 @@ export class Menu {
   private skinGrid!: HTMLElement;
   private btnSkinBack!: HTMLButtonElement;
   private skinOpener: HTMLElement | null = null;
+  private skinPreview: SkinPreview | null = null;
 
   // ---- nick modal
   private nickPanel = must("nickPanel");
@@ -194,6 +205,11 @@ export class Menu {
     this.skinPanel = skin.panel;
     this.skinGrid = skin.grid;
     this.btnSkinBack = skin.back;
+
+    const canvas = document.getElementById("skinPreviewCanvas");
+    if (canvas instanceof HTMLCanvasElement) {
+      this.skinPreview = createSkinPreview(canvas);
+    }
 
     this.btnPlay.addEventListener("click", () => handlers.onPlay());
     this.btnHow.addEventListener("click", () => this.howPanel.classList.add("on"));
@@ -254,7 +270,7 @@ export class Menu {
     this.aboutPanel.classList.remove("on");
     this.nickPanel.classList.remove("on");
     this.boardPanel.classList.remove("on");
-    this.skinPanel.classList.remove("on");
+    this.hideSkinPanel();
     this.titleScreen.classList.add("on");
     document.body.dataset.uiPhase = "title";
   }
@@ -262,7 +278,7 @@ export class Menu {
   showHub(): void {
     this.titleScreen.classList.remove("on");
     this.hubScreen.classList.add("on");
-    this.skinPanel.classList.remove("on");
+    this.hideSkinPanel();
     document.body.dataset.uiPhase = "hub";
   }
 
@@ -282,7 +298,7 @@ export class Menu {
     this.hubScreen.classList.remove("on");
     this.nickPanel.classList.remove("on");
     this.boardPanel.classList.remove("on");
-    this.skinPanel.classList.remove("on");
+    this.hideSkinPanel();
     document.body.dataset.uiPhase = "world";
   }
 
@@ -463,11 +479,17 @@ export class Menu {
     this.skinOpener = opener instanceof HTMLElement ? opener : null;
     this.renderSkinGrid();
     this.skinPanel.classList.add("on");
+    this.skinPreview?.start();
     window.setTimeout(() => this.btnSkinBack.focus(), 0);
   }
 
-  private closeSkin(): void {
+  private hideSkinPanel(): void {
+    this.skinPreview?.stop();
     this.skinPanel.classList.remove("on");
+  }
+
+  private closeSkin(): void {
+    this.hideSkinPanel();
     this.skinOpener?.focus();
     this.skinOpener = null;
   }

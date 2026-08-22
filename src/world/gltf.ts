@@ -144,6 +144,77 @@ export function lightGltf(root: THREE.Object3D): void {
   });
 }
 
+/**
+ * Konfuse tee/shorts: Tripo albedo has baked folds + near-white print, then
+ * the island sun (1.85) and UnrealBloom smear both. Crush cloth greys, cap
+ * print luma under the bloom knee, drop specular (Lambert).
+ */
+export function preparePrintSkin(root: THREE.Object3D): void {
+  root.traverse((obj) => {
+    const mesh = obj as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    mesh.material = (Array.isArray(mesh.material) ? mats.map(printLambert) : printLambert(mats[0])) as
+      | THREE.Material
+      | THREE.Material[];
+  });
+}
+
+function printLambert(src: THREE.Material): THREE.Material {
+  const std = src as THREE.MeshStandardMaterial;
+  const map = std.map ?? null;
+  if (map) flattenAlbedoForSun(map);
+  const mat = new THREE.MeshLambertMaterial({
+    map,
+    color: std.color?.clone() ?? new THREE.Color(0xffffff),
+    transparent: std.transparent,
+    opacity: std.opacity,
+    alphaTest: std.alphaTest,
+    side: THREE.FrontSide,
+  });
+  mat.vertexColors = std.vertexColors;
+  return mat;
+}
+
+/** Achromatic cloth/print only — skin and the colour shorts graphic stay. */
+function flattenAlbedoForSun(map: THREE.Texture): void {
+  const src = map.image as { width?: number; height?: number } | undefined;
+  if (!src?.width || !src.height || typeof document === "undefined") return;
+  const canvas = document.createElement("canvas");
+  canvas.width = src.width;
+  canvas.height = src.height;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return;
+  ctx.drawImage(src as CanvasImageSource, 0, 0);
+  const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const d = img.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const r = d[i];
+    const g = d[i + 1];
+    const b = d[i + 2];
+    const mx = r > g ? (r > b ? r : b) : g > b ? g : b;
+    const mn = r < g ? (r < b ? r : b) : g < b ? g : b;
+    const avg = (r + g + b) / 3;
+    const chroma = mx - mn;
+    if (chroma < 28) {
+      const out = avg < 88 ? avg * 0.4 : 128 + ((avg - 88) / 167) * 36;
+      const s = avg > 1 ? out / avg : 0;
+      d[i] = Math.min(255, r * s);
+      d[i + 1] = Math.min(255, g * s);
+      d[i + 2] = Math.min(255, b * s);
+    } else if (mx > 210) {
+      const s = 205 / mx;
+      d[i] *= s;
+      d[i + 1] *= s;
+      d[i + 2] *= s;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  map.image = canvas;
+  map.colorSpace = THREE.SRGBColorSpace;
+  map.needsUpdate = true;
+}
+
 /** Replace Tripo/default materials with a palette colour the engine can light. */
 export function tintGltf(root: THREE.Object3D, hex: number): void {
   const mat = new THREE.MeshStandardMaterial({

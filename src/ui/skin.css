@@ -1,10 +1,71 @@
 /* Skin picker — Title/Hub Görünüm modal. Parşömen ailesi, board-modal z-index. */
 
+#skinPanel .board-inner {
+  max-width: 640px;
+  width: min(640px, 94vw);
+}
+
 .skin-grid {
   display: flex;
   flex-direction: column;
   gap: 8px;
   margin: 10px 0 4px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.skin-layout {
+  display: flex;
+  gap: 12px;
+  align-items: stretch;
+  margin: 10px 0 4px;
+}
+
+.skin-layout .skin-grid {
+  margin: 0;
+}
+
+.skin-preview-frame {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 6px 6px 4px;
+  border: 1px solid rgba(120, 90, 30, 0.45);
+  border-radius: 4px;
+  background: #f4eee0;
+  width: 172px;
+}
+
+.skin-preview-frame canvas {
+  display: block;
+  width: 160px;
+  height: 220px;
+  border-radius: 2px;
+  cursor: grab;
+  touch-action: none;
+}
+
+.skin-preview-frame canvas:active {
+  cursor: grabbing;
+}
+
+.skin-preview-frame figcaption {
+  margin: 4px 0 0;
+  text-align: center;
+  font-size: 12px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: #6d4a16;
+}
+
+@media (max-width: 520px) {
+  .skin-layout {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .skin-grid {
+    width: 100%;
+  }
 }
 
 .skin-option {

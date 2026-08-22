@@ -16,6 +16,8 @@ export interface PlayerSkin {
   hint: string;
   meshRig: string;
   meshRigBytes: number;
+  /** Matte Lambert + albedo flatten so island sun/bloom don't smear prints. */
+  mattePrint?: boolean;
 }
 
 export const PLAYER_SKINS: Record<SkinId, PlayerSkin> = {
@@ -32,6 +34,7 @@ export const PLAYER_SKINS: Record<SkinId, PlayerSkin> = {
     hint: "Siyah oversized tişört ve şort.",
     meshRig: "assets/models/char_doryseus_konfuse_rig_5000.glb",
     meshRigBytes: 3032100,
+    mattePrint: true,
   },
 };
 

@@ -96,6 +96,7 @@ export function buildSailor(): Sailor {
       heightMeters: SAILOR.height,
       expectedBytes: skin.meshRigBytes,
       clipFade: SAILOR.meshClipFade,
+      mattePrint: skin.mattePrint,
     })
       .then((a) => {
         if (gen !== loadGen) return;

@@ -13,6 +13,7 @@ import { assetUrl } from "../assets/paths";
 import {
   fitGltfHeight,
   lightGltf,
+  preparePrintSkin,
   rebindSkinned,
   restBonePositions,
 } from "./gltf";
@@ -72,7 +73,7 @@ function findClip(clips: THREE.AnimationClip[], name: string): THREE.AnimationCl
 
 export async function createHumanoidActor(
   path: string,
-  opts: { heightMeters: number; expectedBytes: number; clipFade: number },
+  opts: { heightMeters: number; expectedBytes: number; clipFade: number; mattePrint?: boolean },
 ): Promise<HumanoidActor> {
   const url = assetUrl(path);
   const res = await fetch(url);
@@ -94,6 +95,7 @@ export async function createHumanoidActor(
 
   const scene = cloneSkinned(gltf.scene) as THREE.Group;
   lightGltf(scene);
+  if (opts.mattePrint) preparePrintSkin(scene);
   scene.traverse((obj) => {
     const skinned = obj as THREE.SkinnedMesh;
     if (skinned.isSkinnedMesh) skinned.frustumCulled = false;
