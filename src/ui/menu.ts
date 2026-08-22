@@ -11,6 +11,8 @@ import {
   type LeaderboardEntry,
   type SubmitResult,
 } from "../net/leaderboard";
+import { loadSavedSkin, PLAYER_SKINS, saveSkin, type SkinId } from "../skins";
+import "./skin.css";
 
 export interface MenuHandlers {
   /** Title's "Oyna" — opens the Hub (island select), does not start play directly. */
@@ -55,6 +57,75 @@ function setStatus(el: HTMLElement, tone: StatusTone, text: string): void {
   el.hidden = false;
 }
 
+/** Inserts Görünüm buttons + modal. Not in index.html — parallel sessions own that file. */
+function mountSkinChrome(): {
+  btnTitle: HTMLButtonElement;
+  btnHub: HTMLButtonElement;
+  panel: HTMLElement;
+  grid: HTMLElement;
+  back: HTMLButtonElement;
+} {
+  const existing = document.getElementById("skinPanel");
+  if (existing) {
+    return {
+      btnTitle: must("btnSkinTitle") as HTMLButtonElement,
+      btnHub: must("btnSkinHub") as HTMLButtonElement,
+      panel: existing,
+      grid: must("skinGrid"),
+      back: must("btnSkinBack") as HTMLButtonElement,
+    };
+  }
+
+  const btnTitle = document.createElement("button");
+  btnTitle.type = "button";
+  btnTitle.className = "menu-btn";
+  btnTitle.id = "btnSkinTitle";
+  btnTitle.textContent = "Görünüm";
+  const titleMenu = document.querySelector(".title-menu");
+  const boardTitle = document.getElementById("btnBoardTitle");
+  if (titleMenu && boardTitle) titleMenu.insertBefore(btnTitle, boardTitle);
+  else titleMenu?.appendChild(btnTitle);
+
+  const btnHub = document.createElement("button");
+  btnHub.type = "button";
+  btnHub.className = "menu-btn ghost";
+  btnHub.id = "btnSkinHub";
+  btnHub.textContent = "Görünüm";
+  const hubActions = document.querySelector(".hub-actions");
+  const boardHub = document.getElementById("btnBoard");
+  if (hubActions && boardHub) hubActions.insertBefore(btnHub, boardHub);
+  else hubActions?.appendChild(btnHub);
+
+  const panel = document.createElement("div");
+  panel.className = "sub-panel board-modal";
+  panel.id = "skinPanel";
+  panel.setAttribute("role", "dialog");
+  panel.setAttribute("aria-modal", "true");
+  panel.setAttribute("aria-labelledby", "skinTitle");
+  panel.innerHTML = `
+    <div class="sub-panel-inner board-inner parchment-panel">
+      <h2 id="skinTitle">Görünüm</h2>
+      <p class="nick-hint">Koşuya hangi kıyafetle çıkacağını seç. Tercih bu tarayıcıda kalır.</p>
+      <div class="skin-grid" id="skinGrid" role="listbox" aria-label="Kıyafetler"></div>
+      <div class="nick-actions">
+        <button type="button" class="menu-btn ghost" id="btnSkinBack">Geri</button>
+      </div>
+    </div>
+  `;
+  const app = document.getElementById("app") ?? document.body;
+  const loading = document.getElementById("loading");
+  if (loading) app.insertBefore(panel, loading);
+  else app.appendChild(panel);
+
+  return {
+    btnTitle,
+    btnHub,
+    panel,
+    grid: must("skinGrid"),
+    back: must("btnSkinBack") as HTMLButtonElement,
+  };
+}
+
 /**
  * Title (Welcome + menu) and Hub (island select) screens — docs/ux/screens.md
  * §1 and §3. Both are plain DOM overlays, same family as Hud's #card, not a
@@ -83,6 +154,15 @@ export class Menu {
   private cardCyclops = must("cardCyclops");
   private btnHubMenu = must("btnHubMenu") as HTMLButtonElement;
 
+  // ---- skin picker (Title + Hub, same modal; chrome is mounted in JS so
+  // this file does not have to share index.html with parallel sessions)
+  private btnSkinTitle!: HTMLButtonElement;
+  private btnSkinHub!: HTMLButtonElement;
+  private skinPanel!: HTMLElement;
+  private skinGrid!: HTMLElement;
+  private btnSkinBack!: HTMLButtonElement;
+  private skinOpener: HTMLElement | null = null;
+
   // ---- nick modal
   private nickPanel = must("nickPanel");
   private nickInput = must("nickInput") as HTMLInputElement;
@@ -108,6 +188,13 @@ export class Menu {
   private boardOpener: HTMLElement | null = null;
 
   constructor(private handlers: MenuHandlers) {
+    const skin = mountSkinChrome();
+    this.btnSkinTitle = skin.btnTitle;
+    this.btnSkinHub = skin.btnHub;
+    this.skinPanel = skin.panel;
+    this.skinGrid = skin.grid;
+    this.btnSkinBack = skin.back;
+
     this.btnPlay.addEventListener("click", () => handlers.onPlay());
     this.btnHow.addEventListener("click", () => this.howPanel.classList.add("on"));
     this.btnHowBack.addEventListener("click", () => this.howPanel.classList.remove("on"));
@@ -151,6 +238,14 @@ export class Menu {
     this.boardPanel.addEventListener("keydown", (e) => {
       if (e.key === "Escape") this.closeBoard();
     });
+
+    this.btnSkinTitle.addEventListener("click", () => this.openSkin());
+    this.btnSkinHub.addEventListener("click", () => this.openSkin());
+    this.btnSkinBack.addEventListener("click", () => this.closeSkin());
+    this.skinPanel.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") this.closeSkin();
+    });
+    this.renderSkinGrid();
   }
 
   showTitle(): void {
@@ -159,6 +254,7 @@ export class Menu {
     this.aboutPanel.classList.remove("on");
     this.nickPanel.classList.remove("on");
     this.boardPanel.classList.remove("on");
+    this.skinPanel.classList.remove("on");
     this.titleScreen.classList.add("on");
     document.body.dataset.uiPhase = "title";
   }
@@ -166,6 +262,7 @@ export class Menu {
   showHub(): void {
     this.titleScreen.classList.remove("on");
     this.hubScreen.classList.add("on");
+    this.skinPanel.classList.remove("on");
     document.body.dataset.uiPhase = "hub";
   }
 
@@ -185,6 +282,7 @@ export class Menu {
     this.hubScreen.classList.remove("on");
     this.nickPanel.classList.remove("on");
     this.boardPanel.classList.remove("on");
+    this.skinPanel.classList.remove("on");
     document.body.dataset.uiPhase = "world";
   }
 
@@ -356,5 +454,52 @@ export class Menu {
 
     li.append(rank, nick, time);
     return li;
+  }
+
+  // ------------------------------------------------------------- skin picker
+
+  private openSkin(): void {
+    const opener = document.activeElement;
+    this.skinOpener = opener instanceof HTMLElement ? opener : null;
+    this.renderSkinGrid();
+    this.skinPanel.classList.add("on");
+    window.setTimeout(() => this.btnSkinBack.focus(), 0);
+  }
+
+  private closeSkin(): void {
+    this.skinPanel.classList.remove("on");
+    this.skinOpener?.focus();
+    this.skinOpener = null;
+  }
+
+  private renderSkinGrid(): void {
+    const selected = loadSavedSkin();
+    this.skinGrid.replaceChildren(
+      ...Object.values(PLAYER_SKINS).map((skin) => this.skinButton(skin.id, selected)),
+    );
+  }
+
+  private skinButton(id: SkinId, selected: SkinId): HTMLButtonElement {
+    const skin = PLAYER_SKINS[id];
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "skin-option" + (id === selected ? " is-selected" : "");
+    btn.setAttribute("role", "option");
+    btn.setAttribute("aria-selected", id === selected ? "true" : "false");
+
+    const name = document.createElement("span");
+    name.className = "skin-option-name";
+    name.textContent = skin.label;
+
+    const hint = document.createElement("span");
+    hint.className = "skin-option-hint";
+    hint.textContent = skin.hint;
+
+    btn.append(name, hint);
+    btn.addEventListener("click", () => {
+      saveSkin(id);
+      this.renderSkinGrid();
+    });
+    return btn;
   }
 }

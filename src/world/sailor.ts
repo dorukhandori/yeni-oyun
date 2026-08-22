@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { LOTUS, PALETTE, SAILOR } from "../constants";
+import { loadSavedSkin, skinById, SKIN_CHANGE_EVENT, type SkinId } from "../skins";
 import { glowSprite } from "./sprite";
 import { fitGltfHeight, lightGltf, loadGltf } from "./gltf";
 import {
@@ -68,6 +69,7 @@ export function buildSailor(): Sailor {
   let squash = 0;
   let landSquash = 0;
   let actor: HumanoidActor | null = null;
+  let loadGen = 0;
 
   const mountTextured = () => {
     void loadGltf(SAILOR.mesh)
@@ -86,28 +88,38 @@ export function buildSailor(): Sailor {
       });
   };
 
-  if (SAILOR.meshRig) {
-    void createHumanoidActor(SAILOR.meshRig, {
+  const mountSkin = (id: SkinId) => {
+    const skin = skinById(id);
+    const gen = ++loadGen;
+    actor = null;
+    void createHumanoidActor(skin.meshRig, {
       heightMeters: SAILOR.height,
-      expectedBytes: SAILOR.meshRigBytes,
+      expectedBytes: skin.meshRigBytes,
       clipFade: SAILOR.meshClipFade,
     })
       .then((a) => {
+        if (gen !== loadGen) return;
         actor = a;
         while (hold.children.length > 0) hold.remove(hold.children[0]);
         hold.position.set(0, SAILOR.meshYLift, 0);
         hold.add(a.scene);
         if (import.meta.env.DEV) {
-          console.info("[sailor] mesh rig", SAILOR.meshRig, a.bones.length, "bones");
+          console.info("[sailor] mesh rig", skin.id, skin.meshRig, a.bones.length, "bones");
         }
       })
       .catch((err) => {
-        console.warn("[sailor] mesh rig failed, textured fallback", err);
+        if (gen !== loadGen) return;
+        console.warn("[sailor] mesh rig failed, textured fallback", skin.id, err);
+        if (id !== "classic") {
+          mountSkin("classic");
+          return;
+        }
         mountTextured();
       });
-  } else {
-    mountTextured();
-  }
+  };
+
+  mountSkin(loadSavedSkin());
+  window.addEventListener(SKIN_CHANGE_EVENT, () => mountSkin(loadSavedSkin()));
 
   const pickSlot = (moving: number, harvest: number, running: boolean): LocomotionSlot => {
     if (harvest > 0.15) return "harvest";

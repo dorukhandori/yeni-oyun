@@ -57,4 +57,12 @@ export const WORKBENCH_PRESETS: WorkbenchPreset[] = [
     path: "assets/models/creature_thallope_01_mesh_4000.glb",
     clip: "walk",
   },
+  {
+    id: "dory-konfuse",
+    label: "Doryseus Konfuse",
+    hint: "Konfuse tee+şort — Tripo auto-rig idle/walk/run/dig. Varsayılan SAILOR değil; Title Görünüm.",
+    kind: "asset",
+    path: "assets/models/char_doryseus_konfuse_rig_5000.glb",
+    clip: "preset:idle",
+  },
 ];

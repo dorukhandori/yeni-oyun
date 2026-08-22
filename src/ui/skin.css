@@ -1,0 +1,52 @@
+/* Skin picker — Title/Hub Görünüm modal. Parşömen ailesi, board-modal z-index. */
+
+.skin-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 10px 0 4px;
+}
+
+.skin-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+  min-height: 44px;
+  padding: 12px 14px;
+  border: 1px solid rgba(120, 90, 30, 0.45);
+  border-radius: 4px;
+  background: rgba(255, 252, 244, 0.9);
+  color: var(--ink);
+  font: 500 16px/1.3 "Optima", "Palatino Linotype", "Georgia", serif;
+  text-align: left;
+  cursor: pointer;
+}
+
+.skin-option:hover,
+.skin-option:focus-visible {
+  border-color: rgba(120, 90, 30, 0.85);
+}
+
+.skin-option:focus-visible {
+  outline: 2px solid #8a6410;
+  outline-offset: 2px;
+}
+
+.skin-option.is-selected {
+  background: rgba(201, 154, 60, 0.26);
+  box-shadow: inset 0 0 0 1px rgba(120, 90, 30, 0.5);
+}
+
+.skin-option-name {
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+.skin-option-hint {
+  font-size: 13px;
+  line-height: 1.4;
+  color: #5c452a;
+  font-weight: 400;
+}

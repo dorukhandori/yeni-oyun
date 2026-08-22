@@ -96,6 +96,7 @@ function parseArgs(argv) {
     else if (a === "-o" || a === "--output") opts.output = argv[++i];
     else if (a === "--polycount") opts.polycount = Number(argv[++i]);
     else if (a === "--texture") opts.texture = true;
+    else if (a === "--texture-quality") opts.textureQuality = argv[++i];
     else if (a === "--pbr") opts.pbr = true;
     else if (a === "--p1") opts.p1 = true;
     else if (a === "--balance") opts.balance = true;
@@ -332,6 +333,7 @@ function usage() {
     "  node scripts/gen-mesh.mjs --image still.png [-o art-source/raw/name.glb] [--polycount 4000]\n" +
     "  node scripts/gen-mesh.mjs --front f.png --left l.png --back b.png --right r.png --p1 --pbr\n" +
     "  Default: untextured H3.1 + smart_low_poly + auto_size. Pass --texture/--pbr only if you accept baked albedo.\n" +
+    "  Pass --texture-quality detailed|extreme with --texture to spend extra credits on HD albedo.\n" +
     "  Pass --p1 for P1-20260311 (strict face_limit, no smart_low_poly).\n" +
     "  node scripts/gen-mesh.mjs --task <id> -o art-source/raw/name.glb   # resume poll + download\n" +
     "  node scripts/gen-mesh.mjs --animate --task <generation_task_id> [-o art-source/raw/name.glb]\n" +
@@ -444,6 +446,7 @@ async function main() {
     export_uv: wantTexture,
     face_limit: opts.polycount,
   };
+  if (opts.textureQuality) body.texture_quality = opts.textureQuality;
   if (!opts.p1) body.smart_low_poly = true;
 
   let lastError;
@@ -451,6 +454,7 @@ async function main() {
     try {
       console.error(
         `Tripo key ${tag(key)} model=${model} texture=${wantTexture} pbr=${opts.pbr} faces=${opts.polycount}` +
+          (opts.textureQuality ? ` texture_quality=${opts.textureQuality}` : "") +
           (opts.p1 ? " p1" : " smart_low_poly") +
           (views.length ? ` views=${views.join(",")}` : ""),
       );
