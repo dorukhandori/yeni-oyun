@@ -771,6 +771,7 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
       const md = input.mouseDelta();
       rig.rotate(md.x * sens, md.y * sens);
       rig.rotate(input.yawKeys() * CAMERA.keySens, input.pitchKeys() * CAMERA.keySens * 0.6);
+      rig.zoomBy(input.wheelDelta());
     }
 
     // --------------------------------------------------------------- movement

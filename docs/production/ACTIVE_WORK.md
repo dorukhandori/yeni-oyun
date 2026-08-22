@@ -59,6 +59,7 @@ LOT-52 kahraman gövdesi yerelde duruyor (GLB + `constants.ts` filo=1); sahip ca
 
 | Kim | Tarih | Dosyalar / alan | Ne yapıldı |
 |---|---|---|---|
+| Cursor (Grok, bu oturum) · `@byte` | 2026-08-22 | `src/{systems/input,render/cameraRig,constants,game}.ts`, `index.html` | Fare tekerleği zoom in/out (3.4–16 m). Sahip canlıya dedi. |
 | Cursor (Grok, bu oturum) · `@glyph` | 2026-08-22 | `src/skins.ts`, `src/ui/{menu,skinPreview,skin.css}` | Görünüm önizlemesinin altında kıyafet adı (Kömbe / Tunik). Canlıda hardcoded Konfuse yazıyordu. |
 | Cursor (Grok, bu oturum) · `@byte` / `@glyph` | 2026-08-22 | `src/game.ts`, `src/constants.ts`, `src/world/{edgeSpawn,shipFog,hillPuzzle,ship,islandKit,terrain}.ts`, `src/render/stage.ts`, `src/ui/{hud.ts,hud.css}`, `index.html` | LOT-77/78 kıyı taşları + gemi gizleme + rastgele iç spawn; LOT-82 parşömen toast; akşam trafiği GPU (DPR, gölge, deniz, bloom, çim tile). Sahip canlıya dedi. |
 | Cursor (Grok, bu oturum) · `@byte` | 2026-08-21 | `src/constants.ts` (`SAILOR.meshFacing`) | LOT-75 follow-up: 08 bind yüz +X, oyun facing +Z. `meshFacing` 0 → −π/2. Sahip onayladı, canlıya. |

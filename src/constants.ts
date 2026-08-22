@@ -553,6 +553,14 @@ export const CAMERA = {
   fov: 55,
   /** Behind-the-shoulder; 8.2 sat too far off the back (sahip, 22 Aug). */
   dist: 6.4,
+  /** Wheel zoom — closer than this clips the sailor; farther is a map view. */
+  distMin: 3.4,
+  distMax: 16,
+  /**
+   * `zoomWant *= exp(deltaY * zoomSens)`. Negative wheel (scroll up) zooms
+   * in. ~100 px per mouse notch → about 12% boom length per tick.
+   */
+  zoomSens: 0.00115,
   height: 3.0,
   lookHeight: 1.5,
   lerp: 0.11,

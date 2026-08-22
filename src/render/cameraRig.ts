@@ -4,6 +4,8 @@ import { CAMERA } from "../constants";
 export class CameraRig {
   yaw: number = CAMERA.yawStart;
   pitch: number = CAMERA.pitchStart;
+  /** Current boom length; wheel writes this, `desired()` reads it. */
+  private zoomDist: number = CAMERA.dist;
   private pos = new THREE.Vector3();
   private target = new THREE.Vector3();
   private shake = 0;
@@ -20,6 +22,16 @@ export class CameraRig {
     this.pitch = THREE.MathUtils.clamp(this.pitch + dy, CAMERA.pitchMin, CAMERA.pitchMax);
   }
 
+  /** Mouse wheel / trackpad: scroll up zooms in (negative deltaY). */
+  zoomBy(deltaY: number): void {
+    if (deltaY === 0) return;
+    this.zoomDist = THREE.MathUtils.clamp(
+      this.zoomDist * Math.exp(deltaY * CAMERA.zoomSens),
+      CAMERA.distMin,
+      CAMERA.distMax,
+    );
+  }
+
   kick(amount: number): void {
     this.shake = Math.min(0.85, this.shake + amount);
   }
@@ -34,6 +46,7 @@ export class CameraRig {
   }
 
   snap(focus: THREE.Vector3): void {
+    this.zoomDist = CAMERA.dist;
     this.pos.copy(this.desired(focus));
     this.camera.position.copy(this.pos);
     this.target.copy(focus);
@@ -52,8 +65,10 @@ export class CameraRig {
     extraDist = 0,
   ): THREE.Vector3 {
     const dir = new THREE.Vector3(Math.sin(this.yaw), 0, Math.cos(this.yaw));
-    out.copy(focus).addScaledVector(dir, CAMERA.dist + extraDist);
-    out.y = focus.y + CAMERA.height + extraHeight + this.pitch * 3.2;
+    const boom = this.zoomDist;
+    const height = CAMERA.height * (boom / CAMERA.dist);
+    out.copy(focus).addScaledVector(dir, boom + extraDist);
+    out.y = focus.y + height + extraHeight + this.pitch * 3.2;
     const floor = Math.max(0, this.groundAt(out.x, out.z)) + CAMERA.minClearance;
     if (out.y < floor) out.y = floor;
     return out;

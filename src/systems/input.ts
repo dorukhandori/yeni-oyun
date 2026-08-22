@@ -4,6 +4,7 @@ export class Input {
   private pressed = new Set<string>();
   private mdx = 0;
   private mdy = 0;
+  private wheel = 0;
   private dragging = false;
   private stickX = 0;
   private stickZ = 0;
@@ -39,6 +40,21 @@ export class Input {
     document.addEventListener("pointerlockchange", () => {
       this.locked = document.pointerLockElement === canvas;
     });
+    window.addEventListener(
+      "wheel",
+      (e) => {
+        const t = e.target as HTMLElement | null;
+        if (t?.closest?.("#boardPanel, #nickPanel, #skinPanel, input, textarea, .board-modal")) {
+          return;
+        }
+        e.preventDefault();
+        let dy = e.deltaY;
+        if (e.deltaMode === 1) dy *= 16;
+        else if (e.deltaMode === 2) dy *= 800;
+        this.wheel += dy;
+      },
+      { passive: false },
+    );
 
     this.bindTouchUi(canvas);
   }
@@ -193,6 +209,7 @@ export class Input {
     this.pressed.clear();
     this.mdx = 0;
     this.mdy = 0;
+    this.wheel = 0;
     this.tapInteract = false;
   }
 
@@ -206,6 +223,10 @@ export class Input {
   }
   mouseDelta(): { x: number; y: number } {
     return { x: this.mdx, y: this.mdy };
+  }
+  /** Accumulated wheel pixels this frame (positive = scroll down = zoom out). */
+  wheelDelta(): number {
+    return this.wheel;
   }
   yawKeys(): number {
     return (this.held.has("ArrowLeft") ? -1 : 0) + (this.held.has("ArrowRight") ? 1 : 0);
