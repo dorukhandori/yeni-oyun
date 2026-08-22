@@ -67,7 +67,7 @@ function mountSkinChrome(): {
   back: HTMLButtonElement;
 } {
   const existing = document.getElementById("skinPanel");
-  if (existing && document.getElementById("skinPreviewCanvas")) {
+  if (existing && document.getElementById("skinPreviewCanvas") && document.getElementById("skinPreviewCaption")) {
     return {
       btnTitle: must("btnSkinTitle") as HTMLButtonElement,
       btnHub: must("btnSkinHub") as HTMLButtonElement,
@@ -113,8 +113,11 @@ function mountSkinChrome(): {
       <div class="skin-layout">
         <div class="skin-grid" id="skinGrid" role="listbox" aria-label="Kıyafetler"></div>
         <figure class="skin-preview-frame">
-          <canvas id="skinPreviewCanvas" width="160" height="220" aria-label="Konfuse 3B önizleme"></canvas>
-          <figcaption>Konfuse — sürükle, dönsün</figcaption>
+          <canvas id="skinPreviewCanvas" width="160" height="220" aria-label="Kıyafet 3B önizleme"></canvas>
+          <figcaption>
+            <strong id="skinPreviewCaption">Kömbe</strong>
+            <span class="skin-preview-hint">sürükle, dönsün</span>
+          </figcaption>
         </figure>
       </div>
       <div class="nick-actions">
@@ -207,8 +210,9 @@ export class Menu {
     this.btnSkinBack = skin.back;
 
     const canvas = document.getElementById("skinPreviewCanvas");
+    const caption = document.getElementById("skinPreviewCaption");
     if (canvas instanceof HTMLCanvasElement) {
-      this.skinPreview = createSkinPreview(canvas);
+      this.skinPreview = createSkinPreview(canvas, caption ?? undefined);
     }
 
     this.btnPlay.addEventListener("click", () => handlers.onPlay());
@@ -479,7 +483,7 @@ export class Menu {
     this.skinOpener = opener instanceof HTMLElement ? opener : null;
     this.renderSkinGrid();
     this.skinPanel.classList.add("on");
-    this.skinPreview?.start();
+    this.skinPreview?.show(loadSavedSkin());
     window.setTimeout(() => this.btnSkinBack.focus(), 0);
   }
 
@@ -520,6 +524,7 @@ export class Menu {
     btn.append(name, hint);
     btn.addEventListener("click", () => {
       saveSkin(id);
+      this.skinPreview?.show(id);
       this.renderSkinGrid();
     });
     return btn;

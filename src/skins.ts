@@ -30,7 +30,7 @@ export const PLAYER_SKINS: Record<SkinId, PlayerSkin> = {
   },
   konfuse: {
     id: "konfuse",
-    label: "Konfuse",
+    label: "Kömbe",
     hint: "Siyah oversized tişört ve şort.",
     meshRig: "assets/models/char_doryseus_konfuse_rig_5000.glb",
     meshRigBytes: 3032100,

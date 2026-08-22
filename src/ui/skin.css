@@ -51,10 +51,23 @@
 .skin-preview-frame figcaption {
   margin: 4px 0 0;
   text-align: center;
-  font-size: 12px;
-  letter-spacing: 0.8px;
-  text-transform: uppercase;
   color: #6d4a16;
+}
+
+.skin-preview-frame figcaption strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+
+.skin-preview-hint {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #8a6420;
 }
 
 @media (max-width: 520px) {

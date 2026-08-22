@@ -1,25 +1,32 @@
 /**
- * Tiny Konfuse turnaround in the Görünüm modal. Second WebGL context, only
+ * Tiny skin turnaround in the Görünüm modal. Second WebGL context, only
  * while the panel is open — the game canvas keeps the main renderer.
+ * Follows the selected appearance (Tunik / Kömbe), not a hardcoded mesh.
  */
 import * as THREE from "three";
 import { SAILOR } from "../constants";
-import { PLAYER_SKINS } from "../skins";
+import { PLAYER_SKINS, type SkinId } from "../skins";
 import { createHumanoidActor } from "../world/humanoidRig";
 
 export interface SkinPreview {
-  start(): void;
+  show(id: SkinId): void;
   stop(): void;
 }
 
-export function createSkinPreview(canvas: HTMLCanvasElement): SkinPreview {
+export function createSkinPreview(canvas: HTMLCanvasElement, caption?: HTMLElement): SkinPreview {
   let renderer: THREE.WebGLRenderer | null = null;
   let raf = 0;
   let running = false;
   let gen = 0;
+  let shown: SkinId | null = null;
   let yaw = 0.35;
   let dragging = false;
   let lastX = 0;
+  let pivot: THREE.Group | null = null;
+  let actor: Awaited<ReturnType<typeof createHumanoidActor>> | null = null;
+  let webgl: THREE.WebGLRenderer | null = null;
+  let scene: THREE.Scene | null = null;
+  let camera: THREE.PerspectiveCamera | null = null;
 
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -42,11 +49,18 @@ export function createSkinPreview(canvas: HTMLCanvasElement): SkinPreview {
     }
   };
 
+  const labelFor = (id: SkinId) => PLAYER_SKINS[id].label;
+
   const stop = () => {
     running = false;
+    shown = null;
     gen += 1;
     cancelAnimationFrame(raf);
     raf = 0;
+    actor = null;
+    pivot = null;
+    scene = null;
+    camera = null;
     canvas.removeEventListener("pointerdown", onDown);
     canvas.removeEventListener("pointermove", onMove);
     canvas.removeEventListener("pointerup", onUp);
@@ -55,21 +69,21 @@ export function createSkinPreview(canvas: HTMLCanvasElement): SkinPreview {
       renderer.dispose();
       renderer = null;
     }
+    webgl = null;
   };
 
-  const start = () => {
+  const boot = () => {
     if (running) return;
     running = true;
-    const myGen = ++gen;
 
-    const scene = new THREE.Scene();
+    scene = new THREE.Scene();
     scene.background = new THREE.Color(0xf4eee0);
 
-    const camera = new THREE.PerspectiveCamera(32, 160 / 220, 0.05, 20);
+    camera = new THREE.PerspectiveCamera(32, 160 / 220, 0.05, 20);
     camera.position.set(1.15, 1.05, 2.35);
     camera.lookAt(0, 0.88, 0);
 
-    const webgl = new THREE.WebGLRenderer({
+    webgl = new THREE.WebGLRenderer({
       canvas,
       antialias: true,
       alpha: false,
@@ -90,9 +104,8 @@ export function createSkinPreview(canvas: HTMLCanvasElement): SkinPreview {
     fill.position.set(-2.4, 1.4, -1.6);
     scene.add(fill);
 
-    const pivot = new THREE.Group();
+    pivot = new THREE.Group();
     scene.add(pivot);
-    let actor: Awaited<ReturnType<typeof createHumanoidActor>> | null = null;
 
     canvas.addEventListener("pointerdown", onDown);
     canvas.addEventListener("pointermove", onMove);
@@ -101,7 +114,7 @@ export function createSkinPreview(canvas: HTMLCanvasElement): SkinPreview {
 
     const clock = new THREE.Clock();
     const tick = () => {
-      if (!running || renderer !== webgl) return;
+      if (!running || !webgl || !scene || !camera || !pivot) return;
       const dt = Math.min(clock.getDelta(), 0.05);
       if (!reduced && !dragging) yaw += dt * 0.55;
       pivot.rotation.y = yaw;
@@ -109,8 +122,19 @@ export function createSkinPreview(canvas: HTMLCanvasElement): SkinPreview {
       webgl.render(scene, camera);
       raf = requestAnimationFrame(tick);
     };
+    tick();
+  };
 
-    const skin = PLAYER_SKINS.konfuse;
+  const load = (id: SkinId) => {
+    const skin = PLAYER_SKINS[id];
+    const myGen = ++gen;
+    shown = id;
+    if (caption) caption.textContent = labelFor(id);
+    canvas.setAttribute("aria-label", `${labelFor(id)} 3B önizleme`);
+    actor = null;
+    if (pivot) {
+      while (pivot.children.length > 0) pivot.remove(pivot.children[0]);
+    }
     void createHumanoidActor(skin.meshRig, {
       heightMeters: SAILOR.height,
       expectedBytes: skin.meshRigBytes,
@@ -118,17 +142,23 @@ export function createSkinPreview(canvas: HTMLCanvasElement): SkinPreview {
       mattePrint: skin.mattePrint,
     })
       .then((a) => {
-        if (myGen !== gen) return;
+        if (myGen !== gen || !pivot) return;
         actor = a;
         a.play("idle", 0);
         a.scene.rotation.y = SAILOR.meshFacing;
         pivot.add(a.scene);
-        tick();
       })
       .catch((err) => {
-        console.warn("[skin-preview] Konfuse GLB failed", err);
+        console.warn("[skin-preview] GLB failed", id, err);
       });
   };
 
-  return { start, stop };
+  return {
+    show(id: SkinId) {
+      if (!running) boot();
+      if (shown === id && actor) return;
+      load(id);
+    },
+    stop,
+  };
 }
