@@ -3,25 +3,39 @@ import { BEAUTY, PALETTE, PUZZLE } from "../constants";
 import { heightAt } from "./terrain";
 import { glowSprite } from "./sprite";
 
-export interface HillPuzzle {
+export interface StoneRitual {
   group: THREE.Group;
-  /** Index of nearest cairn in range, or null. */
+  /** Index of nearest stone in range, or null. */
   findCairn(x: number, z: number): number | null;
-  /** Try the next cairn in the ritual; returns outcome for HUD feedback. */
+  /** Try the next stone in the ritual; returns outcome for HUD feedback. */
   interact(index: number): "progress" | "wrong" | "done" | "ignore";
   isOpen(): boolean;
-  /** True when near the (still-unsolved) cairns — teaching hint, wider than `cairnRange`. */
+  /** True when near the (still-unsolved) stones — teaching hint, wider than interact range. */
   hintNear(x: number, z: number): boolean;
   reset(): void;
+  /** Move the stones (K35 spawn is not the beach spawn). */
+  reposition(next: ReadonlyArray<{ x: number; z: number }>): void;
+  /** Which stone should pulse this frame (wind hint). */
+  hintIndex(time: number): number;
 }
 
+/** @deprecated Use StoneRitual — kept so existing call sites type-check unchanged. */
+export type HillPuzzle = StoneRitual;
+
+export type StoneRitualOpts = {
+  spots: ReadonlyArray<{ x: number; z: number }>;
+  order: readonly number[];
+  range: number;
+  hintRange: number;
+};
+
 /**
- * Three wind cairns on the north rise — correct order unlocks cove lotuses (tepe + C2).
- * Wind hint: emissive pulse travels cairn 0 → 2 → 1 (see PUZZLE.cairnSolveOrder).
+ * Ordered wind-stone ritual. Hill cairns and the K35 shore stones are two
+ * sites of the same pattern (gdd-lotus-island-rebuild.md §5.1 / §10a A0).
  */
-export function buildHillPuzzle(): HillPuzzle {
+export function buildStoneRitual(opts: StoneRitualOpts): StoneRitual {
   const group = new THREE.Group();
-  const spots = BEAUTY.cairnSpots.map((s) => ({ x: s.x, z: s.z }));
+  const spots = opts.spots.map((s) => ({ x: s.x, z: s.z }));
 
   const rockMat = new THREE.MeshStandardMaterial({
     color: PALETTE.marble,
@@ -83,7 +97,7 @@ export function buildHillPuzzle(): HillPuzzle {
     for (let i = 0; i < cairns.length; i++) {
       const rocks = cairns[i].children.filter((c) => c instanceof THREE.Mesh) as THREE.Mesh[];
       const mat =
-        solved ? solvedMat : step > 0 && PUZZLE.cairnSolveOrder[step - 1] === i ? glowMat : rockMat;
+        solved ? solvedMat : step > 0 && opts.order[step - 1] === i ? glowMat : rockMat;
       for (const r of rocks) r.material = mat;
     }
   };
@@ -93,7 +107,7 @@ export function buildHillPuzzle(): HillPuzzle {
     findCairn(x, z) {
       if (solved) return null;
       let best: number | null = null;
-      let bestD: number = PUZZLE.cairnRange;
+      let bestD: number = opts.range;
       for (let i = 0; i < spots.length; i++) {
         const d = Math.hypot(x - spots[i].x, z - spots[i].z);
         if (d < bestD) {
@@ -105,10 +119,10 @@ export function buildHillPuzzle(): HillPuzzle {
     },
     interact(index) {
       if (solved) return "ignore";
-      const want = PUZZLE.cairnSolveOrder[step];
+      const want = opts.order[step];
       if (index !== want) return "wrong";
       step += 1;
-      if (step >= PUZZLE.cairnSolveOrder.length) {
+      if (step >= opts.order.length) {
         solved = true;
         applyLook();
         return "done";
@@ -121,26 +135,62 @@ export function buildHillPuzzle(): HillPuzzle {
     },
     hintNear(x, z) {
       if (solved) return false;
-      return spots.some((s) => Math.hypot(x - s.x, z - s.z) < PUZZLE.cairnHintRange);
+      return spots.some((s) => Math.hypot(x - s.x, z - s.z) < opts.hintRange);
     },
     reset() {
       step = 0;
       solved = false;
       applyLook();
     },
+    reposition(next) {
+      for (let i = 0; i < spots.length && i < next.length; i++) {
+        spots[i].x = next[i].x;
+        spots[i].z = next[i].z;
+        const baseY = heightAt(spots[i].x, spots[i].z);
+        cairns[i].position.set(spots[i].x, baseY, spots[i].z);
+      }
+    },
+    hintIndex(time) {
+      const order = opts.order;
+      const slot = Math.floor(time / 1.8) % order.length;
+      return order[slot] ?? 0;
+    },
   };
 }
 
-/** Which cairn should pulse this frame (wind hint). */
+/**
+ * Three wind cairns on the north rise — correct order unlocks cove lotuses (tepe + C2).
+ * Wind hint: emissive pulse travels the solve order (see PUZZLE.cairnSolveOrder).
+ */
+export function buildHillPuzzle(): StoneRitual {
+  return buildStoneRitual({
+    spots: BEAUTY.cairnSpots,
+    order: PUZZLE.cairnSolveOrder,
+    range: PUZZLE.cairnRange,
+    hintRange: PUZZLE.cairnHintRange,
+  });
+}
+
+/** K35 opening — same mesh family, different site and order. */
+export function buildShoreStones(): StoneRitual {
+  return buildStoneRitual({
+    spots: PUZZLE.shoreStoneSpots,
+    order: PUZZLE.shoreStoneOrder,
+    range: PUZZLE.shoreStoneRange,
+    hintRange: PUZZLE.shoreStoneHintRange,
+  });
+}
+
+/** @deprecated Use ritual.hintIndex — kept for any leftover call sites. */
 export function hillWindHintIndex(time: number): number {
   const order = PUZZLE.cairnSolveOrder;
   const slot = Math.floor(time / 1.8) % order.length;
   return order[slot] ?? 0;
 }
 
-export function updateHillPuzzleVisuals(puzzle: HillPuzzle, time: number): void {
+export function updateStoneRitualVisuals(puzzle: StoneRitual, time: number): void {
   if (puzzle.isOpen()) return;
-  const hint = hillWindHintIndex(time);
+  const hint = puzzle.hintIndex(time);
   const root = puzzle.group;
   for (let i = 0; i < root.children.length; i++) {
     const cairn = root.children[i] as THREE.Group;
@@ -150,4 +200,8 @@ export function updateHillPuzzleVisuals(puzzle: HillPuzzle, time: number): void 
     const pulse = i === hint ? 0.35 + Math.sin(time * 4.2) * 0.18 : 0.12;
     mat.opacity = pulse;
   }
+}
+
+export function updateHillPuzzleVisuals(puzzle: StoneRitual, time: number): void {
+  updateStoneRitualVisuals(puzzle, time);
 }

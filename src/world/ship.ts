@@ -32,6 +32,12 @@ export interface Ship {
   deckY(x: number, z: number): number | null;
   /** Landward bow / causeway band — the only boarding gate. */
   atRamp(x: number, z: number): boolean;
+  /**
+   * K35 opening: hull is not in the world until the shore stones resolve.
+   * Classic 12-lotus is always present.
+   */
+  setPresent(on: boolean): void;
+  isPresent(): boolean;
 }
 
 /** Single hero home-hull (LOT-52). Sisters are gone. */
@@ -62,6 +68,7 @@ export function buildShip(): Ship {
   const causeway = new THREE.Group();
   group.add(causeway);
   plantCauseway(causeway, SHIP.pos.x, SHIP.pos.z, SHIP.rotY);
+  let present = true;
 
   loadGltf(SHIP.mesh)
     .then((scene) => {
@@ -90,12 +97,14 @@ export function buildShip(): Ship {
     group,
     anchor,
     deckY(x, z) {
+      if (!present) return null;
       local.set(x, hull.position.y, z);
       hull.worldToLocal(local);
       if (Math.abs(local.x) > SHIP.deckHalfW || Math.abs(local.z) > SHIP.deckHalfL) return null;
       return hull.position.y + SHIP.deckY;
     },
     atRamp(x, z) {
+      if (!present) return false;
       local.set(x, hull.position.y, z);
       hull.worldToLocal(local);
       if (Math.abs(local.x) > SHIP.boardRampBeam) return false;
@@ -166,7 +175,18 @@ export function buildShip(): Ship {
     heading() {
       return hull.rotation.y;
     },
+    setPresent(on) {
+      present = on;
+      group.visible = on;
+    },
+    isPresent() {
+      return present;
+    },
     update(t, departing) {
+      if (!present) {
+        anchor.set(heroBerth.x, heroBerth.y, heroBerth.z);
+        return;
+      }
       sailUpdate?.(t, departing);
       if (sailMesh && bellyIndex >= 0 && sailMesh.morphTargetInfluences) {
         const infl = sailMesh.morphTargetInfluences;

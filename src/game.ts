@@ -20,6 +20,7 @@ import {
   STEP,
   WORLD,
   setLotusRun,
+  setEdgeSpawn,
   type LotusRunKind,
 } from "./constants";
 import { CameraRig } from "./render/cameraRig";
@@ -42,8 +43,11 @@ import { buildLotusField, type LotusGateState } from "./world/lotus";
 import { buildSailor } from "./world/sailor";
 import { buildSea } from "./world/sea";
 import { buildShip } from "./world/ship";
+import { pickEdgeSpawn } from "./world/edgeSpawn";
+import { buildShoreMist } from "./world/shipFog";
+import { mulberry32 } from "./world/rng";
 import { buildSteppingStones } from "./world/steppingStones";
-import { buildHillPuzzle, updateHillPuzzleVisuals } from "./world/hillPuzzle";
+import { buildHillPuzzle, buildShoreStones, updateStoneRitualVisuals } from "./world/hillPuzzle";
 import { buildTerrain, heightAt, inLagoon, islandRadiusAt, wadeLimitAt } from "./world/terrain";
 import { glowSprite } from "./world/sprite";
 
@@ -88,7 +92,10 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
   const field = buildLotusField();
   const stones = buildSteppingStones();
   const hill = buildHillPuzzle();
+  const shore = buildShoreStones();
+  shore.group.visible = false;
   const ship = buildShip();
+  const shoreMist = buildShoreMist();
   let onShip = false;
   standY = (x, z) => {
     if (onShip) {
@@ -110,7 +117,9 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
     field.group,
     stones.group,
     hill.group,
+    shore.group,
     ship.group,
+    shoreMist.group,
     lotophagoi.group,
     hallucinations.group,
     thallopes.group,
@@ -195,6 +204,7 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
     runSteps: 0,
     playerX: PLAYER.spawn.x,
     playerZ: PLAYER.spawn.z,
+    shoreFound: true,
   };
 
   const fwd = new THREE.Vector3();
@@ -222,7 +232,8 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
   /** Set when a K35 run finished; makes the next goHub() open the board once. */
   let showBoardOnHub = false;
 
-  const shipDist = () => Math.hypot(ship.anchor.x - pos.x, ship.anchor.z - pos.z);
+  const shipDist = () =>
+    ship.isPresent() ? Math.hypot(ship.anchor.x - pos.x, ship.anchor.z - pos.z) : Infinity;
 
   function pulseBloom(amount: number): void {
     stage.bloomBoost = Math.min(1.2, stage.bloomBoost + amount);
@@ -260,16 +271,17 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
   let forgetLinesLeft = 3;
   const opening = [
     "Dokuz gün rüzgâr. Onuncu sabah kum.",
-    "Üç adam gönderdim. Üçü de burada. Üçü de gülümsüyor.",
-    "Yenmemiş çiçek hatırlatır. Bu kıyıda beş yeter.",
+    "Yenmemiş çiçek hatırlatır. Avucundakini ada alır; ambara koyduğun yolunu bilir.",
+    "Bu kıyıda beş yeter. Önce gemini bul — taşlar rüzgârı bilir.",
   ];
 
   function queueOpening(): void {
     if (!WORLD.k35) return;
     opening.forEach((line, i) => {
-      window.setTimeout(() => {
-        if (st.phase === "play") hud.say(line);
-      }, i * 3200);
+      hud.say(line, FLOW.storyToastSeconds, {
+        kicker: "Kıyı",
+        step: [i + 1, opening.length],
+      });
     });
   }
 
@@ -359,6 +371,14 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
     ship.reset();
     const runSeed = seedOverride ?? ((Math.random() * 1e9) | 0);
     runSeeded = seedOverride !== undefined;
+    let openingYaw: number = CAMERA.yawStart;
+    if (kind === "edge") {
+      const picked = pickEdgeSpawn(mulberry32(runSeed ^ 0xc35e11));
+      setEdgeSpawn(picked.x, picked.z);
+      openingYaw = picked.yaw;
+    }
+    ship.setPresent(kind !== "edge");
+    shoreMist.setEnabled(kind === "edge");
     if (WORLD.k35) console.debug("[lotus-run] seed", runSeed);
     field.reset({
       seed: runSeed,
@@ -369,10 +389,13 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
     });
     stones.reset();
     hill.reset();
+    shore.reposition(PUZZLE.shoreStoneSpots);
+    shore.reset();
+    shore.group.visible = kind === "edge";
+    st.shoreFound = kind !== "edge";
     lotophagoi.reset();
     hallucinations.reset();
     thallopes.reset();
-    st.phase = "play";
     st.carried = 0;
     st.delivered = 0;
     st.memory = 0;
@@ -406,24 +429,30 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
     vel.set(0, 0, 0);
     st.playerX = pos.x;
     st.playerZ = pos.z;
-    facing = Math.PI;
+    facing = openingYaw + Math.PI;
     prevGroundY = pos.y;
     sailor.setCarried(0);
     sailor.root.visible = true;
     sailor.root.position.copy(pos);
     sailor.root.rotation.y = facing + (SAILOR.meshEnabled ? SAILOR.meshFacing : 0);
-    rig.yaw = CAMERA.yawStart;
+    hud.clearToasts();
+    rig.yaw = openingYaw;
     rig.snap(pos);
     stage.setDayProgress(0);
-    hud.say(WORLD.k35 ? "Bu kıyıda beş yeter." : "Yeni bir gün — on iki lotus");
+    st.phase = "play";
+    if (kind === "edge") {
+      queueOpening();
+    } else {
+      hud.say("Yeni bir gün — on iki lotus");
+    }
     hud.startHintTimer();
-    queueOpening();
   }
 
   /** Title -> Hub (docs/ux/screens.md §1 "Oyna"). */
   function goHub(): void {
     hud.hideCard();
     hud.hideRunClock();
+    hud.clearToasts();
     st.phase = "hub";
     menu.showHub();
     // "Shown after a finished run" (LOT-58) — the board rides the return to the
@@ -453,6 +482,7 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
   function goTitle(): void {
     hud.hideCard();
     hud.hideRunClock();
+    hud.clearToasts();
     menu.setCyclopsReady(false);
     st.phase = "title";
     menu.showTitle();
@@ -489,7 +519,7 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
   hud.setRestartHandler(goHub);
 
   function deliver(): void {
-    if (st.carried <= 0) return;
+    if (st.carried <= 0 || !ship.isPresent()) return;
     st.delivered += st.carried;
     ship.setDelivered(st.delivered);
     const drop = new THREE.Vector3(ship.anchor.x, ship.anchor.y + 1.6, ship.anchor.z);
@@ -946,6 +976,11 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
     const nearShip = shipDist() < SHIP.range;
     const offer = st.phase === "play" ? lotophagoi.findOffer(pos.x, pos.z) : null;
     const cairn = st.phase === "play" ? hill.findCairn(pos.x, pos.z) : null;
+    // K-9: shore stones are the opening beat on edge. They take the prompt
+    // slot ahead of nearShip because spawn currently sits inside SHIP.range
+    // (~8.6 m vs 19.5 m). North cairn keepsake stays after shoreFound.
+    const shoreStone =
+      st.phase === "play" && WORLD.k35 && !st.shoreFound ? shore.findCairn(pos.x, pos.z) : null;
 
     let highlightIndex: number | null = null;
     if (ripe !== null && !nearShip && offer === null) {
@@ -962,6 +997,7 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
       !nearShip &&
       offer === null &&
       cairn === null &&
+      shoreStone === null &&
       st.carried < LOTUS.carryCap;
 
     if (canHarvest && ripe !== null && input.interactHeld) {
@@ -988,7 +1024,17 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
     }
 
     if (st.phase === "play") {
-      if (nearShip) {
+      if (shoreStone !== null) {
+        hud.setPrompt(
+          input.touchActive
+            ? "Topla · kıyı taşına dokun"
+            : "<b>E</b> kıyı taşı — rüzgârın sırasını izle",
+        );
+      } else if (WORLD.k35 && !st.shoreFound && shore.hintNear(pos.x, pos.z)) {
+        hud.setPrompt(
+          input.touchActive ? "Topla · kıyı taşları" : "Rüzgârın işaret ettiği kıyı taşına dokun",
+        );
+      } else if (nearShip) {
         const vague = WORLD.k35 && st.delivered > 0 ? ` · ${vagueDelivered()}` : "";
         hud.setPrompt(
           st.carried > 0
@@ -1049,7 +1095,23 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
       }
 
       if (input.interact) {
-        if (nearShip) {
+        if (shoreStone !== null) {
+          const out = shore.interact(shoreStone);
+          if (out === "done") {
+            st.shoreFound = true;
+            ship.setPresent(true);
+            shoreMist.setEnabled(false);
+            hud.say("Kıyı açıldı. Gemi rüzgârın bildiği yerde.", FLOW.storyToastSeconds);
+            bursts.spawnPop(
+              new THREE.Vector3(pos.x, pos.y + 1.2, pos.z),
+              PALETTE.lotusHeart,
+              22,
+            );
+            pulseBloom(0.45);
+          } else if (out === "wrong") {
+            hud.say("Bu kıyıda rüzgâr başka taşı gösteriyor");
+          }
+        } else if (nearShip) {
           if (st.carried > 0) deliver();
           else if (WORLD.k35 && st.delivered >= LOTUS.target) startDepart();
         } else if (cairn !== null) {
@@ -1107,7 +1169,10 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
 
     // ----------------------------------------------------------- guide arrow
     const guideOn =
-      st.phase === "play" && st.memory < MEMORY.blindThreshold && !nearShip;
+      st.phase === "play" &&
+      st.memory < MEMORY.blindThreshold &&
+      !nearShip &&
+      st.shoreFound;
     guide.visible = guideOn;
     if (guideOn) {
       const fade = 1 - st.memory / MEMORY.blindThreshold;
@@ -1195,7 +1260,8 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
       shipX: ship.anchor.x,
       shipZ: ship.anchor.z,
     });
-    updateHillPuzzleVisuals(hill, time);
+    updateStoneRitualVisuals(hill, time);
+    if (shore.group.visible) updateStoneRitualVisuals(shore, time);
     ship.update(time, st.depart);
     lotophagoi.update(dt, time, pos, ship.anchor);
     thallopes.update(dt, time, pos, ship.anchor, terrain.colliders);
@@ -1222,12 +1288,17 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
    */
   let frozen = false;
   const loop = (now: number) => {
+    if (document.hidden) {
+      last = now;
+      requestAnimationFrame(loop);
+      return;
+    }
     const frameMs = Math.min(now - last, 250);
     last = now;
     if (!frozen) {
       acc += frameMs;
       let guard = 0;
-      while (acc >= STEP && guard++ < 5) {
+      while (acc >= STEP && guard++ < 3) {
         acc -= STEP;
         step();
       }

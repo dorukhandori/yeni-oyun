@@ -50,6 +50,13 @@ export type KitLook = {
    * thin blades when the camera swings past the sun disc.
    */
   lumaMax?: number;
+  /**
+   * Split instances into world-XZ tiles so frustum culling can drop the
+   * ones behind the camera. One island-wide InstancedMesh never culls
+   * (its sphere is the whole lawn). Grass only — shadow-casters stay
+   * a single draw so the 1024 shadow map does not multiply.
+   */
+  chunkMeters?: number;
 };
 
 export async function loadKitGeometry(path: string): Promise<THREE.BufferGeometry> {
@@ -132,13 +139,7 @@ outgoingLight *= min(1.0, ${cap} / max(_kitLum, 1e-5));
   return { mat, wind };
 }
 
-export function instanceKit(
-  geometry: THREE.BufferGeometry,
-  poses: KitPose[],
-  look: KitLook = {},
-): { mesh: THREE.InstancedMesh; update: (t: number) => void } {
-  const { mat, wind } = kitMaterial(look);
-  const mesh = new THREE.InstancedMesh(geometry, mat, poses.length);
+function fillInstances(mesh: THREE.InstancedMesh, poses: KitPose[], look: KitLook): void {
   const dummy = new THREE.Object3D();
   for (let i = 0; i < poses.length; i++) {
     const p = poses[i];
@@ -151,13 +152,49 @@ export function instanceKit(
   mesh.instanceMatrix.needsUpdate = true;
   mesh.castShadow = look.castShadow ?? true;
   mesh.receiveShadow = look.receiveShadow ?? true;
-  mesh.frustumCulled = false;
-  return {
-    mesh,
-    update: (t) => {
-      wind.value = t;
-    },
+  mesh.computeBoundingSphere();
+  mesh.frustumCulled = true;
+}
+
+export function instanceKit(
+  geometry: THREE.BufferGeometry,
+  poses: KitPose[],
+  look: KitLook = {},
+): { mesh: THREE.Object3D; update: (t: number) => void } {
+  const { mat, wind } = kitMaterial(look);
+  const chunkM = look.chunkMeters;
+  const update = (t: number) => {
+    wind.value = t;
   };
+
+  if (!chunkM || poses.length < 64) {
+    const mesh = new THREE.InstancedMesh(geometry, mat, poses.length);
+    fillInstances(mesh, poses, look);
+    return { mesh, update };
+  }
+
+  const buckets = new Map<number, KitPose[]>();
+  const inv = 1 / chunkM;
+  for (const p of poses) {
+    const cx = Math.floor(p.x * inv);
+    const cz = Math.floor(p.z * inv);
+    const key = (cx + 512) | ((cz + 512) << 16);
+    let bucket = buckets.get(key);
+    if (!bucket) {
+      bucket = [];
+      buckets.set(key, bucket);
+    }
+    bucket.push(p);
+  }
+
+  const root = new THREE.Group();
+  root.name = "kit-chunks";
+  for (const bucket of buckets.values()) {
+    const mesh = new THREE.InstancedMesh(geometry, mat, bucket.length);
+    fillInstances(mesh, bucket, look);
+    root.add(mesh);
+  }
+  return { mesh: root, update };
 }
 
 /** Load a kit GLB and instance it. On failure the caller keeps the legacy mesh. */

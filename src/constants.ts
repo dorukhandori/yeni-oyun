@@ -96,7 +96,7 @@ const PROFILES: Record<WorldProfileKey, WorldProfileValues> = {
   real: {
     // 15 Aug 2026 scale proposal (tuning.md §2.1, level-lotus-island.md §1):
     // island grows, core loop (ship↔reed↔lake) keeps its old distances.
-    island: { radius: 160, planeSize: 384, planeSegments: 196 },
+    island: { radius: 160, planeSize: 384, planeSegments: 160 },
     player: { speed: 4.5, spawn: { x: 3.2, z: -146 } },
     lotus: { count: 28, carryCap: 4 },
     ship: { pos: { x: 0, z: -154 }, range: 6.5 },
@@ -453,6 +453,20 @@ export const SHIP = {
   listRoll: -0.1,
 } as const;
 
+/**
+ * K35 coastal mist — a static band along the whole shoreline, not a
+ * per-frame volume on the hull. Scene FogExp2 is unchanged. The hero
+ * hull is not in the world while this band is up (`ship.setPresent`).
+ */
+export const SHORE_MIST = {
+  segments: ACTIVE_PROFILE === "real" ? 36 : 24,
+  inland: ACTIVE_PROFILE === "real" ? 8 : 3,
+  seaward: ACTIVE_PROFILE === "real" ? 16 : 6,
+  heightLow: ACTIVE_PROFILE === "real" ? 1.35 : 0.75,
+  maxAlpha: 0.4,
+  noiseScale: 0.016,
+} as const;
+
 /** Hidden beauties + offer wander (K35, `gdd-lotus-island-run.md` §3.12–3.13). */
 export const BEAUTY = {
   hillViewHeight: 22,
@@ -486,7 +500,30 @@ export const PLAYER = {
    * sideways slide in the old sprite.
    */
   turnSmooth: 0.1,
-  spawn: profile.player.spawn,
+  /**
+   * Classic 12-lotus / Title — on the beach beside the hull.
+   * Beş yeter picks a new inland `edgeSpawn` each `fullRestart` (LOT-78).
+   */
+  beachSpawn: profile.player.spawn,
+  /**
+   * Written by `setEdgeSpawn` at the start of each K35 run. Fallback is
+   * unused in play — `pickEdgeSpawn` always overwrites it before `pos.set`.
+   */
+  edgeSpawn: { x: 0, z: 0 } as { x: number; z: number },
+  /**
+   * Min metres from `SHIP.pos` for a K35 opening. Real island ~100 m so the
+   * berth is a walk, not a turn of the camera; test island scales down.
+   */
+  edgeMinShipDist: ACTIVE_PROFILE === "real" ? 100 : 12,
+  /** Keep the opening off the beach / spike ring / lagoon rim. */
+  edgeCoastMargin: ACTIVE_PROFILE === "real" ? 22 : 5,
+  edgeMinHeight: 0.5,
+  edgeMaxSlope: 1.35,
+  /** Extra yaw so two runs with the same inland bearing still open differently. */
+  edgeYawJitter: 0.35,
+  get spawn(): { x: number; z: number } {
+    return isEdgeRun() ? this.edgeSpawn : this.beachSpawn;
+  },
   /** Hold W / stick-forward this many seconds to start running. */
   runHold: 10,
   /** Sprint multiplier on PLAYER.speed once runHold elapses. */
@@ -505,12 +542,18 @@ export const PLAYER = {
   boundaryResistance: 0.85,
   /** Minimum gap between "this far" boundary toasts. */
   boundaryHintCooldown: 14,
-} as const;
+};
+
+export function setEdgeSpawn(x: number, z: number): void {
+  PLAYER.edgeSpawn.x = x;
+  PLAYER.edgeSpawn.z = z;
+}
 
 export const CAMERA = {
   fov: 55,
-  dist: 8.2,
-  height: 3.6,
+  /** Behind-the-shoulder; 8.2 sat too far off the back (sahip, 22 Aug). */
+  dist: 6.4,
+  height: 3.0,
   lookHeight: 1.5,
   lerp: 0.11,
   yawStart: 0,
@@ -620,6 +663,31 @@ export const PUZZLE = {
   /** Hill wind cairns — interact in wind order to unlock cove lotuses. */
   cairnRange: 2.35,
   cairnSolveOrder: [0, 2, 1] as readonly number[],
+  /**
+   * K35 shore stones — same interact ranges as the hill cairns, different
+   * order so the two live rituals do not teach the same sequence (rebuild
+   * GDD §8 / §10a A0). Spots are offsets from PLAYER.spawn (classic beach
+   * or K35 edgeSpawn), away from the ship, so the triangle follows the
+   * opening. `shore.reposition` on `fullRestart` applies them.
+   */
+  shoreStoneRange: 2.35,
+  shoreStoneHintRange: 7.0,
+  shoreStoneOrder: [1, 0, 2] as readonly number[],
+  get shoreStoneSpots(): ReadonlyArray<{ x: number; z: number }> {
+    const s = PLAYER.spawn;
+    const dx = s.x - SHIP.pos.x;
+    const dz = s.z - SHIP.pos.z;
+    const len = Math.hypot(dx, dz) || 1;
+    const nx = dx / len;
+    const nz = dz / len;
+    const px = -nz;
+    const pz = nx;
+    return [
+      { x: s.x + px * 4.2, z: s.z + pz * 4.2 },
+      { x: s.x - px * 3.6 + nx * 2.0, z: s.z - pz * 3.6 + nz * 2.0 },
+      { x: s.x + nx * 5.5, z: s.z + nz * 5.5 },
+    ];
+  },
   /**
    * Teaching-hint radii (playtest bug: "taşlar için ipucu eksik") — wider
    * than the actual interact/step ranges above, so the HUD explains the
@@ -894,6 +962,15 @@ export const FLOW = {
   departSeconds: 7,
   /** Seconds the "you forgot" card stays up before respawning at the ship. */
   lostCardSeconds: 3.4,
+  /** Default HUD toast hold (short status lines). */
+  toastSeconds: 2.2,
+  /**
+   * Opening / rule beats — long enough to actually read (scenario.md §3:
+   * "her satır altta 4 s"; bumped after playtest skipped the 2.5 s overlay).
+   */
+  storyToastSeconds: 5.5,
+  /** Quiet gap between queued toasts, so lines don't slam into each other. */
+  toastGapSeconds: 0.45,
 } as const;
 
 /** One in-game day — sun height is the clock (tuning.md §2). */
@@ -1050,9 +1127,17 @@ export const RENDER = {
   sunShadowDistance: 90,
   shadowExtent: 44,
   shadowFar: 180,
-  shadowMapSize: 2048,
+  /** 2048 + PCFSoft was a whole extra 4K pass on the lawn. */
+  shadowMapSize: 1024,
   shadowBias: -0.0024,
   shadowNormalBias: 0.1,
+  /**
+   * Composer already owns the framebuffer. MSAA on the canvas was paid
+   * twice and never shown. Cap DPR so a 15" retina is not 3.3K internally.
+   */
+  pixelRatioMax: 1.25,
+  pixelRatioMaxTouch: 1.0,
+  bloomScale: 0.5,
 } as const;
 
 /**
@@ -1146,7 +1231,8 @@ export const SEA_TEX = {
    * wavelength or the surface reads as stained-glass slabs again.
    */
   patchMeters: 400,
-  segments: 320,
+  /** 320² was ~200k Gerstner tris, never frustum-culled. 2.1 m cells still beat the 6.5 m shortest wave. */
+  segments: 192,
   /** dirDeg is travel heading in XZ; steepness 0–1; wavelength metres. */
   waves: [
     { dirDeg: 22, steepness: 0.22, wavelength: 36 },
@@ -1219,11 +1305,12 @@ export const FLORA = {
   reedPocket: ACTIVE_PROFILE === "real" ? 44 : 20,
   lilyPads: ACTIVE_PROFILE === "real" ? 26 : 12,
   /**
-   * 3D grass field. Instance count is the perf budget (hex spacing) — the
-   * whole island is one InstancedMesh with frustumCulled off, so tightening
-   * spacing cubes fill-rate (0.34 m chalked the frame + UnrealBloom).
-   * Short lawn look = squash Y a little and overlap XZ, not more tufts.
+   * 3D grass field. Instance count is the fill-rate budget (hex spacing) —
+   * 0.34 m chalked the frame + UnrealBloom, so spacing stays at 0.58 m.
+   * Short lawn look = squash Y and overlap XZ, not more tufts.
+   * 32 m tiles let the frustum drop blades behind the camera.
    */
+  grassChunkMeters: 32,
   grassFieldSpacing: ACTIVE_PROFILE === "real" ? 0.58 : 0.40,
   /** Native tuft ~0.57 m; ~0.40 → ~23 cm (meadow cut, not reed clumps). */
   grassHeightScale: 0.4,

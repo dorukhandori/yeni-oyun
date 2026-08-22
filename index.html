@@ -36,7 +36,7 @@
         </div>
 
         <div class="sun" id="sun" aria-label="Güneş">
-          <svg viewBox="0 0 120 56" width="120" height="56">
+          <svg viewBox="0 -10 120 66" width="120" height="66">
             <path
               class="sun-arc"
               d="M 10 48 A 50 50 0 0 1 110 48"
@@ -63,15 +63,23 @@
 
         <!-- Live K35 run clock. Hidden by default and only ever unhidden for
              the "Beş yeter" run (hud.ts) — the classic 12-lotus run has no
-             timer at all. Sits under the sun clock: top-left is the quest
-             panel, top-right the memory bar + fullscreen toggle. -->
+             timer at all. Left column, under the quest panel. -->
         <div class="run-clock" id="runClock" hidden>
           <span class="run-clock-label">Süre</span>
           <span class="run-clock-value" id="runClockValue">00:00.00</span>
         </div>
 
         <div class="prompt" id="prompt"></div>
-        <div class="toast" id="toast"></div>
+        <aside class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true">
+          <div class="toast-meta" id="toastMeta" hidden>
+            <span class="toast-kicker" id="toastKicker"></span>
+            <span class="toast-pips" id="toastPips" hidden></span>
+          </div>
+          <p class="toast-body" id="toastBody"></p>
+          <div class="toast-hold" aria-hidden="true">
+            <i class="toast-hold-fill" id="toastHold"></i>
+          </div>
+        </aside>
 
         <div class="hint" id="hint">
           WASD yürü · fare kamera · <b>E</b> topla / teslim et
@@ -177,7 +185,7 @@
                   <span class="hub-quest-dot"></span>
                 </span>
                 <span class="hub-quest-name">Beş yeter</span>
-                <span class="hub-island-desc" role="tooltip">Beş çiçek, sınırsız gün. Unutursan ev de kayar.</span>
+                <span class="hub-island-desc" role="tooltip">Ada içeri çağırır. Ambara koymadığın, bu kıyıda kalır.</span>
               </button>
               <button type="button" class="hub-island" id="cardLotus" style="left: 17%; top: 72%">
                 <span class="hub-island-thumb">
@@ -223,7 +231,7 @@
         >
           <div class="sub-panel-inner parchment-panel">
             <h2 id="nickTitle">Beş yeter</h2>
-            <p>Süre tutulur. Bitirdiğinde adın ve sürenle tabloya yazılırsın.</p>
+            <p>Avucundaki çiçek unutuşundadır. Ambara koyduğun asla gitmez. Süren tutuluyor.</p>
             <label class="nick-label" for="nickInput">Denizci adın</label>
             <input
               type="text"

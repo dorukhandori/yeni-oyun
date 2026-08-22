@@ -1,6 +1,15 @@
-import { DAY, LOTUS, MEMORY, RUN_CLOCK, STEP, WORLD } from "../constants";
+import { DAY, FLOW, LOTUS, MEMORY, RUN_CLOCK, STEP, WORLD } from "../constants";
 import { formatRunTime } from "../format";
 import type { GameState } from "../types";
+
+type ToastItem = {
+  msg: string;
+  frames: number;
+  kicker?: string;
+  step?: [number, number];
+};
+
+export type ToastOpts = Pick<ToastItem, "kicker" | "step">;
 
 const NOTES: Array<[number, string]> = [
   [0.2, "Aklın yerinde"],
@@ -21,6 +30,11 @@ export class Hud {
   private memNote = must("memNote");
   private prompt = must("prompt");
   private toast = must("toast");
+  private toastMeta = must("toastMeta");
+  private toastKicker = must("toastKicker");
+  private toastPips = must("toastPips");
+  private toastBody = must("toastBody");
+  private toastHold = must("toastHold");
   private hint = must("hint");
   private card = must("card");
   private cardTitle = must("cardTitle");
@@ -34,6 +48,9 @@ export class Hud {
   private runClock = must("runClock");
   private runClockValue = must("runClockValue");
   private toastTimer = 0;
+  private toastHoldFrames = 1;
+  private toastGap = 0;
+  private toastQueue: ToastItem[] = [];
   private cardShown = false;
   private onRestart: (() => void) | null = null;
   private warnedDusk = false;
@@ -84,10 +101,54 @@ export class Hud {
     }
   }
 
-  say(msg: string): void {
-    this.toast.textContent = msg;
+  say(msg: string, seconds?: number, opts?: ToastOpts): void {
+    const frames = Math.max(1, Math.round((seconds ?? FLOW.toastSeconds) * 60));
+    const item: ToastItem = { msg, frames, kicker: opts?.kicker, step: opts?.step };
+    if (this.toastTimer > 0 || this.toastGap > 0 || this.toastQueue.length > 0) {
+      this.toastQueue.push(item);
+      return;
+    }
+    this.showToast(item);
+  }
+
+  /** Drop queued opening/status lines when leaving the island. */
+  clearToasts(): void {
+    this.toastQueue.length = 0;
+    this.toastTimer = 0;
+    this.toastGap = 0;
+    this.toastHoldFrames = 1;
+    this.toast.classList.remove("on", "story");
+    this.toast.style.opacity = "";
+    this.toastBody.textContent = "";
+    this.toastKicker.textContent = "";
+    this.toastMeta.hidden = true;
+    this.toastPips.hidden = true;
+    this.toastPips.replaceChildren();
+    this.toastHold.style.transform = "scaleX(0)";
+  }
+
+  private showToast(item: ToastItem): void {
+    const story = Boolean(item.kicker) || item.frames >= Math.round(FLOW.storyToastSeconds * 60);
+    this.toastBody.textContent = item.msg;
+    this.toastKicker.textContent = item.kicker ?? "";
+    const hasStep = Boolean(item.step);
+    this.toastMeta.hidden = !item.kicker && !hasStep;
+    this.toastPips.hidden = !hasStep;
+    this.toastPips.replaceChildren();
+    if (item.step) {
+      const [cur, total] = item.step;
+      for (let i = 1; i <= total; i++) {
+        const pip = document.createElement("span");
+        pip.className = i === cur ? "toast-pip is-current" : "toast-pip";
+        this.toastPips.append(pip);
+      }
+    }
+    this.toast.classList.toggle("story", story);
+    this.toastHoldFrames = item.frames;
+    this.toastHold.style.transform = "scaleX(1)";
+    this.toast.style.opacity = "";
     this.toast.classList.add("on");
-    this.toastTimer = 130;
+    this.toastTimer = item.frames;
   }
 
   showCard(
@@ -108,12 +169,13 @@ export class Hud {
     this.cardBody.textContent = body;
     this.cardRestart.classList.toggle("hidden", !allowRestart);
     this.cardKey.classList.toggle("hidden", !allowRestart);
+    this.cardKey.textContent = "R · hub'a dön";
     this.card.classList.add("on");
   }
 
   hideCard(): void {
     this.cardShown = false;
-    this.card.classList.remove("on");
+    this.card.classList.remove("on", "lost");
   }
 
   /**
@@ -207,8 +269,17 @@ export class Hud {
     // Sun clock softens with memory too.
     this.sun.style.opacity = String(0.35 + fade * 0.65);
 
+    if (this.toast.classList.contains("on")) {
+      this.toastHold.style.transform = `scaleX(${this.toastTimer / this.toastHoldFrames})`;
+    }
+
     if (this.toastTimer > 0 && --this.toastTimer === 0) {
-      this.toast.classList.remove("on");
+      this.toast.classList.remove("on", "story");
+      this.toastHold.style.transform = "scaleX(0)";
+      this.toastGap = Math.max(1, Math.round(FLOW.toastGapSeconds * 60));
+    } else if (this.toastTimer <= 0 && this.toastGap > 0 && --this.toastGap === 0) {
+      const next = this.toastQueue.shift();
+      if (next) this.showToast(next);
     }
   }
 }

@@ -32,14 +32,22 @@ export interface Stage {
 }
 
 export function createStage(canvas: HTMLCanvasElement): Stage {
+  const touch =
+    typeof window.matchMedia === "function" && window.matchMedia("(pointer: coarse)").matches;
+  const pixelRatio = Math.min(
+    window.devicePixelRatio || 1,
+    touch ? RENDER.pixelRatioMaxTouch : RENDER.pixelRatioMax,
+  );
   const renderer = new THREE.WebGLRenderer({
     canvas,
-    antialias: true,
+    antialias: false,
     powerPreference: "high-performance",
+    stencil: false,
+    depth: true,
   });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
+  renderer.setPixelRatio(pixelRatio);
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = RENDER.exposure;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -60,7 +68,7 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
   const duskHorizon = new THREE.Color(RENDER.skyHorizonRose);
 
   // ------------------------------------------------------------------- sky
-  const skyGeo = new THREE.SphereGeometry(360, 64, 40);
+  const skyGeo = new THREE.SphereGeometry(360, 32, 20);
   const skyMat = new THREE.ShaderMaterial({
     side: THREE.BackSide,
     depthWrite: false,
@@ -208,6 +216,7 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
 
   // ------------------------------------------------------------------ passes
   const composer = new EffectComposer(renderer);
+  composer.setPixelRatio(pixelRatio);
   composer.addPass(new RenderPass(scene, camera));
   const bloom = new UnrealBloomPass(
     new THREE.Vector2(256, 256),
@@ -228,8 +237,10 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
     camera.updateProjectionMatrix();
     renderer.setSize(w, h, false);
     composer.setSize(w, h);
-    bloom.setSize(w, h);
-    haze.setResolution(w * renderer.getPixelRatio(), h * renderer.getPixelRatio());
+    const bw = Math.max(1, Math.floor(w * pixelRatio * RENDER.bloomScale));
+    const bh = Math.max(1, Math.floor(h * pixelRatio * RENDER.bloomScale));
+    bloom.setSize(bw, bh);
+    haze.setResolution(w * pixelRatio, h * pixelRatio);
   };
   resize();
   window.addEventListener("resize", resize);

@@ -780,6 +780,7 @@ export function buildTerrain(): Terrain {
     color: PALETTE.grassDeep,
     lambert: true,
     lumaMax: 0.3,
+    chunkMeters: FLORA.grassChunkMeters,
   });
 
   // Weathered columns hint at the Lotophagoi's abandoned shrine.

@@ -44,4 +44,10 @@ export interface GameState {
   /** World-space player position (XZ, y omitted — minimap/HUD only needs the ground plane). Updated every step() while playing. */
   playerX: number;
   playerZ: number;
+  /**
+   * K35 opening: shore-stone ritual completed (rebuild GDD §10a A0).
+   * Classic 12-lotus starts true so the guide arrow keeps today's behaviour.
+   * Edge / Beş yeter starts false; flips true when the shore stones return "done".
+   */
+  shoreFound: boolean;
 }
