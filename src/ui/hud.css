@@ -204,6 +204,96 @@ canvas#game {
   }
 }
 
+/* -------------------------------------------------------------- tide gauge */
+/* K35 only, after shore stones. Left column under the run clock. Hidden
+   via the `hidden` attribute (display:none) so classic-run screenshots
+   don't pick up empty flow. Fill colour is art-bible §2 gold / rose. */
+.tide {
+  position: absolute;
+  top: calc(max(20px, env(safe-area-inset-top)) + 148px);
+  left: max(22px, env(safe-area-inset-left));
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 148px;
+  padding: 5px 10px 6px;
+  background-color: #f4e6c4;
+  background-image:
+    linear-gradient(180deg, rgba(255, 248, 232, 0.22), rgba(232, 210, 168, 0.1)),
+    url("/assets/ui/ui_parchment_panel_01_albedo_1024.png");
+  background-size: auto, 180% 180%;
+  background-position: center, 50% 46%;
+  border: 1px solid rgba(120, 90, 30, 0.5);
+  border-radius: 3px;
+  box-shadow:
+    0 6px 16px rgba(40, 26, 10, 0.26),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  pointer-events: none;
+}
+
+.tide[hidden] {
+  display: none !important;
+}
+
+.tide-label {
+  flex: 0 0 auto;
+  font-size: 10px;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: #6d4a16;
+}
+
+.tide-well {
+  flex: 1 1 auto;
+  height: 7px;
+  border-radius: 4px;
+  background: rgba(90, 64, 28, 0.16);
+  overflow: hidden;
+}
+
+.tide-fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform: scaleX(0);
+  transform-origin: left center;
+  background: rgba(150, 116, 58, 0.35);
+  border-radius: 4px;
+}
+
+.tide.is-caution .tide-fill {
+  background: #f5d29a;
+}
+
+.tide.is-risk .tide-fill {
+  background: #e08a86;
+  animation: tide-pulse 2s ease-in-out infinite;
+}
+
+@keyframes tide-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@media (max-width: 560px) {
+  .tide {
+    top: calc(max(20px, env(safe-area-inset-top)) + 136px);
+    width: 132px;
+    padding: 4px 8px 5px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tide.is-risk .tide-fill {
+    animation: none;
+  }
+}
+
 .quest-line {
   font-size: 15px;
   line-height: 1.55;
@@ -517,10 +607,33 @@ body.has-fs-toggle .memory {
   color: #5c452a;
   max-width: 520px;
   line-height: 1.6;
-  /* The K35 win card appends the run time on its own line via a \n in
-     textContent (game.ts). textContent never produces markup, which is the
-     point — nicks and times are not trusted as HTML. */
+  /* textContent never produces markup — nicks and times are not trusted as HTML. */
   white-space: pre-line;
+}
+
+/* K35 depart account (A5). `hidden` keeps these out of flow on classic / lose. */
+.card-stats {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  width: min(320px, 86%);
+  font-size: 15px;
+  color: #5c452a;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.7;
+}
+
+.card-stats[hidden],
+.card-verdict[hidden] {
+  display: none;
+}
+
+.card-verdict {
+  margin-top: 12px;
+  font-size: 18px;
+  font-style: italic;
+  color: #6d4a16;
+  max-width: 420px;
 }
 
 .card.lost h1 {
@@ -1468,11 +1581,12 @@ body[data-ui-phase="hub"] #touch {
    in the same corner; when the fullscreen button is showing it shifts
    left by one 44px cell + 8px gap. */
 .fs-toggle,
-.mute-toggle {
+.mute-toggle,
+.pause-toggle {
   position: absolute;
   top: max(10px, env(safe-area-inset-top));
   right: max(10px, env(safe-area-inset-right));
-  z-index: 40;
+  z-index: 46;
   width: 44px;
   height: 44px;
   padding: 0;
@@ -1490,24 +1604,29 @@ body[data-ui-phase="hub"] #touch {
   touch-action: manipulation;
 }
 
-body.has-fs-toggle .mute-toggle {
+body.has-fs-toggle .mute-toggle,
+body.has-fs-toggle .pause-toggle {
   right: calc(max(10px, env(safe-area-inset-right)) + 52px);
 }
 
 .fs-toggle[hidden],
-.mute-toggle[hidden] {
+.mute-toggle[hidden],
+.pause-toggle[hidden] {
   display: none;
 }
 
 .fs-toggle:hover,
 .fs-toggle:focus-visible,
 .mute-toggle:hover,
-.mute-toggle:focus-visible {
+.mute-toggle:focus-visible,
+.pause-toggle:hover,
+.pause-toggle:focus-visible {
   background: rgba(255, 230, 170, 0.98);
 }
 
 .fs-toggle:focus-visible,
-.mute-toggle:focus-visible {
+.mute-toggle:focus-visible,
+.pause-toggle:focus-visible {
   outline: 2px solid #c99a3c;
   outline-offset: 2px;
 }
@@ -1537,9 +1656,56 @@ body.has-fs-toggle .mute-toggle {
 
 @media (prefers-reduced-motion: reduce) {
   .fs-toggle,
-  .mute-toggle {
+  .mute-toggle,
+  .pause-toggle {
     transition: none;
   }
+}
+
+.pause {
+  position: absolute;
+  inset: 0;
+  z-index: 45;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  background: radial-gradient(
+    circle at 50% 45%,
+    rgba(40, 32, 22, 0.28),
+    rgba(24, 18, 12, 0.52)
+  );
+}
+
+.pause-sheet {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  min-width: min(280px, 86vw);
+  padding: 28px 32px 22px;
+}
+
+.pause-sheet h2 {
+  margin: 0 0 8px;
+  text-align: center;
+  font-size: 22px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #6d4a16;
+}
+
+.pause-sheet .menu-btn {
+  width: 100%;
+  min-width: 0;
+}
+
+.pause-key {
+  margin: 8px 0 0;
+  text-align: center;
+  font-size: 12px;
+  letter-spacing: 1.2px;
+  color: rgba(92, 69, 42, 0.7);
 }
 
 /* ============================================================ K35 leaderboard */

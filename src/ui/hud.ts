@@ -1,4 +1,4 @@
-import { DAY, FLOW, LOTUS, MEMORY, RUN_CLOCK, STEP, WORLD } from "../constants";
+import { DAY, FLOW, LOTUS, MEMORY, RUN_CLOCK, STEP, TIDE, WORLD } from "../constants";
 import { formatRunTime } from "../format";
 import type { GameState } from "../types";
 
@@ -21,6 +21,9 @@ const NOTES: Array<[number, string]> = [
 
 export class Hud {
   private quest = must("quest");
+  private questTitle = must("questTitle");
+  private questDelivered = must("questDelivered");
+  private questCarry = must("questCarry");
   private delivered = must("delivered");
   private target = must("target");
   private carried = must("carried");
@@ -39,24 +42,41 @@ export class Hud {
   private card = must("card");
   private cardTitle = must("cardTitle");
   private cardBody = must("cardBody");
+  private cardStats = must("cardStats");
+  private cardVerdict = must("cardVerdict");
   private cardRestart = must("cardRestart") as HTMLButtonElement;
   private cardKey = must("cardKey");
+  private pauseToggle = must("pauseToggle") as HTMLButtonElement;
+  private pause = must("pause");
+  private pauseResume = must("pauseResume") as HTMLButtonElement;
+  private pauseRestart = must("pauseRestart") as HTMLButtonElement;
+  private pauseHub = must("pauseHub") as HTMLButtonElement;
+  private pauseTitle = must("pauseTitle") as HTMLButtonElement;
   private sun = must("sun");
   private sunArcFill = must("sunArcFill") as unknown as SVGGeometryElement;
   private sunDot = must("sunDot") as unknown as SVGCircleElement;
   private sunLabel = must("sunLabel");
   private runClock = must("runClock");
   private runClockValue = must("runClockValue");
+  private tide = must("tide");
+  private tideFill = must("tideFill");
   private toastTimer = 0;
   private toastHoldFrames = 1;
   private toastGap = 0;
   private toastQueue: ToastItem[] = [];
   private cardShown = false;
+  private pauseShown = false;
   private onRestart: (() => void) | null = null;
+  private onPauseToggle: (() => void) | null = null;
+  private onPauseResume: (() => void) | null = null;
+  private onPauseRestart: (() => void) | null = null;
+  private onPauseHub: (() => void) | null = null;
+  private onPauseTitle: (() => void) | null = null;
   private warnedDusk = false;
   /** Last string written to the clock — guards against a DOM write every frame. */
   private runClockText = "";
   private runClockOn = false;
+  private tideOn = false;
 
   constructor(touch = false) {
     this.target.textContent = String(LOTUS.target);
@@ -68,17 +88,81 @@ export class Hud {
     if (!WORLD.showMemoryBar) this.memory.style.display = "none";
     if (touch) {
       this.hint.textContent =
-        "Sol çubuk yürü · sağ sürükle kamera · Topla düğmesi / çift dokunuş";
+        "Sol çubuk yürü · sağ sürükle kamera · Topla · köşe menü";
     }
 
     this.cardRestart.addEventListener("click", (e) => {
       e.preventDefault();
       this.onRestart?.();
     });
+
+    const stop = (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    this.pauseToggle.addEventListener("click", (e) => {
+      stop(e);
+      this.onPauseToggle?.();
+    });
+    this.pauseResume.addEventListener("click", (e) => {
+      stop(e);
+      this.onPauseResume?.();
+    });
+    this.pauseRestart.addEventListener("click", (e) => {
+      stop(e);
+      this.onPauseRestart?.();
+    });
+    this.pauseHub.addEventListener("click", (e) => {
+      stop(e);
+      this.onPauseHub?.();
+    });
+    this.pauseTitle.addEventListener("click", (e) => {
+      stop(e);
+      this.onPauseTitle?.();
+    });
+    this.pause.addEventListener("click", (e) => {
+      if (e.target === this.pause) this.onPauseResume?.();
+    });
   }
 
   setRestartHandler(fn: () => void): void {
     this.onRestart = fn;
+  }
+
+  setPauseHandlers(handlers: {
+    onToggle: () => void;
+    onResume: () => void;
+    onRestart: () => void;
+    onHub: () => void;
+    onTitle: () => void;
+  }): void {
+    this.onPauseToggle = handlers.onToggle;
+    this.onPauseResume = handlers.onResume;
+    this.onPauseRestart = handlers.onRestart;
+    this.onPauseHub = handlers.onHub;
+    this.onPauseTitle = handlers.onTitle;
+  }
+
+  setMenuButton(on: boolean): void {
+    this.pauseToggle.hidden = !on;
+  }
+
+  get pauseOpen(): boolean {
+    return this.pauseShown;
+  }
+
+  openPause(): void {
+    this.pauseShown = true;
+    this.pause.hidden = false;
+    this.pauseToggle.setAttribute("aria-expanded", "true");
+    this.pauseToggle.setAttribute("aria-label", "Devam");
+  }
+
+  closePause(): void {
+    this.pauseShown = false;
+    this.pause.hidden = true;
+    this.pauseToggle.setAttribute("aria-expanded", "false");
+    this.pauseToggle.setAttribute("aria-label", "Menü");
   }
 
   /**
@@ -155,7 +239,7 @@ export class Hud {
     kind: "won" | "lost" | "dusk" | "gameover",
     title: string,
     body: string,
-    opts?: { restart?: boolean },
+    opts?: { restart?: boolean; key?: string; stats?: string[]; verdict?: string },
   ): void {
     const allowRestart = opts?.restart ?? (kind === "won" || kind === "dusk");
     if (this.cardShown) {
@@ -167,15 +251,34 @@ export class Hud {
     this.card.classList.toggle("lost", kind === "lost" || kind === "dusk" || kind === "gameover");
     this.cardTitle.textContent = title;
     this.cardBody.textContent = body;
+    this.fillAccount(opts?.stats ?? [], opts?.verdict ?? "");
     this.cardRestart.classList.toggle("hidden", !allowRestart);
     this.cardKey.classList.toggle("hidden", !allowRestart);
-    this.cardKey.textContent = "R · hub'a dön";
+    this.cardKey.textContent = opts?.key ?? "R · hub'a dön";
     this.card.classList.add("on");
   }
 
   hideCard(): void {
     this.cardShown = false;
     this.card.classList.remove("on", "lost");
+    this.fillAccount([], "");
+  }
+
+  /** K35 win-card ledger. Empty on classic / lose so the extra rows take no layout. */
+  private fillAccount(stats: string[], verdict: string): void {
+    this.cardStats.replaceChildren();
+    if (stats.length > 0) {
+      for (const line of stats) {
+        const li = document.createElement("li");
+        li.textContent = line;
+        this.cardStats.append(li);
+      }
+      this.cardStats.hidden = false;
+    } else {
+      this.cardStats.hidden = true;
+    }
+    this.cardVerdict.textContent = verdict;
+    this.cardVerdict.hidden = verdict.length === 0;
   }
 
   /**
@@ -190,14 +293,43 @@ export class Hud {
     this.runClock.hidden = true;
   }
 
+  hideTide(): void {
+    this.tideOn = false;
+    this.tide.hidden = true;
+    this.tide.classList.remove("is-caution", "is-risk");
+    this.tideFill.style.transform = "scaleX(0)";
+  }
+
+  /**
+   * K35 tide stave. `on` is false until the shore stones resolve, and always
+   * false on the classic 12-lotus run. Fill maps ship distance; colour is
+   * the three day-clock bands from art-bible.md §2 (gold / rose).
+   */
+  setTide(on: boolean, dist: number): void {
+    if (on !== this.tideOn) {
+      this.tideOn = on;
+      this.tide.hidden = !on;
+    }
+    if (!on) {
+      this.tide.classList.remove("is-caution", "is-risk");
+      return;
+    }
+    const span = TIDE.maxRadius - TIDE.safeRadius;
+    const fill =
+      dist <= TIDE.safeRadius
+        ? 0
+        : Math.max(0, Math.min(1, (dist - TIDE.safeRadius) / span));
+    this.tideFill.style.transform = `scaleX(${fill.toFixed(3)})`;
+    this.tideFill.style.animationDuration = `${TIDE.pulsePeriod}s`;
+    const risk = dist >= TIDE.cautionRadius;
+    const caution = !risk && dist >= TIDE.safeRadius;
+    this.tide.classList.toggle("is-caution", caution);
+    this.tide.classList.toggle("is-risk", risk);
+  }
+
   update(st: GameState, haze: number): void {
     this.target.textContent = String(LOTUS.target);
-    if (WORLD.k35) {
-      this.delivered.textContent =
-        st.delivered <= 0 ? "—" : st.delivered <= 2 ? "birkaç" : st.delivered <= 4 ? "yarısından çok" : "yeter";
-    } else {
-      this.delivered.textContent = String(st.delivered);
-    }
+    this.delivered.textContent = String(st.delivered);
     this.carried.textContent = String(st.carried);
 
     if (WORLD.showMemoryBar) {
@@ -234,8 +366,18 @@ export class Hud {
       this.runClock.style.opacity = String(Math.max(RUN_CLOCK.minOpacity, 0.18 + fade * 0.82));
     }
 
-    this.quest.style.opacity = String(0.18 + fade * 0.82);
-    this.quest.style.filter = `blur(${Math.pow(1 - fade, 1.8) * 3.2}px)`;
+    // Delivered line stays as readable as the run clock (K-1 / A4). Basket
+    // and title still sink with memory — only the banked count is exempt.
+    const fog = 0.18 + fade * 0.82;
+    const blur = Math.pow(1 - fade, 1.8) * 3.2;
+    this.quest.style.opacity = "1";
+    this.quest.style.filter = "none";
+    this.questTitle.style.opacity = String(fog);
+    this.questTitle.style.filter = "none";
+    this.questCarry.style.opacity = String(fog);
+    this.questCarry.style.filter = `blur(${blur}px)`;
+    this.questDelivered.style.opacity = String(Math.max(RUN_CLOCK.minOpacity, fog));
+    this.questDelivered.style.filter = "none";
     this.prompt.style.opacity = this.prompt.classList.contains("on")
       ? String(0.25 + fade * 0.75)
       : "0";

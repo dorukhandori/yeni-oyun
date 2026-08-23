@@ -20,11 +20,11 @@
 
       <div id="hud">
         <div class="panel quest" id="quest">
-          <div class="quest-title">Lotophagoi</div>
-          <div class="quest-line">
+          <div class="quest-title" id="questTitle">Lotophagoi</div>
+          <div class="quest-line" id="questDelivered">
             Gemiye teslim: <b id="delivered">0</b> / <b id="target">12</b>
           </div>
-          <div class="quest-line dim">
+          <div class="quest-line dim" id="questCarry">
             Sepet: <b id="carried">0</b> / <b id="cap">6</b>
           </div>
         </div>
@@ -69,6 +69,15 @@
           <span class="run-clock-value" id="runClockValue">00:00.00</span>
         </div>
 
+        <!-- K35 tide gauge. Hidden until the shore stones resolve; never
+             shown on the classic 12-lotus run (hud.ts). -->
+        <div class="tide" id="tide" hidden>
+          <span class="tide-label">Ada</span>
+          <div class="tide-well" aria-hidden="true">
+            <i class="tide-fill" id="tideFill"></i>
+          </div>
+        </div>
+
         <div class="prompt" id="prompt"></div>
         <aside class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true">
           <div class="toast-meta" id="toastMeta" hidden>
@@ -82,14 +91,38 @@
         </aside>
 
         <div class="hint" id="hint">
-          WASD yürü · fare kamera · tekerlek yakınlaş · <b>E</b> topla / teslim et
+          WASD yürü · fare kamera · tekerlek yakınlaş · <b>E</b> topla · <b>Esc</b> menü
         </div>
 
         <div class="card" id="card">
           <h1 id="cardTitle"></h1>
           <p id="cardBody"></p>
+          <ul class="card-stats" id="cardStats" hidden></ul>
+          <p class="card-verdict" id="cardVerdict" hidden></p>
           <button type="button" class="card-btn" id="cardRestart">Hub'a dön</button>
           <p class="card-key" id="cardKey">R · hub'a dön</p>
+        </div>
+      </div>
+
+      <button type="button" id="pauseToggle" class="pause-toggle" hidden aria-label="Menü">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+          <path
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            d="M5 7h14M5 12h14M5 17h14"
+          />
+        </svg>
+      </button>
+      <div id="pause" class="pause" hidden>
+        <div class="pause-sheet parchment-panel">
+          <h2 id="pauseHeading">Duraklatıldı</h2>
+          <button type="button" class="menu-btn primary" id="pauseResume">Devam</button>
+          <button type="button" class="menu-btn" id="pauseRestart">Yeniden başlat</button>
+          <button type="button" class="menu-btn" id="pauseHub">Hub'a dön</button>
+          <button type="button" class="menu-btn ghost" id="pauseTitle">Ana menü</button>
+          <p class="pause-key">Esc · devam</p>
         </div>
       </div>
 
@@ -185,7 +218,7 @@
                   <span class="hub-quest-dot"></span>
                 </span>
                 <span class="hub-quest-name">Beş yeter</span>
-                <span class="hub-island-desc" role="tooltip">Ada içeri çağırır. Ambara koymadığın, bu kıyıda kalır.</span>
+                <span class="hub-island-desc" role="tooltip">Derine git, çiçek bul. Ambara koymadığın unutuşun riskindedir.</span>
               </button>
               <button type="button" class="hub-island" id="cardLotus" style="left: 17%; top: 72%">
                 <span class="hub-island-thumb">
@@ -231,7 +264,7 @@
         >
           <div class="sub-panel-inner parchment-panel">
             <h2 id="nickTitle">Beş yeter</h2>
-            <p>Avucundaki çiçek unutuşundadır. Ambara koyduğun asla gitmez. Süren tutuluyor.</p>
+            <p>Med-Cezir: elindeki her çiçek riskte. Ambara koyduğun asla gitmez. Süren tutuluyor.</p>
             <label class="nick-label" for="nickInput">Denizci adın</label>
             <input
               type="text"

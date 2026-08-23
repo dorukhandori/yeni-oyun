@@ -18,6 +18,7 @@ import {
   SAILOR,
   SHIP,
   STEP,
+  TIDE,
   WORLD,
   setLotusRun,
   setEdgeSpawn,
@@ -66,6 +67,18 @@ let standY = (x: number, z: number): number => Math.max(heightAt(x, z), PLAYER.w
 export interface TestHooks {
   getState(): GameState;
   setPhase(phase: "title" | "hub" | "play", opts?: { kind?: LotusRunKind; seed?: number }): void;
+  /**
+   * DEV-only: jump to the win card with optional depart-account numbers.
+   * Used to verify A5 without playing a full K35 run.
+   */
+  forceWon(opts?: {
+    runSteps?: number;
+    tides?: number;
+    best?: number;
+    emptyDays?: number;
+    forgets?: number;
+    days?: number;
+  }): void;
   setProfile(profile: "test" | "real"): void;
   /** 0 = clear headed, 1 = fully lotus-drunk. Drives the haze/forgetting pass. */
   setMemory(v: number): void;
@@ -169,6 +182,8 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
   let warnSoundPlayed = false;
   /** Cooldown so the "bu kadar açılabilirsin" toast doesn't spam the boundary. */
   let boundaryHintTimer = 0;
+  /** One-shot tide caution toast (gdd-lotus-island-rebuild.md §5.3). */
+  let tideHintDone = false;
   /** Seconds remaining on the hallucination contact drift-spike (see updateDrift). */
   let driftTimer = 0;
   let harvestIndex: number | null = null;
@@ -231,6 +246,18 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
   let lastSubmit: SubmitStatus | null = null;
   /** Set when a K35 run finished; makes the next goHub() open the board once. */
   let showBoardOnHub = false;
+  /** Kind of the live run — pause "Yeniden başlat" uses this, not the Hub card. */
+  let currentKind: LotusRunKind = "classic";
+  let paused = false;
+
+  // K35 depart account (A5). Reset in fullRestart. A successful deliver() is
+  // one tide; emptyDays counts a day wrap with no deliveries that day.
+  let tideCount = 0;
+  let tideBest = 0;
+  let deliveredToday = 0;
+  let emptyDays = 0;
+  let forgetCount = 0;
+  let islandDays = 1;
 
   const shipDist = () =>
     ship.isPresent() ? Math.hypot(ship.anchor.x - pos.x, ship.anchor.z - pos.z) : Infinity;
@@ -269,28 +296,6 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
   let beatM1 = false;
   let beatM2 = false;
   let forgetLinesLeft = 3;
-  const opening = [
-    "Dokuz gün rüzgâr. Onuncu sabah kum.",
-    "Yenmemiş çiçek hatırlatır. Avucundakini ada alır; ambara koyduğun yolunu bilir.",
-    "Bu kıyıda beş yeter. Önce gemini bul — taşlar rüzgârı bilir.",
-  ];
-
-  function queueOpening(): void {
-    if (!WORLD.k35) return;
-    opening.forEach((line, i) => {
-      hud.say(line, FLOW.storyToastSeconds, {
-        kicker: "Kıyı",
-        step: [i + 1, opening.length],
-      });
-    });
-  }
-
-  function vagueDelivered(): string {
-    if (st.delivered <= 0) return "";
-    if (st.delivered <= 2) return "birkaç";
-    if (st.delivered <= 4) return "yarısından çok";
-    return "yeter";
-  }
 
   function isNight(): boolean {
     const p = st.dayTime / DAY.length;
@@ -336,6 +341,7 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
   }
 
   function runForgetEvent(): void {
+    forgetCount += 1;
     st.carried = 0;
     sailor.setCarried(0);
     st.lostTimer = 0;
@@ -365,6 +371,8 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
    * passes it and keeps the random seed.
    */
   function fullRestart(kind: LotusRunKind, seedOverride?: number): void {
+    closePause();
+    currentKind = kind;
     setLotusRun(kind);
     menu.hideAll();
     hud.hideCard();
@@ -411,6 +419,12 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
     // The ONLY reset of the speedrun clock (GDD §10.2). A new run starts here
     // whether it came from the Hub, the win card, or a test hook.
     st.runSteps = 0;
+    tideCount = 0;
+    tideBest = 0;
+    deliveredToday = 0;
+    emptyDays = 0;
+    forgetCount = 0;
+    islandDays = 1;
     finalRunMs = null;
     runSubmitted = false;
     runNick = "";
@@ -420,6 +434,7 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
     duskSoundPlayed = false;
     warnSoundPlayed = false;
     boundaryHintTimer = 0;
+    tideHintDone = false;
     driftTimer = 0;
     harvestIndex = null;
     harvestT = 0;
@@ -436,13 +451,13 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
     sailor.root.position.copy(pos);
     sailor.root.rotation.y = facing + (SAILOR.meshEnabled ? SAILOR.meshFacing : 0);
     hud.clearToasts();
+    hud.hideTide();
     rig.yaw = openingYaw;
     rig.snap(pos);
     stage.setDayProgress(0);
     st.phase = "play";
-    if (kind === "edge") {
-      queueOpening();
-    } else {
+    hud.setMenuButton(true);
+    if (kind !== "edge") {
       hud.say("Yeni bir gün — on iki lotus");
     }
     hud.startHintTimer();
@@ -450,8 +465,11 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
 
   /** Title -> Hub (docs/ux/screens.md §1 "Oyna"). */
   function goHub(): void {
+    closePause();
+    hud.setMenuButton(false);
     hud.hideCard();
     hud.hideRunClock();
+    hud.hideTide();
     hud.clearToasts();
     st.phase = "hub";
     menu.showHub();
@@ -480,8 +498,11 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
 
   /** Hub "Ana menü" -> Title. Also boot's initial state via menu.showTitle() below. */
   function goTitle(): void {
+    closePause();
+    hud.setMenuButton(false);
     hud.hideCard();
     hud.hideRunClock();
+    hud.hideTide();
     hud.clearToasts();
     menu.setCyclopsReady(false);
     st.phase = "title";
@@ -517,6 +538,48 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
   menu.showTitle();
 
   hud.setRestartHandler(goHub);
+  hud.setPauseHandlers({
+    onToggle: togglePause,
+    onResume: closePause,
+    onRestart: restartFromPause,
+    onHub: goHub,
+    onTitle: goTitle,
+  });
+
+  function canPause(): boolean {
+    return st.phase === "play" || st.phase === "departing";
+  }
+
+  function openPause(): void {
+    if (!canPause() || paused) return;
+    paused = true;
+    input.lockBlocked = true;
+    document.exitPointerLock?.();
+    hud.openPause();
+  }
+
+  function closePause(): void {
+    if (!paused) {
+      hud.closePause();
+      input.lockBlocked = false;
+      return;
+    }
+    paused = false;
+    input.lockBlocked = false;
+    hud.closePause();
+  }
+
+  function togglePause(): void {
+    if (paused) closePause();
+    else openPause();
+  }
+
+  function restartFromPause(): void {
+    const nick = runNick;
+    const kind = currentKind;
+    fullRestart(kind);
+    runNick = nick;
+  }
 
   function deliver(): void {
     if (st.carried <= 0 || !ship.isPresent()) return;
@@ -525,7 +588,14 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
     const drop = new THREE.Vector3(ship.anchor.x, ship.anchor.y + 1.6, ship.anchor.z);
     bursts.spawn(drop, PALETTE.lotusHeart, 10 + st.carried * 4, 3.2);
     bursts.spawnPop(drop, PALETTE.petalRipeTint, 16 + st.carried * 3);
-    hud.say(`${st.carried} lotus gemiye kondu`);
+    const gained = st.carried;
+    const left = Math.max(0, LOTUS.target - st.delivered);
+    if (WORLD.k35) {
+      tideCount += 1;
+      tideBest = Math.max(tideBest, gained);
+      deliveredToday += gained;
+    }
+    hud.say(`+${gained} teslim edildi, ${left} kaldı`);
     audio.deliver();
     st.carried = 0;
     sailor.setCarried(0);
@@ -549,6 +619,44 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
     st.phase = "departing";
     sailor.playWave();
     hud.say("Ağlayarak kürek çektiler. Bağladım onları sıraların altına.");
+  }
+
+  /**
+   * K35 win-card ledger (gdd-lotus-island-rebuild.md §10a A5). Fire/shelter
+   * rows are omitted — those systems are not in v1. Only lines that happened
+   * are listed, except time / delivered / tides which always print.
+   */
+  function k35DepartAccount(): {
+    title: string;
+    body: string;
+    stats: string[];
+    verdict: string;
+  } {
+    const ms = finalRunMs ?? 0;
+    const stats: string[] = [
+      `Süre: ${formatRunTime(ms)}`,
+      `Teslim: ${st.delivered}`,
+      `Gelgit: ${tideCount}`,
+    ];
+    if (tideCount > 0) stats.push(`En iyi dönüş: ${tideBest} lotus`);
+    if (islandDays > 1) stats.push(`Adada gün: ${islandDays}`);
+    if (emptyDays > 0) stats.push(`Boş gün: ${emptyDays}`);
+    if (forgetCount > 0) stats.push(`Unutuş: ${forgetCount}`);
+
+    let verdict: string;
+    if (ms < FLOW.verdictCleanMs && forgetCount === 0) {
+      verdict = "Kürek boş kalmadı.";
+    } else if (ms < FLOW.verdictSlowMs && forgetCount === 0) {
+      verdict = "Bir gün kaybettin. Sadece bir gün.";
+    } else {
+      verdict = "Ada hâlâ orada. Sen değilsin.";
+    }
+    return {
+      title: "Ayrıldın",
+      body: "Ada arkamızda küçüldü. Kimse dönüp bakmadı.",
+      stats,
+      verdict,
+    };
   }
 
   /**
@@ -686,13 +794,26 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
     else audio.setMusicBed("none");
 
     if (st.phase === "title" || st.phase === "hub") {
+      closePause();
+      hud.setMenuButton(false);
       syncMuteChrome(true);
       input.endFrame();
       return;
     }
     syncMuteChrome(false);
 
+    if (!canPause()) {
+      closePause();
+      hud.setMenuButton(false);
+    }
+    if (canPause() && input.wantsPause) togglePause();
+    if (paused) {
+      input.endFrame();
+      return;
+    }
+
     const dt = STEP / 1000;
+
     time += dt;
 
     // K35 speedrun clock — counted in fixed 60 Hz STEPS, not wall clock
@@ -705,7 +826,9 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
     // startDepart(), the value captured at "won" would be bit-identical to the
     // one at startDepart() and FLOW.departSeconds would silently NOT land in
     // the score, contradicting the ruling's own stated consequence.
-    if (st.phase === "play" || st.phase === "departing") st.runSteps += 1;
+    if (st.phase === "play" || st.phase === "departing") {
+      st.runSteps += 1;
+    }
 
     stage.bloomBoost = Math.max(0, stage.bloomBoost - FEEL.bloomPulseDecay * dt);
 
@@ -714,6 +837,9 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
       st.dayTime += dt;
       if (WORLD.k35) {
         if (st.dayTime >= DAY.length) {
+          if (deliveredToday === 0) emptyDays += 1;
+          deliveredToday = 0;
+          islandDays += 1;
           st.dayTime -= DAY.length;
           warnSoundPlayed = false;
         }
@@ -1042,7 +1168,6 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
           input.touchActive ? "Topla · kıyı taşları" : "Rüzgârın işaret ettiği kıyı taşına dokun",
         );
       } else if (nearShip) {
-        const vague = WORLD.k35 && st.delivered > 0 ? ` · ${vagueDelivered()}` : "";
         hud.setPrompt(
           st.carried > 0
             ? input.touchActive
@@ -1052,7 +1177,7 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
               ? input.touchActive
                 ? "Topla · ayrıl"
                 : "<b>E</b> ayrıl"
-              : `Gemi burada${vague}`,
+              : "Gemi burada",
         );
       } else if (cairn !== null) {
         hud.setPrompt(
@@ -1204,19 +1329,21 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
         wonSoundPlayed = true;
         audio.win();
       }
-      hud.showCard(
-        "won",
-        "İthake'ye doğru",
-        WORLD.k35
-          ? // The time is shown here as well as on the board: this card is the
-            // first thing a runner looks at, and finalRunMs is already final
-            // (captured on the transition into "won" — GDD §10.1 H3).
-            `Ada arkamızda küçüldü. Kimse dönüp bakmadı. Bakmamak için.${
-              finalRunMs === null ? "" : `\n\nSüren: ${formatRunTime(finalRunMs)}`
-            }`
-          : `${st.delivered} olgun lotus ambarda. Unutuşu geride bıraktın.`,
-        { restart: true },
-      );
+      if (WORLD.k35) {
+        const account = k35DepartAccount();
+        hud.showCard("won", account.title, account.body, {
+          restart: true,
+          stats: account.stats,
+          verdict: account.verdict,
+        });
+      } else {
+        hud.showCard(
+          "won",
+          "İthake'ye doğru",
+          `${st.delivered} olgun lotus ambarda. Unutuşu geride bıraktın.`,
+          { restart: true },
+        );
+      }
       if (input.interact || input.wantsRestart) goHub();
     }
 
@@ -1279,6 +1406,18 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
     // Cloud drift rides the simulation clock, not wall time, so `freeze()`
     // holds the deck still and screenshot baselines stay byte-identical.
     stage.skyTime = time;
+    // Tide stave: K35 only, after shore stones. Distance uses the berth
+    // even while the hull is still hidden (anchor stays at SHIP.pos).
+    const tideOn =
+      WORLD.k35 &&
+      st.shoreFound &&
+      (st.phase === "play" || st.phase === "departing");
+    const tideDist = Math.hypot(pos.x - ship.anchor.x, pos.z - ship.anchor.z);
+    hud.setTide(tideOn, tideDist);
+    if (tideOn && !tideHintDone && tideDist >= TIDE.safeRadius) {
+      tideHintDone = true;
+      hud.say("Ada derinleşiyor — geri dönüş uzuyor.", TIDE.firstHintSeconds);
+    }
     hud.update(st, haze);
 
     input.endFrame();
@@ -1331,6 +1470,24 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
       if (phase === "title") goTitle();
       else if (phase === "hub") goHub();
       else fullRestart(opts?.kind ?? "classic", opts?.seed);
+    },
+    forceWon(opts) {
+      if (st.phase === "title" || st.phase === "hub") return;
+      if (opts?.runSteps !== undefined) st.runSteps = opts.runSteps;
+      if (opts?.tides !== undefined) tideCount = opts.tides;
+      if (opts?.best !== undefined) tideBest = opts.best;
+      if (opts?.emptyDays !== undefined) emptyDays = opts.emptyDays;
+      if (opts?.forgets !== undefined) forgetCount = opts.forgets;
+      if (opts?.days !== undefined) islandDays = opts.days;
+      st.delivered = Math.max(st.delivered, LOTUS.target);
+      if (WORLD.k35 && tideCount === 0) {
+        tideCount = 1;
+        tideBest = Math.max(tideBest, st.delivered);
+      }
+      closePause();
+      hud.hideCard();
+      st.phase = "won";
+      finishRun();
     },
     setProfile(profile) {
       // Deliberately a reload, not a mutation: constants.ts resolves

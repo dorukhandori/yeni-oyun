@@ -11,6 +11,8 @@ export class Input {
   private tapInteract = false;
   private actHeld = false;
   locked = false;
+  /** True while a DOM menu (pause) owns the pointer — canvas must not steal lock. */
+  lockBlocked = false;
   touchActive = false;
 
   attach(canvas: HTMLCanvasElement): void {
@@ -28,6 +30,7 @@ export class Input {
     });
 
     canvas.addEventListener("mousedown", () => {
+      if (this.lockBlocked) return;
       this.dragging = true;
       if (!this.locked) canvas.requestPointerLock?.();
     });
@@ -44,7 +47,7 @@ export class Input {
       "wheel",
       (e) => {
         const t = e.target as HTMLElement | null;
-        if (t?.closest?.("#boardPanel, #nickPanel, #skinPanel, input, textarea, .board-modal")) {
+        if (t?.closest?.("#boardPanel, #nickPanel, #skinPanel, #pause, input, textarea, .board-modal")) {
           return;
         }
         e.preventDefault();
@@ -247,6 +250,9 @@ export class Input {
   }
   get wantsRestart(): boolean {
     return this.pressed.has("KeyR");
+  }
+  get wantsPause(): boolean {
+    return this.pressed.has("Escape");
   }
 }
 

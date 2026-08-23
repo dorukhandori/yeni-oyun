@@ -991,6 +991,31 @@ export const FLOW = {
   storyToastSeconds: 5.5,
   /** Quiet gap between queued toasts, so lines don't slam into each other. */
   toastGapSeconds: 0.45,
+  /**
+   * K35 depart-account verdict (gdd-lotus-island-rebuild.md §10a A5,
+   * gdd-lotus-island-scenario.md §4.5). Fire/shelter lines are omitted — those
+   * systems are not in v1. Clean = under four minutes with no forget event.
+   */
+  verdictCleanMs: 240_000,
+  /** Slower than this, or any forget, takes the third verdict sentence. */
+  verdictSlowMs: 480_000,
+} as const;
+
+/**
+ * Tide gauge (gdd-lotus-island-rebuild.md §5.3 / §10a A2).
+ * Distance-to-ship risk, not a memory bar. Edge/K35 only, and only after
+ * the shore stones resolve (`shoreFound`). Classic 12-lotus never sees it.
+ */
+export const TIDE = {
+  /** Inside this, the stave is empty — still at the berth. */
+  safeRadius: ACTIVE_PROFILE === "real" ? 8 : 4,
+  /** Gold band starts here. */
+  cautionRadius: ACTIVE_PROFILE === "real" ? 40 : 10,
+  /** Rose band saturates here (inland of this is still "risk", fill stays 1). */
+  maxRadius: ACTIVE_PROFILE === "real" ? 120 : 18,
+  /** Risk-band pulse period (s). Art-bible photosensitivity floor is 1.5 s. */
+  pulsePeriod: 2,
+  firstHintSeconds: 2.5,
 } as const;
 
 /** One in-game day — sun height is the clock (tuning.md §2). */
