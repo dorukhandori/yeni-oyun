@@ -62,7 +62,7 @@
         </div>
 
         <!-- Live K35 run clock. Hidden by default and only ever unhidden for
-             the "Beş yeter" run (hud.ts) — the classic 12-lotus run has no
+             the "Tam yelken" run (hud.ts) — the classic 12-lotus run has no
              timer at all. Left column, under the quest panel. -->
         <div class="run-clock" id="runClock" hidden>
           <span class="run-clock-label">Süre</span>
@@ -212,37 +212,55 @@
                 class="hub-quest"
                 id="questLotusEdge"
                 style="left: 6%; top: 48%"
-                aria-label="Beş yeter, Lotus Adası kenar görevi"
+                aria-label="Tam yelken. Diğer oyuncuların ada süre rekorunu kır."
               >
                 <span class="hub-quest-node" aria-hidden="true">
                   <span class="hub-quest-dot"></span>
                 </span>
-                <span class="hub-quest-name">Beş yeter</span>
-                <span class="hub-island-desc" role="tooltip">Derine git, çiçek bul. Ambara koymadığın unutuşun riskindedir.</span>
+                <span class="hub-quest-name">Tam yelken</span>
+                <span class="hub-island-desc" role="tooltip">Diğer oyuncuların ada süre rekorunu kır.</span>
               </button>
-              <button type="button" class="hub-island" id="cardLotus" style="left: 17%; top: 72%">
+              <button
+                type="button"
+                class="hub-island"
+                id="cardLotus"
+                style="left: 17%; top: 72%"
+                aria-label="Lotus Adası. Yolculuğuna devam edebilmek için adadan kurtul."
+              >
                 <span class="hub-island-thumb">
                   <img src="/assets/ui/ui_hubmap_lotus_01_albedo_512.png" alt="" />
                 </span>
                 <span class="hub-island-name">Lotus Adası</span>
                 <span class="hub-island-badge ready">Hazır</span>
-                <span class="hub-island-desc" role="tooltip">On iki lotus, güneş batmadan gemiye teslim et.</span>
+                <span class="hub-island-desc" role="tooltip">Yolculuğuna devam edebilmek için adadan kurtul.</span>
               </button>
-              <div class="hub-island locked" id="cardCyclops" style="left: 51%; top: 41%" aria-disabled="true">
+              <div
+                class="hub-island locked"
+                id="cardCyclops"
+                style="left: 51%; top: 41%"
+                aria-disabled="true"
+                aria-label="Kiklop Mağarası. Körleşmeden, tayfanla birlikte çık. Yakında."
+              >
                 <span class="hub-island-thumb">
                   <img src="/assets/ui/ui_hubmap_cyclops_01_albedo_512.png" alt="" />
                 </span>
                 <span class="hub-island-name">Kiklop Mağarası</span>
                 <span class="hub-island-badge locked-badge">🔒 Yakında</span>
-                <span class="hub-island-desc" role="tooltip">Karanlıkta kal, ışıkta yakalanma.</span>
+                <span class="hub-island-desc" role="tooltip">Körleşmeden, tayfanla birlikte çık.</span>
               </div>
-              <div class="hub-island locked" id="cardSirens" style="left: 83%; top: 57%" aria-disabled="true">
+              <div
+                class="hub-island locked"
+                id="cardSirens"
+                style="left: 83%; top: 57%"
+                aria-disabled="true"
+                aria-label="Sirenler Geçidi. Şarkıya kapılmadan geçidi aş. Yakında."
+              >
                 <span class="hub-island-thumb">
                   <img src="/assets/ui/ui_hubmap_sirens_01_albedo_512.png" alt="" />
                 </span>
                 <span class="hub-island-name">Sirenler Geçidi</span>
                 <span class="hub-island-badge locked-badge">🔒 Yakında</span>
-                <span class="hub-island-desc" role="tooltip">Şarkıya yaklaştıkça yol eğrilir.</span>
+                <span class="hub-island-desc" role="tooltip">Şarkıya kapılmadan geçidi aş.</span>
               </div>
             </div>
           </div>
@@ -252,7 +270,7 @@
           </div>
         </div>
 
-        <!-- Nick modal — sits between the "Beş yeter" click and fullRestart("edge").
+        <!-- Nick modal — sits between the "Tam yelken" click and fullRestart("edge").
              Its "Başla" button is now the guaranteed user gesture the fullscreen
              request rides on (docs/ux/screens.md §3.6, Paca LOT-58). -->
         <div
@@ -263,8 +281,8 @@
           aria-labelledby="nickTitle"
         >
           <div class="sub-panel-inner parchment-panel">
-            <h2 id="nickTitle">Beş yeter</h2>
-            <p>Med-Cezir: elindeki her çiçek riskte. Ambara koyduğun asla gitmez. Süren tutuluyor.</p>
+            <h2 id="nickTitle">Tam yelken</h2>
+            <p>Diğer oyuncuların ada süre rekorunu kır. Beş lotus ambara — süren tutuluyor.</p>
             <label class="nick-label" for="nickInput">Denizci adın</label>
             <input
               type="text"
@@ -306,7 +324,7 @@
         aria-labelledby="boardTitle"
       >
         <div class="sub-panel-inner board-inner parchment-panel">
-          <h2 id="boardTitle">En hızlılar — Beş yeter</h2>
+          <h2 id="boardTitle">En hızlılar — Tam yelken</h2>
           <p class="board-status" id="boardSubmit" hidden>
             <span class="board-status-icon" aria-hidden="true"></span>
             <span class="board-status-text"></span>

@@ -21,7 +21,7 @@ export interface MenuHandlers {
   /** Hub's Lotus Adası card — the anthology stop. */
   onSelectLotus: () => void;
   /**
-   * Hub edge quest on Lotus ("Beş yeter") — same island, named satellite.
+   * Hub edge quest on Lotus ("Tam yelken") — same island, named satellite.
    *
    * Fires from the nick modal's "Başla" press, NOT from the map click, because
    * that press is now the guaranteed user gesture (see openNick below).

@@ -35,8 +35,8 @@ Toplam **11 ekran** (Başlık, Nasıl oynanır, Hakkında, Hub, Açılış×N du
 - **Oyna** (varsayılan odak) — artık doğrudan oyuna değil, **Hub'a** açılıyor.
 - **Nasıl oynanır**
 - **Hakkında**
-- **Sıralama** (19 Ağu 2026, sahip isteği) — K35 "Beş yeter" online tablosunu açar. `#hubScreen`'deki "Sıralama" ile **aynı modal**, kopya değil.
-- **Görünüm** (22 Ağu 2026) — Doryseus kıyafet seçimi (`Tunik` / `Konfuse`). Title ve Hub aynı modalı açar; tercih `localStorage`'da kalır. Oynanışı değiştirmez.
+- **Sıralama** (19 Ağu 2026, sahip isteği) — K35 "Tam yelken" online tablosunu açar. `#hubScreen`'deki "Sıralama" ile **aynı modal**, kopya değil.
+- **Görünüm** (22 Ağu 2026) — Doryseus kıyafet seçimi (`Tunik` / `Kömbe`). Title ve Hub aynı modalı açar; tercih `localStorage`'da kalır. Oynanışı değiştirmez.
 - Sağ-üst **sesi kapat** ikonu (`#muteToggle`, LOT-67) — Title ve Hub'da görünür. Tercih `localStorage`'da kalır; oyun fazında ikon kaybolur ama ses kapalı kalır. Tam ekran düğmesinin solunda, aynı parşömen ailesi.
 
 **Neden Welcome + giriş menüsü ayrılmadı:** `ia.md`'nin kuruluş ilkesi "tek seviye, alt menü yok, ayarlar ormanı yok." İkinci bir "giriş menüsü" ekranı eklemek üç yeni geçiş (fade/tık) ve bir ekstra "geri" düğmesi demek, kazanılan hiçbir şey yok — Başlık zaten üç eylemden fazlasını taşımıyor. Hub eklenmesi zaten akışa bir ekran ekliyor; gereksiz ikinci bir ekran eklemek yerine mevcut tek-ekran modelini koruyorum. **Alternatif** (ayrı bir "Giriş" ekranı, key art'ı tam ekran bir "splash" olarak ayrı tutmak) mümkün ama önerilmiyor — sahip isterse ayrı bir tur ister.
@@ -97,11 +97,12 @@ Alt: **Geri**
 - Başlık/üst bilgi: küçük bir çerçeve metni (öneri, 🔲 kesinleşmemiş): *Rota* veya *Duraklar* — "Doryseus'un rotası" gibi karakteri adlandıran bir varyant da mümkün, isim kuralına uygun.
 - **3 durak kartı**, yan yana veya bir güzergah/harita üstünde konumlanmış:
 
-  | Durak | Sırası | Görsel ipucu (yer tutucu, art-director kararı) |
-  |---|---|---|
-  | Lotus Adası | 1 | çapa/kıyı silüeti |
-  | Kiklop Mağarası | 2 | mağara ağzı silüeti |
-  | Sirenler Geçidi | 3 | kayalık/dalga silüeti |
+  | Durak | Sırası | Challenge (kart tooltip) | Görsel ipucu (yer tutucu, art-director kararı) |
+  |---|---|---|---|
+  | Lotus Adası | 1 | Yolculuğuna devam edebilmek için adadan kurtul. | çapa/kıyı silüeti |
+  | Kiklop Mağarası | 2 | Körleşmeden, tayfanla birlikte çık. | mağara ağzı silüeti |
+  | Sirenler Geçidi | 3 | Şarkıya kapılmadan geçidi aş. | kayalık/dalga silüeti |
+  | Tam yelken (uydu) | — | Diğer oyuncuların ada süre rekorunu kır. | küçük daire + iç nokta |
 
 - Her kart üstünde **durum rozeti** — metin + ikon birlikte (renk körlüğü kuralı, HUD'la aynı disiplin):
 
@@ -148,7 +149,7 @@ Sahip'in talebi "oyuncu 3 duraktan hangisini oynayacağını seçebiliyor" — b
 
 ### 3.6 Kenar görev (K35, 15 Ağu 2026)
 
-Lotus Adası’nın **uydusu**, dördüncü durak değil. Haritada ada düğümünün sol-üstüne kesik çizgiyle bağlı **küçük daire + iç nokta**. Metin: `Beş yeter` (`scenario.md` A3).
+Lotus Adası’nın **uydusu**, dördüncü durak değil. Haritada ada düğümünün sol-üstüne kesik çizgiyle bağlı **küçük daire + iç nokta**. Metin: `Tam yelken`. Challenge: diğer oyuncuların ada süre rekorunu kır.
 
 | | Ada kartı | Kenar görev |
 |---|---|---|
@@ -184,7 +185,7 @@ Ekran görüntüsü koşum takımı (`scripts/asset-qa`) `fullRestart()`’ı te
 ┌─────────────────────────────────────────┐
 │                  ROTA                    │
 │                                          │
-│  (•) Beş yeter                           │
+│  (•) Tam yelken                          │
 │     ↘                                    │
 │   [ Lotus Adası ]  [ Kiklop ]  [Sirenler]│
 │      Hazır          Kilitli    Kilitli   │

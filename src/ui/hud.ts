@@ -331,6 +331,8 @@ export class Hud {
     this.target.textContent = String(LOTUS.target);
     this.delivered.textContent = String(st.delivered);
     this.carried.textContent = String(st.carried);
+    const questName = WORLD.k35 ? "Tam yelken" : "Lotus Adası";
+    if (this.questTitle.textContent !== questName) this.questTitle.textContent = questName;
 
     if (WORLD.showMemoryBar) {
       this.memFill.style.width = `${Math.round(st.memory * 100)}%`;

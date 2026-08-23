@@ -146,7 +146,7 @@ canvas#game {
 }
 
 /* -------------------------------------------------------------- run clock */
-/* Live K35 speedrun time. Only unhidden for the "Beş yeter" run (ui/hud.ts) —
+/* Live K35 speedrun time. Only unhidden for the "Tam yelken" run (ui/hud.ts) —
    the classic 12-lotus run has no timer. Left column, under the quest panel.
    Opacity is driven from hud.ts (memory haze, floored at RUN_CLOCK.minOpacity)
    — do not set it here or the two will fight. */
@@ -1235,7 +1235,7 @@ button.hub-island:focus-visible .hub-island-thumb {
   top: calc(100% + 8px);
   left: 50%;
   width: max-content;
-  max-width: 170px;
+  max-width: 220px;
   padding: 7px 11px;
   background: var(--parchment);
   border: 1px solid rgba(150, 116, 58, 0.5);
@@ -1290,7 +1290,7 @@ button.hub-island:focus-visible .hub-island-desc,
   transform: translateY(0) scale(1);
 }
 
-/* Beş yeter sits at the left edge — anchor the tag to the right of center. */
+/* Tam yelken sits at the left edge — anchor the tag to the right of center. */
 #questLotusEdge .hub-island-desc {
   left: -8px;
   max-width: 220px;
