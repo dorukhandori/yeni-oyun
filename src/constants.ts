@@ -598,10 +598,9 @@ export const FEEL = {
 } as const;
 
 /**
- * Procedural WebAudio bed (`src/systems/audio.ts`). No asset files —
- * oscillators / filtered noise. Mute is a player preference, not a
- * gameplay number, but the bus level and ramp live here so HUD chrome
- * and the audio graph share one source.
+ * Procedural WebAudio SFX + Mixkit music beds (`src/systems/audio.ts`).
+ * Mute is a player preference, not a gameplay number, but the bus level
+ * and ramp live here so HUD chrome and the audio graph share one source.
  */
 export const AUDIO = {
   /** Master bus when unmuted. */
@@ -610,6 +609,19 @@ export const AUDIO = {
   muteRamp: 0.08,
   /** localStorage key. Safari private mode may throw; callers try/catch. */
   muteStorageKey: "lotophagoi.muted",
+  /**
+   * Title/Hub vs island beds. Files are Mixkit Stock Music Free License
+   * (no attribution required) — see assets.csv ASSET-088/089.
+   */
+  music: {
+    menu: "assets/audio/fx_musictitle_01_loop_256.mp3",
+    play: "assets/audio/fx_musicplay_01_loop_256.mp3",
+    /** Under the parchment screens — a little more present than the island. */
+    menuGain: 0.38,
+    /** Under waves + one-shots; keep it a mist, not a soundtrack. */
+    playGain: 0.22,
+    fade: 2.2,
+  },
 } as const;
 
 /**

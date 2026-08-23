@@ -1,15 +1,23 @@
 /**
- * Lightweight WebAudio bed + one-shots. No asset files — oscillators / noise.
+ * WebAudio one-shots (oscillators / noise) plus two Mixkit music beds.
  * Resumes on first user gesture (browser autoplay policy).
  */
 
 import { AUDIO } from "../constants";
+import { assetUrl } from "../assets/paths";
+
+export type MusicBed = "menu" | "play" | "none";
 
 function readStoredMute(): boolean {
   try {
-    return window.localStorage.getItem(AUDIO.muteStorageKey) === "1";
+    const raw = window.localStorage.getItem(AUDIO.muteStorageKey);
+    // No stored preference yet (first visit) — default to silent; the
+    // player opts in via the mute toggle rather than being surprised by
+    // audio on load.
+    if (raw === null) return true;
+    return raw === "1";
   } catch {
-    return false;
+    return true;
   }
 }
 
@@ -29,6 +37,13 @@ export class GameAudio {
   private started = false;
   private waveNodes: AudioNode[] = [];
   private muted = readStoredMute();
+  private wantedBed: MusicBed = "none";
+  private musicReady = false;
+  private musicLoading = false;
+  private musicSlots: {
+    menu: { gain: GainNode; src: AudioBufferSourceNode | null };
+    play: { gain: GainNode; src: AudioBufferSourceNode | null };
+  } | null = null;
 
   isMuted(): boolean {
     return this.muted;
@@ -75,6 +90,17 @@ export class GameAudio {
     this.startWaves();
     this.started = true;
     void this.ctx.resume();
+    this.beginMusicLoad();
+  }
+
+  /**
+   * Title/Hub = menu theme, island = mystical bed, end-cards = silence.
+   * Safe before unlock — the wanted bed is applied once buffers decode.
+   */
+  setMusicBed(bed: MusicBed): void {
+    if (this.wantedBed === bed) return;
+    this.wantedBed = bed;
+    this.applyMusicBed();
   }
 
   private applyMasterGain(immediate: boolean): void {
@@ -127,6 +153,70 @@ export class GameAudio {
     lfoGain.connect(this.waveGain.gain);
     lfo.start();
     this.waveNodes.push(lfo, lfoGain);
+  }
+
+  private beginMusicLoad(): void {
+    if (this.musicLoading || this.musicReady || !this.ctx || !this.filter) return;
+    this.musicLoading = true;
+    const ctx = this.ctx;
+    const menuGain = ctx.createGain();
+    const playGain = ctx.createGain();
+    menuGain.gain.value = 0;
+    playGain.gain.value = 0;
+    menuGain.connect(this.filter);
+    playGain.connect(this.filter);
+    this.musicSlots = {
+      menu: { gain: menuGain, src: null },
+      play: { gain: playGain, src: null },
+    };
+    void Promise.all([
+      this.decodeMusic(AUDIO.music.menu),
+      this.decodeMusic(AUDIO.music.play),
+    ])
+      .then(([menuBuf, playBuf]) => {
+        if (!this.ctx || !this.musicSlots) return;
+        this.musicSlots.menu.src = this.startLoop(menuBuf, this.musicSlots.menu.gain);
+        this.musicSlots.play.src = this.startLoop(playBuf, this.musicSlots.play.gain);
+        this.musicReady = true;
+        this.applyMusicBed();
+      })
+      .catch((err: unknown) => {
+        console.warn("[audio] music beds failed to load", err);
+        this.musicLoading = false;
+      });
+  }
+
+  private async decodeMusic(relativePath: string): Promise<AudioBuffer> {
+    if (!this.ctx) throw new Error("no audio context");
+    const res = await fetch(assetUrl(relativePath));
+    if (!res.ok) throw new Error(`${relativePath} ${res.status}`);
+    const raw = await res.arrayBuffer();
+    // decodeAudioData detaches the buffer on some engines — copy first.
+    return this.ctx.decodeAudioData(raw.slice(0));
+  }
+
+  private startLoop(buf: AudioBuffer, dest: AudioNode): AudioBufferSourceNode {
+    const src = this.ctx!.createBufferSource();
+    src.buffer = buf;
+    src.loop = true;
+    src.connect(dest);
+    src.start();
+    return src;
+  }
+
+  private applyMusicBed(): void {
+    if (!this.ctx || !this.musicSlots || !this.musicReady) return;
+    const t = this.ctx.currentTime;
+    const fade = AUDIO.music.fade;
+    const menuTarget = this.wantedBed === "menu" ? AUDIO.music.menuGain : 0.0001;
+    const playTarget = this.wantedBed === "play" ? AUDIO.music.playGain : 0.0001;
+    const ramp = (g: GainNode, target: number) => {
+      g.gain.cancelScheduledValues(t);
+      g.gain.setValueAtTime(Math.max(g.gain.value, 0.0001), t);
+      g.gain.exponentialRampToValueAtTime(target, t + fade);
+    };
+    ramp(this.musicSlots.menu.gain, menuTarget);
+    ramp(this.musicSlots.play.gain, playTarget);
   }
 
   /** Distance to shore / sea — louder near water. */

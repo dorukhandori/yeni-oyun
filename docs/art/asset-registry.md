@@ -330,3 +330,12 @@ Oynanır build'in görseli koddan çıkar; bunlar 3D agent'ın işi, prompt yaz�
 | **Unutma post-process katmanı** | `code` | Haze + doygunluk kaybı + kenar erimesi — art bible §4, texture'a gömülmez |
 | Bloom / grade / vignette / fog | `code` | |
 | Lotus toplama & teslim geri bildirimi | `code` | Squash-stretch, mikro sarsıntı **[K]** |
+
+## Audio beds **[P]**
+
+Mixkit Stock Music Free License (atıf zorunlu değil). Oyuna `src/systems/audio.ts` bağlar; Title/Hub `menu`, ada `play`, bitiş kartları sessiz. Teslim fanfarı değil (`gdd-lotus-collection.md` §9).
+
+| ID | Ad | Sınıf | Kaynak | Durum | Not |
+|---|---|---|---|---|---|
+| ASSET-088 | Title/Hub tema | `scene-audio` | Mixkit *Valley Sunset* (Alejandro Magaña) | **integrated** | `public/assets/audio/fx_musictitle_01_loop_256.mp3` — 48 s fade-loop, 48 kbps |
+| ASSET-089 | Ada atmosfer (mistik/chill) | `scene-audio` | Mixkit *Forest Mist Whispers* (Alejandro Magaña) | **integrated** | `public/assets/audio/fx_musicplay_01_loop_256.mp3` — 48 s dilim; unutuş `setHaze` lowpass'inden geçer |

@@ -679,6 +679,12 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
     // Title/Hub freeze the world completely (multi-island-concept.md §9.1
     // "Hub'da zaman donar") — no physics, camera, memory, day clock, or
     // world-object animation runs; `time` itself doesn't advance either.
+    // Music follows phase even while Title/Hub freeze the sim — otherwise
+    // the theme would never start (this branch used to return before audio).
+    if (st.phase === "title" || st.phase === "hub") audio.setMusicBed("menu");
+    else if (st.phase === "play" || st.phase === "departing") audio.setMusicBed("play");
+    else audio.setMusicBed("none");
+
     if (st.phase === "title" || st.phase === "hub") {
       syncMuteChrome(true);
       input.endFrame();
