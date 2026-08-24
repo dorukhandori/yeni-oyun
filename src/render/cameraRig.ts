@@ -49,6 +49,11 @@ export class CameraRig {
     return out.set(Math.cos(this.yaw), 0, -Math.sin(this.yaw)).normalize();
   }
 
+  /** Current boom length (rest or wheel-zoom). */
+  currentDist(): number {
+    return this.zoomDist;
+  }
+
   snap(focus: THREE.Vector3): void {
     this.zoomDist = this.startDist;
     this.pos.copy(this.desired(focus));

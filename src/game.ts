@@ -95,6 +95,8 @@ export interface TestHooks {
   lookAt(x: number, y: number, z: number): void;
   /** Place the camera near a world point, then look at it (close-up shots). */
   frameAt(x: number, y: number, z: number, dist?: number): void;
+  /** Current shoulder-cam boom. Phones start at `CAMERA.distTouch`. */
+  cameraDist(): number;
 }
 
 export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
@@ -1553,6 +1555,9 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
     frameAt(x, y, z, dist = 2.8) {
       stage.camera.position.set(x + dist * 0.55, y + 1.15, z + dist);
       stage.camera.lookAt(x, y + 0.2, z);
+    },
+    cameraDist() {
+      return rig.currentDist();
     },
   };
 }
