@@ -9,6 +9,7 @@ __pycache__/
 .claude/
 AGENTS.md
 CLAUDE.md
+studio-private/
 
 # Ham asset/medya çıktıları — git'e girmez (docs/art/pipeline.md §6)
 # Klasör iskeleti .gitkeep ile korunur.
