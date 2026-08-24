@@ -5,7 +5,7 @@ export class CameraRig {
   yaw: number = CAMERA.yawStart;
   pitch: number = CAMERA.pitchStart;
   /** Current boom length; wheel writes this, `desired()` reads it. */
-  private zoomDist: number = CAMERA.dist;
+  private zoomDist: number;
   private pos = new THREE.Vector3();
   private target = new THREE.Vector3();
   private shake = 0;
@@ -15,7 +15,11 @@ export class CameraRig {
     private camera: THREE.PerspectiveCamera,
     /** Ground/sea height sampler used to keep the camera above the surface. */
     private groundAt: (x: number, z: number) => number,
-  ) {}
+    /** Rest boom. Phones pass `CAMERA.distTouch`; desktop uses `CAMERA.dist`. */
+    private startDist: number = CAMERA.dist,
+  ) {
+    this.zoomDist = startDist;
+  }
 
   rotate(dx: number, dy: number): void {
     this.yaw -= dx;
@@ -46,7 +50,7 @@ export class CameraRig {
   }
 
   snap(focus: THREE.Vector3): void {
-    this.zoomDist = CAMERA.dist;
+    this.zoomDist = this.startDist;
     this.pos.copy(this.desired(focus));
     this.camera.position.copy(this.pos);
     this.target.copy(focus);

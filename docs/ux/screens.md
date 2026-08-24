@@ -7,7 +7,7 @@
 
 DOM overlay + 3D dünya. Menüler dünyanın üstünde; oyun HUD'u `docs/ux/hud.md`.
 
-**Mobil kabuk.** Oynanış yatay kalır (dikeyde `src/ui/orientation.ts` kapısı). Telefonda canvas görünür alanı **doldurur** (popüler landscape: iPhone SE 667×375, 14 844×390, 14 Pro 852×393, Pro Max 932×430 — referans `UI_FIT` 844×390). HUD kromu o referansa göre hafif ölçeklenir; 16:9 letterbox yok. Masaüstü penceresi (asset-qa 1280×720) değişmez.
+**Mobil kabuk.** Oynanış yatay kalır (dikeyde `src/ui/orientation.ts` kapısı). Telefonda canvas görünür alanı **doldurur** (popüler landscape: iPhone SE 667×375, 14 844×390, 14 Pro 852×393, Pro Max 932×430 — referans `UI_FIT` 844×390). `#app` safe-area kadar küçültülmez (Pro Max’te açık mavi yan şerit bırakıyordu); HUD kromu `env(safe-area-inset-*)` ile Dynamic Island / home indicator’dan kaçar ve kart / düğme / gösterge masaüstünden daha küçük tutulur. Kamera `CAMERA.distTouch` (4.5) ile başlar; masaüstü `CAMERA.dist` (6.4) kalır. 16:9 letterbox yok. Masaüstü penceresi (asset-qa 1280×720) değişmez.
 
 ---
 

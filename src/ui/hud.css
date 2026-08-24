@@ -5,12 +5,12 @@
   --gold-light: #f3d488;
   --sea: #12708f;
   --milk: #fbf6ec;
-  /* Real device insets — JS insets #app so HUD can zero these on phones. */
+  /* Real device insets. #app fills the visual viewport; HUD chrome uses these. */
   --safe-t: env(safe-area-inset-top, 0px);
   --safe-r: env(safe-area-inset-right, 0px);
   --safe-b: env(safe-area-inset-bottom, 0px);
   --safe-l: env(safe-area-inset-left, 0px);
-  /* HUD/chrome insets. Zeroed on html.ui-fit because #app is already inset. */
+  /* Never zero these on phones — joystick / quest must clear the Island. */
   --sat: var(--safe-t);
   --sar: var(--safe-r);
   --sab: var(--safe-b);
@@ -90,23 +90,17 @@ canvas#game {
 /*
   Phone landscape (src/ui/scale.ts): #app fills the visual viewport — popular
   20:9 sizes (iPhone SE 667×375, 14 844×390, 14 Pro 852×393, Pro Max 932×430).
-  Overlays stay full-bleed on that rectangle. --ui-scale only sizes HUD chrome
-  against the iPhone 14 reference; the canvas is never letterboxed.
+  Do not zero --sat/--sar/--sab/--sal: shrinking #app by those insets left
+  light-blue pillarbox on Pro Max; HUD chrome must still clear the Island.
+  --ui-scale only sizes a few leftover px values; compact sizes live here.
 */
-html.ui-fit {
-  --sat: 0px;
-  --sar: 0px;
-  --sab: 0px;
-  --sal: 0px;
-}
-
 html.ui-fit .title-content {
-  --panel-w: min(300px, 78vw, 88vh);
+  --panel-w: min(220px, 62vw, 78vh);
   max-height: 88vh;
 }
 
 html.ui-fit .title-screen {
-  padding-right: clamp(16px, 5vw, 80px);
+  padding-right: clamp(12px, 4vw, 64px);
 }
 
 html.ui-fit .hub-screen {
@@ -118,75 +112,201 @@ html.ui-fit .hub-content {
   height: 100%;
   max-height: 100%;
   box-sizing: border-box;
-  padding: 10px 16px 12px;
-  gap: 8px;
+  padding: 8px 12px 10px;
+  gap: 6px;
   justify-content: center;
 }
 
 html.ui-fit .hub-title {
-  font-size: 15px;
-  letter-spacing: 3px;
+  font-size: 13px;
+  letter-spacing: 2.4px;
 }
 
 html.ui-fit .hub-map {
   width: min(760px, 92%);
   flex: 1 1 auto;
-  max-height: calc(100% - 64px);
+  max-height: calc(100% - 52px);
   aspect-ratio: auto;
   min-height: 0;
 }
 
 html.ui-fit .hub-island-thumb {
-  width: clamp(52px, 9vw, 84px);
-  height: clamp(52px, 9vw, 84px);
+  width: clamp(44px, 7vw, 58px);
+  height: clamp(44px, 7vw, 58px);
 }
 
 html.ui-fit .prompt,
 html.ui-fit .toast {
-  width: min(28rem, calc(100% - 40px));
-  max-width: min(28rem, 86%);
+  width: min(24rem, calc(100% - 36px));
+  max-width: min(24rem, 84%);
+}
+
+html.ui-fit .prompt {
+  bottom: max(88px, calc(72px + var(--sab)));
+  font-size: 12px;
+  padding: 5px 12px;
 }
 
 html.ui-fit .pause-sheet {
-  min-width: min(280px, 86%);
+  min-width: min(240px, 82%);
+  padding: 18px 20px 16px;
+  gap: 8px;
+}
+
+html.ui-fit .pause-sheet h2 {
+  font-size: 16px;
+  margin: 0 0 4px;
 }
 
 html.ui-fit .board-inner {
-  width: min(460px, 92%);
+  width: min(400px, 90%);
 }
 
 html.ui-fit .board-list {
-  max-height: min(46vh, 280px);
+  max-height: min(42vh, 240px);
 }
 
 html.ui-fit .stick {
-  width: calc(104px * var(--ui-scale));
-  height: calc(104px * var(--ui-scale));
-  left: max(16px, var(--sal));
-  bottom: max(16px, var(--sab));
+  width: calc(78px * var(--ui-scale));
+  height: calc(78px * var(--ui-scale));
+  left: max(10px, var(--sal));
+  bottom: max(10px, var(--sab));
+}
+
+html.ui-fit .knob {
+  width: calc(32px * var(--ui-scale));
+  height: calc(32px * var(--ui-scale));
+  margin: calc(-16px * var(--ui-scale)) 0 0 calc(-16px * var(--ui-scale));
 }
 
 html.ui-fit .btn-act {
-  width: calc(72px * var(--ui-scale));
-  height: calc(72px * var(--ui-scale));
-  right: max(16px, var(--sar));
-  bottom: max(20px, var(--sab));
-  font-size: calc(13px * var(--ui-scale));
+  width: calc(54px * var(--ui-scale));
+  height: calc(54px * var(--ui-scale));
+  right: max(10px, var(--sar));
+  bottom: max(14px, var(--sab));
+  font-size: calc(10px * var(--ui-scale));
+  letter-spacing: 0.6px;
 }
 
 html.ui-fit .quest {
   min-width: 0;
-  padding: 8px 12px;
+  padding: 5px 8px;
+  top: max(10px, var(--sat));
+  left: max(10px, var(--sal));
 }
 
-html.ui-fit .title-menu {
+html.ui-fit .quest-title {
+  font-size: 11px;
+  letter-spacing: 1.6px;
+  padding-bottom: 3px;
+  margin-bottom: 4px;
+}
+
+html.ui-fit .quest-line {
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+html.ui-fit .quest-line.dim {
+  font-size: 10px;
+}
+
+html.ui-fit .sun {
+  top: max(8px, calc(var(--sat) + 6px));
+  transform: translateX(-50%) scale(0.72);
+  transform-origin: top center;
+}
+
+html.ui-fit .sun-label {
+  font-size: 9px;
+  padding: 1px 6px;
+  letter-spacing: 1px;
+}
+
+html.ui-fit .run-clock {
+  top: calc(max(10px, var(--sat)) + 70px);
+  left: max(10px, var(--sal));
+  padding: 3px 8px 4px;
   gap: 6px;
 }
 
-html.ui-fit .title-menu .menu-btn {
+html.ui-fit .run-clock-label {
+  font-size: 9px;
+}
+
+html.ui-fit .run-clock-value {
+  font-size: 13px;
+}
+
+html.ui-fit .tide {
+  top: calc(max(10px, var(--sat)) + 100px);
+  left: max(10px, var(--sal));
+  width: 112px;
+  padding: 3px 7px 4px;
+  gap: 6px;
+}
+
+html.ui-fit .memory {
+  width: 148px;
+  top: max(10px, var(--sat));
+  right: max(12px, var(--sar));
+}
+
+html.ui-fit body.has-fs-toggle .memory {
+  right: max(48px, calc(44px + var(--sar)));
+}
+
+html.ui-fit .mem-label {
+  font-size: 10px;
+  letter-spacing: 2px;
+  margin-bottom: 3px;
+}
+
+html.ui-fit .mem-bar {
+  height: 9px;
+}
+
+html.ui-fit .mem-note {
+  font-size: 10px;
+  margin-top: 3px;
+}
+
+html.ui-fit .fs-toggle,
+html.ui-fit .mute-toggle,
+html.ui-fit .pause-toggle {
+  width: 36px;
+  height: 36px;
+  top: max(8px, var(--sat));
+  right: max(8px, var(--sar));
+}
+
+html.ui-fit body.has-fs-toggle .mute-toggle,
+html.ui-fit body.has-fs-toggle .pause-toggle {
+  right: calc(max(8px, var(--sar)) + 44px);
+}
+
+html.ui-fit .title-menu {
+  gap: 5px;
+}
+
+html.ui-fit .title-menu .menu-btn,
+html.ui-fit .pause-sheet .menu-btn {
   min-width: 0;
+  min-height: 36px;
   width: 100%;
-  padding: 8px 18px;
+  padding: 6px 14px;
+  font-size: 13px;
+  letter-spacing: 1.1px;
+}
+
+html.ui-fit .hub-actions .menu-btn,
+html.ui-fit .nick-actions .menu-btn {
+  min-width: 0;
+  min-height: 36px;
+  width: auto;
+  padding: 6px 14px;
+  font-size: 13px;
+  letter-spacing: 1.1px;
 }
 
 /* --------------------------------------------------------------- quest panel */

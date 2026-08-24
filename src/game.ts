@@ -36,7 +36,7 @@ import { submitScore, type SubmitResult } from "./net/leaderboard";
 import { Hud } from "./ui/hud";
 import { Menu, type SubmitStatus } from "./ui/menu";
 import { mountMuteToggle, syncMuteChrome } from "./ui/mute";
-import { requestLandscapeLock } from "./ui/orientation";
+import { isCoarsePointer, requestLandscapeLock } from "./ui/orientation";
 import { buildHallucinations } from "./world/hallucination";
 import { buildLotophagoi } from "./world/lotophagos";
 import { buildThallopes } from "./world/thallope";
@@ -192,7 +192,11 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
   let harvestZ = 0;
   let runHoldT = 0;
 
-  const rig = new CameraRig(stage.camera, (x, z) => Math.max(heightAt(x, z), 0));
+  const rig = new CameraRig(
+    stage.camera,
+    (x, z) => Math.max(heightAt(x, z), 0),
+    isCoarsePointer() ? CAMERA.distTouch : CAMERA.dist,
+  );
   rig.snap(pos);
 
   const input = new Input();

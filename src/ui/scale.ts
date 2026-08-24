@@ -1,8 +1,8 @@
 /**
- * Phone landscape shell: fill the visual viewport (popular 20:9 phones, not
- * a letterboxed 16:9 box). HUD scale is relative to iPhone 14 landscape
- * CSS pixels (844×390) — the most common modern phone size — so chrome
- * stays readable without shrinking the 3D view. Desktop (fine pointer)
+ * Phone landscape shell: fill the visual viewport edge-to-edge. Safe-area
+ * (Dynamic Island / home indicator) is for HUD chrome only — shrinking
+ * #app by those insets left light-blue pillarbox on iPhone 17 Pro Max.
+ * HUD scale is relative to iPhone 14 landscape CSS (844×390). Desktop
  * stays full-window. Portrait still hits the rotate gate.
  */
 
@@ -20,25 +20,6 @@ export type StageFit = {
   top: number;
 };
 
-export type SafeInsets = { t: number; r: number; b: number; l: number };
-
-const ZERO_SAFE: SafeInsets = { t: 0, r: 0, b: 0, l: 0 };
-
-function readCssPx(name: string): number {
-  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-  const n = parseFloat(v);
-  return Number.isFinite(n) ? n : 0;
-}
-
-export function readSafeInsets(): SafeInsets {
-  return {
-    t: readCssPx("--safe-t"),
-    r: readCssPx("--safe-r"),
-    b: readCssPx("--safe-b"),
-    l: readCssPx("--safe-l"),
-  };
-}
-
 function clamp(n: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, n));
 }
@@ -49,29 +30,22 @@ export function computeStageFit(
   viewX: number,
   viewY: number,
   coarse: boolean,
-  safe: SafeInsets = ZERO_SAFE,
 ): StageFit {
+  const width = Math.max(1, Math.round(viewW));
+  const height = Math.max(1, Math.round(viewH));
+  const left = Math.round(viewX);
+  const top = Math.round(viewY);
   if (!coarse) {
-    return {
-      phone: false,
-      scale: 1,
-      width: Math.max(1, Math.round(viewW)),
-      height: Math.max(1, Math.round(viewH)),
-      left: Math.round(viewX),
-      top: Math.round(viewY),
-    };
+    return { phone: false, scale: 1, width, height, left, top };
   }
-
-  const availW = Math.max(1, viewW - safe.l - safe.r);
-  const availH = Math.max(1, viewH - safe.t - safe.b);
-  const raw = Math.min(availW / UI_FIT.designW, availH / UI_FIT.designH);
+  const raw = Math.min(width / UI_FIT.designW, height / UI_FIT.designH);
   return {
     phone: true,
     scale: clamp(raw, UI_FIT.minScale, UI_FIT.maxScale),
-    width: Math.max(1, Math.round(availW)),
-    height: Math.max(1, Math.round(availH)),
-    left: Math.round(viewX + safe.l),
-    top: Math.round(viewY + safe.t),
+    width,
+    height,
+    left,
+    top,
   };
 }
 
@@ -90,7 +64,7 @@ export function fitGameStage(): StageFit {
   const viewH = Math.max(1, Math.round(vv?.height ?? window.innerHeight));
   const viewX = Math.round(vv?.offsetLeft ?? 0);
   const viewY = Math.round(vv?.offsetTop ?? 0);
-  const fit = computeStageFit(viewW, viewH, viewX, viewY, isCoarsePointer(), readSafeInsets());
+  const fit = computeStageFit(viewW, viewH, viewX, viewY, isCoarsePointer());
   applyStageFit(fit);
 
   const root = document.documentElement;
