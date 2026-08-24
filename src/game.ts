@@ -36,7 +36,7 @@ import { submitScore, type SubmitResult } from "./net/leaderboard";
 import { Hud } from "./ui/hud";
 import { Menu, type SubmitStatus } from "./ui/menu";
 import { mountMuteToggle, syncMuteChrome } from "./ui/mute";
-import { requestLandscapeLock } from "./ui/orientation";
+import { isCoarsePointer, requestLandscapeLock } from "./ui/orientation";
 import { buildHallucinations } from "./world/hallucination";
 import { buildLotophagoi } from "./world/lotophagos";
 import { buildThallopes } from "./world/thallope";
@@ -95,6 +95,8 @@ export interface TestHooks {
   lookAt(x: number, y: number, z: number): void;
   /** Place the camera near a world point, then look at it (close-up shots). */
   frameAt(x: number, y: number, z: number, dist?: number): void;
+  /** Current shoulder-cam boom. Phones start at `CAMERA.distTouch`. */
+  cameraDist(): number;
 }
 
 export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
@@ -192,7 +194,11 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
   let harvestZ = 0;
   let runHoldT = 0;
 
-  const rig = new CameraRig(stage.camera, (x, z) => Math.max(heightAt(x, z), 0));
+  const rig = new CameraRig(
+    stage.camera,
+    (x, z) => Math.max(heightAt(x, z), 0),
+    isCoarsePointer() ? CAMERA.distTouch : CAMERA.dist,
+  );
   rig.snap(pos);
 
   const input = new Input();
@@ -1549,6 +1555,9 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
     frameAt(x, y, z, dist = 2.8) {
       stage.camera.position.set(x + dist * 0.55, y + 1.15, z + dist);
       stage.camera.lookAt(x, y + 0.2, z);
+    },
+    cameraDist() {
+      return rig.currentDist();
     },
   };
 }

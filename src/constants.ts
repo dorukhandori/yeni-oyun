@@ -553,6 +553,8 @@ export const CAMERA = {
   fov: 55,
   /** Behind-the-shoulder; 8.2 sat too far off the back (sahip, 22 Aug). */
   dist: 6.4,
+  /** Phone start boom — tighter over-shoulder so the sailor fills the frame. */
+  distTouch: 4.5,
   /** Wheel zoom — closer than this clips the sailor; farther is a map view. */
   distMin: 3.4,
   distMax: 16,

@@ -2,7 +2,7 @@
 
 > **Status:** In Design
 > **Author:** sahip + ux-designer
-> **Last Updated:** 2026-08-14
+> **Last Updated:** 2026-08-24
 > **Template:** HUD Design (CCGS)
 > **Otorite:** öğe listesi ve eşikler `gdd-memory-system.md` §10 · yerleşim `tuning.md` §8 · `HUD_FADE_TIME` = 1,5 s
 
@@ -42,7 +42,7 @@ Bilgi alma sırası (GDD): konfor (ses) → navigasyon (pusula) → durum (HUD) 
 
 ## Layout Zones
 
-16:9, kenar boşluğu 24 px. Safe zone: üst/alt 8%, yan 5%.
+16:9, kenar boşluğu 24 px. Safe zone: üst/alt 8%, yan 5%. Telefonda (`html.ui-fit`) aynı bölgeler kompakt krom kullanır — kart, güneş, süre, med-cezir, çubuk ve Topla daha küçük; konum hâlâ safe-area inset’lerine yaslanır.
 
 ```
 ┌──────────────┬───────────┬──────────────┐
