@@ -1,19 +1,18 @@
 /**
- * Phone landscape contain-fit: keep the authored 16:9 stage and scale it
- * into the visible viewport (letterbox on 20:9 phones / 4:3 tablets).
- *
- * Desktop (fine pointer) is left full-window so asset-qa at 1280×720 and
- * ordinary monitors do not change. Portrait phones still hit the rotate
- * gate in orientation.ts — this module only sizes the landscape shell.
+ * Phone landscape shell: fill the visual viewport (popular 20:9 phones, not
+ * a letterboxed 16:9 box). HUD scale is relative to iPhone 14 landscape
+ * CSS pixels (844×390) — the most common modern phone size — so chrome
+ * stays readable without shrinking the 3D view. Desktop (fine pointer)
+ * stays full-window. Portrait still hits the rotate gate.
  */
 
 import { UI_FIT } from "../constants";
 import { isCoarsePointer } from "./orientation";
 
 export type StageFit = {
-  /** True when the 16:9 contain stage is active. */
-  contain: boolean;
-  /** CSS scale that maps the 1280×720 overlay onto the stage. */
+  /** True on coarse-pointer phones; overlays use compact landscape CSS. */
+  phone: boolean;
+  /** HUD chrome scale vs UI_FIT.design (clamped). Canvas ignores this. */
   scale: number;
   width: number;
   height: number;
@@ -40,6 +39,10 @@ export function readSafeInsets(): SafeInsets {
   };
 }
 
+function clamp(n: number, lo: number, hi: number): number {
+  return Math.min(hi, Math.max(lo, n));
+}
+
 export function computeStageFit(
   viewW: number,
   viewH: number,
@@ -50,7 +53,7 @@ export function computeStageFit(
 ): StageFit {
   if (!coarse) {
     return {
-      contain: false,
+      phone: false,
       scale: 1,
       width: Math.max(1, Math.round(viewW)),
       height: Math.max(1, Math.round(viewH)),
@@ -61,28 +64,26 @@ export function computeStageFit(
 
   const availW = Math.max(1, viewW - safe.l - safe.r);
   const availH = Math.max(1, viewH - safe.t - safe.b);
-  const scale = Math.min(availW / UI_FIT.designW, availH / UI_FIT.designH);
-  const width = Math.max(1, Math.round(UI_FIT.designW * scale));
-  const height = Math.max(1, Math.round(UI_FIT.designH * scale));
+  const raw = Math.min(availW / UI_FIT.designW, availH / UI_FIT.designH);
   return {
-    contain: true,
-    scale,
-    width,
-    height,
-    left: Math.round(viewX + safe.l + (availW - width) / 2),
-    top: Math.round(viewY + safe.t + (availH - height) / 2),
+    phone: true,
+    scale: clamp(raw, UI_FIT.minScale, UI_FIT.maxScale),
+    width: Math.max(1, Math.round(availW)),
+    height: Math.max(1, Math.round(availH)),
+    left: Math.round(viewX + safe.l),
+    top: Math.round(viewY + safe.t),
   };
 }
 
 export function applyStageFit(fit: StageFit): void {
   const root = document.documentElement;
-  root.classList.toggle("ui-fit", fit.contain);
+  root.classList.toggle("ui-fit", fit.phone);
   root.style.setProperty("--ui-scale", fit.scale.toFixed(4));
   root.style.setProperty("--ui-design-w", String(UI_FIT.designW));
   root.style.setProperty("--ui-design-h", String(UI_FIT.designH));
 }
 
-/** Size #app to the visual viewport, contain-fitting 16:9 on phones. */
+/** Pin #app to the visible viewport. Phones fill it; they do not letterbox. */
 export function fitGameStage(): StageFit {
   const vv = window.visualViewport;
   const viewW = Math.max(1, Math.round(vv?.width ?? window.innerWidth));

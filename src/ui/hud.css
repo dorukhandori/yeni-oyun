@@ -5,7 +5,7 @@
   --gold-light: #f3d488;
   --sea: #12708f;
   --milk: #fbf6ec;
-  /* Real device insets — JS reads these to letterbox the 16:9 stage. */
+  /* Real device insets — JS insets #app so HUD can zero these on phones. */
   --safe-t: env(safe-area-inset-top, 0px);
   --safe-r: env(safe-area-inset-right, 0px);
   --safe-b: env(safe-area-inset-bottom, 0px);
@@ -16,8 +16,8 @@
   --sab: var(--safe-b);
   --sal: var(--safe-l);
   --ui-scale: 1;
-  --ui-design-w: 1280;
-  --ui-design-h: 720;
+  --ui-design-w: 844;
+  --ui-design-h: 390;
 }
 
 * {
@@ -88,17 +88,11 @@ canvas#game {
 }
 
 /*
-  Phone landscape contain-fit (src/ui/scale.ts): #app is a 16:9 rectangle
-  letterboxed into the visual viewport. Overlay chrome is laid out at the
-  1280×720 design size then CSS-scaled onto that rectangle so Title/Hub/HUD
-  keep their authored proportions. The canvas is NOT transformed — it fills
-  #app at native CSS pixels (sharp 3D, correct aspect).
+  Phone landscape (src/ui/scale.ts): #app fills the visual viewport — popular
+  20:9 sizes (iPhone SE 667×375, 14 844×390, 14 Pro 852×393, Pro Max 932×430).
+  Overlays stay full-bleed on that rectangle. --ui-scale only sizes HUD chrome
+  against the iPhone 14 reference; the canvas is never letterboxed.
 */
-html.ui-fit,
-html.ui-fit body {
-  background: #1c1610;
-}
-
 html.ui-fit {
   --sat: 0px;
   --sar: 0px;
@@ -106,42 +100,45 @@ html.ui-fit {
   --sal: 0px;
 }
 
-html.ui-fit #hud,
-html.ui-fit #touch,
-html.ui-fit .screen,
-html.ui-fit .pause,
-html.ui-fit .board-modal {
-  left: 0;
-  top: 0;
-  right: auto;
-  bottom: auto;
-  width: calc(var(--ui-design-w) * 1px);
-  height: calc(var(--ui-design-h) * 1px);
-  transform: scale(var(--ui-scale));
-  transform-origin: 0 0;
-}
-
 html.ui-fit .title-content {
-  --panel-w: min(300px, 78%, 92%);
-  max-height: 92%;
+  --panel-w: min(300px, 78vw, 88vh);
+  max-height: 88vh;
 }
 
 html.ui-fit .title-screen {
-  padding-right: clamp(28px, 8%, 130px);
+  padding-right: clamp(16px, 5vw, 80px);
+}
+
+html.ui-fit .hub-screen {
+  align-items: stretch;
 }
 
 html.ui-fit .hub-content {
+  width: 100%;
+  height: 100%;
   max-height: 100%;
   box-sizing: border-box;
+  padding: 10px 16px 12px;
+  gap: 8px;
+  justify-content: center;
+}
+
+html.ui-fit .hub-title {
+  font-size: 15px;
+  letter-spacing: 3px;
 }
 
 html.ui-fit .hub-map {
-  width: min(760px, 88%);
+  width: min(760px, 92%);
+  flex: 1 1 auto;
+  max-height: calc(100% - 64px);
+  aspect-ratio: auto;
+  min-height: 0;
 }
 
 html.ui-fit .hub-island-thumb {
-  width: clamp(64px, 10%, 96px);
-  height: clamp(64px, 10%, 96px);
+  width: clamp(52px, 9vw, 84px);
+  height: clamp(52px, 9vw, 84px);
 }
 
 html.ui-fit .prompt,
@@ -159,7 +156,37 @@ html.ui-fit .board-inner {
 }
 
 html.ui-fit .board-list {
-  max-height: min(46%, 340px);
+  max-height: min(46vh, 280px);
+}
+
+html.ui-fit .stick {
+  width: calc(104px * var(--ui-scale));
+  height: calc(104px * var(--ui-scale));
+  left: max(16px, var(--sal));
+  bottom: max(16px, var(--sab));
+}
+
+html.ui-fit .btn-act {
+  width: calc(72px * var(--ui-scale));
+  height: calc(72px * var(--ui-scale));
+  right: max(16px, var(--sar));
+  bottom: max(20px, var(--sab));
+  font-size: calc(13px * var(--ui-scale));
+}
+
+html.ui-fit .quest {
+  min-width: 0;
+  padding: 8px 12px;
+}
+
+html.ui-fit .title-menu {
+  gap: 6px;
+}
+
+html.ui-fit .title-menu .menu-btn {
+  min-width: 0;
+  width: 100%;
+  padding: 8px 18px;
 }
 
 /* --------------------------------------------------------------- quest panel */

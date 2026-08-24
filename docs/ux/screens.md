@@ -7,7 +7,7 @@
 
 DOM overlay + 3D dünya. Menüler dünyanın üstünde; oyun HUD'u `docs/ux/hud.md`.
 
-**Mobil kabuk.** Oynanış yatay kalır (dikeyde `src/ui/orientation.ts` kapısı). Telefon / kaba işaretçide görünür alan 16:9 sahneye **contain** edilir (`src/ui/scale.ts`, `UI_FIT` 1280×720): canvas o dikdörtgeni doldurur, HUD ve menüler aynı sahneye ölçeklenir. 20:9 telefonda yan letterbox çıkar; masaüstü penceresi (asset-qa 1280×720 dahil) değişmez.
+**Mobil kabuk.** Oynanış yatay kalır (dikeyde `src/ui/orientation.ts` kapısı). Telefonda canvas görünür alanı **doldurur** (popüler landscape: iPhone SE 667×375, 14 844×390, 14 Pro 852×393, Pro Max 932×430 — referans `UI_FIT` 844×390). HUD kromu o referansa göre hafif ölçeklenir; 16:9 letterbox yok. Masaüstü penceresi (asset-qa 1280×720) değişmez.
 
 ---
 

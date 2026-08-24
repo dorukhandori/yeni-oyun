@@ -588,14 +588,17 @@ export const CAMERA = {
 } as const;
 
 /**
- * Phone landscape contain-fit (`src/ui/scale.ts`). HUD, menus and touch
- * chrome are authored against this 16:9 stage; the canvas fills the same
- * rectangle so the 3D view and the overlay stay aligned. Desktop (fine
- * pointer) ignores this and keeps a full-window shell.
+ * Phone landscape shell (`src/ui/scale.ts`). Canvas fills the visual
+ * viewport (iPhone 14 landscape 844×390 is the 1.0 reference — SE, 14 Pro,
+ * 14 Pro Max and common Android 20:9 sizes). HUD chrome scales around
+ * that reference; the 3D view is never letterboxed. Desktop ignores this.
  */
 export const UI_FIT = {
-  designW: 1280,
-  designH: 720,
+  /** iPhone 14 / 13 landscape CSS pixels — most common modern phone size. */
+  designW: 844,
+  designH: 390,
+  minScale: 0.88,
+  maxScale: 1.12,
 } as const;
 
 export const FEEL = {
