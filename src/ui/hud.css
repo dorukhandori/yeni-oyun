@@ -5,6 +5,19 @@
   --gold-light: #f3d488;
   --sea: #12708f;
   --milk: #fbf6ec;
+  /* Real device insets — JS reads these to letterbox the 16:9 stage. */
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-l: env(safe-area-inset-left, 0px);
+  /* HUD/chrome insets. Zeroed on html.ui-fit because #app is already inset. */
+  --sat: var(--safe-t);
+  --sar: var(--safe-r);
+  --sab: var(--safe-b);
+  --sal: var(--safe-l);
+  --ui-scale: 1;
+  --ui-design-w: 1280;
+  --ui-design-h: 720;
 }
 
 * {
@@ -74,6 +87,81 @@ canvas#game {
   pointer-events: none;
 }
 
+/*
+  Phone landscape contain-fit (src/ui/scale.ts): #app is a 16:9 rectangle
+  letterboxed into the visual viewport. Overlay chrome is laid out at the
+  1280×720 design size then CSS-scaled onto that rectangle so Title/Hub/HUD
+  keep their authored proportions. The canvas is NOT transformed — it fills
+  #app at native CSS pixels (sharp 3D, correct aspect).
+*/
+html.ui-fit,
+html.ui-fit body {
+  background: #1c1610;
+}
+
+html.ui-fit {
+  --sat: 0px;
+  --sar: 0px;
+  --sab: 0px;
+  --sal: 0px;
+}
+
+html.ui-fit #hud,
+html.ui-fit #touch,
+html.ui-fit .screen,
+html.ui-fit .pause,
+html.ui-fit .board-modal {
+  left: 0;
+  top: 0;
+  right: auto;
+  bottom: auto;
+  width: calc(var(--ui-design-w) * 1px);
+  height: calc(var(--ui-design-h) * 1px);
+  transform: scale(var(--ui-scale));
+  transform-origin: 0 0;
+}
+
+html.ui-fit .title-content {
+  --panel-w: min(300px, 78%, 92%);
+  max-height: 92%;
+}
+
+html.ui-fit .title-screen {
+  padding-right: clamp(28px, 8%, 130px);
+}
+
+html.ui-fit .hub-content {
+  max-height: 100%;
+  box-sizing: border-box;
+}
+
+html.ui-fit .hub-map {
+  width: min(760px, 88%);
+}
+
+html.ui-fit .hub-island-thumb {
+  width: clamp(64px, 10%, 96px);
+  height: clamp(64px, 10%, 96px);
+}
+
+html.ui-fit .prompt,
+html.ui-fit .toast {
+  width: min(28rem, calc(100% - 40px));
+  max-width: min(28rem, 86%);
+}
+
+html.ui-fit .pause-sheet {
+  min-width: min(280px, 86%);
+}
+
+html.ui-fit .board-inner {
+  width: min(460px, 92%);
+}
+
+html.ui-fit .board-list {
+  max-height: min(46%, 340px);
+}
+
 /* --------------------------------------------------------------- quest panel */
 .panel {
   background: var(--parchment);
@@ -85,8 +173,8 @@ canvas#game {
 
 .quest {
   position: absolute;
-  top: max(20px, env(safe-area-inset-top));
-  left: max(22px, env(safe-area-inset-left));
+  top: max(20px, var(--sat));
+  left: max(22px, var(--sal));
   min-width: 208px;
   transition: opacity 400ms ease;
 }
@@ -104,7 +192,7 @@ canvas#game {
 /* ---------------------------------------------------------------- sun clock */
 .sun {
   position: absolute;
-  top: max(40px, calc(env(safe-area-inset-top) + 24px));
+  top: max(40px, calc(var(--sat) + 24px));
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -152,8 +240,8 @@ canvas#game {
    — do not set it here or the two will fight. */
 .run-clock {
   position: absolute;
-  top: calc(max(20px, env(safe-area-inset-top)) + 108px);
-  left: max(22px, env(safe-area-inset-left));
+  top: calc(max(20px, var(--sat)) + 108px);
+  left: max(22px, var(--sal));
   display: flex;
   align-items: baseline;
   gap: 8px;
@@ -196,7 +284,7 @@ canvas#game {
 
 @media (max-width: 560px) {
   .run-clock {
-    top: calc(max(20px, env(safe-area-inset-top)) + 100px);
+    top: calc(max(20px, var(--sat)) + 100px);
     padding: 4px 9px 5px;
   }
   .run-clock-value {
@@ -210,8 +298,8 @@ canvas#game {
    don't pick up empty flow. Fill colour is art-bible §2 gold / rose. */
 .tide {
   position: absolute;
-  top: calc(max(20px, env(safe-area-inset-top)) + 148px);
-  left: max(22px, env(safe-area-inset-left));
+  top: calc(max(20px, var(--sat)) + 148px);
+  left: max(22px, var(--sal));
   display: flex;
   align-items: center;
   gap: 8px;
@@ -282,7 +370,7 @@ canvas#game {
 
 @media (max-width: 560px) {
   .tide {
-    top: calc(max(20px, env(safe-area-inset-top)) + 136px);
+    top: calc(max(20px, var(--sat)) + 136px);
     width: 132px;
     padding: 4px 8px 5px;
   }
@@ -311,14 +399,14 @@ canvas#game {
 /* ------------------------------------------------------------- memory meter */
 .memory {
   position: absolute;
-  top: max(20px, env(safe-area-inset-top));
-  right: max(22px, env(safe-area-inset-right));
+  top: max(20px, var(--sat));
+  right: max(22px, var(--sar));
   width: 196px;
   text-align: right;
 }
 
 body.has-fs-toggle .memory {
-  right: max(68px, calc(56px + env(safe-area-inset-right)));
+  right: max(68px, calc(56px + var(--sar)));
 }
 
 .mem-label {
@@ -1458,8 +1546,8 @@ body[data-ui-phase="hub"] #touch {
 
 .stick {
   position: absolute;
-  left: max(28px, env(safe-area-inset-left));
-  bottom: max(36px, calc(20px + env(safe-area-inset-bottom)));
+  left: max(28px, var(--sal));
+  bottom: max(36px, calc(20px + var(--sab)));
   width: 118px;
   height: 118px;
   border-radius: 50%;
@@ -1496,8 +1584,8 @@ body[data-ui-phase="hub"] #touch {
 
 .btn-act {
   position: absolute;
-  right: max(28px, env(safe-area-inset-right));
-  bottom: max(48px, calc(28px + env(safe-area-inset-bottom)));
+  right: max(28px, var(--sar));
+  bottom: max(48px, calc(28px + var(--sab)));
   width: 86px;
   height: 86px;
   border-radius: 50%;
@@ -1584,8 +1672,8 @@ body[data-ui-phase="hub"] #touch {
 .mute-toggle,
 .pause-toggle {
   position: absolute;
-  top: max(10px, env(safe-area-inset-top));
-  right: max(10px, env(safe-area-inset-right));
+  top: max(10px, var(--sat));
+  right: max(10px, var(--sar));
   z-index: 46;
   width: 44px;
   height: 44px;
@@ -1606,7 +1694,7 @@ body[data-ui-phase="hub"] #touch {
 
 body.has-fs-toggle .mute-toggle,
 body.has-fs-toggle .pause-toggle {
-  right: calc(max(10px, env(safe-area-inset-right)) + 52px);
+  right: calc(max(10px, var(--sar)) + 52px);
 }
 
 .fs-toggle[hidden],

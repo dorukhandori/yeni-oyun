@@ -12,6 +12,7 @@
  */
 
 import { isCoarsePointer } from "./orientation";
+import { fitGameStage } from "./scale";
 
 const BTN_ID = "fsToggle";
 const REFIT_DELAYS_MS = [50, 250, 500];
@@ -161,23 +162,7 @@ export async function requestPlayFullscreen(): Promise<void> {
 }
 
 function fitShell(): void {
-  const vv = window.visualViewport;
-  const w = Math.max(1, Math.round(vv?.width ?? window.innerWidth));
-  const h = Math.max(1, Math.round(vv?.height ?? window.innerHeight));
-  const x = Math.round(vv?.offsetLeft ?? 0);
-  const y = Math.round(vv?.offsetTop ?? 0);
-  const root = document.documentElement;
-  root.style.setProperty("--shell-w", `${w}px`);
-  root.style.setProperty("--shell-h", `${h}px`);
-  root.style.setProperty("--shell-x", `${x}px`);
-  root.style.setProperty("--shell-y", `${y}px`);
-  const app = document.getElementById("app");
-  if (app) {
-    app.style.left = `${x}px`;
-    app.style.top = `${y}px`;
-    app.style.width = `${w}px`;
-    app.style.height = `${h}px`;
-  }
+  fitGameStage();
 }
 
 function onVisualViewport(): void {
@@ -249,6 +234,10 @@ export function mountFullscreenShell(): void {
   };
   document.addEventListener("fullscreenchange", onFsChange);
   document.addEventListener("webkitfullscreenchange", onFsChange);
-  window.matchMedia("(pointer: coarse)").addEventListener("change", () => syncToggle(btn));
+  window.matchMedia("(pointer: coarse)").addEventListener("change", () => {
+    syncToggle(btn);
+    onVisualViewport();
+  });
+  window.matchMedia("(hover: none)").addEventListener("change", onVisualViewport);
   syncToggle(btn);
 }

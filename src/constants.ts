@@ -587,6 +587,17 @@ export const CAMERA = {
   pickRevealPullback: 0.9,
 } as const;
 
+/**
+ * Phone landscape contain-fit (`src/ui/scale.ts`). HUD, menus and touch
+ * chrome are authored against this 16:9 stage; the canvas fills the same
+ * rectangle so the 3D view and the overlay stay aligned. Desktop (fine
+ * pointer) ignores this and keeps a full-window shell.
+ */
+export const UI_FIT = {
+  designW: 1280,
+  designH: 720,
+} as const;
+
 export const FEEL = {
   /** Footstep / splash dust cadence while moving. */
   dustInterval: 0.16,

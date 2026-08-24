@@ -7,6 +7,8 @@
 
 DOM overlay + 3D dünya. Menüler dünyanın üstünde; oyun HUD'u `docs/ux/hud.md`.
 
+**Mobil kabuk.** Oynanış yatay kalır (dikeyde `src/ui/orientation.ts` kapısı). Telefon / kaba işaretçide görünür alan 16:9 sahneye **contain** edilir (`src/ui/scale.ts`, `UI_FIT` 1280×720): canvas o dikdörtgeni doldurur, HUD ve menüler aynı sahneye ölçeklenir. 20:9 telefonda yan letterbox çıkar; masaüstü penceresi (asset-qa 1280×720 dahil) değişmez.
+
 ---
 
 ## Ekran akışı — üst seviye özet
