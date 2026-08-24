@@ -1,7 +1,7 @@
 # Aktif iş panosu — çakışma önleme
 
 > **Bu dosya git ile senkron çalışır, canlı bir tahta.** Herhangi bir ajan/oturum (Claude Code, Grok, Cursor — fark etmez) buraya bakmadan yeni bir iş başlatmaz.
-> Protokolün tamamı: `AGENTS.md` § Çoklu-ajan koordinasyonu.
+> Protokolün tamamı bu dosyada.
 
 ## Kural — özet
 
@@ -21,7 +21,7 @@ Aynı dosyada/alanda zaten bir satır varsa: ya bekle, ya sahiple/diğer oturuml
 
 | Kim | Tarih | Dosyalar / alan | Ne yapıyor |
 |---|---|---|---|
-| Cursor (`@glyph` / UI Programmer, bu oturum) | 2026-08-24 | `src/ui/{scale.ts,hud.css}`, `src/constants.ts` (`CAMERA.distTouch`), `src/render/cameraRig.ts`, `src/game.ts`, `docs/ux/{screens,hud}.md` | Pro Max kenar dolgusu (safe-area yalnızca HUD). Telefon HUD kromu küçültüldü; kamera `CAMERA.distTouch` 4.5 ile başlar. |
+| Cursor (bu oturum) | 2026-08-24 | `.cursor/`, `.claude/`, `AGENTS.md`, `CLAUDE.md` | Sahip isteği: agent/skill/rule/prompt kitini public repodan kaldır; `.gitignore` ile geri gelmesin. |
 | Claude (`producer` / `@nile`, bu oturum) | 2026-08-17 | **yalnız** `docs/production/ACTIVE_WORK.md` + Paca kartları LOT-54 (epic) / LOT-55–59 | K35 online speedrun challenge (nick + timer + leaderboard) **scope/plan turu — bitti**. Sadece okuma yaptım: `src/game.ts`, `src/ui/menu.ts`, `src/constants.ts`, `docs/design/gdd-lotus-island-run.md`, `docs/ux/screens.md`. **Hiçbir kaynak dosyaya yazmadım** — implementasyon (LOT-57/58) sahip iki bloklayıcı karara (LOT-55 tasarım, LOT-56 backend) cevap verene kadar Backlog'ta. Yukarıdaki ada-donatım dilimiyle dosya çakışması yok. |
 | Claude (`technical-director` / `@axiom`, bu oturum) | 2026-08-17 | **yalnız** `docs/production/ACTIVE_WORK.md` + Paca LOT-56 / LOT-57 / LOT-58 yorumları | LOT-56 K35 online leaderboard **backend mimarisi — plan turu, kod yok**. Supabase şeması + RLS + `submit_k35_score` RPC, GitHub Pages env/secret planı, `src/net/leaderboard.ts` istemci sözleşmesi (LOT-57/58 buradan okuyacak). Salt okuma: `src/game.ts`, `src/types.ts`, `src/ui/menu.ts`, `src/constants.ts`, `package.json`, `.github/workflows/deploy-pages.yml`. **Hiçbir kaynak dosyaya yazmıyorum**; implementasyon ayrı turda. |
 | Claude (`producer` / `@nile`, bu oturum) | 2026-08-19 | **yalnız** `docs/production/ACTIVE_WORK.md` — kapsam/tahmin turu | Sahibin dört yeni isteği (gemiye giriş efekti, lotus konum çeşitliliği, gemide alt kat + dolaşma, sahilde karaya oturma) için **kapsam ölçümü ve süre tahmini**. Salt okuma: `src/world/{ship,lotus,lotusSpawn}.ts`, `src/game.ts`, `src/constants.ts` (`SHIP`/`LOTUS`/`PLAYER`), `docs/design/{gdd-lotus-island-run,multi-island-concept,lotus-exploration-reframe}.md`. **Hiçbir kaynak dosyaya yazılmadı, asset üretilmedi.** Paca kartları açılamadı — yerel Paca REST anahtarı (`claude_desktop_config.json`) `AUTH_TOKEN_INVALID` dönüyor; kart metinleri ana oturuma teslim edildi. Bu satır commit edilmedi (CLAUDE.md: sahip istemeden commit yok). |
