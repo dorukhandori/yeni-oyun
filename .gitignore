@@ -4,9 +4,12 @@ dist
 *.local
 __pycache__/
 
-# Claude Code — local-only, never shared
-.claude/worktrees/
-.claude/settings.local.json
+# Studio kit — local-only, never published (agents, skills, rules, Cursor/Claude Code)
+.cursor/
+.claude/
+AGENTS.md
+CLAUDE.md
+studio-private/
 
 # Ham asset/medya çıktıları — git'e girmez (docs/art/pipeline.md §6)
 # Klasör iskeleti .gitkeep ile korunur.
