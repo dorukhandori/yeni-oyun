@@ -223,9 +223,17 @@ export class Menu {
     this.cardLotus.addEventListener("click", () => handlers.onSelectLotus());
     this.questLotusEdge.addEventListener("click", () => this.openNick());
     this.btnHubMenu.addEventListener("click", () => handlers.onHubMenu());
-    // Kiklop/Sirenler cards are plain <div>s with no listener wired — inert
-    // by construction, not just visually disabled (screens.md §3: "henüz
-    // level'ları yok").
+    // Kiklop Cave (2. durak) — dev/test amaçlı geçici bağlama (25 Ağu 2026,
+    // sahip: normal navigasyondan hiç erişilemiyordu, K13'ün ilk dilimi).
+    // Gerçek kilit kontrolü (Lotus tamamlandı mı, kalıcı mı) YOK — bilerek,
+    // kilit durumuna bakmadan her zaman tıklanabilir. Kalıcı "bir kez
+    // bitirince açık kalsın" mantığı ayrı, sonraki bir iş (implementation-
+    // spec-sprint1.md K13'ün geri kalanı). ?stop=cyclops zaten bir sayfa-
+    // yükleme seçicisi (constants.ts) — tam sayfa yeniden yükleme burada
+    // doğru araç, in-run bir geçiş değil.
+    this.cardCyclops.addEventListener("click", () => {
+      window.location.href = "?stop=cyclops";
+    });
 
     this.btnNickStart.addEventListener("click", () => this.confirmNick());
     this.btnNickCancel.addEventListener("click", () => this.closeNick());
