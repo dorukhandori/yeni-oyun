@@ -303,6 +303,20 @@ Eski planned ASSET-062–067 (Tripo 3/4 still) **iptal** — ID çakışması + 
 - [x] Fotogerçekçi değil, logo/marka yok
 - [ ] `assets.csv` satırı — ASSET-104 ile aynı gerekçeyle beklemede
 
+| ASSET-107 | İç nöy/Uyuma köşesi — sahne konsepti (en dar/en loş oda, çıkmaz sokak) | `reference` | `art-source/work/prompt-asset-107-cyclops-inner-nook.txt` (round 1 — **elendi**) → `-v2.txt` (round 2 — **kilitlenen varyant bu turdan**) | **accepted** | Sahip seçimi (iki tur, 2026-08-25): round 2 varyant 05 → `art-source/ref/scene_cyclops_inner_nook_01_ref_1344.png` · `gemini-2.5-flash-image` · seed none · 16:9 · 1344×768. **Round 1 tamamen reddedildi:** dev'in yatağı örgülü, yuvarlak bir **kuş yuvası** gibi çıkmıştı — sahip'in birebir sözü *"hiç birini beğenmedim, kuş yuvası gibi yapma"*. Round 2 yuva/örgü dilini tamamen çıkardı, yerine ezilmiş/düzensiz bir post+saman yığını + zemine kazınmış sürükleme izleri + duvarda taş raf + boynuzlu kafatası kondu — "gerçekten kullanılmış bir in" hissi. Kroki'den (`level-cyclops-cave.md` §3.5) doğrudan türeyen teknik hedefler: 9 m genişlik / 5 m tavan (en dar oda), **çıkmaz sokak** (ikinci boğaz yok), tek meşale sabit 3,0 m yarıçap (kapı durumundan etkilenmiyor — `CYCLOPS_DOOR_LIGHT_REACH=45 m` formülü bu odaya hiç ışık payı vermiyor), oda ortalaması kapı açık 0,20 / kapalı 0,12 — **adanın her zaman en loş bölgesi**, ama 0,12 tabanı hâlâ sıfır değil (art-bible §4 "hiçbir hücre asla sıfıra inmez" garantisiyle tutarlı, en karanlık köşede bile yatak siluetinin seçilir kalması istendi ve tutturuldu). Azık yerleşimi kroki'yle birebir: peynir girişe/meşaleye yakın (I-01), tulum yatağın kenarına neredeyse gömülü (I-02, "en değerli azık", dev'in uyuma noktasına ~3,6 m — kasıtlı risk primi). Bu sahne, `ASSET-091/092`'nin en loş oda referansı ve "taban okunabilirlik" kararının görsel provası (`cyclops-cave-production-plan.md` §4.2). |
+
+### Kabul kriteri **[P]** — ASSET-107
+
+- [x] Yatak/uyuma alanı **kuş yuvası değil** — düzensiz, ezilmiş, gerçekten kullanılmış bir post+saman yığını
+- [x] Oda kroki ölçüleriyle tutarlı (9 m × 5 m, en dar/en alçak oda) ve **çıkmaz sokak** — ikinci boğaz/çıkış yok
+- [x] Tek zayıf meşale, ~3 m menzil — odanın geneli, adanın en loş bölgesi olacak kadar karanlık
+- [x] En karanlık köşede bile büyük şekiller (yatak siluetı) hâlâ belli belirsiz seçilebiliyor — "ekran hiç tam karartılmaz" tabanı görselde tutuluyor
+- [x] Somut, inşa edilebilir detay yoğunluğu (raf, kafatası, sürükleme izleri, kemikler) — salt mood painting değil
+- [x] Azık yerleşimi kroki'yle tutarlı: peynir girişe yakın, tulum yatağın kenarında
+- [x] Mor-kristal/fener/bataklık paleti yok, Ege kayası + meşale kehribarı ailesinde
+- [x] Fotogerçekçi değil, logo/marka yok, gore/açık şiddet yok (kemikler eski/temiz)
+- [ ] `assets.csv` satırı — ASSET-104 ile aynı gerekçeyle beklemede
+
 ---
 
 ## P2 — UI **[P]**
