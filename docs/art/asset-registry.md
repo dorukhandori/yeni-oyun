@@ -290,6 +290,19 @@ Eski planned ASSET-062–067 (Tripo 3/4 still) **iptal** — ID çakışması + 
 - [x] Fotogerçekçi değil, logo/marka yok
 - [ ] `assets.csv` satırı — ASSET-104 ile aynı gerekçeyle beklemede
 
+| ASSET-106 | Ağıllar/Ocak — sahne konsepti (ana gövde, en geniş oda, ocak + ağıl) | `reference` | `art-source/work/prompt-asset-106-cyclops-pens-hearth.txt` | **accepted** | Sahip seçimi (tek tur, 2026-08-25): varyant 02 → `art-source/ref/scene_cyclops_pens_hearth_01_ref_1344.png` · `gemini-2.5-flash-image` · seed none · 16:9 · 1344×768. **Kroki'den (`level-cyclops-cave.md` §3.4) doğrudan türetilmiş teknik hedefler:** 14 m genişlik / 7 m tavan (en geniş/en yüksek oda), ocak merkezden 4 m batıya kaydırılmış (`x=-4, D=35`) — simetrik değil, kasıtlı olarak bir duvarı aydınlık bir duvarı gölgeli bırakıyor; iki ayrı boğaz çıkışı (Boğaz A + Boğaz B, oda bir geçiş mekanı, çıkmaz değil); ağıl/kuzu-keçi dekoru (ASSET-095) + sağım kovaları; ocağın yanında dev ölçeğini ima eden aşırı büyük düz bir taş (kimse oturmuyor, ama "biri burada oturuyor" hissi). **3 varyantın hepsi bu hedefleri tuttu**, tek fark: 01/03'te boğaz geçitlerinin çevresinde geçidin ötesinden geliyormuş gibi görünen **mavi bir parıltı halkası** vardı — Depo'nun ilk turlarında yakalanan "ikinci ışık kaynağı" hatasıyla aynı sınıf, "geçitlerin ötesinden ışık yok" kuralıyla çelişiyordu. **02 bu sorunu taşımıyordu**, geçitler gerçekten kapkaranlık okunuyor — bu yüzden seçildi (01/03'ün dev-taşı/kemik detayı biraz daha çarpıcıydı ama teknik tutarlılık önceliklendirildi). Bu sahne `ASSET-091/092/095/096`'nın görsel referansı (`cyclops-cave-production-plan.md` §4.2). |
+
+### Kabul kriteri **[P]** — ASSET-106
+
+- [x] Oda kroki ölçüleriyle tutarlı (14 m × 7 m, en geniş/en yüksek oda) ve iki ayrı boğaz çıkışı var — çıkmaz oda değil
+- [x] Ocak **merkezde değil**, 4 m kaydırılmış — bir duvar aydınlık kalırken karşı duvarda gerçek, kullanılabilir bir gölge cebi oluşuyor
+- [x] Geçitlerin ötesinden ışım/parıltı **yok** — karanlık gerçekten karanlık, rakip ışık kaynağı hissi vermiyor
+- [x] Ağıl/kuzu-keçi dekoru + sağım kovaları görselde var (ASSET-095'in referansı)
+- [x] Dev'in ölçeğini ima eden bir detay var (aşırı büyük taş oturak) — figürün kendisi yok, ama "biri burada yaşıyor" hissi somut
+- [x] Mor-kristal/fener/bataklık paleti yok, Ege kayası + ocak kehribarı ailesinde
+- [x] Fotogerçekçi değil, logo/marka yok
+- [ ] `assets.csv` satırı — ASSET-104 ile aynı gerekçeyle beklemede
+
 ---
 
 ## P2 — UI **[P]**
