@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import {
+  ACTIVE_STOP,
   BEAUTY,
   CAMERA,
   DAY,
@@ -26,6 +27,7 @@ import {
 } from "./constants";
 import { CameraRig } from "./render/cameraRig";
 import { createStage } from "./render/stage";
+import { startCyclopsStop } from "./stops/cyclopsStop";
 import { GameAudio } from "./systems/audio";
 import { Bursts } from "./systems/burst";
 import { Input } from "./systems/input";
@@ -100,6 +102,11 @@ export interface TestHooks {
 }
 
 export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
+  // K1/K4 (implementation-spec-sprint1.md): ?stop=cyclops routes to a
+  // completely separate, minimal boot path (src/stops/cyclopsStop.ts). Not
+  // one line of the Lotus path below this branch is touched by that change.
+  if (ACTIVE_STOP === "cyclops") return startCyclopsStop(canvas);
+
   const stage = createStage(canvas);
 
   const terrain = buildTerrain();
