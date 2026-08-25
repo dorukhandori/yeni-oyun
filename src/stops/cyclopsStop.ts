@@ -1,6 +1,9 @@
 import * as THREE from "three";
 import type { TestHooks } from "../game";
+import { CAMERA } from "../constants";
+import { CameraRig } from "../render/cameraRig";
 import { Input } from "../systems/input";
+import { isCoarsePointer } from "../ui/orientation";
 import {
   buildCyclopsCave,
   corridorHalfWidthAt,
@@ -102,7 +105,7 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x1a222c);
 
-  const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 200);
+  const camera = new THREE.PerspectiveCamera(CAMERA.fov, window.innerWidth / window.innerHeight, 0.1, 200);
 
   // Bulundu (sahip playtest'i, 25 Ağu): sahne neredeyse hiç görünmüyordu —
   // ışık sabitti, kapı açık/kapalı hiçbir fark yaratmıyordu (tasarım
@@ -130,6 +133,17 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
   playerLight.position.copy(player.position);
   playerLight.position.y += 1.4;
   scene.add(playerLight);
+
+  // Bulundu (sahip playtest'i, 25 Ağu): "mouse'u oynattığımda kamera
+  // dönmüyor" — hiç mouse-look bağlanmamıştı, kamera sabit +Z'ye
+  // bakıyordu. Lotus'un zaten çalışan `CameraRig`'i bağımsız bir sınıf
+  // (Lotus'a özgü hiçbir şey tutmuyor) — sıfırdan yazmak yerine yeniden
+  // kullanıldı. Zemin hep y=0 (primitif geometri), gerçek `heightAt`
+  // eşdeğeri yok.
+  const rig = new CameraRig(camera, () => 0, isCoarsePointer() ? CAMERA.distTouch : CAMERA.dist);
+  rig.snap(player.position);
+  const fwd = new THREE.Vector3();
+  const rightV = new THREE.Vector3();
 
   // ---------------------------------------------------------------- giant
   const giant = new THREE.Mesh(
@@ -292,9 +306,29 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
       }
     }
 
+    // ------------------------------------------------------- camera look
+    const sens = input.touchActive ? CAMERA.touchSens : CAMERA.mouseSens;
+    const md = input.mouseDelta();
+    rig.rotate(md.x * sens, md.y * sens);
+    rig.rotate(input.yawKeys() * CAMERA.keySens, input.pitchKeys() * CAMERA.keySens * 0.6);
+    rig.zoomBy(input.wheelDelta());
+
     // ------------------------------------------------------------ input
-    const mx = manualMove.x !== 0 ? manualMove.x : input.moveX();
-    const mz = manualMove.z !== 0 ? manualMove.z : input.moveZ();
+    // manualMove (DEV hook) bypasses camera-relative transform on purpose —
+    // deterministic tests shouldn't depend on wherever yaw happens to be.
+    rig.forward(fwd);
+    rig.right(rightV);
+    const usingManual = manualMove.x !== 0 || manualMove.z !== 0;
+    let mx: number;
+    let mz: number;
+    if (usingManual) {
+      mx = manualMove.x;
+      mz = manualMove.z;
+    } else {
+      const wish = fwd.clone().multiplyScalar(input.moveZ()).addScaledVector(rightV, input.moveX());
+      mx = wish.x;
+      mz = wish.z;
+    }
     const moving = Math.abs(mx) > 0.05 || Math.abs(mz) > 0.05;
     if (moving) {
       const len = Math.hypot(mx, mz) || 1;
@@ -368,11 +402,7 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     }
 
     // -------------------------------------------------------------- camera
-    // Bulundu (sahip playtest'i): eski -6/+4 ofseti her şeyi küçük/uzak
-    // gösteriyordu ("tanecikler" gördüm dedi) — yakınlaştırıldı.
-    const behindZ = player.position.z - 3.5;
-    camera.position.set(player.position.x, player.position.y + 2.2, behindZ);
-    camera.lookAt(player.position.x, player.position.y + 0.4, player.position.z + 3);
+    rig.update(player.position, dt);
     playerLight.position.set(player.position.x, player.position.y + 1.4, player.position.z);
 
     if (messageT > 0) messageT -= dt;
