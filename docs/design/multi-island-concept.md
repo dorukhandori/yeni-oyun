@@ -1,6 +1,10 @@
 # Karar dokümanı — Çoklu "gerçek ada" / challenger yapısı
 
-> **Durum:** M7 kapandı (Seçenek 3, 2026-08-14) ve dört bağımlı onay da kapandı — **koşu-bazlı kayıp**, **~20–30 dk oturum**, **3 durak** (Lotus + Kiklop + Sirenler, Kirke şimdilik kapsam dışı), **`island-designer` agent'ı oluşturuldu.** Bu kararlar artık **gerçek dokümanlara yazıldı**: `gdd-memory-system.md` (§3.1 madde 1/9, §3.5, §4.4), `tuning.md` (§3.0, §5, §10, §11.4), `game-concept.md` (§2, §7, Kapanan kararlar), `level-lotus-island.md` (üstbilgi), `docs/production/roadmap.md` (K2/K3 + yeni K27–K29, Faz 2.6b/c/d). **Hâlâ eksik:** `CLAUDE.md` ve `.cursor/rules/project.mdc`'nin kimlik paragrafı — bilerek dokunulmadı, bkz. dosya sonundaki not. Kiklop ve Sirenler'in kendi `level-*.md` dosyaları henüz yazılmadı (`island-designer`'ın işi).
+> # 🔴 EN ÜST UYARI — M7'nin "tek koşu" yapısı ARTIK GEÇERSİZ (K40, 2026-08-24, sahip)
+>
+> **Bu dosyanın §5–§9'unda anlatılan "3 duraklı tek koşu" yapısı — unutuşun duraklar arası taşınması, `MEM_ISLAND_RELIEF_PCT`, `RUN_TARGET_TOTAL = 12`'nin duraklara paylaştırılması, K27/K28/K29 — sahip tarafından 24 Ağu 2026'da geçersiz kılındı.** Metin **tarihçe olarak** duruyor, silinmedi; ama **hiçbiri artık uygulanacak tasarım değil.** Yeni yapı için **§10**'a bak. Bu dosyadan bir sayı/kural alacak olan herkes önce §10'u okumak zorunda.
+>
+> **Durum:** M7 kapandı (Seçenek 3, 2026-08-14) — **§10 ile büyük ölçüde geçersiz kılındı** ve dört bağımlı onay da kapandı — **koşu-bazlı kayıp**, **~20–30 dk oturum**, **3 durak** (Lotus + Kiklop + Sirenler, Kirke şimdilik kapsam dışı), **`island-designer` agent'ı oluşturuldu.** Bu kararlar artık **gerçek dokümanlara yazıldı**: `gdd-memory-system.md` (§3.1 madde 1/9, §3.5, §4.4), `tuning.md` (§3.0, §5, §10, §11.4), `game-concept.md` (§2, §7, Kapanan kararlar), `level-lotus-island.md` (üstbilgi), `docs/production/roadmap.md` (K2/K3 + yeni K27–K29, Faz 2.6b/c/d). **Hâlâ eksik:** `CLAUDE.md` ve `.cursor/rules/project.mdc`'nin kimlik paragrafı — bilerek dokunulmadı, bkz. dosya sonundaki not. Kiklop ve Sirenler'in kendi `level-*.md` dosyaları henüz yazılmadı (`island-designer`'ın işi).
 > **⚠️ Kısmi tersine çevirme (2026-08-14, aynı gün):** sahip M7'nin **"hub yok"** alt-maddesini tersine çevirdi — **gerçek hub var, oyuncu durak seçebiliyor.** M7'nin diğer üç bileşeni (elle tasarlanmış 3 durak — M1/M3, `island-designer` agent'ı — M6) **yeniden açılmadı, geçerli.** Bu reversalin unutuş-taşıma (M4), koşu hedefi (M5) ve oturum süresi (M2/K28) üzerindeki sonuçları **§9**'da uygulama kararı olarak çözüldü (seçenek sunulmadı — hub kararı zaten verildiği için bu aşağı akan bir tutarlılık işiydi). **Tek gerçekten yeniden açılan soru:** koşu-bazlı kayıp (K27) — §9.5'te flag'lendi, kapanmadı, sahip onayı bekliyor.
 > **Tarih:** 2026-08-14 (ilk taslak) · güncelleme 2026-08-14 (M7 + M1–M6 çözümü) · güncelleme 2026-08-14 (K27–K29 kapandı, gerçek dokümanlara yazıldı) · güncelleme 2026-08-14 (hub'a dönüş, §9)
 > **Bu dosya ne değildir:** onaylanmış bir tasarım değişikliği değildir. `game-concept.md`, `level-lotus-island.md`, `CLAUDE.md` ve diğer `docs/design/` dosyaları **değiştirilmedi** — bu doküman onları değiştirmeye aday gösterir, kendisi değiştirmez.
@@ -165,7 +169,12 @@ Oturum N kısa (2–3 dk) adadan oluşan tek bir "run"a dönüşür; adalar payl
 
 ---
 
-## 6. M1–M6 çözümü (Seçenek 3'ün sonucu olarak)
+## 6. M1–M6 çözümü (Seçenek 3'ün sonucu olarak) · ⚠️ **M2/M4/M5 GEÇERSİZ (K40) — ARŞİV**
+
+> **M1** (elle tasarlanmış set) ✅ geçerli · **M3** (Odysseia antolojisi, 3 durak) ✅ geçerli · **M6** (`island-designer` rolü) ✅ geçerli.
+> **M2** ("hub yok, tek kesintisiz koşu") 🔴 geçersiz — hub var (§9.1) **ve** duraklar bağımsız (§10).
+> **M4** (unutuş taşınması, `MEM_ISLAND_RELIEF_PCT`) 🔴 **geçersiz** (§10).
+> **M5** (`RUN_TARGET_TOTAL = 12`, duraklara paylaştırma) 🔴 **geçersiz** (§10). Sayılar (Lotus 5 / Kiklop 4 / Sirenler 3) **korundu** ama artık "alt-hedef" değil, her durağın **kendi** hedefi.
 
 M7 kapandığına göre aşağıdaki altı soru artık seçenek sunmuyor; Seçenek 3'ün ne anlama geldiğini somutlaştırıyor. Bunların hiçbiri henüz `gdd-memory-system.md` / `tuning.md` / `game-concept.md` / `level-lotus-island.md` içine **yazılmadı** — burada varılan sonuçlar bir sonraki uygulama turunun girdisidir.
 
@@ -270,7 +279,19 @@ Sahip, M7'nin ardından bu dokümanın örtük sonuçlarını da açıkça onayl
 
 ---
 
-## 9. Hub'a dönüş — 2026-08-14
+## 9. Hub'a dönüş — 2026-08-14 · 🔴 **§9.2–§9.5 GEÇERSİZ (K40, 24 Ağu 2026) — ARŞİV**
+
+> **Bu bölümün alt başlıkları tek tek işaretlenmedi; hepsi bu bandın kapsamında.**
+>
+> | Alt başlık | Durum |
+> |---|---|
+> | **§9.1 Hub'ın somut tanımı** | ✅ **Geçerli** — hub bir hafif seçim ekranıdır, dördüncü oynanabilir alan değildir; hub'da zaman donar. ⚠️ Tek düzeltme: *"sıra serbest"* artık **kalıcı kilit** anlamında (Lotus'u bir kez bitir → Kiklop kalıcı açılır), ve `ux/screens.md` §3.3'ün A/B/C sorusu (S2) **konusuz kaldı** |
+> | **§9.2 Unutuş + hub** | 🔴 **Geçersiz** — duraklar arası unutuş taşınmıyor, `MEM_ISLAND_RELIEF_PCT` yok |
+> | **§9.3 `RUN_TARGET_TOTAL` + hub** | 🔴 **Geçersiz** — duraklar-üstü hedef yok, her durağın hedefi kendi başına yeterli |
+> | **§9.4 Oturum süresi** | 🔴 **Geçersiz** — ~20–30 dk (koşu) yerine **durak başına ~5–10 dk** |
+> | **§9.5 K27 gerilimi** | 🔴 **Konusuz** — duraklar-üstü bir koşu olmadığı için "koşu-bazlı kayıp" diye bir seçenek yok |
+>
+> Geçerli yapı: **§10.**
 
 Sahip'in kararı: *"Gerçek hub — oyuncu durak seçebiliyor."* M7'nin kapalı olan **hub yok** alt-maddesi bununla geçersiz kılındı. M7'nin geri kalanı (elle tasarlanmış 3 durak — M1, Odysseia antolojisi kimliği — M3, `island-designer` agent mimarisi — M6) **yeniden açılmadı**; sahip yalnızca hub sorusunu cevapladı. Bu bölüm, hub'ın M2 ("tek kesintisiz koşu") ve M4 ("unutuş taşınıyor")'e ne yaptığını **seçenek sunmadan** çözüyor — artık bir strateji kararı değil, kapanmış bir stratejinin **uygulama detayı.**
 
@@ -332,3 +353,53 @@ Hub bir seviye-seçim ekranı gibi tasarlanırsa (birkaç saniyelik gezinme, oyn
 | `tuning.md` | §3.0, §5 başlığı, §5.2 `MEM_ISLAND_RELIEF_PCT` açıklaması, §10 kapanan kararlar, §11.4 |
 | `game-concept.md` | §2 (Tür/Kapsam satırları), Kapanan kararlar tablosundaki "hub'sız" iddiası düzeltildi |
 | `docs/production/roadmap.md` | K2/K27–K29 satırlarına ek not, §1.1/§1.4a'daki "hub'sız" iddiaları düzeltildi |
+
+---
+
+## 10. 🔴 K40 — Bağımsız durak oturumları (2026-08-24, sahip) — M7'nin "tek koşu"sunun iptali
+
+> **Bu bölüm bir öneri değil, kapanmış bir karardır.** Yukarıdaki §5–§9 ile çeliştiği her yerde **§10 kazanır.**
+
+### 10.1 Sahip'in kararı, birebir
+
+> *"Zaten Lotus adasını bitirmeden Kiklop açık olmayacak. Bir sefer de bitirdiğinde artık Kiklop ve Lotus adası oynanabilir olacak her zaman."*
+
+### 10.2 Bunun somut anlamı
+
+| | Eski (M7 + §9, 14 Ağu) | **Yeni (K40, 24 Ağu)** |
+|---|---|---|
+| Yapı | 3 duraklı **tek koşu**; koşu bir bütün | **Her durak kendi başına biten bağımsız bir oturum.** "Koşu" diye duraklar-üstü bir kap **yok** |
+| Kilit | Hibrit (K30 madde 5): ilk koşuda sıralı, koşu bitince o oturumda serbest | **Kalıcı kilit açma.** Lotus'u **bir kez** bitirmek Kiklop'u **kalıcı olarak** açar. Sonrasında ikisi de her zaman oynanabilir |
+| Duraklar arası taşınan durum | Unutuş taşınıyor (`MEM_ISLAND_RELIEF_PCT` bağışlamasıyla) | **Hiçbir şey taşınmıyor.** Ne unutuş, ne körleşme, ne envanter, ne ilerleme. Her durak sıfırdan başlar |
+| Hedef | `RUN_TARGET_TOTAL = 12`, duraklara paylaştırılmış (5/4/3) | **Her durağın kendi hedefi kendi başına yeterlidir.** Duraklar-üstü bir toplam hedef **yok** |
+| Kayıp | Durak-bazlı mı koşu-bazlı mı (K27, iki kez açılıp kapandı) | **Soru ortadan kalktı** — duraklar-üstü bir koşu olmadığı için "koşu-bazlı kayıp" diye bir şey yok. Her durak kendi kayıp/bitiş sözleşmesini kendi tanımlar |
+| Oturum süresi | ~20–30 dk (koşunun tamamı, K28) | **Durak başına ~5–10 dk.** Toplam oyun süresi "kaç durak oynadın"a bağlı, tanımlı bir sayı değil |
+
+### 10.3 Bu kararın geçersiz kıldıkları — tam liste
+
+Aşağıdakiler **silinmedi**, tarihçe olarak duruyor; her birinin bulunduğu yere "artık geçersiz (K40, 24 Ağu 2026)" notu düşüldü.
+
+| Nerede | Ne geçersiz oldu |
+|---|---|
+| Bu dosya §5 Seçenek 3, §6/M2, §6/M4, §6/M5 | "Hub yok, tek kesintisiz koşu" · unutuş taşıma · `RUN_TARGET_TOTAL` paylaştırması |
+| Bu dosya §7 madde 1–2, §9.2, §9.3, §9.4, §9.5 | Koşu-bazlı kayıp · hub'a dönüş bağışlaması · duraklar-üstü hedef · 20–30 dk bütçesi · K27 gerilimi |
+| `gdd-memory-system.md` §3.5 | Hub'a dönüşte taşıma formülünün tamamı |
+| `gdd-memory-system.md` §3.1 madde 1 (`MEM_START` istisnası), madde 9 | `MEM_START = 0` artık **her** durakta koşulsuz geçerli |
+| `tuning.md` §3.0 (`RUN_TARGET_TOTAL`, alt-hedefler), §5.2 (`MEM_ISLAND_RELIEF_PCT`), §10 (M7/hub satırları), §11.4, §11 ölçüm listesi madde 7 | — |
+| `game-concept.md` §2 Kapsam satırı, "Kapanan kararlar" tablosundaki M7/K27–K29 satırları | — |
+| `docs/production/roadmap.md` Faz **2.6d**, K27/K28/K29/K30 | 2.6d (hub dönüşünde `MEM_ISLAND_RELIEF_PCT` uygulaması) **tamamen gereksiz** — iş kalemi düşürüldü |
+| `level-cyclops-cave.md` üstbilgisi | "unutuş `MEM_ISLAND_RELIEF_PCT` ile kısmen taşınmış gelir" |
+
+### 10.4 Neyin **değişmediği** (yanlış anlaşılmasın)
+
+- **M1** (elle tasarlanmış küçük set) geçerli.
+- **M3** (Odysseia antolojisi kimliği) geçerli. Duraklar hâlâ Lotus + Kiklop + Sirenler.
+- **M6** (`island-designer` agent rolü) geçerli.
+- **Hub var** ve durak seçim ekranı olmaya devam ediyor. Değişen, hub'ın **ne taşıdığı** — artık bir koşunun ortasındaki dinlenme noktası değil, bir **menü**.
+- Her durağın **kendi içindeki** unutuş/körleşme sözleşmesi kendi dokümanında yaşamaya devam ediyor: Lotus'ta K35 forget-event (`gdd-lotus-island-run.md` §3.5), Kiklop'ta **hiç unutuş yok**, yerine körleşme (`gdd-cyclops-blinding.md`, 24 Ağu 2026, D3).
+
+### 10.5 Kilidin kalıcılığı — açık bir uygulama sorusu
+
+**"Kalıcı olarak açılır"** kalıcı bir yerel kayıt gerektiriyor. Bugün `menu.ts`'in `setCyclopsReady()`'si **oturum-içi** (sekme kapanınca kaybolur) ve proje "kayıt yok" ilkesini savunuyordu. K40 bu ilkeyi **tek noktada** deliyor: bir tek boolean (`lotusCleared`) kalıcı olmak zorunda.
+
+**Türetilmiş (@nile, 24 Ağu 2026) — sahip vetosuna açık:** `localStorage` (`sessionStorage` değil — sekme kapanınca kilit geri gelmemeli). Tek anahtar, tek boolean, oyun durumu değil sadece bir kilit bayrağı. Nick/skin zaten `localStorage` kullanıyor, yeni bir kalıcılık kategorisi açılmıyor. Alternatif (sahip isterse): kilit hiç kaydedilmez, her sekme açılışında Lotus tekrar bitirilir — bu, sahip'in *"her zaman oynanabilir olacak"* cümlesiyle çelişir, o yüzden önerilmiyor.

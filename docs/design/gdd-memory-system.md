@@ -5,7 +5,8 @@
 > **Uyguladığı sütun:** **P2** (unutma görülür, anlatılmaz) · **P4** (kıyı huzurdur)
 > **Sayılar:** hepsi `docs/design/tuning.md`'den. Bu dokümanda sayılar **sabit adıyla** anılır.
 > **Bağlı doküman:** `gdd-lotus-collection.md` (kardeş sistem), `scenario.md` (tema), `game-concept.md` (çerçeve), `gdd-lotus-hallucination.md` (yeni, Lotus Adası'na özgü sanrı figürleri — bu sisteme tek yönlü besler, bkz. §3.4), `gdd-detection-cyclops.md` (Kiklop'un akraba sistemi, aynı desen)
-> **Çoklu-ada notu (14 Ağu 2026, sahip onayı, `multi-island-concept.md` M7):** proje artık **3 duraklı bir koşu** (Lotus Adası + Kiklop Mağarası + Sirenler Geçidi). Bu doküman aşağıda buna göre güncellendi: unutuş **ada başına sıfırlanmıyor**, koşu boyunca taşınıyor (§3.5). Kiklop/Sirenler'in kendi yerel unutuş kaynakları (`island-designer`'ın işi) henüz bu dosyaya yazılmadı; burada sadece **paylaşılan** mekanik (tek unutuş ölçeği, hub'a dönüş formülü) tanımlanıyor.
+> **🔴 K40 (24 Ağu 2026, sahip) — aşağıdaki "çoklu-ada notu" ve §3.5 ARTIK GEÇERSİZ.** Duraklar arası tek-koşu yapısı kalktı: her durak **bağımsız, kendi başına biten bir oturum**, aralarında **hiçbir durum taşınmıyor** (ne unutuş, ne envanter, ne ilerleme). Somut sonuçlar: (a) **`MEM_START = 0` artık her durakta koşulsuz geçerli** — §3.1 madde 1'in istisnası düştü; (b) **§3.5'in tamamı geçersiz** (`MEM_ISLAND_RELIEF_PCT` uygulanmıyor, kodda da hiç yoktu); (c) §3.1 madde 9'un "koşu-bazlı kayıp" tartışması konusuz kaldı — duraklar-üstü bir koşu yok, her durak kendi kayıp sözleşmesini kendi tanımlar. (d) **Bu doküman Kiklop Mağarası'nda hiç okunmuyor** — 2. durakta unutuş sistemi *yoktur*, yerine adaya özgü "körleşme" var (`gdd-cyclops-blinding.md`, 24 Ağu 2026, D3); `gdd-detection-cyclops.md`'nin `CAUGHT_MEM_SPIKE` beslemesi de kaldırıldı. Gerekçe ve tam liste: `multi-island-concept.md` §10. Aşağıdaki metin **tarihçe olarak** duruyor.
+> **Çoklu-ada notu (14 Ağu 2026, sahip onayı, `multi-island-concept.md` M7) — ⚠️ geçersiz, bkz. yukarıdaki K40 notu:** proje artık **3 duraklı bir koşu** (Lotus Adası + Kiklop Mağarası + Sirenler Geçidi). Bu doküman aşağıda buna göre güncellendi: unutuş **ada başına sıfırlanmıyor**, koşu boyunca taşınıyor (§3.5). Kiklop/Sirenler'in kendi yerel unutuş kaynakları (`island-designer`'ın işi) henüz bu dosyaya yazılmadı; burada sadece **paylaşılan** mekanik (tek unutuş ölçeği, hub'a dönüş formülü) tanımlanıyor.
 > **⚠️ K35 (15 Ağu 2026):** Lotus Adası’nda §3.1 madde 9 **uygulanmaz** — `MEM_GRACE` dolunca kayıp finali yok; forget event (`gdd-lotus-island-run.md` §3.5): çanta 0, teslim kalır, gemi kayar. K27 Kiklop/Sirenler’de durur. Oranlar ve “bilgi alınır, can alınmaz” ilkesi aynı.
 > **Bayılma/sanrı yeniden çerçevelemesi (14 Ağu 2026, sahip kararı):** playtest sonrası sahip'in geri bildirimi üzerine `docs/design/hallucination-reframe-concept.md`'de üç seçenek sunuldu; sahip **her ikisini de** onayladı — (a) unutuşun hissiyatı "bayılma/bilinç gevşemesi, uykuya sürüklenme" katmanını da içerecek şekilde genişledi (§2, §9 — isim ve çekirdek sayılar **değişmedi**, yalnızca sunum genişledi), (b) **Lotus Adası'na özgü, gerçek bir "sanrı figürleri" mekaniği** eklendi (ayrıntı: `gdd-lotus-hallucination.md`, yeni dosya). Sanrı figürleri Kiklop'un `DETECT`/`CAUGHT` diliyle aynı ailede — can/envanter kaybı yok, yalnızca tek seferlik unutuş sıçraması + geçici `DRIFT` şiddetlenmesi. **Yalnızca Lotus Adası'nda** — Kiklop kendi `DETECT`/`CAUGHT` sistemini korur, çakışma yok.
 
@@ -39,7 +40,8 @@ Kaybetmek de kötü hissettirmemeli. Kayıp finali bir "game over" değil, adada
 
 ### 3.1 Çekirdek kurallar
 
-1. **Unutuş** `MEM_START`'tan başlayan, `0`–`MEM_MAX` arasına kenetlenmiş tek bir float değerdir. **`MEM_START` yalnızca koşunun ilk girişi için geçerlidir** (oyuncu hangi durağı ilk seçerse — hub serbest sıralı, bkz. `multi-island-concept.md` §9.1). Koşu boyunca tek bir unutuş değeri taşınır — **bir durağın kendisinde asla sıfırlanmaz, hub'a dönüşte de sıfırlanmaz.** Hub'dan bir sonraki durağa giriş değeri §3.5'teki hub-dönüşü formülünden türer.
+1. **Unutuş** `MEM_START`'tan başlayan, `0`–`MEM_MAX` arasına kenetlenmiş tek bir float değerdir. **`MEM_START` her durak girişinde koşulsuz geçerlidir** — duraklar arasında unutuş taşınmaz (K40, 24 Ağu 2026; bkz. `multi-island-concept.md` §10). Unutuş bir durağın *içinde* asla sıfırlanmaz; durak biter, değer düşer.
+   > ~~Eski kural (14 Ağu 2026, geçersiz):~~ *"`MEM_START` yalnızca koşunun ilk girişi için geçerlidir; koşu boyunca tek bir unutuş değeri taşınır, hub'a dönüşte §3.5'in formülüyle kısmen bağışlanır."* **K40 ile düştü.**
 2. Her karede net değişim hesaplanır: `unutuş += (artış_oranı − azalış_oranı) × dt`, ardından tek seferlik olaylar (`+4`, `−10` gibi) eklenir.
 3. **Sürekli artışlar** (birbirine eklenir):
    - `MEM_PASSIVE` — adada olduğun sürece, her zaman, koşulsuz.
@@ -94,10 +96,16 @@ Kaybetmek de kötü hissettirmemeli. Kayıp finali bir "game over" değil, adada
 | **Arayüz** | Unutuş → HUD | Hangi öğelerin görünür olduğu, pusula durumu, sayaç muğlaklığı |
 | **Hareket** | Unutuş → Hareket | Sapma açısı (yalnızca eşik 3+) |
 | **Oyun durumu** | Unutuş → Oyun | Kayıp finali tetiği |
-| **Kiklop algılanma sistemi** (`gdd-detection-cyclops.md`, yalnızca 2. durak) | tek yönlü (o → bu) | `onCaught` → `CAUGHT_MEM_SPIKE` (tek seferlik ekleme). Bu sistem unutuşun tersine hiç okumaz — sadece besler. **Örnek desen:** her yeni durağın kendi yerel tehlikesi, ikinci bir ölçek yerine bu tek kaynağa beslenmeli (`multi-island-concept.md` §6/M3 ilkesi). |
+| ~~**Kiklop algılanma sistemi**~~ (`gdd-detection-cyclops.md`, yalnızca 2. durak) | 🔴 **bağ koptu (K40/D3, 24 Ağu 2026)** | **Artık hiçbir şey akmıyor.** Kiklop Mağarası'nda unutuş sistemi **hiç çalışmıyor**; `CAUGHT_MEM_SPIKE` kaldırıldı. Eski metin: *"`onCaught` → `CAUGHT_MEM_SPIKE` (tek seferlik ekleme)... her yeni durağın yerel tehlikesi tek kaynağa beslenmeli."* Bu ilke **Lotus için hâlâ doğru** (sanrı figürleri aşağıdaki satırda hâlâ besliyor) ama Kiklop artık kendi bağımsız sistemini (körleşme + algılanma) kullanıyor — bkz. `gdd-cyclops-blinding.md`. |
 | **Sanrı figürleri** (`gdd-lotus-hallucination.md`, yalnızca 1. durak — Lotus Adası) | tek yönlü, **çift kanal** | (1) Unutuş → Sanrı: `memory ≥ HALLUCINATION_THRESHOLD` iken figürler sahneye girer (bu sistem unutuşu **okur**, tek istisna — Kiklop'un `DETECT`'i unutuşu hiç okumaz, bu fark bilerek var çünkü sanrılar unutuşun **görünür bir belirtisi**, ayrı bir tehlike kaynağı değil). (2) Sanrı → Unutuş: temas anında `HALLUCINATION_CONTACT_MEM_SPIKE` (tek seferlik ekleme) + geçici `DRIFT_MAX_ANGLE` şiddetlenmesi (`HALLUCINATION_DRIFT_MULTIPLIER`, `HALLUCINATION_DRIFT_SPIKE_DURATION`). Kiklop'un `CAUGHT_MEM_SPIKE` deseniyle aynı aile — can/envanter kaybı yok. |
 
-### 3.5 Hub'a dönüşte taşıma (14 Ağu 2026, `multi-island-concept.md` M4 sonucu; 14 Ağu 2026 aynı gün — hub bağlamına taşındı, `multi-island-concept.md` §9.2)
+### 3.5 ~~Hub'a dönüşte taşıma~~ — 🔴 **ARTIK GEÇERSİZ (K40, 24 Ağu 2026, sahip)**
+
+> **Bu bölümün tamamı uygulanmıyor.** Duraklar arasında unutuş **taşınmıyor**; her durak `MEM_START = 0`'dan başlar. `MEM_ISLAND_RELIEF_PCT` diye bir kural yok (kodda da hiç olmadı). Gerekçe: `multi-island-concept.md` §10. Metin **tarihçe olarak** bırakıldı — silinmedi ki daha sonra "neden taşıma yok" sorusu tekrar açılmasın.
+>
+> **Bunun yerine geçen kural:** her durak bağımsız bir oturumdur; hub bir menüdür, durum taşıyıcısı değildir. Bir durağın kendi kayıp/bitiş sözleşmesi kendi dokümanındadır (Lotus: `gdd-lotus-island-run.md` §3.5 forget-event; Kiklop: unutuş yok, `gdd-cyclops-blinding.md`).
+
+*(Aşağısı 14 Ağu 2026'nın metni — arşiv.)*
 
 Koşu boyunca **tek bir unutuş değeri** taşınır — hub bir sıfırlama noktası değildir (`multi-island-concept.md` §9.1: hub'da zaman donar, ama unutuş **değeri** hub'a girerken/çıkarken kendiliğinden değişmez, yalnızca aşağıdaki tek olayda değişir). Bir durak **başarıyla** bitirilip (o durağın kendi "AYRILIŞ" anı — örn. Lotus Adası'nda gemiye binip dümende E) hub'a dönülürken, unutuş **kısmen bağışlanır**, tam sıfırlanmaz:
 
@@ -168,7 +176,8 @@ Eşikler arasında sıçrama değil **yumuşak geçiş** kullanılır. Her etki 
 
 `unutuş ≥ MEM_MAX` olduğu anda `grace = MEM_GRACE`. Her karede `grace −= dt`.
 `denizde || gemide` → `grace = MEM_GRACE` (tam sıfırlanır) ve normal azalma devreye girer.
-`grace ≤ 0` → **kayıp finali** tetiklenir, **durak bazlı** (kapandı 14 Ağu 2026, K27, bkz. §3.1 madde 9): sadece o durak biter, koşunun tamamı değil. Oyuncu hub'a döner, o durağı bağışlamasız (§3.5) unutuş değeriyle tekrar seçebilir; önceki duraklardan toplananlar/ilerleme korunur.
+`grace ≤ 0` → **kayıp finali** tetiklenir, **durak bazlı.** Sadece o durak biter; oyuncu hub'a döner ve istediği durağı yeniden seçebilir. **K40 (24 Ağu 2026) sonrası:** hub'a **hiçbir değer taşınmaz** — yeni giriş `MEM_START = 0`'dan başlar; "bağışlamasız taşıma" (§3.5) diye bir şey kalmadı. Bu kural **yalnızca unutuş sistemi olan duraklarda** anlamlıdır: Lotus'ta K35 forget-event bunun yerine geçer (`gdd-lotus-island-run.md` §3.5), **Kiklop'ta hiç unutuş yoktur** (`gdd-cyclops-blinding.md`).
+> ~~Eski metin (14 Ağu 2026, K27):~~ *"...o durağı bağışlamasız (§3.5) unutuş değeriyle tekrar seçebilir; önceki duraklardan toplananlar/ilerleme korunur."* — K40 ile geçersiz.
 
 **Erişilebilirlik kontrolü:** `MEM_GRACE × PLAYER_SPEED = 10 × 4,5 = 45 m`. Sazlıktan (gemi ~35 m) kurtulunur; iç gölden (deniz ~50 m) kurtulunamaz. Yani coğrafya kaderi belirler — oyuncu nereye kadar açıldığının bedelini öder.
 
@@ -299,7 +308,7 @@ Bu iki değer **oynanır sürüm elde olmadan değiştirilmeyecek.** Masa başı
 |---|---|---|---|
 | `MEM_SEA_RECOVER` 🔬 | −6.0 puan/s (sabit) | Tur başına deniz teması sayısı | Oyuncu her turdan sonra denize girme refleksi buluyorsa oran düşürülecek — **unutuş gerilim olmalı, vergi olmamalı.** Çare sırası: −4.0'a indir, gerekirse kademeli yap (ilk 3 s tam, sonrası yarım). |
 | `HUD_VAGUE_COUNTER` 🔬 (eşik 2'de muğlak sayaç) | `true` | Oyuncu eşik 2 sonrası kaç çiçek teslim ettiğini biliyor mu | Tamamen kaybediyor ve bunu haksızlık/bug olarak okuyorsa `false` yapılır. Gemi direklerindeki bezleri sayarak toparlıyorsa `true` kalır. |
-| `MEM_ISLAND_RELIEF_PCT` 🔬 (hub'a dönüş bağışlaması, §3.5, eklendi 14 Ağu 2026, hub bağlamına taşındı aynı gün) | `0.4` | Bir durağı bitirip hub'a dönen oyuncunun taşıdığı unutuşun sonraki durağı ne kadar zorlaştırdığı | Sistematik olarak adaletsiz bulunuyorsa (kıl payı biten bir sonraki durağı hiç tamamlayamıyorsa) yükseltilir; taşıma hiç hissedilmiyorsa düşürülür. Ayrıntı: `tuning.md` §11.4. |
+| ~~`MEM_ISLAND_RELIEF_PCT`~~ 🔴 **düştü (K40, 24 Ağu 2026) — ölçülmeyecek, uygulanmayacak** | ~~`0.4`~~ | Bir durağı bitirip hub'a dönen oyuncunun taşıdığı unutuşun sonraki durağı ne kadar zorlaştırdığı | Sistematik olarak adaletsiz bulunuyorsa (kıl payı biten bir sonraki durağı hiç tamamlayamıyorsa) yükseltilir; taşıma hiç hissedilmiyorsa düşürülür. Ayrıntı: `tuning.md` §11.4. |
 
 ---
 

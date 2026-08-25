@@ -4,7 +4,9 @@
 > **Tarih:** 2026-08-14 (ilk taslak) · güncelleme 2026-08-14 (Başlık → Hub → durak akışı; bkz. `ux/screens.md` üstbilgi ve `CLAUDE.md`)
 > **Girdi:** klavye + fare, tarayıcı masaüstü. Gamepad/touch yok (MVP).
 > **Yolculuk haritası:** `design/player-journey.md` henüz yok — bu akış `game-concept.md` duygu sırasını kullanır (sakinlik → fark ediş → hesap → kıl payı hatırlama), artık **koşu boyunca 3 kez** (durak başına bir kez) tekrarlanan bir döngü olarak.
-> **Not:** aşağıdaki akış Hub'ın iskeletini kurar; Hub'daki kilit/ilerleme mekanizması (§3.3, `ux/screens.md`) ve durak kaybının koşuyu bitirip bitirmediği (§10, aynı dosya) **henüz açık kararlar** — bu diyagram her iki olası sonucu da not düşerek gösteriyor, seçim netleşince tek bir dala indirilecek.
+> **🔴 K40 (24 Ağu 2026, sahip) — "koşu" kavramı kalktı.** Duraklar **bağımsız**: her durak hub'dan seçilen, kendi başına biten bir oturumdur; aralarında hiçbir durum taşınmaz. Bu dosyadaki üç yer geçersiz: **(1)** üstteki *"koşu boyunca 3 kez tekrarlanan döngü"* — artık her durak kendi başına bir döngü. **(2)** §10'daki "durak kaybı koşuyu bitirir mi" açık kararı **konusuz kaldı** — bitecek bir koşu yok, kayıp her zaman yalnız o durağı bitirir ve oyuncu hub'a döner. **(3)** 8. adımdaki *"Koşu sonu"* dalı ve `ia.md` U6/M4 — **karşılıksız**; her durak kendi Ayrılış'ıyla biter ve hub'a döner, duraklar-üstü bir kapanış ekranı yok. **Kilit modeli de değişti:** `screens.md` §3.3'ün C (Hibrit) kararı yerine **kalıcı kilit** — Lotus'u bir kez bitirmek Kiklop'u kalıcı açar (`localStorage`). Gerekçe: `docs/design/multi-island-concept.md` §10. Aşağıdaki diyagramın "her iki olası sonucu da gösteren" dalları **tek dala indi**: kayıp → hub.
+>
+> ~~**Not (14 Ağu):** Hub kilit mekanizması ve durak kaybının koşuyu bitirip bitirmediği henüz açık kararlar...~~ — arşiv.
 
 ---
 

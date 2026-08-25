@@ -1,6 +1,7 @@
 # Bilgi mimarisi — Lotophagoi
 
-> **Durum:** tasarlandı — sahip onayı bekleyen 3 nokta sonda + **Hub kilit mekanizması** (bkz. `ux/screens.md` §3.3, ayrı bir açık karar)
+> **🔴 K40 (24 Ağu 2026, sahip):** duraklar **bağımsız** — duraklar-üstü bir "koşu" yok, aralarında hiçbir durum taşınmıyor. Bu dosyada geçersiz olanlar: **"Koşu sonu" düğümü** ve ona bağlı **U6 (Yeniden başla)** / **M4 (Ana menü)** girişleri — her durak kendi Ayrılış'ıyla biter ve hub'a döner, duraklar-üstü bir kapanış ekranı **yok**. **"durak-bazlı mı koşu-bazlı mı" açık kararı da konusuz kaldı** (kayıp her zaman yalnız o durağı bitirir). **Hub kilit mekanizması kapandı:** `screens.md` §3.3'ün A/B/C sorusu yerine **kalıcı kilit** — Lotus bir kez bitince Kiklop kalıcı açılır (`localStorage`). Gerekçe: `docs/design/multi-island-concept.md` §10.
+> **Durum:** tasarlandı — sahip onayı bekleyen 3 nokta sonda; ~~**Hub kilit mekanizması** (bkz. `ux/screens.md` §3.3, ayrı bir açık karar)~~ **→ K40 ile kapandı**
 > **Tarih:** 2026-08-14 (ilk taslak) · güncelleme 2026-08-14 (Hub eklendi — sahip kararı, çoklu-ada seçimi artık gerçek bir ada-seçim ekranından geçiyor, bkz. `CLAUDE.md` ve `docs/design/multi-island-concept.md`)
 > **Karar:** önceki prototip menüsüzdü; sahip 14 Ağu 2026'da sade menü istedi. Ayarlar ormanı, kayıt yuvası, mağaza, keybind remap, dil seçici **yok**. Hub eklendi ama "tek seviye" ilkesi büyük ölçüde korunuyor — Hub, alt menü değil, Başlık ile Ada arasına giren **tek yeni düğüm.**
 

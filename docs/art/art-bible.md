@@ -142,6 +142,7 @@ Katman sırası (post-process, `gdd-memory-system.md` §9'daki sıra):
 **Kurallar:**
 
 - **Kararan ekran yasak.** Ekranı karartmak korku oyunu dili konuşur; bu oyun onu konuşmaz. Belirsizlikte sahneyi karartma, **arayüzü sil**.
+  > 🔴 **İstisna — Kiklop Mağarası (2. durak), sahip kararı D11, 25 Ağu 2026.** Bu kural **yalnız Kiklop Mağarası'nda geçerli değildir.** O durak **kasıtlı olarak korku oyunu dili konuşuyor** ve bu ihlal bilinçlidir. Gerekçe: "körleşme" mekaniği (mağara kapısı kapanınca gelen fiziksel karanlık) o adanın **çekirdek mekaniğidir** — karartma orada bir üslup tercihi değil, oynanışın kendisidir. Ayrıntı: §9'un Kiklop istisnası ve `docs/design/gdd-cyclops-blinding.md`. **Diğer tüm duraklarda (Lotus, Sirenler) kural aynen geçerlidir.**
 - **Gemi son direnen şeydir.** Sis her şeyi yutarken gemi en uzun süre serin ve okunur kalır. Eşik 75'te o da kaybolur — ve o an oyuncunun elinde yalnızca **dalga sesi** kalır (`gdd-memory-system.md` §3.2).
 - **İlk giden şey bilgidir, görüntü değil.** Sıra: konfor (ses) → navigasyon (pusula) → durum (HUD) → kontrol (yürüyüş sapması). Ters çevrilirse sistem "sarhoş simülatörü" gibi okunur ve tema ölür.
 - **Ceza can kaybı değil, okuyamamadır.** Unutuş oyuncunun **yapabildiğini** kısıtlamaz, **bildiğini** kısıtlar. Toplama hızını, hasarı, yavaşlamayı görsel olarak da ima etmeyiz.
@@ -242,11 +243,35 @@ Teknik ayrıntı ve isimlendirme `pipeline.md` §6'da. Görsel taraf:
 
 **[P] Proje yasakları:**
 
-- **Karanlık mağara paleti** — mor kristal, fener, bataklık: iptal edildi, geri gelmez.
+- **Karanlık mağara paleti** — mor kristal, fener, bataklık: iptal edildi, geri gelmez. **[Kiklop istisnası kısmen geçerli — bkz. aşağıdaki kutu.** Kiklop'ta karanlık serbest, ama **bu palet** — mor kristal/fener/bataklık — hâlâ yasak; Kiklop'un karanlığı Ege kayasının ve ocak kehribarının karanlığıdır, Glowsprig'in fantazi mağarası değil.]
 - **Generic AI look** — merkezi simetri, anlamsız parıltı serpme, her yerde eşit detay, "epic fantasy concept art" default kompozisyonu.
-- **Siyah gölge / nötr gri** — gölge serin mavi (`#5f7fa8`).
+- **Siyah gölge / nötr gri** — gölge serin mavi (`#5f7fa8`). **[Kiklop'ta serbest — bkz. aşağıdaki kutu.]**
 - **Doygun neon** — palet doğal ve sıcak; neon Ege'yi öldürür.
-- **Tehdidi karanlıkla anlatmak** — bu oyunda tehdit ışıktır (§1). **Ekranı karartmak yasak.**
+- **Tehdidi karanlıkla anlatmak** — bu oyunda tehdit ışıktır (§1). **Ekranı karartmak yasak.** 🔴 **[Kiklop Mağarası'nda bu yasak KALDIRILDI — bkz. aşağıdaki kutu.]**
+
+> ### 🔴 Kiklop Mağarası istisnası — sahip kararı **D11**, 25 Ağu 2026
+>
+> **Yukarıdaki üç yasak** — *"karanlık mağara paleti"* (kısmen), *"siyah gölge / nötr gri"*, *"tehdidi karanlıkla anlatmak / ekranı karartmak"* — ve §4'ün *"kararan ekran yasak"* kuralı, **yalnızca Kiklop Mağarası (2. durak) için resmen açılmıştır.**
+>
+> **Gerekçe:** o adanın çekirdek mekaniği **"körleşme"**dir — mağara kapısı kapandığında gelen fiziksel karanlık (`docs/design/gdd-cyclops-blinding.md`). Karartma orada bir üslup tercihi değil, **oynanışın kendisidir**; yasağı korumak mekaniği imkânsız kılardı. Sahip bu adada **açıkça korku (horror) türü** istedi ve **tam karartma / karanlık-tehdit dilini** açıkça onayladı.
+>
+> **Kapsam — kesin sınırlar:**
+>
+> | | Kiklop Mağarası | Lotus Adası · Sirenler Geçidi · Hub · Title |
+> |---|---|---|
+> | Tehdidi karanlıkla anlatmak | ✅ **Serbest** — asıl dil bu | ❌ Yasak (değişmedi) |
+> | Ekranı/sahneyi karartmak | ✅ **Serbest** | ❌ Yasak (değişmedi) |
+> | Siyah gölge / nötr gri | ✅ **Serbest** | ❌ Yasak — gölge serin mavi `#5f7fa8` |
+> | Korku (horror) türü dili | ✅ **İstenen** | ❌ Bu oyun onu konuşmaz |
+> | Mor kristal / fener / bataklık paleti | ❌ **Hâlâ yasak** | ❌ Yasak |
+> | Kırmızı hasar flaşı / can barı | ❌ **Hâlâ yasak** | ❌ Yasak |
+> | Yanıp sönme / stroboskopik geçiş (fotosensitivite, §4) | ❌ **Hâlâ yasak** | ❌ Yasak |
+>
+> **Yani açılan tek şey karanlıktır.** Fotosensitivite kısıtları (stroboskop yok, ≥1,5 s geçiş), kırmızı-flaş yasağı ve can-barı yasağı **Kiklop'ta da aynen geçerlidir** — bunlar erişilebilirlik ve P1/P2 sütunu kararlarıdır, üslup kararı değil.
+>
+> **`@iris`'in "hiçbir hücre 0'a inmesin" çözümü artık zorunlu değil.** 24 Ağu'da `@iris`, yasağı korumak için korkuyu ölçek + ses + şok anına yükleyen ve en karanlık bandı 0,12–0,20'de tutan bir çözüm önermişti. D11 sonrası bu **bir kısıtlama değil, tercihe bağlı bir sunum notu**: sahip tam karartmayı onayladığı için taban okunabilirlik zorunluluğu kalkmıştır. Ölçek + ses + şok katmanları yine de iyi tasarımdır ve önerilir — ama artık *karanlığın yerine geçmek* için değil, *karanlıkla birlikte* çalışmak için.
+>
+> **Diğer adalar bu istisnadan hiçbir şey miras almaz.** Bir sonraki durak (Sirenler) bu kutuya dayanarak karartma yapamaz; kendi gerekçesini ayrıca sahibe onaylatmak zorundadır.
 - **Ekranda kırmızı hasar flaşı, hasar çerçevesi, can barı** — oyunda hasar ve düşman yok (§4).
 - **Unutuş için bar / sayı / yüzde / ikon** — ölçek ekranın kendisidir (§4, `gdd-memory-system.md` §10).
 - **Olgunluğu ikonla veya işaretleyiciyle göstermek** — renk ve silüetle okunur (§2).

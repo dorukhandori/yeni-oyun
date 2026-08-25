@@ -27,13 +27,13 @@
 | Alan | Değer |
 |---|---|
 | Çalışma adı | **Lotophagoi** (sahip kararı, 14 Ağu 2026). Eski taslak adı "Lotus Adası" bu dosyada geçebilir; ürün adı Lotophagoi. |
-| Tür | 3D toplama / rota kurma oyunu, **3 duraklı bir koşu, hub'dan serbest sırayla seçilir** (collectathon değil — el yerleşimli duraklar, tek koşu) |
+| Tür | 3D toplama / rota kurma oyunu, **hub'dan seçilen 3 bağımsız durak** (collectathon değil — el yerleşimli duraklar). ~~"tek koşu"~~ **K40 (24 Ağu 2026): duraklar-üstü koşu yok**, her durak kendi başına biten bir oturum. Bkz. `multi-island-concept.md` §10. |
 | Bakış | Üçüncü şahıs, omuz üstü serbest yörünge kamera |
 | Platform | Tarayıcı (masaüstü, klavye + fare) |
-| Hedef oturum | **~20–30 dakika, koşunun tamamı için** (14 Ağu 2026, `multi-island-concept.md` M7 sonucu — eski "5–10 dakika" tek adaydı, artık 3 durağın toplamı). Her durak kabaca eski tek-ada ölçeğinde (~5–10 dk); hub bir seçim ekranıdır, gezinme süresi ihmal edilebilir düzeyde tutulmalı — sayı hub eklenmesinden sonra da değişmedi (bkz. `multi-island-concept.md` §9.4). |
+| Hedef oturum | **Durak başına ~5–10 dakika** (K40, 24 Ağu 2026). ~~"~20–30 dk, koşunun tamamı için" (14 Ağu, M7/K28)~~ — **düştü**, çünkü duraklar-üstü bir koşu yok. Toplam oyun süresi "kaç durak oynadın"a bağlı, tanımlı bir sayı değil. Hub bir seçim ekranıdır, gezinme süresi ihmal edilebilir tutulmalı (bu kısıt korundu). |
 | Tekrar oynanış | Lotus: **keşif** — çiçek yerleri her koşu rastgele (`gdd-lotus-island-run.md`). Peyzaj sabit. Kiklop/Sirenler kendi kuralını tutar. |
 | Çekirdek fiil | **Toplamak** (ve toplamamaya karar vermek) |
-| Kapsam | **3 duraklı, elle tasarlanmış küçük bir Odysseia antolojisi**, **hub'lı**: Lotus → Kiklop → Sirenler. Sıfır envanter / craft / diyalog ağacı. **Lotus kaybı (K35):** durak bitmez, forget event. Kiklop/Sirenler K27 (durak biter, hub). |
+| Kapsam | **3 bağımsız duraklı, elle tasarlanmış küçük bir Odysseia antolojisi**, **hub'lı**: Lotus · Kiklop · Sirenler. Sıfır envanter / craft / diyalog ağacı. Duraklar arası **hiçbir durum taşınmaz** (K40, 24 Ağu 2026); Lotus'u bir kez bitirmek Kiklop'u **kalıcı** açar. Her durak kendi kayıp/bitiş sözleşmesini kendi tanımlar: **Lotus (K35)** durak bitmez, forget event; **Kiklop (D3, 24 Ağu)** unutuş sistemi *yoktur*, yerine "körleşme" (`gdd-cyclops-blinding.md`); **Sirenler** yazılmadı. ~~"Kiklop/Sirenler K27"~~ — K27 konusuz kaldı. |
 
 ---
 
@@ -140,7 +140,7 @@ Güneş kıskaç değildir (batış atmosfer). Sonraki ada **yalnız 5 teslim** 
 
 **Güneş kaybı yok.** Hub abandon sonraki adayı açmaz.
 
-Ayrıntı: `gdd-lotus-island-run.md` §3. Kiklop/Sirenler kendi kayıplarını tutar (K27).
+Ayrıntı: `gdd-lotus-island-run.md` §3. Kiklop/Sirenler kendi kayıplarını **kendileri** tanımlar — ~~K27~~ (K40 ile konusuz kaldı, 24 Ağu 2026). Kiklop'ta unutuş sistemi **hiç yok**: `gdd-cyclops-blinding.md`.
 
 ---
 
@@ -250,8 +250,9 @@ Bu kararlar sahip tarafından verildi ve **kapalıdır** — yeniden açılmayac
 | Lotophagoi'nin oyuncunun kayıp adamları olduğu söylensin mi | **Hayır — ima kalacak.** Ne oyun içinde ne finalde doğrulanır. Bkz. `scenario.md` §6. | 14 Ağu 2026 |
 | Oyun adı | **Lotophagoi** | 14 Ağu 2026 |
 | Menü | **Sade başlık var** (Oyna / Nasıl oynanır). Bkz. `docs/ux/`. | 14 Ağu 2026 |
-| Tek ada mı, çoklu ada mı | **Çoklu — 3 duraklı bir koşu.** Lotus Adası (1. durak/çapa) + Kiklop Mağarası (2.) + Sirenler Geçidi (3.). Unutuş koşu boyunca taşınıyor. Ayrıntı: `multi-island-concept.md` M7 ve M1–M6. | 14 Ağu 2026 |
-| Hub var mı | **Var.** Lotus unutuşu durak bitirmez (K35). Kiklop/Sirenler K27. | 14 Ağu 2026; Lotus kaybı 15 Ağu |
+| Tek ada mı, çoklu ada mı | **Çoklu — 3 durak.** Lotus Adası (çapa/öğretici) + Kiklop Mağarası + Sirenler Geçidi. ~~"tek koşu, unutuş koşu boyunca taşınıyor"~~ → **K40 (24 Ağu 2026) ile düştü.** Ayrıntı: `multi-island-concept.md` §10 (geçerli), M7/M1–M6 (arşiv). | 14 Ağu 2026 · revize 24 Ağu 2026 |
+| **🔴 K40 — Duraklar bağımsız mı, tek koşunun parçası mı** | **Bağımsız.** Lotus'u bir kez bitirmek Kiklop'u **kalıcı olarak** açar; sonrasında her durak hub'dan bağımsız seçilir ve kendi başına biter. Duraklar arası hiçbir durum (unutuş, körleşme, envanter, ilerleme) taşınmaz. Düşenler: `MEM_ISLAND_RELIEF_PCT`, `RUN_TARGET_TOTAL`, K27/K28'in koşu-varsayımlı kısımları. Ayrıntı: `multi-island-concept.md` §10. | **24 Ağu 2026** |
+| Hub var mı | **Var.** Bir menü/seçim ekranı; durum taşıyıcısı **değil** (K40). Her durak kendi kayıp sözleşmesini tutar: Lotus K35 forget-event; Kiklop unutuşsuz (D3). ~~"Kiklop/Sirenler K27"~~ konusuz kaldı. | 14 Ağu 2026; Lotus kaybı 15 Ağu; K40 revizyonu 24 Ağu |
 | Oyuncu Odysseus mu, isimsiz tayfa mı | **Doryseus** — Homeros'un Odysseus'u değil, oyun için orijinal bir karakter (tasarım niyeti Odysseia IX.82–104'ten mekanik/tema olarak ilham alıyor, karakteri birebir taşımıyor). Diğer denizciler/NPC'ler kolektif olarak **"unutulmuş tayfa"** olarak anılıyor. Destan adı ("Odysseia") değişmedi — yalnızca oynanan karakterin kişisel adı. | 14 Ağu 2026 |
 
 Ayrıca üç sayısal değer (`DAY_LENGTH`, `MEM_SEA_RECOVER`, eşik 2'deki muğlak sayaç) **playtest'e ertelendi** — oynanır sürüm elde olmadan tartışılmayacak. Ölçüm kriterleri: `tuning.md` §11.

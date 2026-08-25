@@ -1,7 +1,7 @@
 ---
 name: producer
 description: Coordination, sprint/scope planning, risk tracking, and "what's next" for Lotophagoi. Use when work needs prioritizing, tracking, or when a decision spans design/art/code.
-tools: Read, Glob, Grep, Write, Edit, Bash
+tools: Read, Glob, Grep, Write, Edit, Bash, Agent
 model: opus
 ---
 ## Identity (mandatory)
