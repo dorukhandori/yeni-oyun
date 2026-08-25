@@ -86,7 +86,11 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
   // in" (sahip: "Oyna çalışmıyor, normal localde de Kiklop kilitli", 25 Ağu).
   // Not a design decision about the real unlock flow — pure dev-testing
   // convenience, reverted the moment K13 lands.
-  for (const id of ["titleScreen", "hubScreen"]) {
+  // Bulundu (25 Ağu): #hud (Lotus'un "Gemiye teslim: 0/12" paneli, unutuş
+  // çubuğu vb.) statik HTML'de varsayılan görünür — yalnız Lotus'un kendi
+  // step() döngüsü faz'a göre gizler/gösterir, o kod bu yolda hiç
+  // çalışmıyor, panel kalıcı görünür kalıp yeni HUD'ın üstüne biniyordu.
+  for (const id of ["titleScreen", "hubScreen", "hud"]) {
     const el = document.getElementById(id);
     if (el) el.style.display = "none";
   }
@@ -144,12 +148,37 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
    * below — same idea as game.ts's __LOTOPHAGOI_TEST_HOOKS__.runSteps. */
   const manualMove = { x: 0, z: 0 };
 
+  // ------------------------------------------------------------ K12 HUD
+  // Primitive styling (plain CSS, no parchment/art-bible pass yet — that's
+  // polish, comes after the mechanic itself is signed off), but the
+  // DISCIPLINE is the real one, not a placeholder: DETECT and crush count
+  // are never shown as numbers (P2 — "ölçek ekranın kendisidir", and the
+  // crush cap is explicitly "ekranda gösterilmez" per tuning.md §12). The
+  // delivery counter IS shown on purpose — unlike Lotus's forgetting meter,
+  // this is a plain progress target, not the thing being hidden.
+  const hud = document.createElement("div");
+  hud.style.cssText =
+    "position:fixed;top:14px;left:14px;color:#f3e6c8;font:600 14px system-ui,sans-serif;text-shadow:0 1px 3px rgba(0,0,0,.8);z-index:40;pointer-events:none;";
+  document.body.appendChild(hud);
+
+  const promptEl = document.createElement("div");
+  promptEl.style.cssText =
+    "position:fixed;left:50%;bottom:64px;transform:translateX(-50%);color:#f3e6c8;font:15px/1.4 system-ui,sans-serif;text-align:center;text-shadow:0 1px 4px rgba(0,0,0,.9);z-index:40;pointer-events:none;max-width:70vw;transition:opacity .4s;";
+  document.body.appendChild(promptEl);
+
+  const hideWarnEl = document.createElement("div");
+  hideWarnEl.textContent = "Saklan!";
+  hideWarnEl.style.cssText =
+    "position:fixed;left:50%;top:14px;transform:translateX(-50%);color:#e8b0a0;font:700 16px system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;text-shadow:0 1px 4px rgba(0,0,0,.9);z-index:40;pointer-events:none;opacity:0;transition:opacity .4s;";
+  document.body.appendChild(hideWarnEl);
+
   // ------------------------------------------------------- debug HUD (dev)
-  // Not the real HUD (K12) — a plain, unstyled readout so the mechanic can
-  // actually be watched while playing. Removed/replaced when K12 lands.
+  // Kept alongside the real HUD above — useful while K5-K11 are still
+  // being tuned. Not shown to a real player once this ships; small and
+  // out of the way so it doesn't get confused for the real HUD.
   const debugEl = document.createElement("div");
   debugEl.style.cssText =
-    "position:fixed;top:8px;left:8px;color:#fff;font:12px monospace;background:rgba(0,0,0,.5);padding:8px;white-space:pre;z-index:50;pointer-events:none;";
+    "position:fixed;bottom:8px;left:8px;color:#9c9;font:10px monospace;background:rgba(0,0,0,.5);padding:6px;white-space:pre;z-index:50;pointer-events:none;opacity:.75;";
   document.body.appendChild(debugEl);
 
   // ------------------------------------------------------------- run state
@@ -347,14 +376,26 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     playerLight.position.set(player.position.x, player.position.y + 1.4, player.position.z);
 
     if (messageT > 0) messageT -= dt;
+
+    // -------------------------------------------------------------- K12 HUD
+    hud.innerHTML =
+      `<div style="font-size:17px;letter-spacing:.02em;">Azık — gemiye teslim: ${delivered} / ${CYCLOPS_ITEM_TARGET}</div>` +
+      `<div style="opacity:.85;margin-top:2px;">Taşınan: ${carriedCount} / ${CYCLOPS_CARRY_CAP}</div>`;
+    promptEl.textContent = message;
+    promptEl.style.opacity = messageT > 0 ? "1" : "0";
+    // Present = the real hide-or-be-caught window, pulses harder than the
+    // return telegraph. No countdown number shown either way (P2).
+    if (phase === "present") {
+      hideWarnEl.style.opacity = String(0.55 + 0.45 * Math.sin(phaseT * 4));
+    } else if (phase === "return") {
+      hideWarnEl.style.opacity = "0.6";
+    } else {
+      hideWarnEl.style.opacity = "0";
+    }
+
+    // --------------------------------------------------------- debug (dev)
     debugEl.textContent =
-      `[DEV DEBUG — gerçek HUD değil, K12 bekliyor]\n` +
-      `faz: ${phase}  (${phaseT.toFixed(1)}s)\n` +
-      `oda: ${roomIdAt(player.position.z)}\n` +
-      `DETECT: ${detect.toFixed(0)}/${DETECT_MAX}\n` +
-      `taşınan: ${carriedCount}/${CYCLOPS_CARRY_CAP}  teslim: ${delivered}/${CYCLOPS_ITEM_TARGET}\n` +
-      `ezilme: ${crushCount}/${CYCLOPS_CRUSH_CAP}\n` +
-      (messageT > 0 ? `\n> ${message}` : "");
+      `[dev] faz:${phase} (${phaseT.toFixed(1)}s)  oda:${roomIdAt(player.position.z)}  DETECT:${detect.toFixed(0)}/${DETECT_MAX}  ezilme:${crushCount}/${CYCLOPS_CRUSH_CAP}`;
 
     input.endFrame();
   }
