@@ -305,6 +305,23 @@ char_odysseus_turnaround_01_ref_2048.png  # sadece referans — oyuna girmez. NO
 - **Unutuş efekti [P]:** shader/post katmanı — doygunluk düşüşü + süt beyazı **vinyet** + sis mesafesi kısalma + en son ≤3 px bulanıklık. Texture'a boyanmaz, çalışma zamanında uygulanır (`art-bible.md` §4, `docs/design/gdd-memory-system.md` §9). Ekran **karartılmaz**.
 - **İç göl [P]:** aynı su shader'ı ama köpük ve caustic katmanı olmadan, daha durgun ve yeşilimsi — oyuncu bakarak "burası deniz değil" diyebilmeli.
 
+### 6.1 Saklama, arşivleme, temizlik **[P]** (2026-08-25, sahip talebi)
+
+**Neden bu bölüm var:** Kiklop konsept turlarında (ASSET-104-107) tek oturumda 24 ham PNG üretildi, yalnız 4'ü kilitlendi — `art-source/raw/` disk üstünde büyümeye devam ediyor (`.gitignore`'da, yani git bunu asla temizlemiyor). Kural yoksa bu klasör süresiz şişer.
+
+**Üç katmanın farklı saklama kuralı var:**
+
+| Katman | Git | Ne zaman silinir | Kim siler |
+|---|---|---|---|
+| `art-source/work/` (prompt dosyaları) | Hayır (`.gitignore`) | **Silinmez.** Küçük (metin), yeniden üretim için tek doğruluk kaynağı — bir varyant neden reddedildiğini `asset-registry.md` açıklar ama *nasıl* üretildiğini yalnız prompt dosyası taşır | — |
+| `art-source/raw/` (üretimin ham çıktısı, tüm varyantlar) | Hayır (`.gitignore`) | **Bir varyant kilitlenip `ref/`'e kopyalandığı anda**, o turun kazanmayan varyantları silinebilir/silinmeli. Karar zaten kalıcı olarak `asset-registry.md`'de (git'te) yazılı — pikseller kalmasa da karar kaybolmaz | Üretimi yapan ajan (`art-director` ya da o an üreten oturum), kilitleme adımının **hemen ardından**, ayrı bir "temizlik turu" beklenmeden |
+| `art-source/ref/` (kilitli, kabul edilmiş referans) | Hayır (`.gitignore`) ama **kalıcı sayılır** | Yalnız **yeniden karar alınıp değiştirildiğinde** (örn. ASSET-104'ün 04→02 dönüşü) — eski dosya üstüne yazılır/silinir, iki rakip "kilitli" dosya bir arada durmaz | Kararı değiştiren ajan |
+| `public/assets/**` (oyuna giren, git'e giren, shipping) | **Evet** | `asset-registry.md`'de durumu **`retired`** olan her satırın dosyası **fiilen silinir** — "retired" satırın kendisi (metin, tarih, neden) kayıtta kalır, ama dosya oyuncuya inen build'i şişirmeye devam etmemeli. Takipsiz (registry'de hiç satırı olmayan) dosyalar `npm run test:assets`'in manifest kontrolünün **kırmızı çıkmasının** en sık sebebi — bu asla "bilinen/kabul edilen" bir kırmızı olarak bırakılmaz, ya bir `assets.csv` satırı eklenir ya dosya silinir | `art-director`, her yeni asset turu **başlamadan önce** (D9 emsali: Kiklop assetlerinden önce manifest temizliği zorunlu tutuldu) |
+
+**Kasıtlı istisna — başka bir oturumun aktif iş dosyaları:** `art-source/raw/` içindeki bir dosya `ACTIVE_WORK.md`'de **başka bir oturumun şu an aktif** olarak işaretlediği bir işe aitse (örn. bu yazıldığı sırada `char_doryseus_08_*` rig denemeleri), **dokunulmaz** — yukarıdaki "kazanmayan varyant silinir" kuralı yalnız **kendi ürettiğin** ve karar süreci **kapanmış** dosyalar için geçerlidir. Şüphede kalırsan silme, sor.
+
+**Kadans:** ayrı bir "temizlik sprinti" yok — her konsept-kilitleme adımının **bir parçası**. Bir varyant kilitlenmeden bu kural işlemez (henüz karar verilmemiş bir turun ham çıktısı silinmez).
+
 ---
 
 ## 7. Asset manifest — shipping artifact
