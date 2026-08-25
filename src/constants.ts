@@ -44,6 +44,26 @@ function resolveProfileFromUrl(): WorldProfileKey {
 
 export const ACTIVE_PROFILE: WorldProfileKey = resolveProfileFromUrl();
 
+// ----------------------------------------------------------------- run stop
+/**
+ * Which Odyssey stop this page load is playing. `?stop=cyclops` for the
+ * Cyclops Cave (docs/production/implementation-spec-sprint1.md K1); anything
+ * else, including no param at all, is the Lotus Island default. Resolved
+ * once at module load for the same reason as ACTIVE_PROFILE above (this
+ * module is evaluated before anything else that would want to branch on it).
+ * This is a page-load selector, not in-run navigation — moving between stops
+ * happens through the Hub, which reloads with a different `?stop=`.
+ */
+export type ActiveStop = "lotus" | "cyclops";
+
+function resolveStopFromUrl(): ActiveStop {
+  if (typeof window === "undefined") return "lotus";
+  const q = new URLSearchParams(window.location.search).get("stop");
+  return q === "cyclops" ? "cyclops" : "lotus";
+}
+
+export const ACTIVE_STOP: ActiveStop = resolveStopFromUrl();
+
 interface WorldProfileValues {
   island: { radius: number; planeSize: number; planeSegments: number };
   player: { speed: number; spawn: { x: number; z: number } };
