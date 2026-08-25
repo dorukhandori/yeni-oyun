@@ -57,7 +57,7 @@ CCGS `asset-spec` karşılıkları: `planned`=Needed · `generated`=In Progress 
 
 ### Sıralama gerekçesi
 
-Üç ölçüte göre sıralandı: (1) koda **en hızlı ve düşük riskle entegre olan** (tek `TextureLoader` swap), (2) **oynanışı en çok destekleyen** (unutuş mekaniğini görselleştiren veya çekirdek okuma problemini çözen), (3) **düşük risk/yüksek etki**. Karakter idle billboard'ı (ASSET-041..044) 15 Ağu 2026'da entegre — `sailor.ts` 4-yön Sprite. Yürüme/toplama/teslim spritesheet'leri (ASSET-024/025/026, `pipeline.md` §5) hâlâ pahalı: Veo clip diskte yok, `sheet-from-video.mjs` hazır, elle temizlik sahip kapısı. ASSET-034 tasarım dokümanının kendisi tarafından **MVP sonrası** işaretlendiği için en sonda.
+Üç ölçüte göre sıralandı: (1) koda **en hızlı ve düşük riskle entegre olan** (tek `TextureLoader` swap), (2) **oynanışı en çok destekleyen** (unutuş mekaniğini görselleştiren veya çekirdek okuma problemini çözen), (3) **düşük risk/yüksek etki**. Oynanabilir gövde 2026-08-21'den beri v3 Tripo rig (`char_doryseus_02_rig_8000.glb`). ASSET-041..044 idle stills kilit Tripo multiview kaynağı + mesh yüklenemezse billboard. 2D walk/run/harvest spritesheet'ler (ASSET-024 ailesi) 2026-08-21 silindi. ASSET-034 tasarım dokümanının kendisi tarafından **MVP sonrası** işaretlendiği için en sonda.
 
 | Sıra | ID | Neden bu sırada | Prompt dosyası | Komut (Bash erişimi olan taraf çalıştırır) | Hedef (üretim sonrası, §8 geçince) |
 |---|---|---|---|---|---|
@@ -94,7 +94,7 @@ CCGS `asset-spec` karşılıkları: `planned`=Needed · `generated`=In Progress 
 | 26 | ASSET-008 | Aynı hat, lotus açma — lotus zaten billboard sprite olduğu için doğal sıradaki adım | `prompt-asset-008-lotus-open.txt` | `node scripts/gen-assets.mjs video --prompt-file art-source/work/prompt-asset-008-lotus-open.txt --aspect 1:1 --seconds 2 -o art-source/raw/lotus_open_clip_01.mp4` | `art-source/frames/` → … → `public/assets/spritesheets/` |
 | 27 | ASSET-034 | Tasarım dokümanı **MVP sonrası** diyor (`game-concept.md` §12) — üretimi ertelemek tasarım kararına uyar | `prompt-asset-034-lotophagos.txt` | *(bilerek ertelendi — bkz. dosyanın "HOLD" başlığı)* | `art-source/ref/` |
 
-**Karakter render kararı (15 Ağu 2026, sahip — yol A):** `sailor.ts` artık 4-yön `Sprite` billboard (ASSET-041..044, ASSET-001'den kenar flood-fill). ASSET-024/025/026 yürüme/toplama/teslim klipleri bu motorun üzerine oturur — Veo dosyaları diskte yok; `scripts/sheet-from-video.mjs` klipler gelince çalışır. Elle temizlik (`pipeline.md` §5 adım 5) hâlâ sahip kapısı.
+**Karakter render kararı (16–21 Ağu 2026, sahip):** oynanabilir gövde gerçek dokulu 3D mesh — v3 Tripo `char_doryseus_02_rig_8000.glb` (idle/walk/run/dig). ASSET-041..044 kilit stills (Tripo kaynağı). 2D locomotion spritesheet'ler 2026-08-21 silindi.
 
 ---
 
@@ -178,19 +178,14 @@ CCGS `asset-spec` karşılıkları: `planned`=Needed · `generated`=In Progress 
 
 | ID | Ad | Sınıf | Tip | Şablon | Durum | Not |
 |---|---|---|---|---|---|---|
-| ASSET-041 | Doryseus — ön idle | `scene-texture` | albedo (alpha) | ASSET-001'den kırpıldı | **integrated** | `public/assets/sprites/char_doryseus_front_01_albedo_512.png` · `sailor.ts` 4-yön Sprite |
+| ASSET-041 | Doryseus — ön idle | `scene-texture` | albedo (alpha) | ASSET-001'den kırpıldı | **integrated** | `public/assets/sprites/char_doryseus_front_01_albedo_512.png` · kilit Tripo multiview kaynağı + mesh yüklenemezse billboard |
 | ASSET-042 | Doryseus — sağ profil idle | `scene-texture` | albedo (alpha) | ASSET-001'den kırpıldı | **integrated** | `char_doryseus_right_01_albedo_512.png` |
 | ASSET-043 | Doryseus — sol profil idle | `scene-texture` | albedo (alpha) | ASSET-001'den kırpıldı | **integrated** | `char_doryseus_left_01_albedo_512.png` |
 | ASSET-044 | Doryseus — sırt idle | `scene-texture` | albedo (alpha) | ASSET-001'den kırpıldı | **integrated** | `char_doryseus_back_01_albedo_512.png` |
-| ASSET-058 | Doryseus — hacimli mesh | `scene-mesh` **[P]** | GLB | `prompts/doryseus-mesh-source.md` + ASSET-041..044 | **generated** | `char_doryseus_01_mesh_8000.glb` · statik yedek |
-| ASSET-059 | Doryseus — rig + yürüyüş | `scene-mesh` **[P]** | GLB | ASSET-058 + Tripo retarget | **generated** | `char_doryseus_01_rig_8000.glb` · `preset:idle/walk/run` · `sailor.ts` AnimationMixer |
-| ASSET-024 | Doryseus yürüme döngüsü — sırt | `spritesheet` **[A]** | sheet | `art-source/work/prompt-asset-024-doryseus-walk-back.txt` | **integrated** (taslak) | `public/assets/spritesheets/char_doryseus_walk_back_01_sheet_2048.png` · 8 kare · Veo image-to-video 8s/16:9 (2026-08-15) · **elle temizlik sahip kapısı** |
-| ASSET-045 | Doryseus yürüme — sağ profil | `spritesheet` **[A]** | sheet | `art-source/work/prompt-asset-024-doryseus-walk-right.txt` | **integrated** (taslak) | `char_doryseus_walk_right_01_sheet_2048.png` · sol yön aynı sheet + flip |
-| ASSET-046 | Doryseus yürüme — ön | `spritesheet` **[A]** | sheet | `art-source/work/prompt-asset-024-doryseus-walk-front.txt` | **integrated** (taslak) | `char_doryseus_walk_front_01_sheet_2048.png` |
-| ASSET-050 | Doryseus yürüme — ön-sağ 3/4 | `spritesheet` **[A]** | sheet | `art-source/work/prompt-asset-024-doryseus-walk-front-right.txt` | **integrated** (taslak) | `char_doryseus_walk_front_right_01_sheet_2048.png` · sol-ön çapraz aynı sheet + flip |
-| ASSET-051 | Doryseus yürüme — arka-sağ 3/4 | `spritesheet` **[A]** | sheet | `art-source/work/prompt-asset-024-doryseus-walk-back-right-v2.txt` | **integrated** (taslak) | `char_doryseus_walk_back_right_01_sheet_2048.png` · sol-arka çapraz aynı sheet + flip |
-| ASSET-025 | Doryseus toplama hareketi | `spritesheet` **[A]** | sheet | `art-source/work/prompt-asset-025-doryseus-harvest.txt` | **generated** | `art-source/raw/char_doryseus_harvest_clip_01.mp4` (Veo, 4s/16:9) · aynı şekilde spritesheet hattı bekliyor |
-| ASSET-026 | Doryseus teslim hareketi | `spritesheet` **[A]** | sheet | `art-source/work/prompt-asset-026-doryseus-deliver.txt` | **generated** | `art-source/raw/char_doryseus_deliver_clip_01.mp4` (Veo, 4s/16:9) · aynı şekilde spritesheet hattı bekliyor |
+| ASSET-058 | Doryseus — hacimli mesh (eski) | `scene-mesh` **[P]** | GLB | `prompts/doryseus-mesh-source.md` + ASSET-041..044 | **retired** | `char_doryseus_01_mesh_8000.glb` · silindi 2026-08-21, kodda hiç referansı yoktu, `char_doryseus_02_textured_8000.glb` (`SAILOR.mesh`) yerini aldı |
+| ASSET-059 | Doryseus — rig + yürüyüş (eski) | `scene-mesh` **[P]** | GLB | ASSET-058 + Tripo retarget | **retired** | `char_doryseus_01_rig_8000.glb` · silindi 2026-08-21, kodda hiç referansı yoktu, `char_doryseus_02_rig_8000.glb` yerini aldı |
+| ASSET-024 / 045 / 046 / 047 / 048 / 049 / 050 / 051 / 025 | Doryseus 2D walk/run/harvest sheets | `spritesheet` | sheet | Veo → spritesheet | **retired** 2026-08-21 | Sahip: yalnız v3 Tripo gövde. Sheet dosyaları silindi; lokomasyon `char_doryseus_02_rig_8000.glb` (`preset:idle/walk/run/biped:dig`). Billboard fallback artık ASSET-041..044 idle stills. |
+| ASSET-026 | Doryseus teslim hareketi | `spritesheet` **[A]** | sheet | `art-source/work/prompt-asset-026-doryseus-deliver.txt` | **generated** | `art-source/raw/char_doryseus_deliver_clip_01.mp4` — 2D sheet üretilmedi; jest GLB de 2026-08-21 silindi |
 | ASSET-034 | Lotophagos figürü — ikram duruşu | `reference` **[K]** | still | `prompts/character-turnaround.md` | planned | 3 sessiz figür (`LOTOPHAGOS_COUNT`), elinde açık lotus uzatır. **MVP sonrası** (`game-concept.md` §12) |
 
 ---
@@ -261,6 +256,39 @@ Eski planned ASSET-062–067 (Tripo 3/4 still) **iptal** — ID çakışması + 
 | ASSET-080 | Golet suyu + havza | `scene-mesh` | prosedürel (kod) | `src/world/ponds.ts` | **integrated** | Dalgalı `ShapeGeometry` diski, 64 segment, `PALETTE.lagoon`. Havza `heightAt()`'e `pondBasinAt()` terimi olarak giriyor. Disk yarıçapı çözülen su hattından (`WATERLINE_RATIO`) türetiliyor — çukur yarıçapından değil (ilk sürüm kıyıda havada kalıp poligon kenarı gösteriyordu). Kıyıda ASSET-071 saz + ASSET-069 çakıl + ASSET-034 nilüfer yaprağı yeniden kullanılıyor. |
 | ASSET-081 | Belli belirsiz patika maskesi | `scene-texture` | prosedürel (runtime `DataTexture`) | `src/world/paths.ts` | **integrated** | Tek kanallı, `real` 1024² (0,375 m/texel), `test` 512². Bake 22 ms, texel'lerin %3,2'si dolu. Zemin shader'ında tek `texture2D` fetch. Doku **dosyası yok** — her açılışta rotalardan üretiliyor, bu yüzden ada şekli değişince patika da değişiyor. |
 | ASSET-082 | Kurbağa (ambient fauna) | `creature` | prosedürel (kod mesh) | `src/world/frogs.ts` | **integrated** | ~150 üçgen, merged + `InstancedMesh`, vertex colour. Gövde/burun/göz kubbeleri/katlı arka bacak. `real` ~37 adet. Hareket `t`'nin saf fonksiyonu (hash'lenmiş sıçrama indeksi) — durum yok, sapma yok. **Sanrı figürü DEĞİL:** collider yok, temas testi yok, hiçbir mekanik etki yok (Thallope ile aynı katman). |
+
+---
+
+## P8 — Kiklop Mağarası (2. durak) — konsept turu **YENİ, 2026-08-25** **[P]**
+
+> Sahip kararı **D11** (25 Ağu 2026, `docs/art/art-bible.md` §9 istisna kutusu): Kiklop Mağarası kasıtlı korku dili konuşuyor, karartma/karanlık-tehdit yasağı **yalnız bu durakta** açık. **Bu, satır 298'deki eski P2-UI kabul kriterini ("mağara ağzı kapkaranlık değil") geçersiz kılmaz** — o kriter, zaten kilitlenmiş/shipped küçük Hub-kartı madalyonuna (ASSET-039, 512 px ikon, 14 Ağu 2026) özgüdür ve Hub'ın üç ada için ortak, tarafsız çizim diline bağlıdır; D11'in kapsamı **durağın kendi sahne/level konseptleri** (bu bölüm), Hub ikonuna otomatik yayılmaz. Hub ikonunun D11 ışığında yeniden üretilip üretilmeyeceği ayrı, henüz sorulmamış bir soru.
+>
+> Tam konsolide plan: `docs/production/cyclops-cave-production-plan.md` §4.2 (asset listesi/ID envanteri) ve §4.4 (Polyphemos gerekçesi). Mekanik otorite: `docs/design/gdd-cyclops-blinding.md`.
+
+| ID | Ad | Sınıf | Şablon / prompt dosyası | Durum | Not |
+|---|---|---|---|---|---|
+| ASSET-104 | Mağara ağzı — sahne konsepti (ada dış görünüşü + eşik) | `reference` | `art-source/work/prompt-asset-104-cyclops-cave-mouth.txt` (round 1, gün ışığı ağırlıklı — **kilitlenen varyant bu turdan**) + `art-source/work/prompt-asset-104-cyclops-cave-mouth-v2-dark.txt` (round 2, sahip "biraz daha dark" geri bildirimi — denendi, elendi, aşağıya bkz.) | **accepted** | Sahip seçimi (iki tur revizyon sonrası, 2026-08-25): round 1 varyant 02 → `art-source/ref/scene_cyclops_cave_mouth_01_ref_1344.png` · `gemini-2.5-flash-image` · seed none · 16:9 · 1344×768. **Karar gerekçesi — sahip'in kendi önerisi:** dışarıyı adanın geri kalanıyla (Lotus/Hub'ın altın-saat ailesi) aynı sıcak/güneşli dilde tutup "korku bütçesi"ni bilerek **içeri** (ASSET-105/106/107 — Depo/Ağıllar/İç nöy) sakla; kontrast tekniği (parlak dış + tek karanlık delik) korunuyor, kurşuni/ağır gökyüzü denemesi (round 2, varyant 04) bu yüzden geri çekildi — bütün dış sahneyi karartmak yerine iç mekan konseptleri **round 2'den daha da karanlığa** çekilecek. Round 1'in 3 varyantından biri (01) ayrıca elendi — mağara karşı taraftan ışık sızan kısa bir tünel gibi çıkmıştı, `level-cyclops-cave.md`'nin 170 m'lik çok-odalı, çıkışsız derinliğiyle çelişiyordu. Bu sahne `ASSET-090/091/097/101`'in görsel referansı (`cyclops-cave-production-plan.md` §4.2). **Sonraki sahnelerin (ASSET-105-107) ton hedefi:** round 2'nin (04/05/06) kurşuni/soğuk yoğunluğu artık dış mekan değil, iç mekan taban çizgisi — oda konseptleri bunun bir kademe daha koyusundan başlamalı. |
+
+### Kabul kriteri **[P]** — ASSET-104
+
+- [x] Dışarısı (koy/patika, D<0) gün ışığı, kroki (`level-cyclops-cave.md` §1.4) ile tutarlı — kayalık/kum/deniz paleti art-bible §2'den
+- [x] Mağara eşiği (D=0-8) aydınlık, ama iç derinlik okunaklı bir karanlığa gömülüyor — **karartma burada bilinçli** (D11 istisnası)
+- [x] Mor-kristal/fener/bataklık paleti yok — karanlık Ege kayasının ve ocak kehribarının karanlığı (art-bible §9 Kiklop kutusu)
+- [x] Fotogerçekçi değil, logo/marka yok
+- [ ] `assets.csv` satırı — bkz. §7 (bu satır henüz eklenmedi, `class=reference` olduğu için oyuna girmiyor, satır zorunlu değilse atlanabilir — `art-director` teyit etsin)
+
+| ASSET-105 | Depo (antişambr) — sahne konsepti, oda + Boğaz A eşiği | `reference` | `art-source/work/prompt-asset-105-cyclops-depot.txt` (round 1) → `-v2-detailed.txt` (round 2, sahip "daha detaylı + daha kasvetli" geri bildirimi) → `-v3-chamber.txt` (round 3, sahip "odalar/bölmeler nerede" geri bildirimi — **kilitlenen varyant bu turdan**) | **accepted** | Sahip seçimi (üç tur revizyon, 2026-08-25): round 3 varyant 07 → `art-source/ref/scene_cyclops_depot_01_ref_1344.png` · `gemini-2.5-flash-image` · seed none · 16:9 · 1344×768. **İterasyon geçmişi:** round 1 (temel kehribar-eşik/karanlık-derinlik kompozisyonu) kabul edilebilirdi ama sahip daha fazla somut detay istedi (round 2 — ip/peynir/tulum/sepet/testi/niş eklendi, oda daha kasvetli/yoğun karartıldı). Round 1/2'nin **ikisinde de** ortak bir hata vardı: oda sonsuz bir tünel gibi karanlığa akıp gidiyordu, `level-cyclops-cave.md`'nin kroki'sindeki **Depo (12 m) → Boğaz A (4 m) daralması**'nı (dar geçit, görüş kesen bir "boğaz") hiç göstermiyordu — sahip bunu yakaladı. Round 3 bunu düzeltti: oda artık net sınırlı bir hacim, sona doğru belirgin şekilde daralıp küçük, kapkaranlık bir kemere/eşiğe (Boğaz A) bağlanıyor — kemerin içi hâlâ tam karanlık (ötesi gösterilmiyor), sadece kehribar bir çerçeveyle vurgulanıyor. Round 3'ün 3 varyantından ikisi (08 en karanlık/en az okunaklı, 09 07'ye çok yakın) elendi; 07 detay okunabilirliği ile karanlık dengesini en iyi tutan seçildi. Bu sahne `ASSET-091/092/102`'nin görsel referansı (`cyclops-cave-production-plan.md` §4.2). |
+
+### Kabul kriteri **[P]** — ASSET-105
+
+- [x] Oda net sınırlı bir hacim (12 m × 4 m kroki ölçüsüyle tutarlı okunuyor), sonsuz tünel değil
+- [x] Sona doğru **Boğaz A'ya belirgin daralma** — dar/kapkaranlık bir kemer/eşik, kroki'nin 12→4 m geçişiyle tutarlı
+- [x] Tek ışık kaynağı (mağara ağzının kehribar kuyruğu) — ikinci/rakip bir ışık lekesi yok (round 1/2'de bazı varyantlarda vardı, bilerek elendi)
+- [x] Kapı-kapalı durumda hiç yerel ışık kaynağı olmaması (ASSET-102'nin gerekçesi) görselde ima ediliyor — oda ışıksız kaldığında neredeyse tam karanlık olacağı okunuyor
+- [x] Mor-kristal/fener/bataklık paleti yok, Ege kayası + ocak kehribarı ailesinde
+- [x] Yeterince somut detay (propların ayrı ayrı seçilebilir olması) — bu bir "inşa edilebilir referans", salt mood painting değil
+- [x] Fotogerçekçi değil, logo/marka yok
+- [ ] `assets.csv` satırı — ASSET-104 ile aynı gerekçeyle beklemede
 
 ---
 

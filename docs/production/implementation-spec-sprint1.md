@@ -1,0 +1,131 @@
+# Implementasyon spec + Sprint 1 — Lotus kapanışı + Kiklop Mağarası inşası
+
+> **Statü:** uygulamaya hazır iş listesi, plan değil. Tasarım/oynanış kararları burada verilmiyor — hepsi zaten kapalı (`docs/design/gdd-cyclops-blinding.md`, `docs/design/tuning.md`, `docs/production/cyclops-cave-production-plan.md`). Bu doküman onları **dosya/fonksiyon seviyesinde iş kırılımına** çevirir.
+> **Tarih:** 2026-08-25. Yazan: ana oturum, sahibin sert geri bildirimi üzerine — önceki turlarda sayılar görsel/gerçek kod durumu hiç kontrol edilmeden kilitlendi, bu doküman **gerçek `src/` durumunu okuyarak** yazıldı, varsayımla değil.
+> **Kapsam dışı:** yeni tasarım kararı almak. Bir belirsizlik çıkarsa (ör. iki dokümanın çelişmesi), burada durup sahibe sorulur, kendiliğinden karar verilmez.
+
+---
+
+## 0. Neden bu doküman var
+
+Sahibin 25 Ağu 2026 eleştirisi, kabul edildi, buraya bağlayıcı olarak yazılıyor:
+
+1. **Lotus Adası bitmeden Kiklop'a başlanmıyordu — halbuki gerçekte büyük kısmı zaten bitmiş.** `docs/production/roadmap.md`'nin 14 Ağustos'tan kalma "kodda YOK" tablosu **büyük ölçüde bayat** — §1 bunu ölçerek düzeltiyor. Gerçek kalan iş küçük, roadmap'in iddia ettiğinden çok daha az.
+2. **Sayılar görsel/kod gerçekliği kontrol edilmeden kilitlenmeyecek.** Bu doküman her iddiayı `src/`'de arayıp satır numarasıyla kanıtlıyor.
+3. **`CYCLOPS_CRUSH_CAP=3` (3 ezilme → tam sıfırlama) deneysel işaretleniyor**, playtest'e kadar kesin değil — §4'te.
+4. **Ses işi somut bir Cursor bileti olarak açılıyor**, havada bırakılmıyor — §5'te.
+5. **En pahalı/riskli iş (Polyphemos, mimari dikiş) önce**, en ucuz iş (dış manzara resmi, zaten yapıldı) sona — sıralama §3'te buna göre.
+
+---
+
+## 1. Lotus Adası — gerçek durum denetimi (2026-08-25, `src/` okunarak)
+
+`roadmap.md` §1.3'ün "tasarımda var, kodda YOK" tablosuyla karşılaştırma:
+
+| Madde | Roadmap'in iddiası (14 Ağu) | Gerçek durum (bugün, kanıt) | Sonuç |
+|---|---|---|---|
+| `HARVEST_HOLD` (E basılı tutma + ilerleme + hareketle iptal) | Yok | **Var, tam.** `LOTUS.hold=1.2`, `LOTUS.cancelMove=0.3` (`src/constants.ts:759,761`); basılı tutma/iptal/ilerleme mantığı `src/game.ts:1142-1162`; ilerleme halkası `src/game.ts:1210-1211` | ✅ Kapalı, iş yok |
+| Dört unutuş eşiği + histerezis | Kodda tek eşik var | **Histerezis var** (`src/constants.ts:859,861`: `threshold:60/100`, `hysteresis:3/100`). Dört ayrı eşik mi yoksa tek eşik+histerezis mi olduğu **doğrulanmadı** — `qa-tester` tek tek `gdd-memory-system.md` §3.2'ye karşı koşmalı | ⚠️ Kısmen — tam doğrulama gerek, §1.2 |
+| Deterministik olgunlaşma (`LOTUS_PHASE_SEED`) | `Math.random()` kullanıyor, rota öğrenilemez | **Artık deterministik.** `src/world/lotus.ts:562`: `mulberry32(ctx?.seed ?? 77002)` | ✅ Kapalı, iş yok (roadmap'in en kritik "P3 çökük" bulgusu artık geçersiz) |
+| Yürüyüş sapması (eşik 3) | Yok | **Kısmi.** Sanrı-figürü temas sapması (`HALLUCINATION.driftMultiplier`) tam çalışıyor (`src/game.ts:923-935`). Ama kod içi yorum satırı (`src/game.ts:926`) açıkça diyor ki: *"regardless of the (not yet implemented) eşik-3 baseline drift"* — yani **temel unutuş-eşiği sapması (sanrı figürü olmadan, salt yüksek unutuşta) hâlâ yok** | ❌ Gerçek eksik — §1.1'de iş |
+| Solmuş çiçek cezası (`MEM_WITHERED_PENALTY`) | Yok | **Hâlâ yok.** `src/game.ts`'de `stage === "wilt"` durumuna bağlı hiçbir kod yok (grep temiz) | ❌ Gerçek eksik — §1.1'de iş, ama **tasarım kararı olabilir**: `game.ts:242` civarındaki yorum ("natural loss IS the penalty") başka bir bağlamda (K35 forget event) yazılmış olsa da aynı felsefe burada da geçerli olabilir — `game-designer`'a tek soru: bilerek mi atlandı? |
+| El yerleşimli 28 çiçek | Kod 3 bölgeye prosedürel saçıyor | **Muhtemelen artık moot** — K-A kararıyla (tek koşu, `edge` mod hedef 5) klasik 12'li modun önemi düştü, `LOTUS.minSpacing`/`edgeCount` gibi yeni sabitler var. Doğrulama gerek ama **öncelik değil** | 🔵 Düşük öncelik, §1.3 |
+| Başlık/nasıl oynanır/hakkında ekranları | Yok | **Kısmen var** — `Menu` sınıfı (`src/ui/menu.ts`) title/hub/pause ekranlarını yönetiyor, `mountMuteToggle`, `requestLandscapeLock` var. Tam "nasıl oynanır/hakkında" içerik ekranı ayrı doğrulanmalı | ⚠️ Kısmen, §1.3 |
+| Esc → duraklat | Yok | **Var.** ACTIVE_WORK.md'nin 23 Ağu satırı: "oyun içi pause" şipedildi | ✅ Kapalı |
+| DOM pusula | Yok, 3D ok var | Doğrulanmadı bu turda — düşük risk, `qa-tester`'a bırak | 🔵 §1.3 |
+| Bayılma katmanı (`FX_GHOST_OFFSET`/`FX_BREATH_*`) | Yok | Doğrulanmadı bu turda | 🔵 §1.3 |
+| Sanrı figürleri | Yok | **Var, entegre.** `buildHallucinations` import + kullanım `src/game.ts:40`, temas mantığı `:1294-1310` | ✅ Kapalı |
+
+**Okuma:** roadmap'in "büyük boşluk" listesinin çoğu artık kapalı. Gerçek kalan iş **iki madde**: (1.1) temel eşik-3 sapması + solmuş çiçek cezası — ikisi de küçük, tek oturumluk işler. Geri kalanı (1.2/1.3) doğrulama, yeni kod değil.
+
+### 1.1 Sprint'e giren gerçek Lotus işleri
+
+| # | İş | Dosya | Tahmini | Not |
+|---|---|---|---|---|
+| L1 | Temel eşik-3 yürüyüş sapması (sanrı figürü YOKKEN de, salt unutuş eşik 3'te) | `src/game.ts` (`driftTimer` mantığının yanına, ~line 928 civarı) | 0.5 oturum | `MEMORY.driftMaxAngleDeg`/`driftPeriod` zaten var, sadece eşik-3 koşulunu tetikleyen ikinci bir kaynak eklemek — mevcut sanrı-tetikli koddan **kopyala değil, aynı fonksiyonu paylaştır** |
+| L2 | Solmuş çiçek cezası **ya da** bilinçli "yok" kararı | `game-designer` sorusu önce, sonra `src/game.ts`/`src/world/lotus.ts` | 0.5 oturum (karar + varsa uygulama) | Önce sahibe/`@helix`'e sor: bilerek mi atlandı (K35 forget-event felsefesiyle tutarlı olarak) yoksa gerçek bir boşluk mu |
+
+### 1.2 Sprint'e girmeyen, ama kapanmadan "Lotus bitti" denemeyecek doğrulama işi
+
+`qa-tester`'a ayrı, kısa bir görev: `gdd-lotus-collection.md` §8 (10 kriter) + `gdd-memory-system.md` §8 (14 kriter) tek tek koşulup işaretlenmeli. **Bu kod yazmıyor, sadece mevcut durumu ölçüyor** — L1/L2 dışında yeni iş çıkarsa buraya eklenir.
+
+### 1.3 Düşük öncelik / K-A'ya bağlı
+
+El yerleşimi, DOM pusula, bayılma katmanı, başlık/hakkında ekranlarının tam içeriği — bunlar **D7 kararı gereği K-A turunda** (Kiklop'tan sonra) ele alınacak, şimdi dokunulmuyor.
+
+---
+
+## 2. Kiklop Mağarası — mimari dikiş (A3, kademeli)
+
+Karar: `docs/production/cyclops-cave-production-plan.md` §5.3 (D5=A3). Aşağıdaki, o kararın **gerçek `game.ts`/`types.ts` yapısına** karşı somutlaştırılmış hali.
+
+### 2.1 Bugünkü gerçek yapı (kanıt)
+
+- `src/types.ts:12`: `Phase = "title" | "hub" | "play" | "departing" | "won" | "lost" | "dusk" | "gameover"` — **"level" ya da "stop" kavramı yok**, tek dünya (Lotus) hardwired.
+- `src/game.ts` tek `startGame()` closure'ı, boot'ta `buildLotusField`/`buildSailor`/`buildSea`/`buildShip`/`buildHillPuzzle`/`buildSteppingStones`/`buildThallopes`/`buildLotophagoi`/`buildHallucinations`/`buildShoreMist`/`buildTerrain` — 11 world-builder çağrısı **koşulsuz**, teardown yok.
+- `src/constants.ts:41-45`: `?profile=test` deseni zaten var — `URLSearchParams(window.location.search).get("profile")`, modül yüklenirken bir kere okunuyor, `ACTIVE_PROFILE` sabitleniyor. **Bu, `?stop=` için doğrudan kopyalanacak emsal.**
+
+### 2.2 Yeni dikiş — somut dosya planı
+
+| # | İş | Dosya | Tahmini | Bağımlılık |
+|---|---|---|---|---|
+| K1 | `?stop=` okuma, `ACTIVE_STOP: "lotus" \| "cyclops"` sabiti | `src/constants.ts` (mevcut `resolveProfileFromUrl` deseninin yanına) | 0.5 oturum | Yok, ilk iş |
+| K2 | `Phase` union'a Kiklop'a özgü fazlar eklenmesi (`"cyclopsPlay"` vb.) **ya da** mevcut fazların yeniden kullanımı — hangisi, `technical-director` netleştirsin (küçük ama gerçek bir tasarım kararı) | `src/types.ts` | 0.25 oturum | K1 |
+| K3 | `src/stops/` klasörü + `Stop` arayüzü (`{ build(scene, ctx): StopHandle; teardown(): void }` gibi) — Lotus'un mevcut build çağrıları bu arayüze **ince bir adaptörle** sarılır, silinmez | yeni `src/stops/lotusStop.ts` (ince sarmalayıcı), yeni `src/stops/cyclopsStop.ts` | 1 oturum | K1, K2 |
+| K4 | `game.ts`'in boot bloğu `ACTIVE_STOP`'a göre dallanır — Lotus'un 11 builder çağrısı yalnız `ACTIVE_STOP==="lotus"` iken çalışır | `src/game.ts` (boot bloğu) | 1 oturum | K3 |
+| K5 | `src/world/caveStage.ts` — mağara sahne ışığı (ambient/hemi, kapı açık/kapalı geçişi, ASSET-103), `src/render/stage.ts`'e **dokunmadan** ayrı modül (Grok'un 23 Ağu `stage.ts` dilimiyle çakışmasın diye zaten `cyclops-cave-production-plan.md`'de kararlaştırıldı) | yeni `src/render/caveStage.ts` | 1 oturum | K4 |
+| K6 | `src/world/cyclopsCave.ts` — mağara kabuğu (ASSET-090, Blender prosedürel), oda/saklaş noktası verisi (`level-cyclops-cave.md` §1.4 kroki sayıları) | yeni dosya + `scripts/blender/build_cyclops_cave.py` | 1.5 oturum | K5 |
+| K7 | Kapı döngüsü state machine — `CYCLOPS_CYCLE`/`PHASE_OUT`/`PHASE_RETURN`/`PHASE_PRESENT` (sayılar `tuning.md` §12'de kilitli), devin gezinme dağılımı, ışık geçişi | `src/game.ts` içine ya da `src/stops/cyclopsStop.ts` içine (K2'nin kararına bağlı) | 1.5 oturum | K6 |
+| K8 | Saklaş noktası + hareketsizlik kuralı (mevcut `DETECT` matrisinin `SHADOW_STILL=0` değerini kullanıyor, **yeni sabit gerekmiyor** — `@helix` zaten doğruladı) | aynı dosya | 1 oturum | K7 |
+| K9 | Ezilme = yakalanma olayı (D2/C2: azık düşer+kaybolmaz, mağara ağzına ışınlanma) + **`CYCLOPS_CRUSH_CAP` sayacı** (bkz. §4 — deneysel işaretli) | aynı dosya | 1 oturum | K8 |
+| K10 | Polyphemos — önce **kod silüeti/placeholder** ile mekanik test edilir (P-C'nin 80 kredisi **mekanik doğrulanmadan** harcanmaz — bu, sahibin "en pahalı işi en sona bırakma" eleştirisinin tersi değil, riski azaltan sıra: geometri/animasyon olmadan davranış/hız/collision önce çalışsın) | `src/world/cyclopsCave.ts` içinde basit kapsül/kutu mesh | 0.5 oturum | K7 |
+| K11 | Azık toplama (D1/F3: peynir/tulum propu, `lotus.ts`'in `Plant` API'si kopyalanır) | `src/world/cyclopsCave.ts` | 1 oturum | K6 |
+| K12 | HUD/prompt entegrasyonu (hedef sayacı, saklaş uyarısı, "ikinci kez, bir daha kaldıramazsın" beat satırı) | `src/ui/hud.ts` | 0.5 oturum | K9 |
+| K13 | Hub kartı gerçek buton (`#cardCyclops` div→button, kilit/açık durumu) | `src/ui/menu.ts`, `index.html` | 0.5 oturum | K1 |
+
+**Toplam K1-K13: ~10.75 oturum** (mekanik iskelet, Polyphemos placeholder ile). Gerçek Tripo mesh (P-C, ~80 kredi) K10'un yerini **playtest sonrası** alır — bu sırada da bir oturum daha.
+
+**Sıra (D7 gereği):** K1-K13 tamamı Kiklop, K-A (Lotus tek-koşu sadeleştirmesi) bundan sonra — §1.3.
+
+---
+
+## 3. Bu sprint'te YAPILMAYACAK, bilerek ertelenen
+
+- Polyphemos'un gerçek Tripo mesh+rig üretimi (K10 placeholder yeterli olana kadar)
+- ASSET-105/106/107 (Depo/Ağıllar/İç nöy konseptleri) — mekanik çalışmadan görsel kilitlemenin manası yok, sahibin kendi eleştirisi buydu
+- El yerleşimli 28 çiçek, DOM pusula, bayılma katmanı (§1.3)
+
+---
+
+## 4. `CYCLOPS_CRUSH_CAP=3` — DENEYSEL, playtest'e kadar kesin değil
+
+`tuning.md` §12'ye şu not eklendi (bkz. commit): sahibin kendi kararıyla belirlendi ama **hiç oynanmadan**, üstelik devin rotası kasıtlı öngörülemez tutulurken. K9 implementasyonu bu sayıyı **kolayca değiştirilebilir tek bir sabit** olarak yazmalı (kod içine gömülü değil), ilk playtest'ten sonra sahip 3'ü değiştirmek isterse tek satır değişecek. **Bu bir uyarı, bir engel değil** — implementasyon durmuyor, ama "kesin karar" muamelesi görmüyor.
+
+---
+
+## 5. Ses işi — somut Cursor bileti
+
+`@echo` (Sound Designer) Cursor-only, Claude Code'dan çağrılamıyor. Bu iş **havada bırakılmıyor** — aşağıdaki bilet hazır, sahip Cursor'ı açıp `@echo`'ya verdiğinde sıfırdan bağlam kurmasına gerek kalmasın diye kendi başına yeterli:
+
+> **Bilet: Kiklop Mağarası — körleşme ses katmanı**
+> **Kaynak:** `docs/design/gdd-cyclops-blinding.md` (mekanik otorite), `docs/art/art-bible.md` D11 kutusu (ton).
+> **İhtiyaç:**
+> 1. Kapı açık/kapalı geçiş sesi (taş sürtünmesi, ~2 sn, ekran hiç karartılmadığı için ses geçişi **tam da o an** oyuncuya "bir şey değişti" demeli — art-bible §4'ün "ekran karartma yasak" kuralı ses tarafına yansımaz, ses burada asıl taşıyıcı).
+> 2. Devin adım/nefes sesi — PRESENT boyunca sürekli, mesafeye göre şiddet (yakınsa net, uzaksa belirsiz) — oyuncunun devin nereye gittiğini **kısmen** ses yoluyla tahmin etmesini sağlamalı (görsel ipucu yok, mekanik bunu istiyor — `gdd-cyclops-blinding.md` §3).
+> 3. Ezilme anı — 3 şok bileşeni zaten kararlı (kamera sarsıntısı, kükreme, kenar vurgusu) — kükremenin ses varlığı `@echo`'nun işi.
+> 4. Saklaş noktası hareketsizlik ihlali uyarısı — ince bir gerilim sinyali (müzik değil, ortam), can barı/UI öğesi olmadığı için **tamamen sesle** taşınmalı.
+> **Kısıt:** Kenney CC0 paketleri zaten projede (`src/systems/audio.ts`) — yeni lisanslı kaynak gerekmiyor, mevcut paketlerden seçim + varsa hafif işleme yeterli.
+> **Kapsam dışı:** müzik bestesi, yeni paket satın alma.
+
+**Koordinasyon mekanizması:** bu bilet `docs/production/ACTIVE_WORK.md`'ye "beklemede" bölümüne, sahibe atanmış açık bir madde olarak eklendi (bkz. commit). Cursor tarafında biri (`@echo` ya da sahip) bunu aldığında `ACTIVE_WORK.md`'ye kendi claim satırını ekleyip **normal protokolü** izler — ekstra bir mekanizma icat edilmedi, mevcut çoklu-ajan protokolü zaten bunun için var, sadece **bilet olarak yazılı hale getirilmedi** daha önce.
+
+---
+
+## 6. Özet — sırada ne var
+
+1. **K1-K13** (Kiklop mekanik iskeleti, Polyphemos placeholder ile) — ~10.75 oturum
+2. **L1-L2** (Lotus'un gerçek kalan iki boşluğu) — ~1 oturum, K-A turunda
+3. Ses bileti sahibe/Cursor'a devredildi, ayrı bir zaman çizelgesinde
+4. Playtest'ten sonra: `CYCLOPS_CRUSH_CAP` doğrulaması, Polyphemos placeholder → gerçek P-C mesh, ASSET-105/106/107 konsept turu
+
+**Bu doküman kod yazmadı.** Sıradaki adım gerçek implementasyona (K1'den başlayarak) geçmek — sahip onaylarsa.
