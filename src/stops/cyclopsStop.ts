@@ -80,6 +80,17 @@ function doorGlobal(z: number): number {
 }
 
 export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
+  // K13 (real Hub card + lock state) isn't built yet — until then, reaching
+  // this function at all (only possible via ?stop=cyclops) means "skip
+  // straight to play", not "sit behind the Lotus Title/Hub DOM with no way
+  // in" (sahip: "Oyna çalışmıyor, normal localde de Kiklop kilitli", 25 Ağu).
+  // Not a design decision about the real unlock flow — pure dev-testing
+  // convenience, reverted the moment K13 lands.
+  for (const id of ["titleScreen", "hubScreen"]) {
+    const el = document.getElementById(id);
+    if (el) el.style.display = "none";
+  }
+
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: false });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.setSize(window.innerWidth, window.innerHeight);
@@ -89,10 +100,18 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
 
   const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 200);
 
-  const ambient = new THREE.AmbientLight(0x8899aa, 0.6);
+  // Bulundu (sahip playtest'i, 25 Ağu): sahne neredeyse hiç görünmüyordu —
+  // ışık sabitti, kapı açık/kapalı hiçbir fark yaratmıyordu (tasarım
+  // "mağara ağzı kapı açıkken 0,95 aydınlık" diyor, kod öyle davranmıyordu).
+  // Tam `doorGlobal(D)` derinlik-bazlı formülü (K5'in asıl işi) hâlâ yok,
+  // ama en azından kapı durumuna göre değişen, oynanabilir bir taban var.
+  const ambient = new THREE.AmbientLight(0xaab4c2, 1.1);
   scene.add(ambient);
-  const hemi = new THREE.HemisphereLight(0xbfd0e0, 0x30281f, 0.4);
+  const hemi = new THREE.HemisphereLight(0xbfd0e0, 0x30281f, 0.7);
   scene.add(hemi);
+  /** Oyuncuyu takip eden ışık — hangi odada olursan ol yakın çevreni
+   * görebilmen için (bir "meşale taşıyorsun" varsayımı, temsili). */
+  const playerLight = new THREE.PointLight(0xfff2d8, 1.6, 14, 1.6);
 
   const cave = buildCyclopsCave();
   scene.add(cave.group);
@@ -104,6 +123,9 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
   );
   player.position.set(0, 1.0, -18);
   scene.add(player);
+  playerLight.position.copy(player.position);
+  playerLight.position.y += 1.4;
+  scene.add(playerLight);
 
   // ---------------------------------------------------------------- giant
   const giant = new THREE.Mesh(
@@ -211,12 +233,16 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
         giant.position.set(0, 2.4, 0);
         giant.visible = true;
         cave.setDoorOpen(false);
+        ambient.intensity = 0.5;
+        hemi.intensity = 0.3;
         say("Kapı kapandı.");
       } else {
         phase = "out";
         phaseT = CYCLOPS_PHASE_OUT;
         giant.visible = false;
         cave.setDoorOpen(true);
+        ambient.intensity = 1.1;
+        hemi.intensity = 0.7;
         say("Kapı açıldı.");
       }
     }
@@ -313,9 +339,12 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     }
 
     // -------------------------------------------------------------- camera
-    const behindZ = player.position.z - 6;
-    camera.position.set(player.position.x, player.position.y + 4, behindZ);
-    camera.lookAt(player.position.x, player.position.y, player.position.z + 3);
+    // Bulundu (sahip playtest'i): eski -6/+4 ofseti her şeyi küçük/uzak
+    // gösteriyordu ("tanecikler" gördüm dedi) — yakınlaştırıldı.
+    const behindZ = player.position.z - 3.5;
+    camera.position.set(player.position.x, player.position.y + 2.2, behindZ);
+    camera.lookAt(player.position.x, player.position.y + 0.4, player.position.z + 3);
+    playerLight.position.set(player.position.x, player.position.y + 1.4, player.position.z);
 
     if (messageT > 0) messageT -= dt;
     debugEl.textContent =
