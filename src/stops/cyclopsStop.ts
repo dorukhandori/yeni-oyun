@@ -85,11 +85,25 @@ const CYCLOPS_RAGE_SPEED_MULT = 1.7; // "sarhoş" adımlar normalden hızlı ama
 const CYCLOPS_ATTACK_TELEGRAPH_SECONDS = 1.1; // yuvarlak belirdikten vuruşa kadar — kaçış penceresi
 const CYCLOPS_ATTACK_INTERVAL = 2.3; // s, rage sırasında ardışık iki telgraf arası
 const CYCLOPS_ATTACK_RADIUS = 2.4; // metre
-/** Vuruş hedefi devin kendi konumundan bu kadardan fazla uzağa gidemez —
- * yoksa oyuncu mağara dışındaysa bile "isabet" alıyordu (bulundu, kendi
- * testimde, 26 Ağu): hedef oyuncunun mutlak konumuydu, mesafe hiç kontrol
- * edilmiyordu. Artık devin İç nöy'deki gerçek konumuna göre kırpılıyor. */
-const CYCLOPS_ATTACK_RANGE = 6.0;
+/**
+ * Vuruş hedefi — sahip (26 Ağu 2026, ikinci tur): "güvenli alanları da
+ * kapsasın, her yere vurabilsin, gerçekten kaçınması zor bir mekanik olsun."
+ * Önceki hâli (devin kendi konumundan CYCLOPS_ATTACK_RANGE=6m'i aşamaz)
+ * bir bulduğum gerçek hatayı düzeltiyordu (mağara dışındaki oyuncu bile
+ * "isabet" alabiliyordu) ama yan etkisi devin çevresine 6m'lik bir kabarcık
+ * dışında kalan her köşeyi (gizlenme girintileri dahil) kalıcı güvenli
+ * kılmaktı — sahip'in istediği tam tersi. Artık mesafe devin konumuna değil
+ * ODANIN kendi sınırlarına göre kırpılıyor: hedef oyuncunun GERÇEK
+ * konumu (devin nerede olduğu önemsiz — İç nöy'ün herhangi bir köşesi,
+ * herhangi bir gizlenme girintisi dahil, tehdit altında), yalnız oda
+ * sınırlarının dışına çıkamıyor — bu sayede mağara dışındaki/odayı terk
+ * etmiş bir oyuncu hâlâ asla isabet alamıyor (asıl düzeltilen hata korunuyor),
+ * ama odanın İÇİNDEYKEN hiçbir köşe artık kalıcı güvenli değil. Kaçınma
+ * artık saf "yuvarlaktan çık" refleksine dayanıyor (CYCLOPS_ATTACK_TELEGRAPH_
+ * SECONDS'lik pencere), mesafeye/köşeye saklanmaya değil.
+ */
+const CYCLOPS_ATTACK_ROOM_MARGIN_X = 0.5;
+const CYCLOPS_ATTACK_ROOM_MARGIN_Z = 0.8;
 
 type Phase = "out" | "return" | "present";
 
@@ -593,16 +607,21 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
       // aRPG-tarzı telgraf: bir vuruş beklerken yeni bir tane başlatma —
       // önce ekli olan çözülsün (bkz. "attack telegraph" bloğu aşağıda).
       if (rageAttackT <= 0 && !attackTelegraph) {
-        // Oyuncuya doğru, ama devin kendi konumundan CYCLOPS_ATTACK_RANGE'i
-        // aşmayan bir nokta — bu sayede oyuncu odada bile değilse telgraf
-        // yine de belirir (dev'in kendi hesabına, atmosfer) ama asla isabet
-        // edemez, mesafe zaten kapsam dışı kalıyor.
-        const dx = player.position.x - giant.position.x;
-        const dz = player.position.z - giant.position.z;
-        const pdist = Math.hypot(dx, dz);
-        const reach = Math.min(pdist, CYCLOPS_ATTACK_RANGE);
-        const tx = pdist > 0.01 ? giant.position.x + (dx / pdist) * reach : giant.position.x;
-        const tz = pdist > 0.01 ? giant.position.z + (dz / pdist) * reach : giant.position.z;
+        // "Güvenli alanları da kapsasın, her yere vurabilsin" — hedef
+        // oyuncunun GERÇEK konumu, devin kendi konumundan bağımsız (bkz.
+        // CYCLOPS_ATTACK_ROOM_MARGIN_*'in üstündeki not). Yalnızca İç nöy'ün
+        // kendi sınırlarına kırpılıyor ki oyuncu odayı tamamen terk etmişse
+        // (mağara dışı, depo, ağıllar…) hâlâ asla isabet almasın — bu, ilk
+        // versiyonda bulduğum "mağara dışından bile vuruluyorsun" hatasının
+        // düzeltmesini korurken, oda İÇİNDEKİ her köşeyi (gizlenme
+        // girintileri dahil) gerçek tehdit altında bırakıyor.
+        const ib = roomBounds("inner");
+        const ihalfX = Number.isFinite(ib.halfWidth) ? Math.max(0.1, ib.halfWidth - CYCLOPS_ATTACK_ROOM_MARGIN_X) : 4;
+        const tx = Math.max(-ihalfX, Math.min(ihalfX, player.position.x));
+        const tz = Math.max(
+          ib.dMin + CYCLOPS_ATTACK_ROOM_MARGIN_Z,
+          Math.min(ib.dMax - CYCLOPS_ATTACK_ROOM_MARGIN_Z, player.position.z),
+        );
         attackTelegraph = { x: tx, z: tz, t: CYCLOPS_ATTACK_TELEGRAPH_SECONDS };
         rageAttackT = CYCLOPS_ATTACK_INTERVAL;
       }
