@@ -1,4 +1,6 @@
 import * as THREE from "three";
+import { assetUrl } from "../assets/paths";
+import { loadAlbedoTexture, loadDataTexture } from "./sprite";
 
 /**
  * Cyclops Cave (2nd stop) — primitive, code-only geometry + world content.
@@ -139,18 +141,56 @@ export interface CyclopsCave {
   torchLight: THREE.PointLight;
 }
 
+/**
+ * Free PolyHaven "Worn Rock Natural 01" (CC0), pulled in via Blender MCP
+ * (25 Ağu 2026) as a representative stand-in — sahip: "önce blenderdan vs
+ * bedavaya temsili modellerle kodlayalım", before spending any Tripo
+ * credit. Warmer/tanner than art-bible's chalk-white target (#e6e2d4);
+ * nudged toward it with a light tint rather than re-downloading — the
+ * real palette pass is later polish, this is just "not a flat color".
+ */
+function loadCaveRockMaterial(): THREE.MeshStandardMaterial {
+  const map = loadAlbedoTexture(assetUrl("assets/textures/rock_cave_wall_01_albedo_1024.jpg"));
+  const roughnessMap = loadDataTexture(assetUrl("assets/textures/rock_cave_wall_01_rough_1024.jpg"));
+  const normalMap = loadDataTexture(assetUrl("assets/textures/rock_cave_wall_01_normal_1024.jpg"));
+  for (const t of [map, roughnessMap, normalMap]) {
+    t.wrapS = THREE.RepeatWrapping;
+    t.wrapT = THREE.RepeatWrapping;
+    t.repeat.set(2.2, 2.2);
+  }
+  return new THREE.MeshStandardMaterial({
+    map,
+    roughnessMap,
+    normalMap,
+    color: 0xd8d0bc, // tint toward art-bible's chalk-white, source photo runs tan
+    roughness: 1,
+    side: THREE.BackSide,
+  });
+}
+
 export function buildCyclopsCave(): CyclopsCave {
   const group = new THREE.Group();
+  const rockMat = loadCaveRockMaterial();
 
   // Ground strip for the whole D range (cove included) so nothing falls
   // through void; cave rooms below layer box shells on top of this.
   const floorGeo = new THREE.PlaneGeometry(40, 90);
   floorGeo.rotateX(-Math.PI / 2);
   floorGeo.translate(0, 0, 22.5); // covers D -20..65
+  // .clone() — the walls (rockMat, above) use the SAME cached texture
+  // object (loadAlbedoTexture caches by URL); .repeat is a property of the
+  // Texture, not the material, so without cloning, setting a different
+  // repeat here would silently overwrite the walls' tiling too.
+  const floorTex = loadAlbedoTexture(assetUrl("assets/textures/rock_cave_wall_01_albedo_1024.jpg")).clone();
+  floorTex.needsUpdate = true;
+  floorTex.wrapS = THREE.RepeatWrapping;
+  floorTex.wrapT = THREE.RepeatWrapping;
+  floorTex.repeat.set(9, 20);
   const floor = new THREE.Mesh(
     floorGeo,
-    new THREE.MeshStandardMaterial({ color: 0x8a7a5a, roughness: 1 }),
+    new THREE.MeshStandardMaterial({ color: 0x8a7a5a, roughness: 1, map: floorTex }),
   );
+  floor.receiveShadow = true;
   group.add(floor);
 
   // Room shells: BackSide box per segment so the camera (inside) sees
@@ -161,11 +201,7 @@ export function buildCyclopsCave(): CyclopsCave {
     const width = r.halfWidth * 2;
     const height = Number.isFinite(r.ceilingY) ? r.ceilingY : 6;
     const geo = new THREE.BoxGeometry(width, height, depth);
-    const mat = new THREE.MeshStandardMaterial({
-      color: r.color,
-      roughness: 1,
-      side: THREE.BackSide,
-    });
+    const mat = rockMat;
     const box = new THREE.Mesh(geo, mat);
     box.position.set(0, height / 2, r.dMin + depth / 2);
     group.add(box);
