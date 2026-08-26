@@ -1,10 +1,11 @@
 import * as THREE from "three";
 import type { TestHooks } from "../game";
-import { CAMERA } from "../constants";
+import { CAMERA, SAILOR, PLAYER } from "../constants";
 import { CameraRig } from "../render/cameraRig";
 import { Input } from "../systems/input";
 import { isCoarsePointer } from "../ui/orientation";
 import { loadGltfBundle } from "../world/gltf";
+import { createHumanoidActor, type HumanoidActor } from "../world/humanoidRig";
 import {
   buildCyclopsCave,
   corridorHalfWidthAt,
@@ -228,14 +229,33 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
   scene.add(cave.group);
 
   // -------------------------------------------------------------- player
-  const player = new THREE.Mesh(
-    new THREE.CapsuleGeometry(PLAYER_RADIUS, 1.2, 4, 8),
-    new THREE.MeshStandardMaterial({ color: 0xd8c9a8 }),
-  );
-  player.position.set(0, 1.0, -18);
+  // Sahip (26 Ağu 2026, ucuz kazanımlar turu): "önce Doryseus'u gerçek
+  // rig'e geçir" — kapsül gitti, aynı GLB Lotus'ta zaten çalışıyor
+  // (`createHumanoidActor`/`SAILOR`), burada yeni bir asset üretilmedi,
+  // sadece bağlandı. `player` bir Group: `.position` her yerde aynı
+  // (giant'ın aynı deseni, 26 Ağu'nun ilk turu), model asenkron ekleniyor.
+  // Rig'in kendi orijini AYAKLARDA (fitGltfHeight), eski kapsülün MERKEZİ
+  // değil — bu yüzden y artık 0 (bkz. aşağıdaki iki `player.position.set`).
+  const player = new THREE.Group();
+  player.position.set(0, 0, -18);
   scene.add(player);
   playerLight.position.copy(player.position);
   playerLight.position.y += 1.4;
+
+  let playerActor: HumanoidActor | null = null;
+  let playerFacing = 0; // world +z (mağaraya doğru) — spawn'ın baktığı yön
+  createHumanoidActor(SAILOR.meshRig, {
+    heightMeters: SAILOR.height,
+    expectedBytes: SAILOR.meshRigBytes,
+    clipFade: SAILOR.meshClipFade,
+  })
+    .then((a) => {
+      playerActor = a;
+      player.add(a.scene);
+    })
+    .catch((err) => {
+      console.warn("[cyclopsStop] player rig failed to load", err);
+    });
   scene.add(playerLight);
 
   // Bulundu (sahip playtest'i, 25 Ağu): "mouse'u oynattığımda kamera
@@ -489,7 +509,13 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     cave.setInnerGateOpen(false);
     ambient.intensity = 1.1;
     hemi.intensity = 0.7;
-    player.position.set(0, 1.0, -18);
+    player.position.set(0, 0, -18);
+    playerFacing = 0;
+    // Bulundu (kendi testimde, 26 Ağu): rig.snap yalnız kurulumda çağrılıyordu
+    // — resetRun() sonrası kamera KAYBETTIN anındaki (mağara içi) konumundan
+    // gemi spawn'ına yavaşça sürünerek geliyordu, gerçek oyuncu için de
+    // aynı sarsıcı gecikme olurdu, salt bir test artefaktı değil.
+    rig.snap(player.position);
     for (const it of cave.items) {
       it.carried = false;
       it.delivered = false;
@@ -778,6 +804,25 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
       player.position.x = Math.max(-hw + PLAYER_RADIUS, Math.min(hw - PLAYER_RADIUS, player.position.x));
     }
     player.position.z = Math.max(-19, Math.min(64.5, player.position.z));
+
+    // ------------------------------------------------------- player rig
+    // game.ts'in aynı deseni (facing + SAILOR.meshFacing, üstel yumuşatma) —
+    // Cyclops'un kendi "run" tuşu yok (Shift dash'e ayrıldı), o yüzden
+    // walk/idle yeterli, run klibi hiç seçilmiyor.
+    if (moving || dashT > 0) {
+      const dirX = dashT > 0 ? dashDirX : facingX;
+      const dirZ = dashT > 0 ? dashDirZ : facingZ;
+      const targetFacing = Math.atan2(dirX, dirZ);
+      let fd = targetFacing - playerFacing;
+      while (fd > Math.PI) fd -= Math.PI * 2;
+      while (fd < -Math.PI) fd += Math.PI * 2;
+      playerFacing += fd * (1 - Math.exp(-dt / PLAYER.turnSmooth));
+    }
+    player.rotation.y = playerFacing + SAILOR.meshFacing;
+    if (playerActor) {
+      playerActor.play(moving || dashT > 0 ? "walk" : "idle");
+      playerActor.update(dt);
+    }
 
     // -------------------------------------------------------------- crush
     // giant.visible (fiziksel varlığı), phase==="present" değil — dev artık
