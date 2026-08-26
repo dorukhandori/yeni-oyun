@@ -148,6 +148,12 @@ Değişmedi: Polyphemos'un kendisi tek figürdür ve saf tehlike kaynağıdır �
 
 ## 3. Bölgeler — saklaş noktalarıyla birlikte
 
+> ⚠️ **26 Ağu 2026, uygulama turlarından sonra kısmen güncel değil — kod önce gitti, bu bölümün altındaki tekil sayılar/koordinatlar değil, aşağıdaki dört madde geçerli:**
+> 1. **Öğe sayısı/dağılımı iki kez değişti** (§5.1'in "2 depo/3 ağıllar/2 iç nöy"i **artık yanlış**): şimdi **2 depo / 1 ağıllar / 3 iç nöy** (`cyclopsCave.ts` `ITEM_DEFS`, sahip: "yerdeki yemekler yetmiyor, dev'in odasına girmeleri gerekiyor") — aşağıdaki §9 madde 5'in açık sorusu ("güvenli minimal rota keşfediliyor mu?") bu yüzden **kasıtlı olarak kapandı**, öyle bir rota artık yok.
+> 2. **Saklaş noktaları artık bu bölümdeki sabit koordinatlar değil** — her oturumda (`buildCyclopsCave()` çağrısında) yeniden rastgele çekiliyor (oda içinde rastgele derinlik + rastgele duvar tarafı + rock/niche tipi), İç nöy 3 tane alıyor (diğer odalar 1). Aşağıdaki (x,D) değerleri artık yalnızca **tarihi bir örnek**, canlı geometri değil.
+> 3. **§4.4 madde 4'ün "ölüm/game-over yok — hiçbir zaman" iddiası artık yanlış.** `CYCLOPS_CRUSH_CAP=3`'e ulaşınca gerçek bir kayıp durağı var (tam ekran "KAYBETTİN", `tuning.md` §12 satırı) — bkz. o satırdaki güncel not.
+> 4. **`CAUGHT_RESPAWN` (mağara ağzı D≈4) tamamen kaldırıldı** (26 Ağu, sahip: "sadece 3/3 olduğunda ışınlanmak istiyorum") — 1./2. yakalanmada artık hiç ışınlanma yok, bkz. `tuning.md` §12.
+
 Her saklaş noktası: (x, D) merkezi + **yarıçap 1.2–1.5 m** (oyuncunun "içinde sayıldığı" alan) + fiziksel açıklama + gerekçe. Tümü **[TÜRETİLMİŞ] (@cove, 24 Ağu 2026) — sahip vetosuna açık**, `@helix` sadece playtest verisiyle DETECT davranışını buna göre kalibre eder.
 
 ### 3.1 Koy / Gemi — **güven** (D = −20 … −8)
@@ -205,8 +211,8 @@ Değişmedi — bkz. `gdd-detection-cyclops.md` (2×2 matris, evre saati, `DETEC
 
 1. **Azık düşer, yok olmaz (D2).** Yakalanınca/ezilince çantadaki tüm azık, yakalanma noktasının **~1–2 m** çevresine zemine dökülür — tekrar toplanabilir durumda kalır, havuzdan silinmez. Uygulama: aynı statik `Plant`-benzeri nesne yeni bir konuma taşınır (`visible = true`, konum = yakalanma noktası + rastgele 1–2 m ofset).
 2. **`CAUGHT_MEM_SPIKE` tamamen kaldırıldı (D3).** Bu adada unutuş sistemi çalışmadığı için beslenecek bir unutuş kaynağı yok.
-3. **`CAUGHT_RESPAWN`** = mağara ağzı, `D≈4` — değişmedi (14 Ağu, `@helix` kararı, hâlâ geçerli).
-4. **Ölüm/game-over yok — hiçbir zaman.** Eskiden bu, unutuşa bağlıydı ("eğer darbe `MEM_MAX`'ı aşarsa..."); artık bağlanacak bir unutuş yok, yani bu adada **hiçbir olay** koşuyu bitiremiyor. Tek bedel: kaybedilen zaman (mağara ağzına yürüyüş) + korku FX (§4.4.1, değişmedi) + azığı yeniden toplama zahmeti.
+3. ~~**`CAUGHT_RESPAWN`** = mağara ağzı, `D≈4`~~ — **kaldırıldı (26 Ağu 2026, sahip).** 1./2. yakalanmada artık hiç ışınlanma yok, oyuncu tam yakalandığı yerde kalıyor. (Ara turda `D≈4`'ün devin kendi rota hattının üstünde olduğu bulunup `x=2.4,D=−4`'e taşınmıştı — sonra mekanik tamamen kaldırıldığı için o düzeltme de yürürlükte değil.)
+4. ~~**Ölüm/game-over yok — hiçbir zaman.**~~ **Artık geçerli değil (26 Ağu 2026, sahip, `CYCLOPS_CRUSH_CAP` sonrası ikinci karar).** 3. yakalanmada gerçek bir kayıp durağı var: tam ekran "KAYBETTİN" + "Yeniden Oyna" — bkz. `tuning.md` §12 `CYCLOPS_CRUSH_CAP` satırı. Kalıcı ceza yok (durak sınırsız yeniden denenebilir), ama bu artık "hiçbir olay koşuyu bitiremiyor" değil.
 
 **Kilitlenme (unwinnable) durumu kalıyor mu — hesap, §5.3'e taşındı.**
 
@@ -389,10 +395,10 @@ Değişmedi + iki ek kalem:
 ## 12. Açık sorular — güncellendi (24 Ağu 2026)
 
 1. ~~**§0.2'deki anlatı çerçevesi onaylanıyor mu?**~~ **Kapandı (24 Ağu 2026, sahip).** Karar: F3 — azık toplanabilir, tayfa gerekçesiyle, hub kart metni aynen kalıyor. Bkz. §0.2.
-2. ~~**Yakalanma sonrası ışınlanma noktası**~~ **Kapandı (14 Ağu 2026, `@helix`).** Mağara ağzı, D≈4. Bkz. §4.4.
+2. ~~**Yakalanma sonrası ışınlanma noktası**~~ **Kapandı (14 Ağu 2026, `@helix`), sonra tersine çevrildi (26 Ağu 2026, sahip).** Mağara ağzı D≈4 kararı geçersiz — mekanik tamamen kaldırıldı, 1./2. yakalanmada artık hiç ışınlanma yok. Bkz. §4.4.
 3. ~~**`CYCLOPS_ITEM_TOTAL` 6/7/8 mi?**~~ **Kısmen kapandı.** D2 sonrası (§5.3) kilitlenme riski ortadan kalktığı için 7 sayısının "dar tampon" gerekçesi hâlâ geçerli — playtest'e 🔬 bırakılıyor ama artık *güvenlik* değil yalnızca *tempo* sorusu.
 4. ~~**Polyphemos "çoğunlukla duyulan, kısaca görülen" mü?**~~ **🔴 YENİDEN KAPANDI, TERSİNE (D10, 25 Ağu 2026, sahip).** 14 Ağu'nun kararı (*"PRESENT boyunca hiç render edilmez, yalnız CAUGHT anında ~0,4–0,8 s belirir"*) **tamamen geçersizdir.** Yeni kural: **Polyphemos PRESENT boyunca sürekli sahnededir ve ışığın izin verdiği ölçüde doğrudan/net görülür** — silüet/gizem dili değil, somut bir tehdit. Ayrı bir gizleme shader'ı yok; ne kadar gördüğün bulunduğu yerin aydınlığına bağlı. `CYCLOPS_JUMPSCARE_DURATION` ("kısa beliriş") **düştü**; CAUGHT'ın diğer üç şok bileşeni (kamera sarsıntısı, kükreme, kenar vurgusu) korunuyor. Gerekçe: körleşme mekaniği devi mağarada fiilen yürütüp ona **fiziksel çarpılmayı** (`CYCLOPS_CRUSH_RADIUS`) yakalanma tetikleyicisi yaptığı için, "çarpabildiğin ama göremediğin" bir dev adaletsizdi. **Bu, §4.3 ve §4.4.1'in "kısa beliriş" kısımlarını geçersiz kılar.** Otorite: `gdd-cyclops-blinding.md` §7.1.
-5. **İç nöye hiç girmeyen "güvenli minimal rota" playtest'te gerçekten keşfediliyor mu?** **Hâlâ açık — playtest'e bağlı**, kapatılamaz.
+5. ~~**İç nöye hiç girmeyen "güvenli minimal rota" playtest'te gerçekten keşfediliyor mu?**~~ **Kapandı, kasıtlı olarak tersine (26 Ağu 2026, sahip): böyle bir rota artık YOK.** A-02 kaldırıldı, depo+ağıllar=3 < hedef 4 — İç nöy'e girmeden durak bitirilemez. Karşılığında İç nöy 3 gizlenme girintisi aldı ve rage/telgraf saldırısının hedefi artık devin konumuna değil oyuncunun gerçek konumuna kırpılı (odanın her köşesi tehdit altında, "güvenli köşe" yok). Bkz. `tuning.md` §12.3.
 6. ~~**Koca kayanın dekor kalması yeterli mi?**~~ **Yeniden açıldı ve farklı kapandı (24 Ağu 2026, sahip, D9).** Kapı artık gerçek bir mekanik — kapanıyor, süreli, terminal değil. Bkz. §9.
 7. ~~**Yakalanma envanteri yok mu ediyor, düşürüyor mu?**~~ **Kapandı (24 Ağu 2026, sahip, D2).** Düşürüyor, yok etmiyor. Bkz. §4.4, §5.2, §5.3.
 8. ~~**Hub'dan girişte açılış beat'i ne?**~~ **Kapandı (24 Ağu 2026, üretim planı §1.5 + bu dosya §8).** M7'nin tek-koşu varsayımı geçersiz; giriş hub kartından.
