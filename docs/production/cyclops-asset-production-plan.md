@@ -363,16 +363,16 @@ Bunlar **asset işi değil** ve bu planın kapsamında değil. Buraya yazılmala
 
 | # | İş | Kim | Kredi | Oturum | Bağımlılık |
 |---|---|---|---|---|---|
-| **0a** | `GIANT_MESH_FACING` → `−π/2` (§3.3) — ölçülmüş hata | `@byte` | 0 | 0,1 | — |
-| **0b** | Tripo `rig-check` probu (§3.4 C) — belirsizliği ~0 krediyle kapat | `@axiom` | ~0 | 0,15 | — |
-| **0c** | Asset ID çakışması düzeltmesi (§7.2) | `@iris` | 0 | 0,25 | — |
-| **0d** | `models/` temizliği + fallback küçültme (§1 Adım 0) | `@byte` | 0 | 0,25 | sahip onayı |
-| **0e** | Polyphemos `metallicRoughness` → skaler (§2.4) | `@byte` | 0 | 0,1 | — |
-| **1** | 🔴 **Sahip kararı: koy/patika kapsamı** (§4.2 Hafif+ / Tam) | **sahip** | — | — | **2'yi blokluyor** |
-| **2** | ASSET-109 koy/patika konsepti — Gemini gate, 3 varyant | `@iris` | 0 | 1 (🔬 3'e kadar) | 1 |
-| **3** | ASSET-108 Polyphemos konsepti + 4-açı turnaround — Gemini gate | `@iris` | 0 | 1 | 0b sonucu |
+| **0a** | ✅ `GIANT_MESH_FACING` → `−π/2` (§3.3) — ölçülmüş hata | `@byte` | 0 | 0,1 | — |
+| **0b** | ~~Tripo `rig-check` probu~~ **artık gereksiz** — S2 doğrudan (B)'ye karar verdi, (C) hiç denenmedi | — | — | — | — |
+| **0c** | ✅ Asset ID çakışması düzeltmesi (§7.2) | `@byte` | 0 | 0,25 | — |
+| **0d** | 🔲 **Beklemede — sahip onayı gerekiyor.** `models/` temizliği başka oturumların (Cursor/Grok) untracked dosyalarına dokunuyor (§1 Adım 0'ın kendi uyarısı: "silmeden önce ACTIVE_WORK.md claim'i + sahip onayı gerekir"). Yapılmadı. | `@byte` | 0 | 0,25 | sahip onayı |
+| **0e** | ✅ Polyphemos `metallicRoughness` → skaler (§2.4) — 3.44MB→3.32MB, örneklenen değerler roughness=0.495/metallic=0.009 | `@byte` | 0 | 0,1 | — |
+| **1** | ✅ **Sahip kararı: koy/patika kapsamı** (§4.2) — **Hafif+, kredi kısıtlaması yok** | **sahip** | — | — | 2 açıldı |
+| **2** | ASSET-109 koy/patika konsepti — Gemini gate, 3 varyant | `@iris` | 0 | 1 (🔬 3'e kadar) | ✅ 1 |
+| **3** | ASSET-108 Polyphemos konsepti + 4-açı turnaround — Gemini gate | `@iris` | 0 | 1 | (B) zaten shiplendi — düşük öncelik, S2 sonrası artık salt provenance/tutarlılık amaçlı |
 | **4** | 🔊 **Ses katmanı** (§5) — bağımsız, paralel gidebilir | `@echo` (Cursor) | 0 | 1 | sahip Cursor'ı açmalı |
-| **5** | Polyphemos animasyonu — (B) veya (C) | `@axiom`+`@byte` | 0 veya ~40 | 1,5–2 | 0a, 0b, 3 |
+| **5** | ✅ Polyphemos animasyonu — (B), + ayak kayması senkronu + metallicRoughness temizliği | `@axiom`+`@byte` | 0 | ~2,5 | 0a, 3 |
 | **6** | ASSET-090 mağara kabuğu — `build_cyclops_cave.py` | `@byte` | 0 | 1,5–2 | — (konsept hazır) |
 | **7** | ASSET-091/092 gerçek dokular | `@iris` | 0 | 1 | 6 |
 | **8** | ASSET-110/111 sahil zemini + patika geometrisi | `@byte`+`@iris` | 0 | 1,5–2 (Tam: 3–4) | 1, 2 |
