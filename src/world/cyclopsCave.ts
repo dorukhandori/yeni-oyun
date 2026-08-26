@@ -203,7 +203,11 @@ export function buildCyclopsCave(): CyclopsCave {
     const geo = new THREE.BoxGeometry(width, height, depth);
     const mat = rockMat;
     const box = new THREE.Mesh(geo, mat);
-    box.position.set(0, height / 2, r.dMin + depth / 2);
+    // Bulundu (sahip playtest'i, 26 Ağu): "zemin ve duvarlar hareket
+    // ederken flicker oluyor" — kutunun taban yüzü zemin `PlaneGeometry`
+    // ile birebir aynı y=0 düzlemindeydi (klasik z-fighting). 5 cm aşağı
+    // kaydırıldı, tavan farkı görsel olarak hissedilmez.
+    box.position.set(0, height / 2 - 0.05, r.dMin + depth / 2);
     group.add(box);
   }
 
