@@ -320,7 +320,11 @@ export function buildCyclopsCave(): CyclopsCave {
   // real sandy coastal look + the heightAt() slope, while the cave interior
   // stays the flat rock floor it always was. Plan §4.2 (Hafif+): "bugün
   // sahilde mağara zemini var; deniz kenarı hissi sıfır" — bu bölünme onu
-  // düzeltir (bespoke ASSET-110 dokusu değil ama mevcut gerçek kum dokusu).
+  // düzeltir. ASSET-110 (gemini-2.5-flash-image, ASSET-109 referanslı,
+  // `art-source/work/prompt-asset-110-cyclops-cove-path-sand.txt`) — orijinal
+  // 1024² çıktı köşegen gölge bantlarında dikiş gösteriyordu (aynı ASSET-015
+  // sand_gold_01 dersi), merkezden 480² kırpılıp 512'ye ölçeklenerek
+  // düzeltildi, 2x2 döşemede dikişsiz doğrulandı.
   const beachGeo = new THREE.PlaneGeometry(40, 20, 1, 40);
   beachGeo.rotateX(-Math.PI / 2);
   beachGeo.translate(0, 0, -10); // covers D -20..0
@@ -333,7 +337,7 @@ export function buildCyclopsCave(): CyclopsCave {
     pos.needsUpdate = true;
     beachGeo.computeVertexNormals();
   }
-  const beachTex = loadAlbedoTexture(assetUrl("assets/textures/sand_gold_01_albedo_512.webp")).clone();
+  const beachTex = loadAlbedoTexture(assetUrl("assets/textures/sand_coastal_01_albedo_512.webp")).clone();
   beachTex.needsUpdate = true;
   beachTex.wrapS = THREE.RepeatWrapping;
   beachTex.wrapT = THREE.RepeatWrapping;
