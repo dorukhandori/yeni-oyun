@@ -72,7 +72,14 @@ type Phase = "out" | "return" | "present";
  * değil — `Phase` hâlâ var (DETECT/toplama kilidi onu okuyor) ama artık bu
  * state machine'in bir türevi.
  */
-type GiantState = "outside" | "entering" | "wanderingPre" | "sleeping" | "wanderingPost" | "exiting";
+type GiantState =
+  | "outside"
+  | "entering"
+  | "wanderingPre"
+  | "headingToBed"
+  | "sleeping"
+  | "wanderingPost"
+  | "exiting";
 
 interface WanderTarget {
   x: number;
@@ -122,6 +129,14 @@ const GIANT_SLEEP_SECONDS = 8.0;
  * yerine, ama artık yalnız bu bekleme dilimini kapsıyor, giriş/çıkış
  * yürüyüşü ayrıca gerçek zaman alıyor. */
 const GIANT_OUT_WAIT_SECONDS = 40.0;
+/** Sahip (26 Ağu 2026): "dev hep kendi yatağına yatacak" — İç nöy'ün
+ * kilitli "Uyuma köşesi" konsept sanatındaki (ASSET-107) yatağın world-
+ * space karşılığı, sabit. Rastgele dolaşma bitince dev HER ZAMAN buraya
+ * yürüyüp yatıyor, artık rastgele bir odaya değil. */
+const GIANT_BED: WanderTarget = { x: 0, z: 60 };
+/** Boğaz B'nin (İç nöy geçidi) D aralığı — level-cyclops-cave.md §1.2. */
+const GORGE_B_MIN = 44;
+const GORGE_B_MAX = 48;
 
 function doorGlobal(z: number): number {
   return Math.max(0, Math.min(1, 1 - z / CYCLOPS_DOOR_LIGHT_REACH));
@@ -362,12 +377,23 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
         if (wanderLegsLeft > 0) {
           giantTarget = pickWanderTarget();
         } else {
-          sleepT = GIANT_SLEEP_SECONDS;
-          giantState = "sleeping";
+          // "Dev hep kendi yatağına yatacak" — rastgele dolaşma bitince
+          // son adım artık başka bir rastgele oda değil, hep aynı yatak.
+          giantState = "headingToBed";
         }
+      }
+    } else if (giantState === "headingToBed") {
+      phase = "present";
+      if (walkGiantTowards(GIANT_BED)) {
+        sleepT = GIANT_SLEEP_SECONDS;
+        giantState = "sleeping";
       }
     } else if (giantState === "sleeping") {
       phase = "present";
+      // "Yatarken çok fazla hareket edecek" — huzursuz, ama yataktan
+      // ayrılmayan küçük bir titreşim (iki farklı frekans üst üste).
+      giant.position.x = GIANT_BED.x + Math.sin(simTime * 1.3) * 0.4 + Math.sin(simTime * 3.7) * 0.15;
+      giant.position.z = GIANT_BED.z + Math.cos(simTime * 1.7) * 0.35 + Math.cos(simTime * 4.1) * 0.12;
       sleepT -= dt;
       if (sleepT <= 0) {
         wanderLegsLeft = 1; // uyanınca kapıya dönmeden önce bir tur daha
@@ -407,6 +433,12 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
         }
       }
     }
+
+    // -------------------------------------------------------- inner gate
+    // "Kapısı devle birlikte açılabilecek" — İç nöy'ün kendi geçidi (Boğaz
+    // B), dev o aralıktan geçerken açık, geri kalan her zaman kapalı.
+    // Oyuncuyu engellemiyor (ana kapı gibi) — yalnız görsel/senkron.
+    cave.setInnerGateOpen(giant.visible && giant.position.z >= GORGE_B_MIN && giant.position.z <= GORGE_B_MAX);
 
     // ------------------------------------------------------- camera look
     const sens = input.touchActive ? CAMERA.touchSens : CAMERA.mouseSens;

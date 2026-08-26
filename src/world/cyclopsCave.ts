@@ -153,14 +153,23 @@ export interface CaveItem {
   mesh: THREE.Object3D;
 }
 
+// Bulundu (sahip talebi, 26 Ağu 2026): "en çok dev'in odasında yerde
+// yemekler olacak" — level-cyclops-cave.md §5'in orijinal dağılımı (2 depo
+// / 3 ağıllar / 2 iç nöy) ağıllarda en çoktu. Şimdi: 2/2/3, İç nöy (dev'in
+// artık her zaman kendi yatağına yattığı oda) tek başına en kalabalık oda.
+// ⚠️ Bilinçli bedel: eski "güvenli minimal rota" (depo+ağıllar=5 ≥ hedef 4,
+// İç nöy'e hiç girmeden bitirilebilir) artık tam sınırda (depo+ağıllar=4,
+// tampon sıfır) — bu, dev'in artık yatağının orada olmasıyla tutarlı bir
+// risk artışı, ama level-spec'in "İç nöye hiç girmeden bitirilebilir"
+// garantisini gevşetiyor. Sahip isterse geri konuşulur.
 const ITEM_DEFS: { id: string; kind: ItemKind; room: RoomId; x: number; z: number }[] = [
   { id: "D-01", kind: "cheese", room: "depot", x: -4, z: 12 },
   { id: "D-02", kind: "wine", room: "depot", x: 4, z: 20 },
   { id: "A-01", kind: "cheese", room: "pens", x: -3, z: 29 },
   { id: "A-02", kind: "wine", room: "pens", x: 3, z: 35 },
-  { id: "A-03", kind: "cheese", room: "pens", x: -2, z: 41 },
   { id: "I-01", kind: "cheese", room: "inner", x: -3, z: 53 },
   { id: "I-02", kind: "wine", room: "inner", x: 2, z: 63 },
+  { id: "I-03", kind: "cheese", room: "inner", x: 3, z: 58 },
 ];
 
 function makeItemMesh(kind: ItemKind): THREE.Object3D {
@@ -190,6 +199,15 @@ export interface CyclopsCave {
    * cyclopsStop.ts's DETECT logic yet (that's still pure light-distance),
    * exposed for future use/debugging. */
   hideSpots: HideSpot[];
+  /**
+   * İç nöy'ün kendi geçidi (Boğaz B) — sahip (26 Ağu 2026): "kapısı devle
+   * birlikte açılabilecek." Ana mağara kapısından ayrı, ikinci bir engel:
+   * varsayılan KAPALI (görünür, geçidi kapatıyor), yalnız dev o aralıktan
+   * geçerken açık (görünmez). Oyuncuyu FİZİKSEL olarak engellemiyor —
+   * mevcut `corridorHalfWidthAt` çarpışması bundan habersiz, tıpkı ana
+   * kapının oyuncuyu engellemediği gibi — yalnız görsel/senkron.
+   */
+  setInnerGateOpen(open: boolean): void;
 }
 
 /**
@@ -337,5 +355,17 @@ export function buildCyclopsCave(): CyclopsCave {
   }
   setDoorOpen(true);
 
-  return { group, items, setDoorOpen, hearthLight, torchLight, hideSpots };
+  // İç nöy'ün kendi geçidi — Boğaz B'yi (dMin..dMax) kapatan bir kaya
+  // levhası. Kapalıyken görünür/engel, dev geçerken açılıyor (görünmez).
+  const gorgeB = ROOMS.find((r) => r.id === "gorgeB")!;
+  const gateGeo = new THREE.BoxGeometry(gorgeB.halfWidth * 2 - 0.3, gorgeB.ceilingY - 0.3, 0.6);
+  const gate = new THREE.Mesh(gateGeo, rockMat.clone());
+  (gate.material as THREE.MeshStandardMaterial).side = THREE.FrontSide;
+  gate.position.set(0, (gorgeB.ceilingY - 0.3) / 2, (gorgeB.dMin + gorgeB.dMax) / 2);
+  group.add(gate);
+  function setInnerGateOpen(open: boolean): void {
+    gate.visible = !open;
+  }
+
+  return { group, items, setDoorOpen, hearthLight, torchLight, hideSpots, setInnerGateOpen };
 }
