@@ -1,6 +1,6 @@
 # Kiklop Mağarası — asset üretim planı (2. durak)
 
-> **Durum:** taslak — sahip onayı bekliyor. **Commit edilmedi.**
+> **Durum (26 Ağu 2026, gün sonu):** ✅ **madde 1-2, 5-9 bitti, commit'lendi, push'landı** (`§7.1`'in kendi tablosu güncel). Yalnız madde 3 (ASSET-108 Polyphemos konsepti — düşük öncelikli, (B) zaten shiplendi) ve madde 4 (🔊 ses katmanı, `@echo`/Cursor sahipliği, hâlâ sahipsiz) açık. Plan'ın kendi "büyük olasılıkla 0 kredi ile bitiyor" tahmini tuttu — bu tur harcanan tek kredi 30'du (item 6'nın Tripo pilotu, sonuç kullanılamadı, prosedürel Blender'a dönüldü).
 > **Tarih:** 2026-08-26 · `producer` / `@nile`, alt-danışma: `@axiom` (Technical Director), `@cove` (Island Designer)
 > **Tur türü:** planlama. **Kod yazılmadı, asset üretilmedi, kredi harcanmadı.** Tek çalıştırılan komut salt-okuma (`node scripts/asset-qa/run.mjs --only budget`).
 > **Tetikleyen:** sahip, 26 Ağu 2026 — *"tam asset üretimine geç, plan çıkar. planin icerisinde sahil ve o yokus koyunlu patika da yer alsin onun tasarim referans cizimlerini kitlemedik"*
@@ -378,7 +378,7 @@ Bunlar **asset işi değil** ve bu planın kapsamında değil. Buraya yazılmala
 | **6** | ✅ ASSET-090 mağara kabuğu — `build_cyclops_cave.py` | `@byte` | 0 | 1,5–2 | — (konsept hazır) |
 | **7** | ✅ ASSET-091 gerçek doku (duvar+tavan+zemin albedo) | `@iris` | 0 | 1 | 6 |
 | **8** | ✅ ASSET-110/111 sahil zemini + patika geometrisi | `@byte`+`@iris` | 0 | 1,5–2 (Tam: 3–4) | 1, 2 |
-| **9** | 🟡 ASSET-097/095/096 bitti — 093/094 azık propları hâlâ açık | `@iris`+`@byte` | 0 | 1,5 | 7 |
+| **9** | ✅ ASSET-093/094/095/096/097 bitti | `@iris`+`@byte` | 0 | 1,5 | 7 |
 | | **Toplam** | | **0 – ~40** | **~11–14** | |
 
 **En önemli sonuç: bu plan büyük olasılıkla `0 kredi` ile bitiyor.** Orijinal ~80 kredilik tek kalem (ASSET-098) artık ~0 veya ~40 — çünkü mesh+doku adımlarının satın alacağı şey bugün zaten elimizde.

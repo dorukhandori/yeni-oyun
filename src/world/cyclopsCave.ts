@@ -234,20 +234,49 @@ const ITEM_DEFS: { id: string; kind: ItemKind; room: RoomId; x: number; z: numbe
   { id: "I-03", kind: "cheese", room: "inner", x: 3, z: 58 },
 ];
 
+// ASSET-093/094 — plan called for "konsept + doku" (bespoke concept +
+// texture) for these; given they're small (0.16-0.36 m), background pickup
+// props seen only briefly, that investment isn't proportionate right now.
+// Improved the PRIMITIVE silhouettes instead (still pure code mesh, 0
+// credit) — a flat cylinder read as a disc, not obviously "cheese", and a
+// stretched sphere read as an egg, not "wineskin". A rind ring and a real
+// tied-neck bag shape are both readable from a walking distance without
+// needing an actual texture.
 function makeItemMesh(kind: ItemKind): THREE.Object3D {
   if (kind === "cheese") {
-    const geo = new THREE.CylinderGeometry(0.22, 0.22, 0.16, 10);
-    const mat = new THREE.MeshStandardMaterial({ color: 0xe8c165, roughness: 0.8 });
-    const m = new THREE.Mesh(geo, mat);
-    m.position.y = 0.08;
-    return m;
+    const group = new THREE.Group();
+    const wheelMat = new THREE.MeshStandardMaterial({ color: 0xe8c165, roughness: 0.8 });
+    const rindMat = new THREE.MeshStandardMaterial({ color: 0xc8934a, roughness: 0.9 });
+    const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.16, 10), wheelMat);
+    wheel.position.y = 0.08;
+    group.add(wheel);
+    // Rind — a torus hugging the wheel's outer edge, darker than the flesh.
+    const rind = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.028, 6, 14), rindMat);
+    rind.rotation.x = Math.PI / 2;
+    rind.position.y = 0.08;
+    group.add(rind);
+    return group;
   }
-  const geo = new THREE.SphereGeometry(0.18, 8, 6);
-  geo.scale(1, 1.3, 1);
-  const mat = new THREE.MeshStandardMaterial({ color: 0x7a3a2a, roughness: 0.7 });
-  const m = new THREE.Mesh(geo, mat);
-  m.position.y = 0.18;
-  return m;
+  const group = new THREE.Group();
+  const skinMat = new THREE.MeshStandardMaterial({ color: 0x7a3a2a, roughness: 0.7 });
+  const tieMat = new THREE.MeshStandardMaterial({ color: 0x3a2418, roughness: 0.9 });
+  // Bag body — tapered top-to-bottom (wider base, narrower shoulder) rather
+  // than a smooth ellipsoid, closer to a slack, half-full skin bag.
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 7), skinMat);
+  body.scale.set(1, 1.25, 1);
+  body.position.y = 0.19;
+  group.add(body);
+  const shoulder = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.14, 8), skinMat);
+  shoulder.position.y = 0.36;
+  group.add(shoulder);
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.05, 0.1, 6), skinMat);
+  neck.position.y = 0.45;
+  group.add(neck);
+  const tie = new THREE.Mesh(new THREE.TorusGeometry(0.045, 0.014, 5, 10), tieMat);
+  tie.rotation.x = Math.PI / 2;
+  tie.position.y = 0.43;
+  group.add(tie);
+  return group;
 }
 
 export interface CyclopsCave {
