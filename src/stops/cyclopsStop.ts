@@ -8,6 +8,7 @@ import {
   buildCyclopsCave,
   corridorHalfWidthAt,
   roomIdAt,
+  roomBounds,
   HEARTH_POS,
   TORCH_POS,
   CAVE_MOUTH_D,
@@ -77,19 +78,36 @@ interface WanderTarget {
   x: number;
   z: number;
 }
-// tuning.md §12.1 stop points + weights. Cumulative bounds match the GDD's
-// own acceptance-criteria test vector (0 / 0.15 / 0.35 / 0.75 / 0.999).
-const WANDER_TARGETS: { target: WanderTarget; upTo: number }[] = [
-  { target: { x: 0, z: 8 }, upTo: 0.15 }, // shallow
-  { target: { x: 0, z: 15 }, upTo: 0.35 }, // depot
-  { target: { x: -4, z: 35 }, upTo: 0.75 }, // pens (hearth)
-  { target: { x: 0, z: 60 }, upTo: 1.0 }, // inner
+// tuning.md §12.1 room weights (aynı olasılıklar — sığ eşik/depo/ağıllar/iç
+// nöy). Kümülatif sınırlar GDD'nin kendi kabul-kriteri test vektörüyle
+// eşleşiyor (0 / 0.15 / 0.35 / 0.75 / 0.999).
+const WANDER_ROOMS: { room: "mouth" | "depot" | "pens" | "inner"; upTo: number }[] = [
+  { room: "mouth", upTo: 0.15 }, // "sığ eşik"
+  { room: "depot", upTo: 0.35 },
+  { room: "pens", upTo: 0.75 }, // ocağın da bulunduğu oda, ama hedef nokta ayrı rastgele
+  { room: "inner", upTo: 1.0 },
 ];
 
+/**
+ * Bulundu (sahip playtest'i, 26 Ağu 2026): "dev içeri giriyor random
+ * dolaşıyor ama duvarlara yakın sağa sola hiç gitmiyor random bir şekilde."
+ * Eski model tek bir sabit (x,z) noktasıydı, üçü de x=0 üstünde — dev
+ * neredeyse hep merkez hatta yürüyordu. Şimdi: önce oda ağırlıklı çekiliş
+ * (değişmedi), sonra o odanın GERÇEK genişliği içinde rastgele bir x + o
+ * odanın derinlik aralığında rastgele bir z. Dar boğazlarda (x sınırı zaten
+ * ~2 m) hâlâ doğal olarak merkeze yakın kalıyor — sadece odalarda artık
+ * gerçekten kenara/duvara da gidebiliyor.
+ */
 function pickWanderTarget(rng: () => number = Math.random): WanderTarget {
   const r = rng();
-  for (const w of WANDER_TARGETS) if (r < w.upTo) return w.target;
-  return WANDER_TARGETS[WANDER_TARGETS.length - 1].target;
+  const pick = WANDER_ROOMS.find((w) => r < w.upTo) ?? WANDER_ROOMS[WANDER_ROOMS.length - 1];
+  const b = roomBounds(pick.room);
+  const marginZ = 1.5;
+  const marginX = 1.2; // duvara tam yaslanmasın, yürünebilir kalsın
+  const z = b.dMin + marginZ + rng() * Math.max(0.1, b.dMax - b.dMin - marginZ * 2);
+  const halfX = Number.isFinite(b.halfWidth) ? Math.max(0.1, b.halfWidth - marginX) : 3;
+  const x = (rng() * 2 - 1) * halfX;
+  return { x, z };
 }
 
 // Devin dışarıda beklediği/mağara ağzına yürüdüğü noktalar — kapı eşiği

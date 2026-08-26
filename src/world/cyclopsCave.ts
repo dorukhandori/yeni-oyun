@@ -66,6 +66,21 @@ export function corridorHalfWidthAt(z: number): number {
   return roomAt(z).halfWidth;
 }
 
+/**
+ * Bulundu (sahip playtest'i, 26 Ağu 2026): "dev içeri giriyor random
+ * dolaşıyor ama duvarlara yakın sağa sola hiç gitmiyor random bir şekilde."
+ * Eski gezinme hedefleri (`cyclopsStop.ts`) tek bir sabit nokta per oda idi,
+ * 3'ü de x=0 (merkez hat) üstünde — dev neredeyse hiç yanlara sapmıyordu.
+ * Odaların gerçek genişliğini (dar boğazların aksine, `x` serbestliği
+ * içeride var) dışarı açan yardımcı — `cyclopsStop.ts` artık bir oda
+ * seçip o oda İÇİNDE rastgele bir (x,z) çekebiliyor.
+ */
+export function roomBounds(id: RoomId): { dMin: number; dMax: number; halfWidth: number } {
+  const r = ROOMS.find((room) => room.id === id);
+  if (!r) throw new Error(`roomBounds: unknown room id ${id}`);
+  return { dMin: r.dMin, dMax: r.dMax, halfWidth: r.halfWidth };
+}
+
 export const CAVE_MOUTH_D = 4; // CAUGHT_RESPAWN_POINT (level-cyclops-cave.md §1.2 note)
 
 // ------------------------------------------------------------------ hearth
