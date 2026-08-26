@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { assetUrl } from "../assets/paths";
 import { loadAlbedoTexture, loadDataTexture } from "./sprite";
+import { loadGltfBundle } from "./gltf";
 
 /**
  * Cyclops Cave (2nd stop) — primitive, code-only geometry + world content.
@@ -250,6 +251,9 @@ export interface CyclopsCave {
    * kapının oyuncuyu engellemediği gibi — yalnız görsel/senkron.
    */
   setInnerGateOpen(open: boolean): void;
+  /** DEV-testing yalnız (__CYCLOPS_DEBUG__ üzerinden) — set-dressing koyunların
+   * asenkron GLTF yüklemesi gerçekten tamamlandı mı, deterministik kontrol. */
+  sheepLoaded(): boolean;
 }
 
 /**
@@ -409,5 +413,43 @@ export function buildCyclopsCave(): CyclopsCave {
     gate.visible = !open;
   }
 
-  return { group, items, setDoorOpen, hearthLight, torchLight, hideSpots, setInnerGateOpen };
+  // ---------------------------------------------------------- set-dressing
+  // Sahip (26 Ağu 2026): bir Korsika sahil köyü/koyun patikası referansı
+  // verdi ("koyunların olduğu bir yoldan mağaraya girmesini istiyorum") —
+  // asıl referans (Sketchfab "Village of Canari") indirilemez/lisansı
+  // belirsiz bir profesyonel fotogrametri taramasıydı (766k yüzey),
+  // kullanılamadı. Kapsam sahip tarafından kasıtlı olarak sınırlandı:
+  // "sadece hafif set-dressing" — koy/patika geometrisi (kutular, duvarlar)
+  // DEĞİŞMEDİ, yalnızca birkaç statik koyun eklendi. ASSET-093, CC-BY
+  // ("Sheep" by Odin.Branigan, Sketchfab). Rig yok (düz statik mesh), tek
+  // `.clone(true)` her kopya için güvenli — Polyphemos'un aksine
+  // SkeletonUtils'e gerek yok.
+  const SHEEP_SPOTS: { x: number; z: number; rotY: number; scale: number }[] = [
+    { x: -3.2, z: -16, rotY: 0.4, scale: 1.05 },
+    { x: 4.1, z: -13.5, rotY: -1.1, scale: 0.92 },
+    { x: -2.4, z: -9.5, rotY: 2.3, scale: 1.0 },
+    { x: 2.1, z: -3.2, rotY: -0.6, scale: 0.97 },
+  ];
+  let sheepLoadedFlag = false;
+  loadGltfBundle("assets/models/creature_sheep_01_stand_3100.glb").then((bundle) => {
+    for (const spot of SHEEP_SPOTS) {
+      const sheep = bundle.scene.clone(true);
+      sheep.position.set(spot.x, 0, spot.z);
+      sheep.rotation.y = spot.rotY;
+      sheep.scale.setScalar(spot.scale);
+      group.add(sheep);
+    }
+    sheepLoadedFlag = true;
+  });
+
+  return {
+    group,
+    items,
+    setDoorOpen,
+    hearthLight,
+    torchLight,
+    hideSpots,
+    setInnerGateOpen,
+    sheepLoaded: () => sheepLoadedFlag,
+  };
 }

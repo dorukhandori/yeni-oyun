@@ -943,6 +943,7 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
         playerPos: { x: player.position.x, z: player.position.z },
         giantVisible: giant.visible,
         giantModelLoaded: giant.children.length > 0,
+        sheepLoaded: cave.sheepLoaded(),
         giantPos: { x: giant.position.x, z: giant.position.z },
         rageT: Number(rageT.toFixed(2)),
         attackTelegraph: attackTelegraph ? { ...attackTelegraph, t: Number(attackTelegraph.t.toFixed(2)) } : null,
