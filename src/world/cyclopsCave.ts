@@ -81,24 +81,18 @@ export function roomBounds(id: RoomId): { dMin: number; dMax: number; halfWidth:
   return { dMin: r.dMin, dMax: r.dMax, halfWidth: r.halfWidth };
 }
 
-/**
- * CAUGHT_RESPAWN_POINT. Locked by level-cyclops-cave.md §1.2/tuning.md as
- * "mağara ağzı, D≈4" (14 Ağu, @helix — reaffirmed 25 Ağu) specifically so a
- * caught player never respawns into total darkness. Kept that intent, moved
- * the exact coordinate: (0, D=4) sat inside the `mouth` room, which is
- * itself one of the giant's own wander-target rooms (§ WANDER_ROOMS, 15%
- * weight) — AND every entering/exiting walk is a beeline toward (x=0, z=0),
- * so the giant's x is *always* 0 while z is in [-5, 8]. A player standing
- * still at (0,4) could get re-crushed by ordinary giant traffic, not bad
- * luck (found via __CYCLOPS_DEBUG__ testing, 26 Ağu; confirmed with sahip
- * before changing — see chat). Fix: x=2.4, z=-4, still in the lit `path`
- * corridor immediately behind the mouth (z<0 is already "never at risk" per
- * the DETECT gate in cyclopsStop.ts), and provably outside the giant's
- * entire position envelope for every state (its x is 0 whenever it's
- * anywhere near this z; wander targets never land in `path` at all).
- */
-export const CAUGHT_RESPAWN_X = 2.4;
-export const CAUGHT_RESPAWN_Z = -4;
+// CAUGHT_RESPAWN_POINT (level-cyclops-cave.md §1.2, "mağara ağzı D≈4", 14 Ağu
+// @helix) existed here through two revisions — first the locked D≈4 itself,
+// then a same-session fix moving it to x=2.4/z=-4 after finding the original
+// point sat inside the giant's own wander/beeline path (__CYCLOPS_DEBUG__,
+// 26 Ağu). Sahip's very next request removed the whole mechanic it served:
+// "dev beni bir kere ezdiğinde girişe ışınlanıyorum, bunu ben sadece 3/3
+// olduğunda istiyorum" (26 Ağu, üçüncü tur) — cyclopsStop.ts's onCaught() no
+// longer teleports the player on crush 1/2 at all, only a full run reset via
+// the loss screen's "Yeniden Oyna" (back to the ship spawn, not this point).
+// Both constants removed as dead code — full reasoning is in git history
+// (commits around 26 Ağu) if a future respawn-on-partial-crush design wants
+// to reintroduce something like this.
 
 // ------------------------------------------------------------------ hearth
 // level-cyclops-cave.md §3.4 correction: hearth shifted 4 m west of the

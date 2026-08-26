@@ -11,8 +11,6 @@ import {
   roomBounds,
   HEARTH_POS,
   TORCH_POS,
-  CAUGHT_RESPAWN_X,
-  CAUGHT_RESPAWN_Z,
 } from "../world/cyclopsCave";
 
 /**
@@ -417,7 +415,13 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
       triggerLoss();
       return;
     }
-    player.position.set(CAUGHT_RESPAWN_X, 1.0, CAUGHT_RESPAWN_Z);
+    // Sahip (26 Ağu 2026, üçüncü tur): "dev beni bir kere ezdiğinde girişe
+    // ışınlanıyorum. bunu ben sadece 3/3 olduğunda istiyorum." 1./2. ezilmede
+    // artık HİÇ konum değişikliği yok — oyuncu tam yakalandığı yerde kalıyor,
+    // yalnız `crushGraceT` (2 sn) bağışıklığıyla kendi ayaklarıyla uzaklaşma
+    // şansı var. Işınlanma yalnız 3/3'te, ve o da otomatik değil: triggerLoss()
+    // hiçbir yere taşımıyor (donmuş "yakalandığın an" karesi kalıyor), gerçek
+    // konum sıfırlaması yalnız "Yeniden Oyna" tıklanınca resetRun() içinde olur.
     say(`Ezildin (${crushCount}/${CYCLOPS_CRUSH_CAP})${crushCount === 2 ? " — bir daha kaldıramazsın." : ""}`);
   }
 
