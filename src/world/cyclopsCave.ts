@@ -289,15 +289,22 @@ export interface RuneMarker {
 }
 
 /**
- * Free PolyHaven "Worn Rock Natural 01" (CC0), pulled in via Blender MCP
- * (25 Ağu 2026) as a representative stand-in — sahip: "önce blenderdan vs
- * bedavaya temsili modellerle kodlayalım", before spending any Tripo
- * credit. Warmer/tanner than art-bible's chalk-white target (#e6e2d4);
- * nudged toward it with a light tint rather than re-downloading — the
- * real palette pass is later polish, this is just "not a flat color".
+ * ASSET-091 v2 — real Gemini albedo (gemini-2.5-flash-image,
+ * `art-source/work/prompt-asset-091-cyclops-cave-rock-wall.txt`), matched to
+ * the locked interior chamber concepts (ASSET-105/106/107: raw Aegean
+ * limestone, strata banding, cool blue-grey shadow + warm amber undertone).
+ * Replaces the earlier PolyHaven "Worn Rock Natural 01" CC0 placeholder
+ * albedo (25 Ağu 2026, "önce blenderden vs bedavaya temsili modellerle
+ * kodlayalım" — before spending Tripo credit; that placeholder ran warmer/
+ * tanner than art-bible's chalk-white target and needed a colour tint).
+ * normalMap/roughnessMap stay the PolyHaven data maps — Gemini generates
+ * appearance images, not accurate surface-normal/roughness data, so a
+ * bespoke replacement for those two isn't a sensible use of a generation
+ * round; a generic real-world data map paired with a different but
+ * similar-scale albedo doesn't read as wrong in practice.
  */
 function loadCaveRockMaterial(): THREE.MeshStandardMaterial {
-  const map = loadAlbedoTexture(assetUrl("assets/textures/rock_cave_wall_01_albedo_1024.jpg"));
+  const map = loadAlbedoTexture(assetUrl("assets/textures/rock_cave_wall_02_albedo_1024.webp"));
   const roughnessMap = loadDataTexture(assetUrl("assets/textures/rock_cave_wall_01_rough_1024.jpg"));
   const normalMap = loadDataTexture(assetUrl("assets/textures/rock_cave_wall_01_normal_1024.jpg"));
   for (const t of [map, roughnessMap, normalMap]) {
@@ -309,7 +316,6 @@ function loadCaveRockMaterial(): THREE.MeshStandardMaterial {
     map,
     roughnessMap,
     normalMap,
-    color: 0xd8d0bc, // tint toward art-bible's chalk-white, source photo runs tan
     roughness: 1,
     side: THREE.BackSide,
   });
@@ -359,7 +365,7 @@ export function buildCyclopsCave(): CyclopsCave {
   // object (loadAlbedoTexture caches by URL); .repeat is a property of the
   // Texture, not the material, so without cloning, setting a different
   // repeat here would silently overwrite the walls' tiling too.
-  const floorTex = loadAlbedoTexture(assetUrl("assets/textures/rock_cave_wall_01_albedo_1024.jpg")).clone();
+  const floorTex = loadAlbedoTexture(assetUrl("assets/textures/rock_cave_wall_02_albedo_1024.webp")).clone();
   floorTex.needsUpdate = true;
   floorTex.wrapS = THREE.RepeatWrapping;
   floorTex.wrapT = THREE.RepeatWrapping;

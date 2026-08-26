@@ -376,7 +376,7 @@ Bunlar **asset işi değil** ve bu planın kapsamında değil. Buraya yazılmala
 | **4** | 🔊 **Ses katmanı** (§5) — bağımsız, paralel gidebilir | `@echo` (Cursor) | 0 | 1 | sahip Cursor'ı açmalı |
 | **5** | ✅ Polyphemos animasyonu — (B), + ayak kayması senkronu + metallicRoughness temizliği | `@axiom`+`@byte` | 0 | ~2,5 | 0a, 3 |
 | **6** | ✅ ASSET-090 mağara kabuğu — `build_cyclops_cave.py` | `@byte` | 0 | 1,5–2 | — (konsept hazır) |
-| **7** | ASSET-091/092 gerçek dokular | `@iris` | 0 | 1 | 6 |
+| **7** | ✅ ASSET-091 gerçek doku (duvar+tavan+zemin albedo) | `@iris` | 0 | 1 | 6 |
 | **8** | ✅ ASSET-110/111 sahil zemini + patika geometrisi | `@byte`+`@iris` | 0 | 1,5–2 (Tam: 3–4) | 1, 2 |
 | **9** | ASSET-093/094 azık propları, 095 ağıl dekoru, 096 ocak, 097 koca kaya | `@iris`+`@byte` | 0 | 1,5 | 7 |
 | | **Toplam** | | **0 – ~40** | **~11–14** | |
