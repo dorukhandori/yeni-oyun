@@ -56,6 +56,14 @@ const CYCLOPS_CARRY_CAP = 4;
 const CYCLOPS_DOOR_LIGHT_REACH = 45.0;
 const CYCLOPS_DOOR_LIT_THRESHOLD = 0.5;
 const CYCLOPS_GIANT_SPEED = 3.0;
+/** Yön dönüşü/stomp — 26 Ağu, "dev'in hareketleri yok" bulgusu. Prosedürel,
+ * gerçek animasyon klibi değil (bkz. walkGiantTowards'taki not). Facing
+ * sabiti 🔬 tahmini — modelin gerçek yerel ileri ekseni doğrulanmadı,
+ * ilk playtest görüntüsüyle ayarlanacak. */
+const GIANT_MESH_FACING = 0;
+const GIANT_TURN_SMOOTH = 0.25; // oyuncudan daha yavaş dönüyor, "ağır ama amaçlı"
+const GIANT_BOB_FREQ = 5.5;
+const GIANT_BOB_AMPLITUDE = 0.12;
 const CYCLOPS_CRUSH_RADIUS = 2.0;
 const CYCLOPS_GIANT_PROXIMITY_RADIUS = 8.0;
 const CYCLOPS_PROXIMITY_MULTIPLIER = 2.0;
@@ -282,6 +290,7 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
   giant.position.set(0, 0, -100); // parked off-scene while OUT/RETURN (D10: only ever visible during PRESENT)
   giant.visible = false;
   scene.add(giant);
+  let giantFacing = 0;
 
   // Rage tint (26 Ağu 2026): eski kapsülün tek `giantMat.color.setHex(...)`i
   // artık işlemiyor — model gerçek dokulu, albedo'yu ezmek yerine emissive
@@ -504,6 +513,8 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     attackRing.visible = false;
     setGiantRageTint(false);
     giant.position.set(0, 0, -100);
+    giant.rotation.y = 0;
+    giantFacing = 0;
     giant.visible = false;
     cave.setDoorOpen(true);
     cave.setInnerGateOpen(false);
@@ -545,6 +556,24 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
       const dx = target.x - giant.position.x;
       const dz = target.z - giant.position.z;
       const dist = Math.hypot(dx, dz);
+      // Bulundu (26 Ağu, "dev'in hareketleri yok"): dev hiçbir zaman
+      // döndürülmüyordu — yürüme yönüne bakmadan kayıyordu, animasyon
+      // eksikliğinden daha göze batan bir sorundu. Kaynak modelin kendi
+      // "koşu" klibi güvenilir değildi (root bone'da açıklanamayan büyük
+      // bir Z ofseti — tek bozuk kare değil, sürekli garip veri; ad hoc
+      // patch riskini almadık, bkz. agent memory `blender-rig-fix-lessons`).
+      // Bunun yerine: gerçek yön dönüşü (game.ts'in facing deseniyle aynı
+      // üstel yumuşatma) + prosedürel bir "stomp" sekmesi — düşük risk,
+      // sıfır asset bağımlılığı.
+      if (dist > 0.01) {
+        const targetFacing = Math.atan2(dx, dz);
+        let fd = targetFacing - giantFacing;
+        while (fd > Math.PI) fd -= Math.PI * 2;
+        while (fd < -Math.PI) fd += Math.PI * 2;
+        giantFacing += fd * (1 - Math.exp(-dt / GIANT_TURN_SMOOTH));
+        giant.rotation.y = giantFacing + GIANT_MESH_FACING;
+      }
+      giant.position.y = Math.abs(Math.sin(simTime * GIANT_BOB_FREQ)) * GIANT_BOB_AMPLITUDE;
       const step = speed * dt;
       if (dist <= step) {
         giant.position.x = target.x;
@@ -628,6 +657,7 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
       // ayrılmayan küçük bir titreşim (iki farklı frekans üst üste).
       giant.position.x = GIANT_BED.x + Math.sin(simTime * 1.3) * 0.4 + Math.sin(simTime * 3.7) * 0.15;
       giant.position.z = GIANT_BED.z + Math.cos(simTime * 1.7) * 0.35 + Math.cos(simTime * 4.1) * 0.12;
+      giant.position.y = 0; // walkGiantTowards'ın stomp bob'u yatarken kalmasın
       sleepT -= dt;
       if (sleepT <= 0) {
         wanderLegsLeft = 1; // uyanınca kapıya dönmeden önce bir tur daha
@@ -990,6 +1020,7 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
         giantModelLoaded: giant.children.length > 0,
         sheepLoaded: cave.sheepLoaded(),
         giantPos: { x: giant.position.x, z: giant.position.z },
+        giantRotY: Number(giant.rotation.y.toFixed(3)),
         rageT: Number(rageT.toFixed(2)),
         attackTelegraph: attackTelegraph ? { ...attackTelegraph, t: Number(attackTelegraph.t.toFixed(2)) } : null,
         dashCooldownT: Number(dashCooldownT.toFixed(2)),
