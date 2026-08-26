@@ -15,6 +15,7 @@ import {
   HEARTH_POS,
   TORCH_POS,
 } from "../world/cyclopsCave";
+import { Bursts } from "../systems/burst";
 
 /**
  * Cyclops Cave (2nd Odyssey stop) — primitive playable mechanic.
@@ -261,6 +262,18 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
 
   const cave = buildCyclopsCave();
   scene.add(cave.group);
+
+  // ASSET-096 — ocak kor parçacığı. Ocak önceden yalnız bir `PointLight` +
+  // düz parlak küreydi (level-cyclops-cave.md §3.4'ün "ocak = en yoğun
+  // aydınlık" kimliğini taşıyordu ama hiç hareket yoktu). Lotus'un zaten
+  // var olan genel parçacık havuzunu (`Bursts`, harvest/dust/splash'ta
+  // kullanılıyor) yeniden kullanıyor — yeni bir sistem yazılmadı. Kısa
+  // ömürlü (0.5–1 s), hafif yukarı fırlatılan sıcak parçacıklar, yerçekimi
+  // altında hızla sönüyor — "köz sıçraması", gerçek bir alev simülasyonu
+  // değil.
+  const hearthEmbers = new Bursts();
+  scene.add(hearthEmbers.points);
+  let emberSpawnT = 0;
 
   // -------------------------------------------------------------- player
   // Sahip (26 Ağu 2026, ucuz kazanımlar turu): "önce Doryseus'u gerçek
@@ -939,6 +952,19 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
       playerActor.update(dt);
     }
     giantMixer?.update(dt);
+
+    // ASSET-096 — ocak kor sıçraması, ~6/s, sabit hafif rastgele aralıkla.
+    emberSpawnT -= dt;
+    if (emberSpawnT <= 0) {
+      emberSpawnT = 0.12 + Math.random() * 0.08;
+      hearthEmbers.spawn(
+        new THREE.Vector3(HEARTH_POS.x, 0.55, HEARTH_POS.z),
+        0xeeae6a,
+        2,
+        0.6,
+      );
+    }
+    hearthEmbers.update(dt);
 
     // -------------------------------------------------------------- crush
     // giant.visible (fiziksel varlığı), phase==="present" değil — dev artık
