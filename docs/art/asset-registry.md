@@ -317,6 +317,20 @@ Eski planned ASSET-062–067 (Tripo 3/4 still) **iptal** — ID çakışması + 
 - [x] Fotogerçekçi değil, logo/marka yok, gore/açık şiddet yok (kemikler eski/temiz)
 - [ ] `assets.csv` satırı — ASSET-104 ile aynı gerekçeyle beklemede
 
+| ASSET-109 | Koy + koyunlu yokuş patika — sahne konsepti (dış, sahilden mağara ağzına yaklaşım) | `reference` | `art-source/work/prompt-asset-109-cyclops-cove-path.txt` (tek tur) | **accepted** | Sahip seçimi (tek tur, 3 varyant, 2026-08-26): varyant 03 → `art-source/ref/scene_cyclops_cove_path_01_ref_1344.png` · `gemini-2.5-flash-image` · seed none · 16:9 · 1344×768. Sahip: "sahil ve o yokuş koyunlu patika da yer alsin, onun tasarim referans cizimlerini kitlemedik" — D4-ek kapısından geçen beşinci Kiklop sahnesi (ASSET-104–107 dört iç mekan + bu, tek dış yaklaşım). **Kilit-çapa disiplini (plan §4.2 madde 1):** "Color and light" paragrafı ASSET-104'ten byte-identical kopyalandı — aynı sıcak/güneşli Ege dili, mağara ağzından bu tur da hiç farklı bir ışık kotuna geçilmedi. Kapsam kararı S1'in ("Hafif+", plan §4.2) doğrudan sonucu: kompozisyon hafif bir yokuş okutuyor ama teraslı/çok-bantlı bir patika değil, tek şeritli taş döşeli bir iz; bina/köy/ağıl/duvar **yok** — Korsika "Village of Canari" referansı (indirilemez, lisansı belirsiz, kullanılamamıştı) yalnızca TON kaynağı olarak kaldı, geometri kaynağı olmadı. Tek gemi demirli (filo yok, [H] IX.116 tutarlılığı), 3-4 serbest koyun patika boyunca otluyor, mağara ağzı uzakta küçük ve sade (ASSET-104'ün kendi detayına bırakılıyor, bu sahnede tekrar tasarlanmadı). **Tek turda kilitlendi** — önceki dört sahnenin aksine (ikisi/üçü revizyon istemişti) round 1'in üç varyantı da spesifikasyonu net karşıladı, sahip doğrudan seçti. |
+
+### Kabul kriteri **[P]** — ASSET-109
+
+- [x] Sıcak/güneşli Ege günışığı — ASSET-104 ile aynı ışık kotu, D11'in karartma istisnası bu sahneye hiç sızmıyor
+- [x] Tek gemi, koyda demirli — filo yok
+- [x] Patika sahilden mağara ağzına gerçek bir yokuş okutuyor (düz bir sahil yürüyüşü değil)
+- [x] 3-4 koyun patika boyunca serbest otluyor — "koyunlu patika" fikri net
+- [x] Bina/köy/ağıl/duvar/taş yapı kalıntısı **yok** — Korsika referansı yalnız ton, geometri değil
+- [x] Mağara ağzı sahnede küçük/uzak — bu konseptin ana konusu değil, ASSET-104 zaten onu kilitledi
+- [x] Mor-kristal/fener/bataklık paleti yok, Ege kayası + kumsal ailesinde
+- [x] Fotogerçekçi değil, logo/marka yok
+- [ ] `assets.csv` satırı — ASSET-104 ile aynı gerekçeyle beklemede
+
 ### P8 model varlıkları — kod-öncelikli placeholder'lar, **YENİ, 2026-08-26**
 
 > Sahip'in "asset üretimine geç" turunda gerçek asset üretim planı yazıldı (`docs/production/cyclops-asset-production-plan.md`, S1/S2 kararları). Bu iki satır aynı planın **§7.2**'sinin düzelttiği bir kayıt hatasının sonucu — geçen turlarda `assets.csv`'ye yanlışlıkla ASSET-092/093 olarak yazılmışlardı, gerçek rezervasyonları burada.

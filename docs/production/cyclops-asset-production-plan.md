@@ -262,7 +262,9 @@ Polyphemos için Doryseus'tan **daha kolay**: o script'in en riskli iki adımı 
 
 > Danışan: `@cove` (Island Designer), 26 Ağu. Sahibin bu turdaki isteğinin çekirdeği.
 
-### 4.0 🔴 ZORUNLU İLK ADIM — bu sahne konsept kapısından hiç geçmedi
+### 4.0 ✅ KAPANDI (26 Ağu, aynı gün) — konsept kilitlendi
+
+ASSET-109, tek turda, varyant 03 → `art-source/ref/scene_cyclops_cove_path_01_ref_1344.png`. Bkz. `docs/art/asset-registry.md` P8 bölümü. Aşağıdaki §4.0'ın orijinal metni (bu kapının neden zorunlu olduğu) tarihsel bağlam olarak kalıyor:
 
 D4-ek (sahip kararı, 24 Ağu, `cyclops-cave-production-plan.md` §4.2) bağlayıcı: **bu adanın her sahnesi önce Gemini'de konsept çizdirilip onaylatılacak; onaysız hiçbir görsel karar ilerlemez.** Mağaranın dört iç sahnesi (ASSET-104…107) bu kapıdan geçti — bazıları üç tur revizyonla. **Koy + patika hiç geçmedi.** Sahibin kendi ifadesi de bunu söylüyor: *"onun tasarim referans cizimlerini kitlemedik"*.
 
@@ -369,7 +371,7 @@ Bunlar **asset işi değil** ve bu planın kapsamında değil. Buraya yazılmala
 | **0d** | 🔲 **Beklemede — sahip onayı gerekiyor.** `models/` temizliği başka oturumların (Cursor/Grok) untracked dosyalarına dokunuyor (§1 Adım 0'ın kendi uyarısı: "silmeden önce ACTIVE_WORK.md claim'i + sahip onayı gerekir"). Yapılmadı. | `@byte` | 0 | 0,25 | sahip onayı |
 | **0e** | ✅ Polyphemos `metallicRoughness` → skaler (§2.4) — 3.44MB→3.32MB, örneklenen değerler roughness=0.495/metallic=0.009 | `@byte` | 0 | 0,1 | — |
 | **1** | ✅ **Sahip kararı: koy/patika kapsamı** (§4.2) — **Hafif+, kredi kısıtlaması yok** | **sahip** | — | — | 2 açıldı |
-| **2** | ASSET-109 koy/patika konsepti — Gemini gate, 3 varyant | `@iris` | 0 | 1 (🔬 3'e kadar) | ✅ 1 |
+| **2** | ✅ ASSET-109 koy/patika konsepti — tek turda kilitlendi, varyant 03 | `@iris` | 0 | 1 | — |
 | **3** | ASSET-108 Polyphemos konsepti + 4-açı turnaround — Gemini gate | `@iris` | 0 | 1 | (B) zaten shiplendi — düşük öncelik, S2 sonrası artık salt provenance/tutarlılık amaçlı |
 | **4** | 🔊 **Ses katmanı** (§5) — bağımsız, paralel gidebilir | `@echo` (Cursor) | 0 | 1 | sahip Cursor'ı açmalı |
 | **5** | ✅ Polyphemos animasyonu — (B), + ayak kayması senkronu + metallicRoughness temizliği | `@axiom`+`@byte` | 0 | ~2,5 | 0a, 3 |
