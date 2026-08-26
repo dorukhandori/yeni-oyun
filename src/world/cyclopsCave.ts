@@ -480,9 +480,42 @@ export function buildCyclopsCave(): CyclopsCave {
     };
   });
 
+  // ASSET-097 — the cave-mouth "koca kaya" (great boulder, [H] IX.240 —
+  // Polyphemos seals the entrance with a boulder so massive no one else
+  // could move it). Until now the door was purely a logical state (setDoorOpen only
+  // touched light radii) — no visible geometry blocked the threshold when
+  // "closed", which was the single biggest visible gap in the plan's own
+  // inventory. Reuses build_island_kit.py's existing chalk boulder (0 new
+  // credit, same art-bible palette as the outdoor cliffs) as a cluster —
+  // one scaled-up single rock read as an oddly smooth giant pebble; several
+  // at varied scale/rotation piled across the mouth reads as a real rockfall
+  // seal instead.
+  const boulderCluster = new THREE.Group();
+  boulderCluster.position.set(0, 0, 0.2); // just inside the D=0 threshold
+  const BOULDER_SPOTS: { x: number; y: number; scale: number; rotY: number }[] = [
+    { x: -3.6, y: 0, scale: 2.6, rotY: 0.4 },
+    { x: -1.4, y: 0, scale: 3.1, rotY: 2.1 },
+    { x: 1.1, y: 0, scale: 2.9, rotY: 5.0 },
+    { x: 3.5, y: 0, scale: 2.4, rotY: 1.2 },
+    { x: -2.4, y: 1.9, scale: 2.2, rotY: 3.4 },
+    { x: 0.2, y: 2.3, scale: 2.5, rotY: 0.9 },
+    { x: 2.6, y: 1.8, scale: 2.0, rotY: 4.2 },
+  ];
+  loadGltfBundle("assets/models/rock_chalk_boulder_01_mesh_800.glb").then((bundle) => {
+    for (const spot of BOULDER_SPOTS) {
+      const rock = bundle.scene.clone(true);
+      rock.position.set(spot.x, spot.y, 0);
+      rock.rotation.y = spot.rotY;
+      rock.scale.setScalar(spot.scale);
+      boulderCluster.add(rock);
+    }
+  });
+  group.add(boulderCluster);
+
   function setDoorOpen(open: boolean): void {
     hearthLight.distance = open ? 6.0 : 3.0;
     torchLight.distance = 3.0; // unaffected by door state (tuning.md §12)
+    boulderCluster.visible = !open;
   }
   setDoorOpen(true);
 
