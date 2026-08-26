@@ -873,7 +873,12 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     const md = input.mouseDelta();
     rig.rotate(md.x * sens, md.y * sens);
     rig.rotate(input.yawKeys() * CAMERA.keySens, input.pitchKeys() * CAMERA.keySens * 0.6);
-    rig.zoomBy(input.wheelDelta());
+    // Sahip (26 Ağu 2026): "kamera karaktere bir yükseklikte sabitlenmeli ve
+    // zoom in/out yapılamaz olmalı" — Lotus'un mouse-wheel zoom'u burada
+    // bilerek yok. `CameraRig.desired()`'ın kendi yükseklik formülü zaten
+    // `CAMERA.height * (boom/CAMERA.dist)` — boom hiç değişmeyince (zoomDist
+    // hep `startDist`'te kalır) yükseklik de karaktere göre sabit kalıyor,
+    // ayrı bir sabitleme kodu gerekmiyor.
 
     // ------------------------------------------------------------ input
     // manualMove (DEV hook) bypasses camera-relative transform on purpose —
@@ -1164,6 +1169,19 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
         giantModelLoaded: giant.children.length > 0,
         sheepLoaded: cave.sheepLoaded(),
         shellLoaded: cave.shellLoaded(),
+        cliffLoaded: cave.cliffLoaded(),
+        cliffWorldBox: (() => {
+          const box = new THREE.Box3().setFromObject(cave.cliffGroup);
+          if (box.isEmpty()) return null;
+          const size = new THREE.Vector3();
+          const center = new THREE.Vector3();
+          box.getSize(size);
+          box.getCenter(center);
+          return {
+            size: { x: Number(size.x.toFixed(2)), y: Number(size.y.toFixed(2)), z: Number(size.z.toFixed(2)) },
+            center: { x: Number(center.x.toFixed(2)), y: Number(center.y.toFixed(2)), z: Number(center.z.toFixed(2)) },
+          };
+        })(),
         runeProgress: [...runeProgress],
         secretGateForcedOpen,
         runes: cave.runes.map((r) => ({ letter: r.letter, x: r.x, z: r.z })),

@@ -305,6 +305,11 @@ export interface CyclopsCave {
   /** DEV-testing yalnız — ASSET-090 mağara kabuğunun (tek merged GLB, async)
    * yüklemesi tamamlandı mı. */
   shellLoaded(): boolean;
+  /** DEV-testing yalnız — ASSET-104'ün oval kaya kemeri (dış cephe) GLB'sinin
+   * yüklemesi tamamlandı mı. */
+  cliffLoaded(): boolean;
+  /** DEV-testing yalnız — dünya-uzayı bounding box ölçümü için. */
+  cliffGroup: THREE.Group;
   /** Sprint sonu sır özelliği (26 Ağu 2026, sahip) — T/Ü/R/K duvar levhaları,
    * sırayla dokununca İç nöy geçidini erkenden açan gizli kısayol. Konum/
    * etkileşim mantığı cyclopsStop.ts'te; burada yalnız geometri + koordinat. */
@@ -438,6 +443,33 @@ export function buildCyclopsCave(): CyclopsCave {
     });
     group.add(bundle.scene);
     shellLoadedFlag = true;
+  });
+
+  // Sahip (27 Ağu 2026, ekran görüntüsü geri bildirimi): "mağara dışarıdan
+  // görünümle oval bir görünüm olmasını istiyorum" — D=0 eşiğinde hiç dış-
+  // yüzey geometrisi yoktu (mağara kabuğu `BackSide`, yalnız İÇERİDEN
+  // görünür), yani patikadan mağaraya yürürken eşiği geçene kadar hiçbir
+  // şey görünmüyordu. `scripts/blender/build_cyclops_cliff.py` — tebeşir
+  // beyazı bir kaya levhasının içinden oval bir kemer (ASSET-104'ün "large
+  // natural rock archway" konseptine göre) oyulmuş, D=0'ı sarıyor.
+  // Blender'ın kendi glTF export'u malzemeyi gömmedi (nedeni bulunamadı,
+  // zaman kaybetmemek için) — chalk rengi burada, TS tarafında veriliyor,
+  // tıpkı aşağıdaki kaya/kapı proplarının rockMat override deseni gibi.
+  let cliffLoadedFlag = false;
+  const cliffGroup = new THREE.Group();
+  group.add(cliffGroup);
+  const cliffMat = new THREE.MeshStandardMaterial({ color: 0xe6e2d4, roughness: 0.95 });
+  loadGltfBundle("assets/models/rock_cyclops_cliff_01_mesh_4460.glb").then((bundle) => {
+    bundle.scene.traverse((obj) => {
+      if (obj instanceof THREE.Mesh) {
+        obj.material = cliffMat;
+        obj.receiveShadow = true;
+        obj.castShadow = true;
+        obj.frustumCulled = false;
+      }
+    });
+    cliffGroup.add(bundle.scene);
+    cliffLoadedFlag = true;
   });
 
   // Hearth (pens) — point light, radius toggles 6.0 (open) / 3.0 (closed),
@@ -740,6 +772,8 @@ export function buildCyclopsCave(): CyclopsCave {
     setInnerGateOpen,
     sheepLoaded: () => sheepLoadedFlag,
     shellLoaded: () => shellLoadedFlag,
+    cliffLoaded: () => cliffLoadedFlag,
+    cliffGroup,
     runes,
   };
 }
