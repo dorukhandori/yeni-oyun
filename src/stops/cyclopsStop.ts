@@ -4,6 +4,7 @@ import { CAMERA } from "../constants";
 import { CameraRig } from "../render/cameraRig";
 import { Input } from "../systems/input";
 import { isCoarsePointer } from "../ui/orientation";
+import { loadGltfBundle } from "../world/gltf";
 import {
   buildCyclopsCave,
   corridorHalfWidthAt,
@@ -249,13 +250,41 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
   const rightV = new THREE.Vector3();
 
   // ---------------------------------------------------------------- giant
-  const giantMat = new THREE.MeshStandardMaterial({ color: 0x8a5a4a });
-  const GIANT_BASE_COLOR = giantMat.color.getHex();
-  const GIANT_RAGE_COLOR = 0xb8321a; // "sarhoş"/rage tell, giant tints red while raging
-  const giant = new THREE.Mesh(new THREE.CapsuleGeometry(0.9, 3.2, 4, 8), giantMat);
-  giant.position.set(0, 2.4, -100); // parked off-scene while OUT/RETURN (D10: only ever visible during PRESENT)
+  // Polyphemos — ASSET-092, "Cyclop" (Sketchfab, lucasprs51450, CC-BY),
+  // sahip'in seçtiği "temsili ücretsiz model" (26 Ağu 2026), plain kapsülün
+  // yerine. `giant` bir Group: içi asenkron dolduruluyor (GLTFLoader), ama
+  // `.position`/`.visible` her yerde AYNI şekilde okunuyor/yazılıyor —
+  // step()'in geri kalanı bu satırın nereden geldiğini bilmiyor, tek
+  // değişen üç `giant.position.set(0, 2.4, …)` çağrısının y'si oldu (2.4
+  // eski kapsülün MERKEZİ içindi, yeni model ayakları kendi orijininde
+  // (y≈0) — bkz. aşağıdaki üç `giant.position.set(0, 0, …)`).
+  const giant = new THREE.Group();
+  giant.position.set(0, 0, -100); // parked off-scene while OUT/RETURN (D10: only ever visible during PRESENT)
   giant.visible = false;
   scene.add(giant);
+
+  // Rage tint (26 Ağu 2026): eski kapsülün tek `giantMat.color.setHex(...)`i
+  // artık işlemiyor — model gerçek dokulu, albedo'yu ezmek yerine emissive
+  // bir kızıl parıltı ekleniyor (dokuyu bozmadan "çıldırdı" hissi verir).
+  // Materyal listesi model yüklenene kadar boş — hiçbir çağrı hata vermez,
+  // yalnızca no-op olur (giant zaten 40+ sn görünmüyor, yükleme payı bol).
+  const giantMaterials: THREE.MeshStandardMaterial[] = [];
+  function setGiantRageTint(active: boolean): void {
+    for (const m of giantMaterials) {
+      m.emissive.setHex(active ? 0xb8321a : 0x000000);
+      m.emissiveIntensity = active ? 0.55 : 0;
+    }
+  }
+  loadGltfBundle("assets/models/char_polyphemos_01_stand_27000.glb").then((bundle) => {
+    const model = bundle.scene;
+    model.traverse((o) => {
+      if (o instanceof THREE.Mesh && o.material instanceof THREE.MeshStandardMaterial) {
+        o.castShadow = false; // primitif geçiş — gölge haritası yok
+        giantMaterials.push(o.material);
+      }
+    });
+    giant.add(model);
+  });
 
   // Rage attack telegraph — a flat ring decal on the floor, aRPG-style
   // ("hareketi önceden yuvarlaklarla gösterilmeli, dodge'layabilmesi için").
@@ -453,8 +482,8 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     rageAttackT = 0;
     attackTelegraph = null;
     attackRing.visible = false;
-    giantMat.color.setHex(GIANT_BASE_COLOR);
-    giant.position.set(0, 2.4, -100);
+    setGiantRageTint(false);
+    giant.position.set(0, 0, -100);
     giant.visible = false;
     cave.setDoorOpen(true);
     cave.setInnerGateOpen(false);
@@ -522,7 +551,7 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
       rageStepT = 0;
       rageAttackT = CYCLOPS_ATTACK_INTERVAL * 0.5; // ilk telgraf hemen değil, kısa bir gecikmeyle
       attackTelegraph = null;
-      giantMat.color.setHex(GIANT_RAGE_COLOR);
+      setGiantRageTint(true);
       giantState = "raging";
       say("Dev çıldırdı!");
     }
@@ -533,7 +562,7 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
       outWaitT -= dt;
       if (outWaitT <= 0) {
         giantState = "entering";
-        giant.position.set(0, 2.4, GIANT_ENTER_START_Z);
+        giant.position.set(0, 0, GIANT_ENTER_START_Z);
         giant.visible = true;
         say("Dışarıdan bir gürleme yaklaşıyor…");
       }
@@ -630,7 +659,7 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
         rageAttackT = CYCLOPS_ATTACK_INTERVAL;
       }
       if (rageT <= 0 && !attackTelegraph) {
-        giantMat.color.setHex(GIANT_BASE_COLOR);
+        setGiantRageTint(false);
         finishWanderLeg(rageReturnState, rageReturnState === "wanderingPre" ? "headingToBed" : "exiting");
       }
     } else {
@@ -913,6 +942,7 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
         lostRun,
         playerPos: { x: player.position.x, z: player.position.z },
         giantVisible: giant.visible,
+        giantModelLoaded: giant.children.length > 0,
         giantPos: { x: giant.position.x, z: giant.position.z },
         rageT: Number(rageT.toFixed(2)),
         attackTelegraph: attackTelegraph ? { ...attackTelegraph, t: Number(attackTelegraph.t.toFixed(2)) } : null,
