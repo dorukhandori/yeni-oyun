@@ -1117,6 +1117,13 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
         runes: cave.runes.map((r) => ({ letter: r.letter, x: r.x, z: r.z })),
         giantPos: { x: giant.position.x, z: giant.position.z },
         giantRotY: Number(giant.rotation.y.toFixed(3)),
+        giantWorldBox: (() => {
+          const box = new THREE.Box3().setFromObject(giant);
+          if (box.isEmpty()) return null;
+          const size = new THREE.Vector3();
+          box.getSize(size);
+          return { x: Number(size.x.toFixed(2)), y: Number(size.y.toFixed(2)), z: Number(size.z.toFixed(2)) };
+        })(),
         rageT: Number(rageT.toFixed(2)),
         attackTelegraph: attackTelegraph ? { ...attackTelegraph, t: Number(attackTelegraph.t.toFixed(2)) } : null,
         dashCooldownT: Number(dashCooldownT.toFixed(2)),
