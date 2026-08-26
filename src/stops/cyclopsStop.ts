@@ -56,6 +56,24 @@ const CYCLOPS_CARRY_CAP = 4;
 const CYCLOPS_DOOR_LIGHT_REACH = 45.0;
 const CYCLOPS_DOOR_LIT_THRESHOLD = 0.5;
 const CYCLOPS_GIANT_SPEED = 3.0;
+/**
+ * Ayak kayması düzeltmesi (26 Ağu, sahip: "oyunda biraz daha iyi ama..."
+ * sonrası ölçülen gerçek neden). `walk` klibi "treadmill" — kök çeviri
+ * sıfırlanmış (Doryseus'un `retarget_mixamo_doryseus.py` deseniyle aynı),
+ * gerçek hareketi `walkGiantTowards()` sağlıyor — ama klibin KENDİ doğal
+ * temposu (bacakların bir tam döngüde ne kadar "ilerlediği hissi") ile
+ * `CYCLOPS_GIANT_SPEED` arasında hiçbir bağ yoktu, bu da ayakların zeminde
+ * kaymasına neden oluyordu. Kaynak Mixamo `walking.fbx`'in KENDİ kalça
+ * kökü (retarget'tan önce, orijinal FBX) headless Blender'da ölçüldü: 32
+ * kare / 30 fps = 1.0333 sn'lik döngüde 172.44 ham birim (santimetre —
+ * FBX'in kendi iskelet-dinlenme yüksekliği metreye çevrilmiş 1.96 birim
+ * çıkıyordu ama animasyon eğrileri hâlâ ham cm'deydi, iki eksende de
+ * tutarlıydı: yatay 172 cm ✓ mantıklı adım mesafesi, dikey ~9 cm ✓
+ * mantıklı sıçrama genliği — ×100 olsaydı saçma olurdu) = 1.7244 m ileri.
+ * Doğal tempo = 1.7244 / 1.0333 ≈ 1.669 m/s. `AnimationAction.timeScale`
+ * bunu gerçek hıza (3.0) oranlıyor — ayaklar artık zeminle senkron.
+ */
+const GIANT_WALK_NATURAL_SPEED = 1.669;
 /** Yön dönüşü/stomp — 26 Ağu, "dev'in hareketleri yok" bulgusu. Prosedürel,
  * gerçek animasyon klibi değil (bkz. walkGiantTowards'taki not). Facing
  * sabiti önce 🔬 tahminle (0) gönderildi; `producer`/`@axiom`'un asset
@@ -348,6 +366,7 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
       giantMixer = new THREE.AnimationMixer(model);
       giantIdleAction = giantMixer.clipAction(idleClip);
       giantWalkAction = giantMixer.clipAction(walkClip);
+      giantWalkAction.timeScale = CYCLOPS_GIANT_SPEED / GIANT_WALK_NATURAL_SPEED; // ayak kayması düzeltmesi, bkz. sabitin üstündeki not
       giantIdleAction.play();
     } else {
       console.warn("[cyclopsStop] Polyphemos GLB missing idle/walk clips", bundle.animations.map((c) => c.name));
