@@ -273,6 +273,9 @@ export interface CyclopsCave {
   /** DEV-testing yalnız (__CYCLOPS_DEBUG__ üzerinden) — set-dressing koyunların
    * asenkron GLTF yüklemesi gerçekten tamamlandı mı, deterministik kontrol. */
   sheepLoaded(): boolean;
+  /** DEV-testing yalnız — ASSET-090 mağara kabuğunun (tek merged GLB, async)
+   * yüklemesi tamamlandı mı. */
+  shellLoaded(): boolean;
   /** Sprint sonu sır özelliği (26 Ağu 2026, sahip) — T/Ü/R/K duvar levhaları,
    * sırayla dokununca İç nöy geçidini erkenden açan gizli kısayol. Konum/
    * etkileşim mantığı cyclopsStop.ts'te; burada yalnız geometri + koordinat. */
@@ -368,29 +371,39 @@ export function buildCyclopsCave(): CyclopsCave {
   floor.receiveShadow = true;
   group.add(floor);
 
-  // Room shells: BackSide box per segment so the camera (inside) sees
-  // interior walls/ceiling. Cove (open sky) and path get no shell.
-  // Bulundu (asset üretim planı denetimi, 26 Ağu 2026): bu yorum zaten
-  // "path get no shell" diyordu ama koşul path'i hariç TUTMUYORDU —
-  // `halfWidth:3` sonlu olduğu için patika de burada tam bir `BoxGeometry`
-  // kutusuna (12 m tavanlı) giriyordu, `level-cyclops-cave.md`'nin "açık"
-  // tarifiyle çelişiyordu. Yorum ile kod arasındaki uyuşmazlık gerçek bir
-  // hataydı, "büyütme" değil — düzeltildi.
-  for (const r of ROOMS) {
-    if (r.id === "cove" || r.id === "path" || !Number.isFinite(r.halfWidth)) continue;
-    const depth = r.dMax - r.dMin;
-    const width = r.halfWidth * 2;
-    const height = Number.isFinite(r.ceilingY) ? r.ceilingY : 6;
-    const geo = new THREE.BoxGeometry(width, height, depth);
-    const mat = rockMat;
-    const box = new THREE.Mesh(geo, mat);
-    // Bulundu (sahip playtest'i, 26 Ağu): "zemin ve duvarlar hareket
-    // ederken flicker oluyor" — kutunun taban yüzü zemin `PlaneGeometry`
-    // ile birebir aynı y=0 düzlemindeydi (klasik z-fighting). 5 cm aşağı
-    // kaydırıldı, tavan farkı görsel olarak hissedilmez.
-    box.position.set(0, height / 2 - 0.05, r.dMin + depth / 2);
-    group.add(box);
+  // Room shell — ASSET-090, `scripts/blender/build_cyclops_cave.py`. Was 7
+  // independent BackSide BoxGeometry rooms (each fully closed, so at every
+  // boundary two boxes' own near-walls sat almost back-to-back); replaced
+  // (26 Ağu 2026) with ONE merged, continuous tunnel mesh built by the same
+  // script reading this file's own ROOMS table — visual shell and collision
+  // (`corridorHalfWidthAt`) can never structurally drift apart, and there is
+  // no interior end-cap face left for a camera to clip into (see this
+  // session's "camera clips through room walls" finding). Cove/path stay
+  // shell-less (open sky, unchanged). UV is arc-length-in-meters (script's
+  // own docstring) — `repeat` here divides by a target ~4.4 m tile size to
+  // match, not the box-UV 2.2 the OTHER rockMat users below still want.
+  let shellLoadedFlag = false;
+  const shellMat = loadCaveRockMaterial();
+  // .clone() each texture — loadAlbedoTexture/loadDataTexture cache by URL,
+  // so without cloning this `.repeat` would silently overwrite rockMat's
+  // (used below for hide-spots/niche/gate, which want the box-UV 2.2).
+  shellMat.map = shellMat.map!.clone();
+  shellMat.roughnessMap = shellMat.roughnessMap!.clone();
+  shellMat.normalMap = shellMat.normalMap!.clone();
+  for (const t of [shellMat.map, shellMat.roughnessMap, shellMat.normalMap]) {
+    t.needsUpdate = true;
+    t.repeat.set(1 / 4.4, 1 / 4.4);
   }
+  loadGltfBundle("assets/models/cave_cyclops_shell_01_mesh_68.glb").then((bundle) => {
+    bundle.scene.traverse((obj) => {
+      if (obj instanceof THREE.Mesh) {
+        obj.material = shellMat;
+        obj.receiveShadow = true;
+      }
+    });
+    group.add(bundle.scene);
+    shellLoadedFlag = true;
+  });
 
   // Hearth (pens) — point light, radius toggles 6.0 (open) / 3.0 (closed),
   // same warm colour both states (tuning.md §12 CYCLOPS_LIGHT_RADIUS*).
@@ -581,6 +594,7 @@ export function buildCyclopsCave(): CyclopsCave {
     hideSpots,
     setInnerGateOpen,
     sheepLoaded: () => sheepLoadedFlag,
+    shellLoaded: () => shellLoadedFlag,
     runes,
   };
 }

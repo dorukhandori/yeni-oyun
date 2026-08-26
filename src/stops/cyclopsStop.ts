@@ -1137,6 +1137,7 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
         giantVisible: giant.visible,
         giantModelLoaded: giant.children.length > 0,
         sheepLoaded: cave.sheepLoaded(),
+        shellLoaded: cave.shellLoaded(),
         runeProgress: [...runeProgress],
         secretGateForcedOpen,
         runes: cave.runes.map((r) => ({ letter: r.letter, x: r.x, z: r.z })),
