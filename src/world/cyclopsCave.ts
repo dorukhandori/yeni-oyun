@@ -75,20 +75,52 @@ export const HEARTH_POS = { x: -4, z: 35 };
 export const TORCH_POS = { x: 0, z: 58 }; // inner nook wall-mounted torch, roughly central to the room
 
 // -------------------------------------------------------------- hide spots
-// tuning.md §12.1: coordinates level-cyclops-cave.md §3, radius here.
+/**
+ * Bulundu (sahip talebi, 26 Ağu 2026): "gizlenme yerleri gerçek girinti ve
+ * çıkıntıdan oluşacak ve her odada random yerlerde olacak." Eski model
+ * `level-cyclops-cave.md` §3'ün sabit koordinatlarıydı (soyut bir yarıçap,
+ * görsel karşılığı yalnız dev-görünür bir halkaydı). Şimdi: her oturumda
+ * (`buildCyclopsCave()` her çağrıldığında) yeniden çekiliyor — oda içinde
+ * rastgele bir derinlik + rastgele bir duvar tarafı (sol/sağ), gerçek
+ * geometriyle (kaya çıkıntısı ya da duvar oyuğu, yine rastgele).
+ *
+ * Sadeleştirme, bilerek: oyuncunun oyukların İÇİNE fiziksel olarak
+ * girebilmesi (duvarın normal sınırını yerel olarak genişletme) bu turda
+ * yapılmadı — `corridorHalfWidthAt(z)` hâlâ oda başına tek bir sayı,
+ * konuma göre değişmiyor. Oyuk/kaya görsel olarak gerçek bir çıkıntı/girinti,
+ * ama "güvenli" sayılma hâlâ mevcut yarıçap-mesafe kuralına bağlı — oyuncu
+ * duvara yaslanacak kadar yakın durursa zaten o kontrolü geçiyor.
+ */
+export type HideSpotType = "rock" | "niche";
+
 export interface HideSpot {
   room: RoomId;
   x: number;
   z: number;
   radius: number;
+  type: HideSpotType;
+  /** -1 = batı duvarı, 1 = doğu duvarı — geometri buna göre kuruluyor. */
+  side: -1 | 1;
 }
 
-export const HIDE_SPOTS: HideSpot[] = [
-  { room: "mouth", x: 4, z: 6, radius: 1.2 },
-  { room: "depot", x: 5, z: 19, radius: 1.5 },
-  { room: "pens", x: 5.5, z: 35, radius: 1.5 },
-  { room: "inner", x: 4, z: 51, radius: 1.5 },
-];
+const HIDE_SPOT_ROOM_IDS: RoomId[] = ["mouth", "depot", "pens", "inner"];
+
+function randomHideSpotFor(room: RoomSpan): HideSpot {
+  const marginZ = 2.5;
+  const span = Math.max(1, room.dMax - room.dMin - marginZ * 2);
+  const z = room.dMin + marginZ + Math.random() * span;
+  const side: -1 | 1 = Math.random() < 0.5 ? -1 : 1;
+  const type: HideSpotType = Math.random() < 0.5 ? "rock" : "niche";
+  const wallX = Number.isFinite(room.halfWidth) ? room.halfWidth : 6;
+  // Kaya duvardan içeri (yürünebilir alanda), oyuk duvarın kendi hizasında
+  // (görsel cebi orada, gerçek geometri aşağıda inşa ediliyor).
+  const x = side * (type === "rock" ? wallX - 1.3 : wallX - 0.55);
+  return { room: room.id, x, z, radius: 1.4, type, side };
+}
+
+function generateHideSpots(): HideSpot[] {
+  return ROOMS.filter((r) => HIDE_SPOT_ROOM_IDS.includes(r.id)).map(randomHideSpotFor);
+}
 
 // ------------------------------------------------------------------- items
 // level-cyclops-cave.md §5 — 7 items, coordinates exact. "cheese"/"wine" =
@@ -139,6 +171,10 @@ export interface CyclopsCave {
   setDoorOpen(open: boolean): void;
   hearthLight: THREE.PointLight;
   torchLight: THREE.PointLight;
+  /** This build's randomised hide-spot placement (26 Ağu 2026) — not read by
+   * cyclopsStop.ts's DETECT logic yet (that's still pure light-distance),
+   * exposed for future use/debugging. */
+  hideSpots: HideSpot[];
 }
 
 /**
@@ -229,11 +265,34 @@ export function buildCyclopsCave(): CyclopsCave {
   torchLight.position.set(TORCH_POS.x, 1.6, TORCH_POS.z);
   group.add(torchLight);
 
-  // Hide-spot markers — thin flat ring, dev-visible for the primitive pass.
-  for (const h of HIDE_SPOTS) {
+  // Hide spots — real geometry (rock outcropping or wall niche), randomised
+  // position/type per room per session (see generateHideSpots() above).
+  const hideSpots = generateHideSpots();
+  for (const h of hideSpots) {
+    if (h.type === "rock") {
+      // Çıkıntı: yürünebilir alana giren bir kaya kütlesi, arkasına
+      // geçilip saklanılabilir.
+      const geo = new THREE.IcosahedronGeometry(1.05, 0);
+      geo.scale(1, 0.85, 1);
+      const rock = new THREE.Mesh(geo, rockMat.clone());
+      (rock.material as THREE.MeshStandardMaterial).side = THREE.FrontSide;
+      rock.position.set(h.x, 0.75, h.z);
+      rock.rotation.y = Math.random() * Math.PI * 2;
+      group.add(rock);
+    } else {
+      // Girinti: duvarın normal hattının ötesine uzanan küçük bir cep —
+      // oda kabuğuyla aynı malzeme, iç yüzü görünür (BackSide).
+      const depth = 1.3;
+      const nicheGeo = new THREE.BoxGeometry(depth, 2.3, 1.8);
+      const niche = new THREE.Mesh(nicheGeo, rockMat);
+      niche.position.set(h.x - h.side * (depth / 2 - 0.15), 1.05, h.z);
+      group.add(niche);
+    }
+    // İnce zemin işareti — hâlâ dev-görünür bir ipucu, artık ikincil
+    // (asıl "burası saklaş noktası" hissi geometriden geliyor).
     const ring = new THREE.Mesh(
       new THREE.RingGeometry(h.radius - 0.06, h.radius, 24),
-      new THREE.MeshBasicMaterial({ color: 0x5f7fa8, side: THREE.DoubleSide, transparent: true, opacity: 0.6 }),
+      new THREE.MeshBasicMaterial({ color: 0x5f7fa8, side: THREE.DoubleSide, transparent: true, opacity: 0.4 }),
     );
     ring.rotation.x = -Math.PI / 2;
     ring.position.set(h.x, 0.02, h.z);
@@ -263,5 +322,5 @@ export function buildCyclopsCave(): CyclopsCave {
   }
   setDoorOpen(true);
 
-  return { group, items, setDoorOpen, hearthLight, torchLight };
+  return { group, items, setDoorOpen, hearthLight, torchLight, hideSpots };
 }
