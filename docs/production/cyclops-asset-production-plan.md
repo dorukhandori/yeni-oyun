@@ -378,7 +378,7 @@ Bunlar **asset işi değil** ve bu planın kapsamında değil. Buraya yazılmala
 | **6** | ✅ ASSET-090 mağara kabuğu — `build_cyclops_cave.py` | `@byte` | 0 | 1,5–2 | — (konsept hazır) |
 | **7** | ✅ ASSET-091 gerçek doku (duvar+tavan+zemin albedo) | `@iris` | 0 | 1 | 6 |
 | **8** | ✅ ASSET-110/111 sahil zemini + patika geometrisi | `@byte`+`@iris` | 0 | 1,5–2 (Tam: 3–4) | 1, 2 |
-| **9** | 🟡 ASSET-097 koca kaya bitti — 093/094/095/096 hâlâ açık | `@iris`+`@byte` | 0 | 1,5 | 7 |
+| **9** | 🟡 ASSET-097 koca kaya + 095 ağıl dekoru bitti — 093/094/096 hâlâ açık | `@iris`+`@byte` | 0 | 1,5 | 7 |
 | | **Toplam** | | **0 – ~40** | **~11–14** | |
 
 **En önemli sonuç: bu plan büyük olasılıkla `0 kredi` ile bitiyor.** Orijinal ~80 kredilik tek kalem (ASSET-098) artık ~0 veya ~40 — çünkü mesh+doku adımlarının satın alacağı şey bugün zaten elimizde.

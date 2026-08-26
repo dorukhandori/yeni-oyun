@@ -531,6 +531,83 @@ export function buildCyclopsCave(): CyclopsCave {
     gate.visible = !open;
   }
 
+  // ASSET-095 — "kuzu ağılı" (lamb/kid pen), the pens room's one piece of
+  // decor called out by both [H] IX.219-ish (lambs/kids sorted by age into
+  // pens) and level-cyclops-cave.md's own crokí ("▓▓ kuzu ağılı ▓▓") — until
+  // now completely absent from the room. Prosedürel kod mesh per the plan
+  // (§ item 9), not a generated asset: a low wattle-fence rectangle (posts +
+  // rails, primitive cylinders) on the room's east side (opposite the hearth
+  // at x=-4, matching the design doc's saklaş noktası reference "doğu duvarı
+  // gölge cebi") with a few simple resting lamb/kid shapes inside — capsule
+  // bodies, no attempt at real animal anatomy, matching this project's
+  // "primitive first" convention for code-mesh set-dressing (build_island_
+  // kit.py's own boulders/flora are the same register).
+  {
+    const pen = new THREE.Group();
+    pen.position.set(5.2, 0, 33.5);
+    const postMat = new THREE.MeshStandardMaterial({ color: 0x6b5a42, roughness: 1 });
+    const railMat = new THREE.MeshStandardMaterial({ color: 0x7a6850, roughness: 1 });
+    const PEN_W = 3.2;
+    const PEN_D = 3.6;
+    const POST_H = 0.7;
+    const postGeo = new THREE.CylinderGeometry(0.06, 0.07, POST_H, 6);
+    for (const [px, pz] of [
+      [-PEN_W / 2, -PEN_D / 2],
+      [PEN_W / 2, -PEN_D / 2],
+      [PEN_W / 2, PEN_D / 2],
+      [-PEN_W / 2, PEN_D / 2],
+    ]) {
+      const post = new THREE.Mesh(postGeo, postMat);
+      post.position.set(px, POST_H / 2, pz);
+      pen.add(post);
+    }
+    // Horizontal wattle rails — one thin rotated cylinder per side, two
+    // heights, leaving a gap at -Z for an "entrance" (visual only, no
+    // physical collision on this prop — matches the level's existing
+    // "decorative, non-blocking" convention for hide-spot geometry).
+    // Cylinder's default long axis is Y; rotate 90° around Z to lie along
+    // X (back rail), or 90° around X to lie along Z (side rails).
+    const railGeo = new THREE.CylinderGeometry(0.035, 0.035, 1, 5);
+    function addRail(x: number, z: number, length: number, alongX: boolean, y: number): void {
+      const rail = new THREE.Mesh(railGeo, railMat);
+      rail.scale.y = length;
+      if (alongX) rail.rotation.z = Math.PI / 2;
+      else rail.rotation.x = Math.PI / 2;
+      rail.position.set(x, y, z);
+      pen.add(rail);
+    }
+    for (const y of [0.35, 0.6]) {
+      addRail(0, -PEN_D / 2, PEN_W, true, y); // back
+      addRail(-PEN_W / 2, 0, PEN_D, false, y); // left
+      addRail(PEN_W / 2, 0, PEN_D, false, y); // right
+      // front side skipped — entrance gap
+    }
+    // A few resting lamb/kid shapes — capsule body + small sphere head,
+    // cream/tan (art-bible-adjacent, not a new palette colour: close to
+    // PALETTE's existing wool/sand family).
+    const lambMat = new THREE.MeshStandardMaterial({ color: 0xd8c9a8, roughness: 0.9 });
+    const lambSpots: { x: number; z: number; rotY: number; scale: number }[] = [
+      { x: -0.6, z: 0.4, rotY: 0.6, scale: 1.0 },
+      { x: 0.5, z: -0.3, rotY: -1.1, scale: 0.85 },
+      { x: -0.3, z: -0.7, rotY: 2.4, scale: 0.9 },
+    ];
+    for (const spot of lambSpots) {
+      const lamb = new THREE.Group();
+      const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.14, 0.22, 4, 8), lambMat);
+      body.rotation.z = Math.PI / 2;
+      body.position.y = 0.16;
+      lamb.add(body);
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), lambMat);
+      head.position.set(0.22, 0.2, 0);
+      lamb.add(head);
+      lamb.position.set(spot.x, 0, spot.z);
+      lamb.rotation.y = spot.rotY;
+      lamb.scale.setScalar(spot.scale);
+      pen.add(lamb);
+    }
+    group.add(pen);
+  }
+
   // ---------------------------------------------------------- set-dressing
   // Sahip (26 Ağu 2026): bir Korsika sahil köyü/koyun patikası referansı
   // verdi ("koyunların olduğu bir yoldan mağaraya girmesini istiyorum") —
