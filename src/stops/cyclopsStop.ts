@@ -58,9 +58,13 @@ const CYCLOPS_DOOR_LIT_THRESHOLD = 0.5;
 const CYCLOPS_GIANT_SPEED = 3.0;
 /** Yön dönüşü/stomp — 26 Ağu, "dev'in hareketleri yok" bulgusu. Prosedürel,
  * gerçek animasyon klibi değil (bkz. walkGiantTowards'taki not). Facing
- * sabiti 🔬 tahmini — modelin gerçek yerel ileri ekseni doğrulanmadı,
- * ilk playtest görüntüsüyle ayarlanacak. */
-const GIANT_MESH_FACING = 0;
+ * sabiti önce 🔬 tahminle (0) gönderildi; `producer`/`@axiom`'un asset
+ * üretim planı turunda kemik rest pozisyonları ölçülerek doğrulandı —
+ * ayak bileği/parmak +X'te, sol/sağ ayaklar Z'de ayrışıyor → modelin
+ * yerel ileri ekseni +X, repo konvansiyonuyla (SAILOR.meshFacing'in aynı
+ * mantığı) düzeltmesi −π/2. Eskisiyle dev yürüdüğü yöne 90° yan bakarak
+ * ilerliyordu. */
+const GIANT_MESH_FACING = -Math.PI / 2;
 const GIANT_TURN_SMOOTH = 0.25; // oyuncudan daha yavaş dönüyor, "ağır ama amaçlı"
 const GIANT_BOB_FREQ = 5.5;
 const GIANT_BOB_AMPLITUDE = 0.12;
