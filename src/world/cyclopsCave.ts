@@ -430,8 +430,10 @@ export function buildCyclopsCave(): CyclopsCave {
   // belirsiz bir profesyonel fotogrametri taramasıydı (766k yüzey),
   // kullanılamadı. Kapsam sahip tarafından kasıtlı olarak sınırlandı:
   // "sadece hafif set-dressing" — koy/patika geometrisi (kutular, duvarlar)
-  // DEĞİŞMEDİ, yalnızca birkaç statik koyun eklendi. ASSET-093, CC-BY
-  // ("Sheep" by Odin.Branigan, Sketchfab). Rig yok (düz statik mesh), tek
+  // DEĞİŞMEDİ, yalnızca birkaç statik koyun eklendi. ASSET-112 (ID
+  // düzeltmesi, asset üretim planı §7.2 — bu dosya kısa süre yanlışlıkla
+  // ASSET-093 olarak numaralanmıştı), CC-BY ("Sheep" by Odin.Branigan,
+  // Sketchfab). Rig yok (düz statik mesh), tek
   // `.clone(true)` her kopya için güvenli — Polyphemos'un aksine
   // SkeletonUtils'e gerek yok.
   const SHEEP_SPOTS: { x: number; z: number; rotY: number; scale: number }[] = [

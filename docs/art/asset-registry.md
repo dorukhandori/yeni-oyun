@@ -317,6 +317,15 @@ Eski planned ASSET-062–067 (Tripo 3/4 still) **iptal** — ID çakışması + 
 - [x] Fotogerçekçi değil, logo/marka yok, gore/açık şiddet yok (kemikler eski/temiz)
 - [ ] `assets.csv` satırı — ASSET-104 ile aynı gerekçeyle beklemede
 
+### P8 model varlıkları — kod-öncelikli placeholder'lar, **YENİ, 2026-08-26**
+
+> Sahip'in "asset üretimine geç" turunda gerçek asset üretim planı yazıldı (`docs/production/cyclops-asset-production-plan.md`, S1/S2 kararları). Bu iki satır aynı planın **§7.2**'sinin düzelttiği bir kayıt hatasının sonucu — geçen turlarda `assets.csv`'ye yanlışlıkla ASSET-092/093 olarak yazılmışlardı, gerçek rezervasyonları burada.
+
+| ID | Ad | Sınıf | Şablon / prompt dosyası | Durum | Not |
+|---|---|---|---|---|---|
+| ASSET-098 | Polyphemos — mesh + idle/walk rig | `scene-model` **[P]** | Sketchfab "Cyclop" (lucasprs51450, CC-BY) + `scripts/blender/retarget_mixamo_polyphemos.py` | **integrated (placeholder)** | `char_polyphemos_02_animated_8000.glb`. Mesh/doku hâlâ geçici (sahip 4 aday arasından seçti, plan §3.4/§3.5'in S2 kararıyla — Tripo'dan sıfırdan değil, mevcut 114-kemikli rig + Mixamo retarget, 0 kredi). Kaynak FBX'in kendi "koşu" klibi güvenilmezdi (sürekli açıklanamayan root-bone Z eğrisi) — Mixamo idle/walk klipleri rest-hizalama quaternion konjugasyonuyla retarget edildi, ~20 ana kemik (parmak/kumaş/kas-strand ikincil kemikler bind pozunda). ASSET-108 (Polyphemos'un kendi konsept görseli) hâlâ üretilmedi — plan §3.0'ın ikinci açık kapısı. |
+| ASSET-112 | Koyun — statik set-dressing | `scene-model` **[P]** | Sketchfab "Sheep" (Odin.Branigan, CC-BY) | **integrated (placeholder)** | `creature_sheep_01_stand_3100.glb`. Koy/patika sahnesi (§P9, henüz yok) için hafif set-dressing — sahip "hafif ama adanın ambiansı için önemli, kredi harcayabiliriz" dedi (S1 kararı), geometri minimal kalıyor. Rig yok, tek `.clone(true)` her kopya için yeterli. |
+
 ---
 
 ## P2 — UI **[P]**

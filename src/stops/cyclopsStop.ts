@@ -285,7 +285,9 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
   const rightV = new THREE.Vector3();
 
   // ---------------------------------------------------------------- giant
-  // Polyphemos — ASSET-092, "Cyclop" (Sketchfab, lucasprs51450, CC-BY),
+  // Polyphemos — ASSET-098 (ID düzeltmesi, asset üretim planı §7.2 — bu
+  // dosya kısa süre yanlışlıkla ASSET-092 olarak numaralanmıştı), "Cyclop"
+  // (Sketchfab, lucasprs51450, CC-BY),
   // sahip'in seçtiği "temsili ücretsiz model" (26 Ağu 2026), plain kapsülün
   // yerine. `giant` bir Group: içi asenkron dolduruluyor (GLTFLoader), ama
   // `.position`/`.visible` her yerde AYNI şekilde okunuyor/yazılıyor —
@@ -311,7 +313,27 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
       m.emissiveIntensity = active ? 0.55 : 0;
     }
   }
-  loadGltfBundle("assets/models/char_polyphemos_01_stand_27000.glb").then((bundle) => {
+  // ASSET-098 v2 (26 Ağu 2026, sprint sonu): artık gerçek idle/walk klipleri
+  // var — sahibin S2 kararı ("mevcut rig + Mixamo retarget", 0 kredi).
+  // `scripts/blender/retarget_mixamo_polyphemos.py` ile üretildi (kaynak
+  // FBX'in kendi "koşu" klibi güvenilmezdi, o script'in kendi belgesine
+  // bkz.). `createHumanoidActor()`'a geçmedik (plan §3.5'in "küçük ama
+  // sözleşme değiştiren refactor" notu — HUMANOID_CLIPS `preset:*` isimleri
+  // hardcode ediyor) — burada yalnız 2 klip var, ham `AnimationMixer` yeterli
+  // ve daha az riskli.
+  let giantMixer: THREE.AnimationMixer | null = null;
+  let giantIdleAction: THREE.AnimationAction | null = null;
+  let giantWalkAction: THREE.AnimationAction | null = null;
+  let giantAnimSlot: "idle" | "walk" = "idle";
+  function playGiantAnim(slot: "idle" | "walk"): void {
+    if (slot === giantAnimSlot || !giantIdleAction || !giantWalkAction) return;
+    giantAnimSlot = slot;
+    const next = slot === "idle" ? giantIdleAction : giantWalkAction;
+    const prev = slot === "idle" ? giantWalkAction : giantIdleAction;
+    next.reset().fadeIn(0.25).play();
+    prev.fadeOut(0.25);
+  }
+  loadGltfBundle("assets/models/char_polyphemos_02_animated_8000.glb").then((bundle) => {
     const model = bundle.scene;
     model.traverse((o) => {
       if (o instanceof THREE.Mesh && o.material instanceof THREE.MeshStandardMaterial) {
@@ -320,6 +342,16 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
       }
     });
     giant.add(model);
+    const idleClip = bundle.animations.find((c) => c.name === "idle");
+    const walkClip = bundle.animations.find((c) => c.name === "walk");
+    if (idleClip && walkClip) {
+      giantMixer = new THREE.AnimationMixer(model);
+      giantIdleAction = giantMixer.clipAction(idleClip);
+      giantWalkAction = giantMixer.clipAction(walkClip);
+      giantIdleAction.play();
+    } else {
+      console.warn("[cyclopsStop] Polyphemos GLB missing idle/walk clips", bundle.animations.map((c) => c.name));
+    }
   });
 
   // Rage attack telegraph — a flat ring decal on the floor, aRPG-style
@@ -576,6 +608,7 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     // -------------------------------------------------- giant state machine
     // walkGiantTowards: gerçek yürüyüş, ışınlanma yok. Vardığında true döner.
     function walkGiantTowards(target: WanderTarget, speed: number = CYCLOPS_GIANT_SPEED): boolean {
+      playGiantAnim("walk");
       const dx = target.x - giant.position.x;
       const dz = target.z - giant.position.z;
       const dist = Math.hypot(dx, dz);
@@ -673,6 +706,7 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
       if (walkGiantTowards(GIANT_BED)) {
         sleepT = GIANT_SLEEP_SECONDS;
         giantState = "sleeping";
+        playGiantAnim("idle"); // yatarken "walk" klibinde donmuş kalmasın
       }
     } else if (giantState === "sleeping") {
       phase = "present";
@@ -881,6 +915,7 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
       playerActor.play(moving || dashT > 0 ? "walk" : "idle");
       playerActor.update(dt);
     }
+    giantMixer?.update(dt);
 
     // -------------------------------------------------------------- crush
     // giant.visible (fiziksel varlığı), phase==="present" değil — dev artık
