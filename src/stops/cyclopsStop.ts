@@ -97,6 +97,9 @@ const CYCLOPS_RAGE_SPEED_MULT = 1.7; // "sarhoş" adımlar normalden hızlı ama
 const CYCLOPS_ATTACK_TELEGRAPH_SECONDS = 1.1; // yuvarlak belirdikten vuruşa kadar — kaçış penceresi
 const CYCLOPS_ATTACK_INTERVAL = 2.3; // s, rage sırasında ardışık iki telgraf arası
 const CYCLOPS_ATTACK_RADIUS = 2.4; // metre
+/** Rune sırrı — bkz. üstteki state bloğunun notu. */
+const RUNE_SEQUENCE = ["T", "Ü", "R", "K"];
+const RUNE_INTERACT_RADIUS = 1.2;
 /**
  * Vuruş hedefi — sahip (26 Ağu 2026, ikinci tur): "güvenli alanları da
  * kapsasın, her yere vurabilsin, gerçekten kaçınması zor bir mekanik olsun."
@@ -444,6 +447,20 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
   let rageReturnState: "wanderingPre" | "wanderingPost" = "wanderingPre";
   let attackTelegraph: { x: number; z: number; t: number } | null = null;
 
+  // ---------------------------------------------------------------- rune sırrı
+  // "duvarlarda kazili runik harflerle TURK yazisi... devin odasinin kapisi
+  // gelene kadar acilir" (sahip, 26 Ağu, sprint sonu fikri). T→Ü→R→K sırayla
+  // dokunulunca İç nöy geçidi erkenden açılır ve oyuncu Boğaz B'yi geçene
+  // kadar (normal dev-senkron mantığından bağımsız) açık kalır. Yanlış
+  // sırada dokunma sıfırlar. `hintShown` bilerek resetRun()'da sıfırlanmıyor
+  // — "oyun içinde sadece bir kere ipucu var" oyuncunun kendi bilgisi, run
+  // sıfırlansa da unutulmuyor; `runeProgress`/`secretGateForcedOpen` ise her
+  // denemede taze başlıyor (diğer her şeyle aynı "3/3'te her şey sıfırlanır"
+  // disiplini).
+  let runeProgress: string[] = [];
+  let secretGateForcedOpen = false;
+  let hintShown = false;
+
   function say(msg: string): void {
     message = msg;
     messageT = 3;
@@ -508,6 +525,8 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     carriedCount = 0;
     message = "";
     messageT = 0;
+    runeProgress = [];
+    secretGateForcedOpen = false; // hintShown BİLEREK sıfırlanmıyor, bkz. state notu
     dashT = 0;
     dashCooldownT = 0;
     rageT = 0;
@@ -749,7 +768,12 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     // "Kapısı devle birlikte açılabilecek" — İç nöy'ün kendi geçidi (Boğaz
     // B), dev o aralıktan geçerken açık, geri kalan her zaman kapalı.
     // Oyuncuyu engellemiyor (ana kapı gibi) — yalnız görsel/senkron.
-    cave.setInnerGateOpen(giant.visible && giant.position.z >= GORGE_B_MIN && giant.position.z <= GORGE_B_MAX);
+    // `secretGateForcedOpen`: rune sırrı çözülünce aynı geçit erkenden açılır
+    // — "kapısı ... gelene kadar açılır" — oyuncu Boğaz B'yi geçene kadar.
+    if (secretGateForcedOpen && player.position.z > GORGE_B_MAX) secretGateForcedOpen = false;
+    cave.setInnerGateOpen(
+      secretGateForcedOpen || (giant.visible && giant.position.z >= GORGE_B_MIN && giant.position.z <= GORGE_B_MAX),
+    );
 
     // -------------------------------------------------- attack telegraph
     // aRPG-tarzı: yuvarlak belirir, büyür/parlaklaşır, süre dolunca isabet
@@ -916,6 +940,36 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
       }
     }
 
+    // --------------------------------------------------------- rune sırrı
+    // Tek ipucu, oyun boyunca bir kez — Depo'ya ilk girişte belli belirsiz
+    // bir cümle, ne olduğunu asla açıklamıyor.
+    if (!hintShown && roomIdAt(player.position.z) === "depot") {
+      hintShown = true;
+      say("Taşlarda tuhaf, kazınmış işaretler fark ediyorsun…");
+    }
+    // Sıra (E ile, kapı durumundan bağımsız — devin varlığı riski artırır
+    // ama sırrı engellemez, "gizli trik" ancak öyle bir şey olabilir).
+    if (input.interact) {
+      for (const r of cave.runes) {
+        const d = Math.hypot(player.position.x - r.x, player.position.z - r.z);
+        if (d >= RUNE_INTERACT_RADIUS) continue;
+        const nextExpected = RUNE_SEQUENCE[runeProgress.length];
+        if (r.letter === nextExpected) {
+          runeProgress.push(r.letter);
+          if (runeProgress.length === RUNE_SEQUENCE.length) {
+            secretGateForcedOpen = true;
+            runeProgress = [];
+            say("Taş gıcırdayarak yerinden oynuyor…");
+          }
+        } else if (r.letter === RUNE_SEQUENCE[0]) {
+          runeProgress = [r.letter]; // yanlış sıradan sonra baştan başlamak da mümkün
+        } else {
+          runeProgress = [];
+        }
+        break;
+      }
+    }
+
     // ------------------------------------------------------------ delivery
     if (carriedCount > 0 && player.position.z <= -15) {
       for (const it of cave.items) {
@@ -1023,6 +1077,9 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
         giantVisible: giant.visible,
         giantModelLoaded: giant.children.length > 0,
         sheepLoaded: cave.sheepLoaded(),
+        runeProgress: [...runeProgress],
+        secretGateForcedOpen,
+        runes: cave.runes.map((r) => ({ letter: r.letter, x: r.x, z: r.z })),
         giantPos: { x: giant.position.x, z: giant.position.z },
         giantRotY: Number(giant.rotation.y.toFixed(3)),
         rageT: Number(rageT.toFixed(2)),

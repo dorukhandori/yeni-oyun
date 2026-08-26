@@ -254,6 +254,16 @@ export interface CyclopsCave {
   /** DEV-testing yalnız (__CYCLOPS_DEBUG__ üzerinden) — set-dressing koyunların
    * asenkron GLTF yüklemesi gerçekten tamamlandı mı, deterministik kontrol. */
   sheepLoaded(): boolean;
+  /** Sprint sonu sır özelliği (26 Ağu 2026, sahip) — T/Ü/R/K duvar levhaları,
+   * sırayla dokununca İç nöy geçidini erkenden açan gizli kısayol. Konum/
+   * etkileşim mantığı cyclopsStop.ts'te; burada yalnız geometri + koordinat. */
+  runes: RuneMarker[];
+}
+
+export interface RuneMarker {
+  letter: string;
+  x: number;
+  z: number;
 }
 
 /**
@@ -442,6 +452,68 @@ export function buildCyclopsCave(): CyclopsCave {
     sheepLoadedFlag = true;
   });
 
+  // -------------------------------------------------------------- rune sırrı
+  // Sahip (26 Ağu 2026, sprint sonu fikri): "duvarlarda kazili runik harflerle
+  // TURK yazisi ile etkilesime girilirse eger devin odasinin kapisi gelene
+  // kadar acilir. (cok gizli bir trik ve oyun icinde sadece bir kere ipucu
+  // var)". Yorum kararları (belirsizdi, en makul okumayla ilerlendi —
+  // sahip yanlışsa düzeltir): (1) 4 harf T/Ü/R/K sırayla, YANLIŞ sırada
+  // dokunulursa sıfırlanır — "sır çözme" hissi, tek tek bulup dokunmak
+  // yetmiyor. (2) Odalar derinlik sırasına göre dağıtıldı ama HEPSİ Boğaz
+  // B'den (İç nöy geçidi) ÖNCE — kendi testimde bulunan bir hata: son harfi
+  // (K) önce İç nöy'ün içine koymuştum, ama geçit oyuncuyu hiç fiziksel
+  // olarak engellemediği için (yalnız görsel/senkron, tıpkı ana kapı gibi)
+  // oyuncu zaten geçidin "öbür tarafında" bittiriyordu — "kapı gelene kadar
+  // açılır" mantığı (cyclopsStop.ts'teki geri-kapanma kontrolü) anlamsız
+  // oluyordu. Son harf artık Ağıllar'ın sonunda, Boğaz B'ye girmeden hemen
+  // önce. (3) Gerçek Göktürk rün alfabesi glyph'leri yok (font/unicode
+  // güvenilirliği riski, her tarayıcıda aynı görünmeyebilir) — "kazınmış
+  // taş" hissi veren stilize Latin harfler, gerçek rün görseli sonraki bir
+  // sanat turu.
+  const RUNE_ROOM_ORDER: { letter: string; room: RoomId; z: number; side: -1 | 1 }[] = [
+    { letter: "T", room: "depot", z: 15, side: 1 },
+    { letter: "Ü", room: "gorgeA", z: 24, side: -1 },
+    { letter: "R", room: "pens", z: 30, side: 1 },
+    { letter: "K", room: "pens", z: 42, side: -1 }, // Boğaz B (dMin=44) girişine hemen önce
+  ];
+
+  function buildRuneCanvasTexture(letter: string): THREE.CanvasTexture {
+    const size = 256;
+    const canvas = document.createElement("canvas");
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext("2d")!;
+    ctx.fillStyle = "#3a352c";
+    ctx.fillRect(0, 0, size, size);
+    ctx.strokeStyle = "#252119";
+    ctx.lineWidth = 6;
+    ctx.strokeRect(6, 6, size - 12, size - 12);
+    ctx.fillStyle = "#c9b98a";
+    ctx.font = "bold 150px Georgia, serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.shadowColor = "#000";
+    ctx.shadowBlur = 8;
+    ctx.fillText(letter, size / 2, size / 2 + 8);
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  }
+
+  const runes: RuneMarker[] = RUNE_ROOM_ORDER.map((r) => {
+    const room = ROOMS.find((room) => room.id === r.room)!;
+    const halfX = Number.isFinite(room.halfWidth) ? room.halfWidth : 3;
+    const x = r.side * (halfX - 0.12);
+    const mesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.6, 0.8),
+      new THREE.MeshBasicMaterial({ map: buildRuneCanvasTexture(r.letter), side: THREE.DoubleSide }),
+    );
+    mesh.position.set(x, 1.6, r.z);
+    mesh.rotation.y = r.side > 0 ? -Math.PI / 2 : Math.PI / 2;
+    group.add(mesh);
+    return { letter: r.letter, x, z: r.z };
+  });
+
   return {
     group,
     items,
@@ -451,5 +523,6 @@ export function buildCyclopsCave(): CyclopsCave {
     hideSpots,
     setInnerGateOpen,
     sheepLoaded: () => sheepLoadedFlag,
+    runes,
   };
 }
