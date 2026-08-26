@@ -21,9 +21,20 @@ export class Input {
     window.addEventListener("keydown", (e) => {
       if (!this.held.has(e.code)) this.pressed.add(e.code);
       this.held.add(e.code);
+      // Bulundu (sahip: "dash mekanizmasi calismiyor", 26 Ağu 2026): bir salt
+      // Shift basışı bazı ortamlarda tamamen boş `code`/`key` ile geliyor
+      // (otomasyon/uzak masaüstü kaynaklı olabilir, ama gerçek bir kullanıcı
+      // klavyesinde de aynı sınıf sorunlar olabilir — `code` tek başına kırılgan).
+      // `key` değeri de ayrıca takip ediliyor, yalnızca Shift için ek bir
+      // güvence olarak (diğer tuşların davranışını değiştirmez).
+      if (e.key === "Shift" && !this.held.has("Shift")) this.pressed.add("Shift");
+      if (e.key === "Shift") this.held.add("Shift");
       if (blocked.includes(e.code)) e.preventDefault();
     });
-    window.addEventListener("keyup", (e) => this.held.delete(e.code));
+    window.addEventListener("keyup", (e) => {
+      this.held.delete(e.code);
+      if (e.key === "Shift") this.held.delete("Shift");
+    });
     window.addEventListener("blur", () => {
       this.held.clear();
       this.actHeld = false;
@@ -251,10 +262,13 @@ export class Input {
   get wantsRestart(): boolean {
     return this.pressed.has("KeyR");
   }
-  /** One-shot dash trigger (Shift). Cyclops Cave-only for now (26 Ağu 2026),
+  /** One-shot dash trigger (Shift, or Q as a non-modifier backup — sahip
+   * bildirdi: "dash mekanizmasi calismiyor", 26 Ağu 2026; bulunan gerçek
+   * kırılganlık, salt Shift'in `code`'a tek başına bağımlı olmasıydı, bkz.
+   * `attach()`'teki `key==="Shift"` yedeği). Cyclops Cave-only for now,
    * harmless to Lotus — Lotus never reads this getter. */
   get dash(): boolean {
-    return this.pressed.has("ShiftLeft") || this.pressed.has("ShiftRight");
+    return this.pressed.has("ShiftLeft") || this.pressed.has("ShiftRight") || this.pressed.has("Shift") || this.pressed.has("KeyQ");
   }
   /** Held crawl/crouch (Ctrl or C). Same note as `dash`. */
   get crawlHeld(): boolean {
