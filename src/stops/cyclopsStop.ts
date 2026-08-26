@@ -11,6 +11,7 @@ import {
   corridorHalfWidthAt,
   roomIdAt,
   roomBounds,
+  heightAt,
   HEARTH_POS,
   TORCH_POS,
 } from "../world/cyclopsCave";
@@ -297,7 +298,7 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
   // (Lotus'a özgü hiçbir şey tutmuyor) — sıfırdan yazmak yerine yeniden
   // kullanıldı. Zemin hep y=0 (primitif geometri), gerçek `heightAt`
   // eşdeğeri yok.
-  const rig = new CameraRig(camera, () => 0, isCoarsePointer() ? CAMERA.distTouch : CAMERA.dist);
+  const rig = new CameraRig(camera, (_x, z) => heightAt(z), isCoarsePointer() ? CAMERA.distTouch : CAMERA.dist);
   rig.snap(player.position);
   const fwd = new THREE.Vector3();
   const rightV = new THREE.Vector3();
@@ -648,7 +649,9 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
         giantFacing += fd * (1 - Math.exp(-dt / GIANT_TURN_SMOOTH));
         giant.rotation.y = giantFacing + GIANT_MESH_FACING;
       }
-      giant.position.y = Math.abs(Math.sin(simTime * GIANT_BOB_FREQ)) * GIANT_BOB_AMPLITUDE;
+      // heightAt() taban + üstüne prosedürel "stomp" sekmesi — dev entering/
+      // exiting sırasında patikadan geçtiğinde (D -8..0) zemine gömülmesin.
+      giant.position.y = heightAt(giant.position.z) + Math.abs(Math.sin(simTime * GIANT_BOB_FREQ)) * GIANT_BOB_AMPLITUDE;
       const step = speed * dt;
       if (dist <= step) {
         giant.position.x = target.x;
@@ -915,6 +918,7 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
       player.position.x = Math.max(-hw + PLAYER_RADIUS, Math.min(hw - PLAYER_RADIUS, player.position.x));
     }
     player.position.z = Math.max(-19, Math.min(64.5, player.position.z));
+    player.position.y = heightAt(player.position.z); // koy/patika yokuşu
 
     // ------------------------------------------------------- player rig
     // game.ts'in aynı deseni (facing + SAILOR.meshFacing, üstel yumuşatma) —
@@ -1099,6 +1103,8 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
       step: (dt = 1 / 60, n = 1) => {
         for (let i = 0; i < n; i++) step(dt);
       },
+      render: () => renderer.render(scene, camera),
+      cameraPos: () => ({ x: camera.position.x, y: camera.position.y, z: camera.position.z }),
       setMove: (x: number, z: number) => {
         manualMove.x = x;
         manualMove.z = z;
@@ -1127,14 +1133,14 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
         crushCount,
         crushGraceT: Number(crushGraceT.toFixed(2)),
         lostRun,
-        playerPos: { x: player.position.x, z: player.position.z },
+        playerPos: { x: player.position.x, y: player.position.y, z: player.position.z },
         giantVisible: giant.visible,
         giantModelLoaded: giant.children.length > 0,
         sheepLoaded: cave.sheepLoaded(),
         runeProgress: [...runeProgress],
         secretGateForcedOpen,
         runes: cave.runes.map((r) => ({ letter: r.letter, x: r.x, z: r.z })),
-        giantPos: { x: giant.position.x, z: giant.position.z },
+        giantPos: { x: giant.position.x, y: giant.position.y, z: giant.position.z },
         giantRotY: Number(giant.rotation.y.toFixed(3)),
         giantWorldBox: (() => {
           const box = new THREE.Box3().setFromObject(giant);

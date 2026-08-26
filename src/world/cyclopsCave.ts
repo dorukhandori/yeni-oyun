@@ -67,6 +67,25 @@ export function corridorHalfWidthAt(z: number): number {
   return roomAt(z).halfWidth;
 }
 
+// Üretim planı §4.2 (Hafif+ kapsam): patika düz bir yürüyüş değil, gerçek bir
+// "yokuş" olsun — ama mağara içi (D>=0, halihazırda tüm oda/item/gizli-kapı
+// mantığı Y=0 varsayıyor) hiç etkilenmesin, blast-radius'u path aralığına
+// kilitli tutmak için. Bu yüzden düz bir rampa değil, kumsalda (D=-8) 0'dan
+// başlayıp yolun ortasında tepe yapan, mağara eşiğine (D=0) tam olarak 0'a
+// dönen bir "tümsek" (sinüs) eğrisi: eşikte süreksizlik/basamak olmaz.
+const PATH_D_MIN = -8;
+const PATH_D_MAX = 0;
+const PATH_MAX_RISE = 1.5;
+
+/** Ground height (world Y) at a given world Z. Flat everywhere except the
+ * cove->cave path, which rises to a gentle crest and returns to 0 by the
+ * cave mouth. */
+export function heightAt(z: number): number {
+  if (z <= PATH_D_MIN || z >= PATH_D_MAX) return 0;
+  const t = (z - PATH_D_MIN) / (PATH_D_MAX - PATH_D_MIN);
+  return PATH_MAX_RISE * Math.sin(Math.PI * t);
+}
+
 /**
  * Bulundu (sahip playtest'i, 26 Ağu 2026): "dev içeri giriyor random
  * dolaşıyor ama duvarlara yakın sağa sola hiç gitmiyor random bir şekilde."
@@ -297,11 +316,38 @@ export function buildCyclopsCave(): CyclopsCave {
   const group = new THREE.Group();
   const rockMat = loadCaveRockMaterial();
 
-  // Ground strip for the whole D range (cove included) so nothing falls
-  // through void; cave rooms below layer box shells on top of this.
-  const floorGeo = new THREE.PlaneGeometry(40, 90);
+  // Ground strip, split at the cave mouth (D=0) so cove+path can carry a
+  // real sandy coastal look + the heightAt() slope, while the cave interior
+  // stays the flat rock floor it always was. Plan §4.2 (Hafif+): "bugün
+  // sahilde mağara zemini var; deniz kenarı hissi sıfır" — bu bölünme onu
+  // düzeltir (bespoke ASSET-110 dokusu değil ama mevcut gerçek kum dokusu).
+  const beachGeo = new THREE.PlaneGeometry(40, 20, 1, 40);
+  beachGeo.rotateX(-Math.PI / 2);
+  beachGeo.translate(0, 0, -10); // covers D -20..0
+  {
+    // heightAt() displacement — flat sand in the cove, a gentle crest along
+    // the path, back to exactly 0 at the cave-mouth seam (D=0) so it meets
+    // the (flat, Y=0) interior floor below with no step/gap.
+    const pos = beachGeo.attributes.position;
+    for (let i = 0; i < pos.count; i++) pos.setY(i, heightAt(pos.getZ(i)));
+    pos.needsUpdate = true;
+    beachGeo.computeVertexNormals();
+  }
+  const beachTex = loadAlbedoTexture(assetUrl("assets/textures/sand_gold_01_albedo_512.webp")).clone();
+  beachTex.needsUpdate = true;
+  beachTex.wrapS = THREE.RepeatWrapping;
+  beachTex.wrapT = THREE.RepeatWrapping;
+  beachTex.repeat.set(8, 5);
+  const beach = new THREE.Mesh(
+    beachGeo,
+    new THREE.MeshStandardMaterial({ color: 0xd8c090, roughness: 1, map: beachTex }),
+  );
+  beach.receiveShadow = true;
+  group.add(beach);
+
+  const floorGeo = new THREE.PlaneGeometry(40, 65);
   floorGeo.rotateX(-Math.PI / 2);
-  floorGeo.translate(0, 0, 22.5); // covers D -20..65
+  floorGeo.translate(0, 0, 32.5); // covers D 0..65
   // .clone() — the walls (rockMat, above) use the SAME cached texture
   // object (loadAlbedoTexture caches by URL); .repeat is a property of the
   // Texture, not the material, so without cloning, setting a different
@@ -310,7 +356,7 @@ export function buildCyclopsCave(): CyclopsCave {
   floorTex.needsUpdate = true;
   floorTex.wrapS = THREE.RepeatWrapping;
   floorTex.wrapT = THREE.RepeatWrapping;
-  floorTex.repeat.set(9, 20);
+  floorTex.repeat.set(9, 14.4);
   const floor = new THREE.Mesh(
     floorGeo,
     new THREE.MeshStandardMaterial({ color: 0x8a7a5a, roughness: 1, map: floorTex }),
@@ -320,8 +366,14 @@ export function buildCyclopsCave(): CyclopsCave {
 
   // Room shells: BackSide box per segment so the camera (inside) sees
   // interior walls/ceiling. Cove (open sky) and path get no shell.
+  // Bulundu (asset üretim planı denetimi, 26 Ağu 2026): bu yorum zaten
+  // "path get no shell" diyordu ama koşul path'i hariç TUTMUYORDU —
+  // `halfWidth:3` sonlu olduğu için patika de burada tam bir `BoxGeometry`
+  // kutusuna (12 m tavanlı) giriyordu, `level-cyclops-cave.md`'nin "açık"
+  // tarifiyle çelişiyordu. Yorum ile kod arasındaki uyuşmazlık gerçek bir
+  // hataydı, "büyütme" değil — düzeltildi.
   for (const r of ROOMS) {
-    if (r.id === "cove" || !Number.isFinite(r.halfWidth)) continue;
+    if (r.id === "cove" || r.id === "path" || !Number.isFinite(r.halfWidth)) continue;
     const depth = r.dMax - r.dMin;
     const width = r.halfWidth * 2;
     const height = Number.isFinite(r.ceilingY) ? r.ceilingY : 6;
@@ -446,7 +498,7 @@ export function buildCyclopsCave(): CyclopsCave {
   loadGltfBundle("assets/models/creature_sheep_01_stand_3100.glb").then((bundle) => {
     for (const spot of SHEEP_SPOTS) {
       const sheep = bundle.scene.clone(true);
-      sheep.position.set(spot.x, 0, spot.z);
+      sheep.position.set(spot.x, heightAt(spot.z), spot.z);
       sheep.rotation.y = spot.rotY;
       sheep.scale.setScalar(spot.scale);
       group.add(sheep);

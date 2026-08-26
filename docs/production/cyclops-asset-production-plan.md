@@ -377,11 +377,13 @@ Bunlar **asset işi değil** ve bu planın kapsamında değil. Buraya yazılmala
 | **5** | ✅ Polyphemos animasyonu — (B), + ayak kayması senkronu + metallicRoughness temizliği | `@axiom`+`@byte` | 0 | ~2,5 | 0a, 3 |
 | **6** | ASSET-090 mağara kabuğu — `build_cyclops_cave.py` | `@byte` | 0 | 1,5–2 | — (konsept hazır) |
 | **7** | ASSET-091/092 gerçek dokular | `@iris` | 0 | 1 | 6 |
-| **8** | ASSET-110/111 sahil zemini + patika geometrisi | `@byte`+`@iris` | 0 | 1,5–2 (Tam: 3–4) | 1, 2 |
+| **8** | 🟡 ASSET-110/111 sahil zemini + patika geometrisi — geometri/mekanik bitti, doku (ASSET-110) hâlâ açık | `@byte`+`@iris` | 0 | 1,5–2 (Tam: 3–4) | 1, 2 |
 | **9** | ASSET-093/094 azık propları, 095 ağıl dekoru, 096 ocak, 097 koca kaya | `@iris`+`@byte` | 0 | 1,5 | 7 |
 | | **Toplam** | | **0 – ~40** | **~11–14** | |
 
 **En önemli sonuç: bu plan büyük olasılıkla `0 kredi` ile bitiyor.** Orijinal ~80 kredilik tek kalem (ASSET-098) artık ~0 veya ~40 — çünkü mesh+doku adımlarının satın alacağı şey bugün zaten elimizde.
+
+**Madde 8 durumu (26 Ağu, ana oturum — kod diskte, commit edilmedi):** "bitti" kriterinin (§4.2, satır 305) mekanik/geometri yarısı tamamlandı ve `__CYCLOPS_DEBUG__` ile sayısal olarak doğrulandı — patika artık kapalı kutu değil, `heightAt(z)` gerçek bir Y kotu farkı üretiyor (kumsalda 0, yol ortasında 1,5 m tepe, mağara eşiğinde tam 0 — mağara içine sızmıyor), kamera/oyuncu/dev/koyun hepsi ona hizalı. **Eksik kalan:** ASSET-110'un kendisi (`gen-assets.mjs` ile bespoke kum+kaya dokusu, ASSET-109 referans alınarak) henüz üretilmedi — bunun yerine repoda zaten var olan `sand_gold_01_albedo_512.webp` geçici olarak kullanıldı (mağara-kayası dokusundan görsel olarak ayrışma kriteri karşılanıyor ama "Bitti kriteri"nin kendi doku maddesi hâlâ açık). Ayrıca bu turda **kapsam dışı, önceden var olan bir kamera hatası** bulundu ve raporlandı (bkz. `ACTIVE_WORK.md` bu tarihli satır) — sabit 6,4 m'lik kamera bumu, oyuncudan dar odalarda (Boğaz A/B, 4 m derinlik) ayrı bir oda kutusuna denk gelip kendi duvarına bakabiliyor; §8/1'in coastal işiyle ilgisiz, ayrı bir arka plan görevi olarak bayraklandı.
 
 **Roadmap ile kıyas:** D8'in Kiklop tahmini ~18–19 oturumdu; K1–K13 (mekanik) ~10,75 harcadı, bu plan üstüne ~11–14 koyuyor → toplam ~22–25. D8'in *"onay turları ortalama iki tur alırsa ~22–23"* uyarısıyla tutarlı. **Yeni bir sürpriz büyüme yok.**
 
