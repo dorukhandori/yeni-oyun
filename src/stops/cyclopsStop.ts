@@ -38,9 +38,12 @@ const DETECT_RATE_SHADOW_MOVING = 3.0;
 const DETECT_RATE_LIT_STILL = 4.0;
 const DETECT_RATE_LIT_MOVING = 12.0;
 const DETECT_DECAY = 8.0;
-const CYCLOPS_PHASE_OUT = 58.0;
-const CYCLOPS_PHASE_RETURN = 8.0;
-const CYCLOPS_PHASE_PRESENT = 30.0;
+// tuning.md §12'nin sabit CYCLOPS_PHASE_OUT/RETURN/PRESENT (58/8/30 s)
+// süreleri buradan kaldırıldı — sahip (26 Ağu) devin tüm hareketlerinin
+// gerçekten yapılmasını istedi (ışınlanma yok), bu da faz sürelerini artık
+// bir zamanlayıcı değil, devin gerçek yürüyüş/uyku süresinin bir SONUCU
+// yapıyor (bkz. GIANT_* sabitleri, aşağıda). Gerçek toplam döngü süresi
+// ölçülüp tuning.md'ye geri yazılacak — bkz. bu commit'in notu.
 const CYCLOPS_RETURN_MULTIPLIER = 1.5;
 const CYCLOPS_PRESENT_MULTIPLIER = 3.0;
 const CAUGHT_DROP_RADIUS = 2.0;
@@ -58,6 +61,17 @@ const PLAYER_SPEED = 4.0;
 const PLAYER_RADIUS = 0.4;
 
 type Phase = "out" | "return" | "present";
+
+/**
+ * Bulundu (sahip playtest'i, 26 Ağu): "bu hareketlerin hepsi gerçekten
+ * yapılmalı, dev kapı açılınca dışarıya vs ışınlanmamalı, yürüyüp kapıyı
+ * açıp kendi çıkmalıdır." Eski model sabit bir zamanlayıcıydı
+ * (OUT/RETURN/PRESENT süreleri), dev anlık beliriyor/kayboluyordu. Şimdi
+ * tam tersi: kapı durumu devin GERÇEK konumundan türüyor, zamanlayıcıdan
+ * değil — `Phase` hâlâ var (DETECT/toplama kilidi onu okuyor) ama artık bu
+ * state machine'in bir türevi.
+ */
+type GiantState = "outside" | "entering" | "wanderingPre" | "sleeping" | "wanderingPost" | "exiting";
 
 interface WanderTarget {
   x: number;
@@ -77,6 +91,19 @@ function pickWanderTarget(rng: () => number = Math.random): WanderTarget {
   for (const w of WANDER_TARGETS) if (r < w.upTo) return w.target;
   return WANDER_TARGETS[WANDER_TARGETS.length - 1].target;
 }
+
+// Devin dışarıda beklediği/mağara ağzına yürüdüğü noktalar — kapı eşiği
+// z=0'ın hemen dışında, "ışınlanma yok" kuralı gereği gerçek bir konum.
+const GIANT_OUTSIDE_Z = -5;
+const GIANT_ENTER_START_Z = -3;
+/** Primitif başlangıç değeri — gerçek süre artık devin yürüyüşünden
+ * (uzaklık/hız) türüyor, `tuning.md`'nin eski sabit PRESENT=30s'i bu yeni
+ * modelde artık üst sınır değil, ölçülüp güncellenecek (bkz. commit notu). */
+const GIANT_SLEEP_SECONDS = 8.0;
+/** Dev dışarıda beklerken (görünmezken) geçen süre — eski CYCLOPS_PHASE_OUT
+ * yerine, ama artık yalnız bu bekleme dilimini kapsıyor, giriş/çıkış
+ * yürüyüşü ayrıca gerçek zaman alıyor. */
+const GIANT_OUT_WAIT_SECONDS = 40.0;
 
 function doorGlobal(z: number): number {
   return Math.max(0, Math.min(1, 1 - z / CYCLOPS_DOOR_LIGHT_REACH));
@@ -197,9 +224,17 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
 
   // ------------------------------------------------------------- run state
   let phase: Phase = "out";
-  let phaseT = CYCLOPS_PHASE_OUT;
-  let wanderTarget: WanderTarget = { x: 0, z: 15 };
-  let giantSettled = false;
+  let giantState: GiantState = "outside";
+  let outWaitT = GIANT_OUT_WAIT_SECONDS;
+  let sleepT = 0;
+  /** wanderingPre/wanderingPost'ta yürünecek tek nokta — girişte rastgele
+   * bir ara nokta (dolaşma hissi), uyandıktan sonra kapıya dönmeden önce
+   * bir nokta daha. İkisi de aynı ağırlıklı dağılımdan (tuning.md §12.1). */
+  let giantTarget: WanderTarget = { x: 0, z: 15 };
+  /** wanderingPre/wanderingPost'ta kalan rastgele-nokta sayısı. */
+  let wanderLegsLeft = 0;
+  /** Yalnız HUD pulse animasyonu için — gerçek/faz zamanlayıcısı değil. */
+  let simTime = 0;
   let detect = 0;
   let crushCount = 0;
   /** Bulundu test ederken (25 Ağu): bağışıklık penceresi yoktu — oyuncu
@@ -259,50 +294,99 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
   }
 
   function step(dt: number): void {
+    simTime += dt;
     if (crushGraceT > 0) crushGraceT = Math.max(0, crushGraceT - dt);
 
-    // ------------------------------------------------------------ phase
-    phaseT -= dt;
-    if (phaseT <= 0) {
-      if (phase === "out") {
-        phase = "return";
-        phaseT = CYCLOPS_PHASE_RETURN;
-        say("Dışarıdan bir gürleme yaklaşıyor…");
-      } else if (phase === "return") {
-        phase = "present";
-        phaseT = CYCLOPS_PHASE_PRESENT;
-        wanderTarget = pickWanderTarget();
-        giantSettled = false;
-        giant.position.set(0, 2.4, 0);
+    // -------------------------------------------------- giant state machine
+    // walkGiantTowards: gerçek yürüyüş, ışınlanma yok. Vardığında true döner.
+    function walkGiantTowards(target: WanderTarget): boolean {
+      const dx = target.x - giant.position.x;
+      const dz = target.z - giant.position.z;
+      const dist = Math.hypot(dx, dz);
+      const step = CYCLOPS_GIANT_SPEED * dt;
+      if (dist <= step) {
+        giant.position.x = target.x;
+        giant.position.z = target.z;
+        return true;
+      }
+      giant.position.x += (dx / dist) * step;
+      giant.position.z += (dz / dist) * step;
+      return false;
+    }
+
+    if (giantState === "outside") {
+      phase = "out";
+      giant.visible = false;
+      outWaitT -= dt;
+      if (outWaitT <= 0) {
+        giantState = "entering";
+        giant.position.set(0, 2.4, GIANT_ENTER_START_Z);
         giant.visible = true;
+        say("Dışarıdan bir gürleme yaklaşıyor…");
+      }
+    } else if (giantState === "entering") {
+      // Eşiği (z=0) geçene kadar kapı hâlâ açık — RETURN telgrafı, toplama
+      // hâlâ mümkün. Eşiği geçince kapı gerçekten kapanıyor.
+      phase = "return";
+      if (walkGiantTowards({ x: 0, z: 0 })) {
         cave.setDoorOpen(false);
         ambient.intensity = 0.5;
         hemi.intensity = 0.3;
         say("Kapı kapandı.");
+        wanderLegsLeft = 2; // "bir süre random dolaşıyor" — 2 rastgele nokta
+        giantTarget = pickWanderTarget();
+        giantState = "wanderingPre";
+      }
+    } else if (giantState === "wanderingPre") {
+      phase = "present";
+      if (walkGiantTowards(giantTarget)) {
+        wanderLegsLeft--;
+        if (wanderLegsLeft > 0) {
+          giantTarget = pickWanderTarget();
+        } else {
+          sleepT = GIANT_SLEEP_SECONDS;
+          giantState = "sleeping";
+        }
+      }
+    } else if (giantState === "sleeping") {
+      phase = "present";
+      sleepT -= dt;
+      if (sleepT <= 0) {
+        wanderLegsLeft = 1; // uyanınca kapıya dönmeden önce bir tur daha
+        giantTarget = pickWanderTarget();
+        giantState = "wanderingPost";
+        say("Dev uyandı.");
+      }
+    } else if (giantState === "wanderingPost") {
+      phase = "present";
+      if (walkGiantTowards(giantTarget)) {
+        wanderLegsLeft--;
+        if (wanderLegsLeft > 0) {
+          giantTarget = pickWanderTarget();
+        } else {
+          giantState = "exiting";
+        }
+      }
+    } else {
+      // exiting — eşiğe (z=0) kadar hâlâ "present" (kapı hâlâ kapalı),
+      // eşiği geçince kapıyı kendi açıyor, sonra dışarı yürüyüp kayboluyor.
+      phase = "present";
+      if (giant.position.z > 0) {
+        walkGiantTowards({ x: 0, z: 0 });
+        if (giant.position.z <= 0) {
+          cave.setDoorOpen(true);
+          ambient.intensity = 1.1;
+          hemi.intensity = 0.7;
+          say("Kapı açıldı.");
+          phase = "out";
+        }
       } else {
         phase = "out";
-        phaseT = CYCLOPS_PHASE_OUT;
-        giant.visible = false;
-        cave.setDoorOpen(true);
-        ambient.intensity = 1.1;
-        hemi.intensity = 0.7;
-        say("Kapı açıldı.");
-      }
-    }
-
-    // ------------------------------------------------------------- giant
-    if (phase === "present" && giant.visible && !giantSettled) {
-      const dx = wanderTarget.x - giant.position.x;
-      const dz = wanderTarget.z - giant.position.z;
-      const dist = Math.hypot(dx, dz);
-      const step = CYCLOPS_GIANT_SPEED * dt;
-      if (dist <= step) {
-        giant.position.x = wanderTarget.x;
-        giant.position.z = wanderTarget.z;
-        giantSettled = true;
-      } else {
-        giant.position.x += (dx / dist) * step;
-        giant.position.z += (dz / dist) * step;
+        if (walkGiantTowards({ x: 0, z: GIANT_OUTSIDE_Z })) {
+          giant.visible = false;
+          giantState = "outside";
+          outWaitT = GIANT_OUT_WAIT_SECONDS;
+        }
       }
     }
 
@@ -342,7 +426,10 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     player.position.z = Math.max(-19, Math.min(64.5, player.position.z));
 
     // -------------------------------------------------------------- crush
-    if (crushGraceT <= 0 && phase === "present" && giant.visible) {
+    // giant.visible (fiziksel varlığı), phase==="present" değil — dev artık
+    // gerçekten yürüyerek girip çıktığı için girerken/çıkarken de (RETURN/
+    // OUT'a dönerken hâlâ görünürken) çarpışmak fiziksel olarak mümkün.
+    if (crushGraceT <= 0 && giant.visible) {
       const dist = Math.hypot(player.position.x - giant.position.x, player.position.z - giant.position.z);
       if (dist < CYCLOPS_CRUSH_RADIUS) onCaught();
     }
@@ -363,7 +450,10 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
       let rate = lit ? (moving ? DETECT_RATE_LIT_MOVING : DETECT_RATE_LIT_STILL) : moving ? DETECT_RATE_SHADOW_MOVING : DETECT_RATE_SHADOW_STILL;
       if (phase === "return") rate *= CYCLOPS_RETURN_MULTIPLIER;
       if (phase === "present" && (room === "pens" || room === "inner")) rate *= CYCLOPS_PRESENT_MULTIPLIER;
-      if (phase === "present" && giant.visible && !giantSettled) {
+      // "Yerleştikten (uyuduktan) sonra düşer — uyuyan dev izlemiyor"
+      // (tuning.md §12.1) — giantSettled tekil bayrağının yerini giantState
+      // aldı, "sleeping" dışındaki her state hareket halinde demek.
+      if (giant.visible && giantState !== "sleeping") {
         const gDist = Math.hypot(player.position.x - giant.position.x, player.position.z - giant.position.z);
         if (gDist < CYCLOPS_GIANT_PROXIMITY_RADIUS) rate *= CYCLOPS_PROXIMITY_MULTIPLIER;
       }
@@ -416,7 +506,7 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     // Present = the real hide-or-be-caught window, pulses harder than the
     // return telegraph. No countdown number shown either way (P2).
     if (phase === "present") {
-      hideWarnEl.style.opacity = String(0.55 + 0.45 * Math.sin(phaseT * 4));
+      hideWarnEl.style.opacity = String(0.55 + 0.45 * Math.sin(simTime * 4));
     } else if (phase === "return") {
       hideWarnEl.style.opacity = "0.6";
     } else {
@@ -425,7 +515,7 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
 
     // --------------------------------------------------------- debug (dev)
     debugEl.textContent =
-      `[dev] faz:${phase} (${phaseT.toFixed(1)}s)  oda:${roomIdAt(player.position.z)}  DETECT:${detect.toFixed(0)}/${DETECT_MAX}  ezilme:${crushCount}/${CYCLOPS_CRUSH_CAP}`;
+      `[dev] faz:${phase} dev:${giantState}  oda:${roomIdAt(player.position.z)}  DETECT:${detect.toFixed(0)}/${DETECT_MAX}  ezilme:${crushCount}/${CYCLOPS_CRUSH_CAP}`;
 
     input.endFrame();
   }
@@ -472,7 +562,9 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
       },
       state: () => ({
         phase,
-        phaseT: Number(phaseT.toFixed(2)),
+        giantState,
+        outWaitT: Number(outWaitT.toFixed(2)),
+        sleepT: Number(sleepT.toFixed(2)),
         room: roomIdAt(player.position.z),
         detect: Number(detect.toFixed(1)),
         carriedCount,
@@ -481,7 +573,6 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
         crushGraceT: Number(crushGraceT.toFixed(2)),
         playerPos: { x: player.position.x, z: player.position.z },
         giantVisible: giant.visible,
-        giantSettled,
         giantPos: { x: giant.position.x, z: giant.position.z },
         items: cave.items.map((it) => ({ id: it.id, carried: it.carried, delivered: it.delivered, pos: it.pos })),
       }),
