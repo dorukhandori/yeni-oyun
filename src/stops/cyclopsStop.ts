@@ -11,7 +11,8 @@ import {
   roomBounds,
   HEARTH_POS,
   TORCH_POS,
-  CAVE_MOUTH_D,
+  CAUGHT_RESPAWN_X,
+  CAUGHT_RESPAWN_Z,
 } from "../world/cyclopsCave";
 
 /**
@@ -60,6 +61,35 @@ const CYCLOPS_GIANT_PROXIMITY_RADIUS = 8.0;
 const CYCLOPS_PROXIMITY_MULTIPLIER = 2.0;
 const PLAYER_SPEED = 4.0;
 const PLAYER_RADIUS = 0.4;
+/**
+ * Bulundu (sahip talebi, 26 Ağu 2026): "dash movement da olacak, yerde
+ * sürünme gibi." İki yeni oyuncu hareketi — henüz tuning.md'ye işlenmedi
+ * (🟡 deneysel, D isimleri de geçici), 25 Ağu'nun "en ilkel yap test et"
+ * kuralı gereği burada, tek dosyada, sayılarla başlıyor.
+ */
+const DASH_DISTANCE = 4.5; // metre, tek atılış
+const DASH_DURATION = 0.15; // s — bu sürede DASH_DISTANCE kat edilir
+const DASH_COOLDOWN = 1.4; // s
+const CRAWL_SPEED_MULT = 0.45; // sürünürken normal hızın oranı
+const CRAWL_DETECT_MULT = 0.4; // sürünürken DETECT birikim hızı çarpanı — asıl gizlenme faydası bu
+/**
+ * "Dev bazen rage geçirecek kendi odasında, sarhoş gibi hareket edecek ve
+ * bir aRPG'deki bosslar gibi yapacağı hareket önceden yuvarlaklarla
+ * gösterilmeli." Yalnız İç nöy'de (dev'in kendi odası) ve yalnız uyanıkken
+ * (wanderingPre/Post) tetikleniyor — "uyuyan dev izlemiyor" kuralıyla
+ * çelişmesin diye sleeping'e karışmıyor, bkz. enterRage() çağrı noktaları.
+ */
+const CYCLOPS_RAGE_CHANCE = 0.4; // İç nöy'de bir dolaşma hedefine varınca
+const CYCLOPS_RAGE_DURATION = 7.0; // s
+const CYCLOPS_RAGE_SPEED_MULT = 1.7; // "sarhoş" adımlar normalden hızlı ama dengesiz
+const CYCLOPS_ATTACK_TELEGRAPH_SECONDS = 1.1; // yuvarlak belirdikten vuruşa kadar — kaçış penceresi
+const CYCLOPS_ATTACK_INTERVAL = 2.3; // s, rage sırasında ardışık iki telgraf arası
+const CYCLOPS_ATTACK_RADIUS = 2.4; // metre
+/** Vuruş hedefi devin kendi konumundan bu kadardan fazla uzağa gidemez —
+ * yoksa oyuncu mağara dışındaysa bile "isabet" alıyordu (bulundu, kendi
+ * testimde, 26 Ağu): hedef oyuncunun mutlak konumuydu, mesafe hiç kontrol
+ * edilmiyordu. Artık devin İç nöy'deki gerçek konumuna göre kırpılıyor. */
+const CYCLOPS_ATTACK_RANGE = 6.0;
 
 type Phase = "out" | "return" | "present";
 
@@ -79,6 +109,7 @@ type GiantState =
   | "headingToBed"
   | "sleeping"
   | "wanderingPost"
+  | "raging"
   | "exiting";
 
 interface WanderTarget {
@@ -206,13 +237,25 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
   const rightV = new THREE.Vector3();
 
   // ---------------------------------------------------------------- giant
-  const giant = new THREE.Mesh(
-    new THREE.CapsuleGeometry(0.9, 3.2, 4, 8),
-    new THREE.MeshStandardMaterial({ color: 0x8a5a4a }),
-  );
+  const giantMat = new THREE.MeshStandardMaterial({ color: 0x8a5a4a });
+  const GIANT_BASE_COLOR = giantMat.color.getHex();
+  const GIANT_RAGE_COLOR = 0xb8321a; // "sarhoş"/rage tell, giant tints red while raging
+  const giant = new THREE.Mesh(new THREE.CapsuleGeometry(0.9, 3.2, 4, 8), giantMat);
   giant.position.set(0, 2.4, -100); // parked off-scene while OUT/RETURN (D10: only ever visible during PRESENT)
   giant.visible = false;
   scene.add(giant);
+
+  // Rage attack telegraph — a flat ring decal on the floor, aRPG-style
+  // ("hareketi önceden yuvarlaklarla gösterilmeli, dodge'layabilmesi için").
+  // Hidden by default, positioned/scaled/faded only while a hit is pending
+  // (see the "attack telegraph" block inside step()).
+  const attackRing = new THREE.Mesh(
+    new THREE.RingGeometry(CYCLOPS_ATTACK_RADIUS * 0.85, CYCLOPS_ATTACK_RADIUS, 32),
+    new THREE.MeshBasicMaterial({ color: 0xff3322, transparent: true, opacity: 0.5, side: THREE.DoubleSide }),
+  );
+  attackRing.rotation.x = -Math.PI / 2;
+  attackRing.visible = false;
+  scene.add(attackRing);
 
   const input = new Input();
   input.attach(canvas);
@@ -245,6 +288,30 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
   hideWarnEl.style.cssText =
     "position:fixed;left:50%;top:14px;transform:translateX(-50%);color:#e8b0a0;font:700 16px system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;text-shadow:0 1px 4px rgba(0,0,0,.9);z-index:40;pointer-events:none;opacity:0;transition:opacity .4s;";
   document.body.appendChild(hideWarnEl);
+
+  // ------------------------------------------------------- loss screen
+  // Sahip (26 Ağu 2026): "ezilme 3/3 olunca KAYBETTIN, yeniden oyna ekranı
+  // gelsin" — eskiden sessizce (bir toast mesajıyla) sıfırlanıyordu.
+  // Primitif overlay (art-bible geçmedi henüz, salt işlevsel): step()
+  // lostRun true iken tamamen duruyor (aşağıdaki erken return), sahne son
+  // kare donuk kalıyor arkada — "yakalandığın an" görüntüsü kasıtlı.
+  const lossOverlay = document.createElement("div");
+  lossOverlay.style.cssText =
+    "position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:rgba(10,4,4,.82);z-index:60;";
+  const lossTitle = document.createElement("div");
+  lossTitle.textContent = "KAYBETTİN";
+  lossTitle.style.cssText =
+    "color:#e8574a;font:800 42px system-ui,sans-serif;letter-spacing:.06em;text-shadow:0 2px 8px rgba(0,0,0,.7);";
+  const lossSub = document.createElement("div");
+  lossSub.textContent = "Dev seni üç kez yakaladı.";
+  lossSub.style.cssText = "color:#e8d8c8;font:16px system-ui,sans-serif;opacity:.85;";
+  const lossBtn = document.createElement("button");
+  lossBtn.textContent = "Yeniden Oyna";
+  lossBtn.style.cssText =
+    "padding:12px 28px;font:600 16px system-ui,sans-serif;color:#2a1a12;background:#e8c165;border:none;border-radius:6px;cursor:pointer;";
+  lossBtn.addEventListener("click", () => resetRun());
+  lossOverlay.append(lossTitle, lossSub, lossBtn);
+  document.body.appendChild(lossOverlay);
 
   // ------------------------------------------------------- debug HUD (dev)
   // Kept alongside the real HUD above — useful while K5-K11 are still
@@ -280,6 +347,28 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
   let carriedCount = 0;
   let message = "";
   let messageT = 0;
+  /** true after the 3rd crush — step() freezes (see the early return at its
+   * top), lossOverlay is shown, only resetRun() (via the button) clears it. */
+  let lostRun = false;
+
+  // ---------------------------------------------------------- dash / crawl
+  let dashT = 0; // >0 while a dash burst is actively moving the player
+  let dashCooldownT = 0;
+  let dashDirX = 0;
+  let dashDirZ = 1;
+  /** son gerçek hareket yönü — dash tuşuna basılırken oyuncu duruyorsa
+   * (input yok) hangi yöne atılacağını buradan alıyoruz. */
+  let facingX = 0;
+  let facingZ = 1;
+
+  // ------------------------------------------------------------- rage/attack
+  let rageT = 0;
+  let rageStepT = 0; // "sarhoş adım" — bir sonraki rastgele mikro-hedefe kadar
+  let rageAttackT = 0; // bir sonraki telgraf/vuruşa kadar
+  let rageTarget: WanderTarget = { x: 0, z: 0 };
+  /** raging bitince hangi wander akışına dönüleceği (finishWanderLeg'e iletiliyor). */
+  let rageReturnState: "wanderingPre" | "wanderingPost" = "wanderingPre";
+  let attackTelegraph: { x: number; z: number; t: number } | null = null;
 
   function say(msg: string): void {
     message = msg;
@@ -306,37 +395,84 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     carriedCount = 0;
     detect = 0;
     crushGraceT = CRUSH_GRACE_SECONDS;
-    player.position.set(0, 1.0, CAVE_MOUTH_D);
     if (crushCount >= CYCLOPS_CRUSH_CAP) {
-      say(`DENEME BAŞARISIZ (${crushCount}. ezilme) — sıfırlanıyor`);
-      // Full attempt reset: progress AND crush count both clear, run is
-      // freely retriable (tuning.md §12 CYCLOPS_CRUSH_CAP row).
-      delivered = 0;
-      crushCount = 0;
-      for (const it of cave.items) {
-        it.carried = false;
-        it.delivered = false;
-        it.pos = { ...it.home };
-        it.mesh.position.x = it.home.x;
-        it.mesh.position.z = it.home.z;
-        it.mesh.visible = true;
-      }
-    } else {
-      say(`Ezildin (${crushCount}/${CYCLOPS_CRUSH_CAP})${crushCount === 2 ? " — bir daha kaldıramazsın." : ""}`);
+      // Sahip (26 Ağu 2026): "3/3 olunca KAYBETTIN, yeniden oyna ekranı
+      // gelsin" — eski davranış (sessiz sıfırlama + toast) bir hard-stop'a
+      // yükseltildi. Respawn'a gerek yok, run zaten duruyor; item/ilerleme
+      // sıfırlaması resetRun()'a taşındı (yeniden oyna basılana kadar).
+      triggerLoss();
+      return;
     }
+    player.position.set(CAUGHT_RESPAWN_X, 1.0, CAUGHT_RESPAWN_Z);
+    say(`Ezildin (${crushCount}/${CYCLOPS_CRUSH_CAP})${crushCount === 2 ? " — bir daha kaldıramazsın." : ""}`);
+  }
+
+  function triggerLoss(): void {
+    lostRun = true;
+    lossOverlay.style.display = "flex";
+  }
+
+  /** Yeniden Oyna — tüm run durumunu sıfırlar, overlay'i kapatır, step() döngüsü
+   * kaldığı yerden (sıfırlanmış haliyle) devam eder. Sayfa reload YOK — sahne/
+   * kamera/renderer'ı yeniden kurmaya gerek yok, sadece oynanış durumu. */
+  function resetRun(): void {
+    phase = "out";
+    giantState = "outside";
+    outWaitT = GIANT_OUT_WAIT_SECONDS;
+    sleepT = 0;
+    wanderLegsLeft = 0;
+    detect = 0;
+    crushCount = 0;
+    crushGraceT = 0;
+    delivered = 0;
+    carriedCount = 0;
+    message = "";
+    messageT = 0;
+    dashT = 0;
+    dashCooldownT = 0;
+    rageT = 0;
+    rageStepT = 0;
+    rageAttackT = 0;
+    attackTelegraph = null;
+    attackRing.visible = false;
+    giantMat.color.setHex(GIANT_BASE_COLOR);
+    giant.position.set(0, 2.4, -100);
+    giant.visible = false;
+    cave.setDoorOpen(true);
+    cave.setInnerGateOpen(false);
+    ambient.intensity = 1.1;
+    hemi.intensity = 0.7;
+    player.position.set(0, 1.0, -18);
+    for (const it of cave.items) {
+      it.carried = false;
+      it.delivered = false;
+      it.pos = { ...it.home };
+      it.mesh.position.x = it.home.x;
+      it.mesh.position.z = it.home.z;
+      it.mesh.visible = true;
+    }
+    lostRun = false;
+    lossOverlay.style.display = "none";
   }
 
   function step(dt: number): void {
+    // KAYBETTIN ekranı açıkken tüm simülasyon donuyor — yalnız Yeniden Oyna
+    // butonu (resetRun) devam ettirebilir. input.endFrame() yine de
+    // çağrılıyor ki overlay'in arkasında sızan bir tuş sonraki step'e taşınmasın.
+    if (lostRun) {
+      input.endFrame();
+      return;
+    }
     simTime += dt;
     if (crushGraceT > 0) crushGraceT = Math.max(0, crushGraceT - dt);
 
     // -------------------------------------------------- giant state machine
     // walkGiantTowards: gerçek yürüyüş, ışınlanma yok. Vardığında true döner.
-    function walkGiantTowards(target: WanderTarget): boolean {
+    function walkGiantTowards(target: WanderTarget, speed: number = CYCLOPS_GIANT_SPEED): boolean {
       const dx = target.x - giant.position.x;
       const dz = target.z - giant.position.z;
       const dist = Math.hypot(dx, dz);
-      const step = CYCLOPS_GIANT_SPEED * dt;
+      const step = speed * dt;
       if (dist <= step) {
         giant.position.x = target.x;
         giant.position.z = target.z;
@@ -345,6 +481,32 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
       giant.position.x += (dx / dist) * step;
       giant.position.z += (dz / dist) * step;
       return false;
+    }
+
+    // "wanderingPre/Post bir hedefe varınca ne olur" ortak kuyruğu — raging
+    // dönüşünde de aynı yoldan devam edilsin diye ayrı bir fonksiyon.
+    function finishWanderLeg(continueState: GiantState, doneState: GiantState): void {
+      wanderLegsLeft--;
+      if (wanderLegsLeft > 0) {
+        giantTarget = pickWanderTarget();
+        giantState = continueState;
+      } else {
+        giantState = doneState;
+      }
+    }
+
+    // "Dev bazen rage geçirecek kendi odasında, sarhoş gibi hareket edecek."
+    // Yalnız İç nöy'de, yalnız uyanıkken (sleeping'e karışmıyor — "uyuyan
+    // dev izlemiyor" kuralı korunuyor).
+    function enterRage(returnState: "wanderingPre" | "wanderingPost"): void {
+      rageReturnState = returnState;
+      rageT = CYCLOPS_RAGE_DURATION;
+      rageStepT = 0;
+      rageAttackT = CYCLOPS_ATTACK_INTERVAL * 0.5; // ilk telgraf hemen değil, kısa bir gecikmeyle
+      attackTelegraph = null;
+      giantMat.color.setHex(GIANT_RAGE_COLOR);
+      giantState = "raging";
+      say("Dev çıldırdı!");
     }
 
     if (giantState === "outside") {
@@ -373,13 +535,12 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     } else if (giantState === "wanderingPre") {
       phase = "present";
       if (walkGiantTowards(giantTarget)) {
-        wanderLegsLeft--;
-        if (wanderLegsLeft > 0) {
-          giantTarget = pickWanderTarget();
+        if (roomIdAt(giant.position.z) === "inner" && Math.random() < CYCLOPS_RAGE_CHANCE) {
+          enterRage("wanderingPre");
         } else {
           // "Dev hep kendi yatağına yatacak" — rastgele dolaşma bitince
           // son adım artık başka bir rastgele oda değil, hep aynı yatak.
-          giantState = "headingToBed";
+          finishWanderLeg("wanderingPre", "headingToBed");
         }
       }
     } else if (giantState === "headingToBed") {
@@ -404,12 +565,50 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     } else if (giantState === "wanderingPost") {
       phase = "present";
       if (walkGiantTowards(giantTarget)) {
-        wanderLegsLeft--;
-        if (wanderLegsLeft > 0) {
-          giantTarget = pickWanderTarget();
+        if (roomIdAt(giant.position.z) === "inner" && Math.random() < CYCLOPS_RAGE_CHANCE) {
+          enterRage("wanderingPost");
         } else {
-          giantState = "exiting";
+          finishWanderLeg("wanderingPost", "exiting");
         }
+      }
+    } else if (giantState === "raging") {
+      phase = "present";
+      rageT -= dt;
+      rageStepT -= dt;
+      rageAttackT -= dt;
+      // "Sarhoş gibi hareket edecek" — düzenli bir dolaşma hedefi değil, sık
+      // sık değişen küçük rastgele mikro-adımlar, normalden hızlı.
+      if (rageStepT <= 0) {
+        const b = roomBounds("inner");
+        const marginX = 1.0;
+        const marginZ = 1.5;
+        const halfX = Number.isFinite(b.halfWidth) ? Math.max(0.1, b.halfWidth - marginX) : 3;
+        rageTarget = {
+          x: (Math.random() * 2 - 1) * halfX,
+          z: b.dMin + marginZ + Math.random() * Math.max(0.1, b.dMax - b.dMin - marginZ * 2),
+        };
+        rageStepT = 0.4 + Math.random() * 0.5;
+      }
+      walkGiantTowards(rageTarget, CYCLOPS_GIANT_SPEED * CYCLOPS_RAGE_SPEED_MULT);
+      // aRPG-tarzı telgraf: bir vuruş beklerken yeni bir tane başlatma —
+      // önce ekli olan çözülsün (bkz. "attack telegraph" bloğu aşağıda).
+      if (rageAttackT <= 0 && !attackTelegraph) {
+        // Oyuncuya doğru, ama devin kendi konumundan CYCLOPS_ATTACK_RANGE'i
+        // aşmayan bir nokta — bu sayede oyuncu odada bile değilse telgraf
+        // yine de belirir (dev'in kendi hesabına, atmosfer) ama asla isabet
+        // edemez, mesafe zaten kapsam dışı kalıyor.
+        const dx = player.position.x - giant.position.x;
+        const dz = player.position.z - giant.position.z;
+        const pdist = Math.hypot(dx, dz);
+        const reach = Math.min(pdist, CYCLOPS_ATTACK_RANGE);
+        const tx = pdist > 0.01 ? giant.position.x + (dx / pdist) * reach : giant.position.x;
+        const tz = pdist > 0.01 ? giant.position.z + (dz / pdist) * reach : giant.position.z;
+        attackTelegraph = { x: tx, z: tz, t: CYCLOPS_ATTACK_TELEGRAPH_SECONDS };
+        rageAttackT = CYCLOPS_ATTACK_INTERVAL;
+      }
+      if (rageT <= 0 && !attackTelegraph) {
+        giantMat.color.setHex(GIANT_BASE_COLOR);
+        finishWanderLeg(rageReturnState, rageReturnState === "wanderingPre" ? "headingToBed" : "exiting");
       }
     } else {
       // exiting — eşiğe (z=0) kadar hâlâ "present" (kapı hâlâ kapalı),
@@ -440,6 +639,30 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     // Oyuncuyu engellemiyor (ana kapı gibi) — yalnız görsel/senkron.
     cave.setInnerGateOpen(giant.visible && giant.position.z >= GORGE_B_MIN && giant.position.z <= GORGE_B_MAX);
 
+    // -------------------------------------------------- attack telegraph
+    // aRPG-tarzı: yuvarlak belirir, büyür/parlaklaşır, süre dolunca isabet
+    // kontrolü yapılır. Oyuncu bu pencerede (CYCLOPS_ATTACK_TELEGRAPH_SECONDS)
+    // dash'le veya yürüyerek yuvarlağın dışına çıkabilir.
+    if (attackTelegraph) {
+      attackTelegraph.t -= dt;
+      const p = 1 - Math.max(0, attackTelegraph.t) / CYCLOPS_ATTACK_TELEGRAPH_SECONDS;
+      attackRing.visible = true;
+      attackRing.position.set(attackTelegraph.x, 0.05, attackTelegraph.z);
+      attackRing.scale.setScalar(0.55 + 0.45 * p);
+      (attackRing.material as THREE.MeshBasicMaterial).opacity = 0.3 + 0.5 * p;
+      if (attackTelegraph.t <= 0) {
+        const dist = Math.hypot(player.position.x - attackTelegraph.x, player.position.z - attackTelegraph.z);
+        attackTelegraph = null;
+        attackRing.visible = false;
+        if (dist < CYCLOPS_ATTACK_RADIUS && crushGraceT <= 0) {
+          say("Dev'in vuruşu isabet etti!");
+          onCaught();
+        }
+      }
+    } else {
+      attackRing.visible = false;
+    }
+
     // ------------------------------------------------------- camera look
     const sens = input.touchActive ? CAMERA.touchSens : CAMERA.mouseSens;
     const md = input.mouseDelta();
@@ -466,8 +689,37 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     const moving = Math.abs(mx) > 0.05 || Math.abs(mz) > 0.05;
     if (moving) {
       const len = Math.hypot(mx, mz) || 1;
-      player.position.x += (mx / len) * PLAYER_SPEED * dt;
-      player.position.z += (mz / len) * PLAYER_SPEED * dt;
+      facingX = mx / len;
+      facingZ = mz / len;
+    }
+
+    // -------------------------------------------------------------- dash
+    // "dash movement da olacak" — tek atılımlık hızlı hamle, dodge amaçlı
+    // (rage telgraflarından kaçmak için asıl kullanım yeri). Yön: hareket
+    // ediliyorsa o yön, duruyorsa son bakılan/hareket edilen yön.
+    if (dashCooldownT > 0) dashCooldownT = Math.max(0, dashCooldownT - dt);
+    if (dashT > 0) dashT = Math.max(0, dashT - dt);
+    if (input.dash && dashCooldownT <= 0 && dashT <= 0) {
+      dashDirX = moving ? facingX : facingX || 0;
+      dashDirZ = moving ? facingZ : facingZ || 1;
+      dashT = DASH_DURATION;
+      dashCooldownT = DASH_COOLDOWN;
+    }
+
+    // ------------------------------------------------------------- crawl
+    // "yerde sürünme" — hem yavaşlatan hem de gizleyen bir duruş (bkz. DETECT
+    // bloğundaki CRAWL_DETECT_MULT). Dash sırasında anlamsız, o yüzden kapalı.
+    const crawling = input.crawlHeld && dashT <= 0;
+    player.scale.y = crawling ? 0.5 : 1;
+
+    if (dashT > 0) {
+      const burstSpeed = DASH_DISTANCE / DASH_DURATION;
+      player.position.x += dashDirX * burstSpeed * dt;
+      player.position.z += dashDirZ * burstSpeed * dt;
+    } else if (moving) {
+      const speed = PLAYER_SPEED * (crawling ? CRAWL_SPEED_MULT : 1);
+      player.position.x += facingX * speed * dt;
+      player.position.z += facingZ * speed * dt;
     }
     const hw = corridorHalfWidthAt(player.position.z);
     if (Number.isFinite(hw)) {
@@ -483,6 +735,7 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
       const dist = Math.hypot(player.position.x - giant.position.x, player.position.z - giant.position.z);
       if (dist < CYCLOPS_CRUSH_RADIUS) onCaught();
     }
+    if (lostRun) return; // onCaught() yukarıda KAYBETTIN'i tetiklemiş olabilir
 
     // -------------------------------------------------------------- DETECT
     // Bulundu test ederken (25 Ağu): doorGlobal(z) negatif z (koy/patika,
@@ -507,10 +760,14 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
         const gDist = Math.hypot(player.position.x - giant.position.x, player.position.z - giant.position.z);
         if (gDist < CYCLOPS_GIANT_PROXIMITY_RADIUS) rate *= CYCLOPS_PROXIMITY_MULTIPLIER;
       }
+      // "yerde sürünme gibi" — asıl mekanik fayda burada: gizlenirken
+      // birikim çok daha yavaş.
+      if (crawling) rate *= CRAWL_DETECT_MULT;
       if (rate > 0) detect = Math.min(DETECT_MAX, detect + rate * dt);
       else detect = Math.max(0, detect - DETECT_DECAY * dt);
       if (detect >= DETECT_MAX) onCaught();
     }
+    if (lostRun) return; // DETECT_MAX'a değip onCaught() KAYBETTIN'i tetiklemiş olabilir
 
     // -------------------------------------------------------------- pickup
     if (input.interact && doorOpen()) {
@@ -565,7 +822,8 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
 
     // --------------------------------------------------------- debug (dev)
     debugEl.textContent =
-      `[dev] faz:${phase} dev:${giantState}  oda:${roomIdAt(player.position.z)}  DETECT:${detect.toFixed(0)}/${DETECT_MAX}  ezilme:${crushCount}/${CYCLOPS_CRUSH_CAP}`;
+      `[dev] faz:${phase} dev:${giantState}  oda:${roomIdAt(player.position.z)}  DETECT:${detect.toFixed(0)}/${DETECT_MAX}  ezilme:${crushCount}/${CYCLOPS_CRUSH_CAP}\n` +
+      `dash:${dashCooldownT.toFixed(1)}  crawl:${crawling}  rage:${giantState === "raging" ? rageT.toFixed(1) : "-"}  telgraf:${attackTelegraph ? attackTelegraph.t.toFixed(1) : "-"}`;
 
     input.endFrame();
   }
@@ -610,6 +868,14 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
         player.position.x = x;
         player.position.z = z;
       },
+      forceDash: (dirX: number, dirZ: number) => {
+        const len = Math.hypot(dirX, dirZ) || 1;
+        dashDirX = dirX / len;
+        dashDirZ = dirZ / len;
+        dashT = DASH_DURATION;
+        dashCooldownT = DASH_COOLDOWN;
+      },
+      restart: () => resetRun(),
       state: () => ({
         phase,
         giantState,
@@ -621,9 +887,13 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
         delivered,
         crushCount,
         crushGraceT: Number(crushGraceT.toFixed(2)),
+        lostRun,
         playerPos: { x: player.position.x, z: player.position.z },
         giantVisible: giant.visible,
         giantPos: { x: giant.position.x, z: giant.position.z },
+        rageT: Number(rageT.toFixed(2)),
+        attackTelegraph: attackTelegraph ? { ...attackTelegraph, t: Number(attackTelegraph.t.toFixed(2)) } : null,
+        dashCooldownT: Number(dashCooldownT.toFixed(2)),
         items: cave.items.map((it) => ({ id: it.id, carried: it.carried, delivered: it.delivered, pos: it.pos })),
       }),
     };

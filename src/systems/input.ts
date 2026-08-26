@@ -251,6 +251,15 @@ export class Input {
   get wantsRestart(): boolean {
     return this.pressed.has("KeyR");
   }
+  /** One-shot dash trigger (Shift). Cyclops Cave-only for now (26 Ağu 2026),
+   * harmless to Lotus — Lotus never reads this getter. */
+  get dash(): boolean {
+    return this.pressed.has("ShiftLeft") || this.pressed.has("ShiftRight");
+  }
+  /** Held crawl/crouch (Ctrl or C). Same note as `dash`. */
+  get crawlHeld(): boolean {
+    return this.held.has("ControlLeft") || this.held.has("ControlRight") || this.held.has("KeyC");
+  }
   get wantsPause(): boolean {
     return this.pressed.has("Escape");
   }

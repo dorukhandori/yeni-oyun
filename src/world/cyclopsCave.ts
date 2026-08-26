@@ -81,7 +81,24 @@ export function roomBounds(id: RoomId): { dMin: number; dMax: number; halfWidth:
   return { dMin: r.dMin, dMax: r.dMax, halfWidth: r.halfWidth };
 }
 
-export const CAVE_MOUTH_D = 4; // CAUGHT_RESPAWN_POINT (level-cyclops-cave.md §1.2 note)
+/**
+ * CAUGHT_RESPAWN_POINT. Locked by level-cyclops-cave.md §1.2/tuning.md as
+ * "mağara ağzı, D≈4" (14 Ağu, @helix — reaffirmed 25 Ağu) specifically so a
+ * caught player never respawns into total darkness. Kept that intent, moved
+ * the exact coordinate: (0, D=4) sat inside the `mouth` room, which is
+ * itself one of the giant's own wander-target rooms (§ WANDER_ROOMS, 15%
+ * weight) — AND every entering/exiting walk is a beeline toward (x=0, z=0),
+ * so the giant's x is *always* 0 while z is in [-5, 8]. A player standing
+ * still at (0,4) could get re-crushed by ordinary giant traffic, not bad
+ * luck (found via __CYCLOPS_DEBUG__ testing, 26 Ağu; confirmed with sahip
+ * before changing — see chat). Fix: x=2.4, z=-4, still in the lit `path`
+ * corridor immediately behind the mouth (z<0 is already "never at risk" per
+ * the DETECT gate in cyclopsStop.ts), and provably outside the giant's
+ * entire position envelope for every state (its x is 0 whenever it's
+ * anywhere near this z; wander targets never land in `path` at all).
+ */
+export const CAUGHT_RESPAWN_X = 2.4;
+export const CAUGHT_RESPAWN_Z = -4;
 
 // ------------------------------------------------------------------ hearth
 // level-cyclops-cave.md §3.4 correction: hearth shifted 4 m west of the
@@ -120,10 +137,25 @@ export interface HideSpot {
 
 const HIDE_SPOT_ROOM_IDS: RoomId[] = ["mouth", "depot", "pens", "inner"];
 
-function randomHideSpotFor(room: RoomSpan): HideSpot {
+/**
+ * Bulundu (sahip talebi, 26 Ağu 2026): İç nöy artık öğe hedefine ulaşmak
+ * için ZORUNLU bir durak (bkz. ITEM_DEFS'in yukarıdaki notu) ve dev'in
+ * kendi yatağı da orada — "orada ezilmemeleri epey zor olsun ama bir kaç
+ * tane saklanma girintisi olsun." Diğer odalar 1 girinti ile kalıyor, İç
+ * nöy 3 alıyor — tehlike gerçek ama tek bir dar geçit değil.
+ */
+const HIDE_SPOTS_PER_ROOM: Partial<Record<RoomId, number>> = { inner: 3 };
+
+function randomHideSpotFor(room: RoomSpan, usedZ: number[]): HideSpot {
   const marginZ = 2.5;
   const span = Math.max(1, room.dMax - room.dMin - marginZ * 2);
-  const z = room.dMin + marginZ + Math.random() * span;
+  // Aynı odada birden çok girinti üretilirken üst üste binmesinler diye
+  // basit bir "yeniden dene" — kesin bir garanti değil, iyi niyetli bir
+  // dağılım (odalar zaten birkaç metrelik span'lara sahip).
+  let z = room.dMin + marginZ + Math.random() * span;
+  for (let attempt = 0; attempt < 6 && usedZ.some((u) => Math.abs(u - z) < 3.5); attempt++) {
+    z = room.dMin + marginZ + Math.random() * span;
+  }
   const side: -1 | 1 = Math.random() < 0.5 ? -1 : 1;
   const type: HideSpotType = Math.random() < 0.5 ? "rock" : "niche";
   const wallX = Number.isFinite(room.halfWidth) ? room.halfWidth : 6;
@@ -134,7 +166,17 @@ function randomHideSpotFor(room: RoomSpan): HideSpot {
 }
 
 function generateHideSpots(): HideSpot[] {
-  return ROOMS.filter((r) => HIDE_SPOT_ROOM_IDS.includes(r.id)).map(randomHideSpotFor);
+  const spots: HideSpot[] = [];
+  for (const room of ROOMS.filter((r) => HIDE_SPOT_ROOM_IDS.includes(r.id))) {
+    const count = HIDE_SPOTS_PER_ROOM[room.id] ?? 1;
+    const usedZ: number[] = [];
+    for (let i = 0; i < count; i++) {
+      const spot = randomHideSpotFor(room, usedZ);
+      usedZ.push(spot.z);
+      spots.push(spot);
+    }
+  }
+  return spots;
 }
 
 // ------------------------------------------------------------------- items
@@ -153,20 +195,26 @@ export interface CaveItem {
   mesh: THREE.Object3D;
 }
 
-// Bulundu (sahip talebi, 26 Ağu 2026): "en çok dev'in odasında yerde
-// yemekler olacak" — level-cyclops-cave.md §5'in orijinal dağılımı (2 depo
-// / 3 ağıllar / 2 iç nöy) ağıllarda en çoktu. Şimdi: 2/2/3, İç nöy (dev'in
-// artık her zaman kendi yatağına yattığı oda) tek başına en kalabalık oda.
-// ⚠️ Bilinçli bedel: eski "güvenli minimal rota" (depo+ağıllar=5 ≥ hedef 4,
-// İç nöy'e hiç girmeden bitirilebilir) artık tam sınırda (depo+ağıllar=4,
-// tampon sıfır) — bu, dev'in artık yatağının orada olmasıyla tutarlı bir
-// risk artışı, ama level-spec'in "İç nöye hiç girmeden bitirilebilir"
-// garantisini gevşetiyor. Sahip isterse geri konuşulur.
+// Bulundu (sahip talebi, 26 Ağu 2026, iki aşamalı):
+// 1) "en çok dev'in odasında yerde yemekler olacak" — orijinal dağılım (2
+//    depo / 3 ağıllar / 2 iç nöy) ağıllarda en çoktu; 2/2/3'e çekildi, İç
+//    nöy tek başına en kalabalık oda oldu. O anda "güvenli minimal rota"
+//    (depo+ağıllar) hâlâ tam hedefi (4) karşılıyordu — sıfır tampon ama
+//    teorik olarak İç nöy'e hiç girmeden bitirilebiliyordu.
+// 2) Sonraki talep: "mağaranın içinde yerde olan yemekler gemiye yeterli
+//    kadar sayıyı karşılamıyor, yani dev'in odasına girmeleri gerekiyor" —
+//    bu, level-cyclops-cave.md §9 madde 5'in açık sorusunu ("güvenli
+//    minimal rota keşfediliyor mu?") kasıtlı olarak KAPATIYOR: artık böyle
+//    bir rota YOK. A-02 kaldırıldı (ağıllar 2→1); depo(2)+ağıllar(1)=3 <
+//    hedef(4) — en az 1 öğe İç nöy'den gelmek ZORUNDA. İç nöy'de hâlâ 3
+//    öğe var (I-01/I-02/I-03), yani hangisini alacağını seçme özgürlüğü
+//    kalıyor, sadece "hiç girmeme" seçeneği gitti. Buna karşılık olarak İç
+//    nöy'e birkaç saklanma girintisi eklendi (aşağıda HIDE_SPOTS_PER_ROOM) —
+//    zor ama tamamen çıkışsız değil.
 const ITEM_DEFS: { id: string; kind: ItemKind; room: RoomId; x: number; z: number }[] = [
   { id: "D-01", kind: "cheese", room: "depot", x: -4, z: 12 },
   { id: "D-02", kind: "wine", room: "depot", x: 4, z: 20 },
   { id: "A-01", kind: "cheese", room: "pens", x: -3, z: 29 },
-  { id: "A-02", kind: "wine", room: "pens", x: 3, z: 35 },
   { id: "I-01", kind: "cheese", room: "inner", x: -3, z: 53 },
   { id: "I-02", kind: "wine", room: "inner", x: 2, z: 63 },
   { id: "I-03", kind: "cheese", room: "inner", x: 3, z: 58 },
