@@ -1154,7 +1154,7 @@ export function buildCyclopsCave(): CyclopsCave {
       // aynı yöntem): `scene.rotation.y=90°` uygulandığından mesh'in
       // yerel Z ekseni dünya X'ine (yanlara) karşılık gelmesi bekleniyor.
       if (caveMesh) {
-        (caveMesh as THREE.Mesh).scale.z *= 1.7;
+        (caveMesh as THREE.Mesh).scale.z *= 1.5;
       }
       cliffGroup.add(scene);
       cliffLoadedFlag = true;
