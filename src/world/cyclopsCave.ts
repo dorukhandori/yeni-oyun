@@ -1658,7 +1658,17 @@ export function buildCyclopsCave(): CyclopsCave {
         // yüksekliğinden bile KISA çıktı (`cliffWorldBox.y` değişmedi,
         // ölçümle yakalandı). Hedef yükseklik/genişlik artık BAĞIMSIZ ve
         // doğrudan hesaplanıyor.
-        const SEAT_WIDTH = 40; // kovun tam genişliği (x=±20), yanlarda boşluk kalmasın
+        // **Düzeltme (27 Ağu, sahip, ekran görüntüsüyle): "hâlâ aynı boşluk
+        // var. kapının hemen arkasında olan plaka sağa ve sola doğru
+        // çimenler ne kadar uzanıyorsa uzansın."** `SEAT_WIDTH=40` kovun
+        // ESKİ genişliğine göreydi (x=±20) — ada o zamandan beri `ISLAND_
+        // WIDTH=220`'ye genişledi, plaka artık çok dar kalıyor, iki
+        // yanında (özellikle kapı açısından bakınca) çimenle plaka
+        // arasında kapının kendi teal iç dokusunun sızdığı çirkin bir
+        // boşluk/kenar bırakıyordu (ekran görüntüsündeki mavi-teal dikdörtgen
+        // tam bu). Artık `ISLAND_WIDTH` ile birebir aynı — plaka çimin
+        // uzandığı her yere kadar uzanıyor, kenar kalmıyor.
+        const SEAT_WIDTH = ISLAND_WIDTH;
         const SEAT_HEIGHT = 22; // kapının kendi ~12 m'sinden belirgin daha uzun, gerçek bir kütle hissi
         const NATIVE_WIDTH = 480;
         const NATIVE_HEIGHT = 21.2;
@@ -1712,6 +1722,19 @@ export function buildCyclopsCave(): CyclopsCave {
   // kalıyor), yalnız gerçek boşluklardan artık düz kaya görünüyor,
   // tünel karanlığı değil.
   {
+    // **Düzeltme (27 Ağu, sahip, ekran görüntüsüyle): "kapının hemen
+    // arkasında olan plaka..."** Bu arka perde `rockMat` (=
+    // `loadCaveRockMaterial()`) kullanıyordu — o fonksiyon kurulduğunda
+    // (yukarıdaki not) "hemen hiç fark edilmiyor" diye tasarlanmıştı,
+    // AMA aynı gün ilerleyen bir turda `loadCaveRockMaterial()`'ın kendi
+    // dokusu ASSET-120'nin parlak camgöbeği "yabancı gezegen" dokusuna
+    // çevrildi (mağara İÇİ için) — bu paylaşılan referans yüzünden arka
+    // perde de sessizce aynı parlak teal dokuyu miras aldı, artık kapının
+    // yanından dışarıdan gayet göze batan mavi-teal bir dikdörtgen gibi
+    // okunuyordu (tam ekran görüntüsündeki "plaka"). Arka perdenin işi
+    // sadece boşluğu KARARTMAK (tünel karanlığı yerine düz koyu yüzey) —
+    // hiç doku gerekmiyor, kendi ayrı/nötr koyu malzemesi.
+    const backstopMat = new THREE.MeshStandardMaterial({ color: 0x2a241d, roughness: 1 });
     const backHalfWidth = 5;
     const backHeight = 5;
     const doorHalfWidth = 1.9;
@@ -1721,14 +1744,14 @@ export function buildCyclopsCave(): CyclopsCave {
     const sideWidth = backHalfWidth - doorHalfWidth;
     const leftWall = new THREE.Mesh(
       new THREE.BoxGeometry(sideWidth, backHeight, backDepth),
-      rockMat.clone(),
+      backstopMat,
     );
     leftWall.position.set(-doorHalfWidth - sideWidth / 2, backHeight / 2, backZ);
     const rightWall = leftWall.clone();
     rightWall.position.x = doorHalfWidth + sideWidth / 2;
     const topWall = new THREE.Mesh(
       new THREE.BoxGeometry(doorHalfWidth * 2, backHeight - doorHeight, backDepth),
-      rockMat.clone(),
+      backstopMat,
     );
     topWall.position.set(0, doorHeight + (backHeight - doorHeight) / 2, backZ);
     for (const m of [leftWall, rightWall, topWall]) {
