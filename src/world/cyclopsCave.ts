@@ -386,15 +386,42 @@ export function buildCyclopsCave(): CyclopsCave {
   // dar bir taş patika şeridi (`rock_chalk_01`, sıkı tekrarla "döşeli taş"
   // okunsun diye) — hepsi aynı `heightAt(z)` tümseğine oturuyor, D=0'da
   // aynı dikişsiz sıfıra iniyor.
-  const makeGroundGeo = (width: number, zMin: number, zMax: number, segs: number, yOffset = 0) => {
+  const makeGroundGeo = (
+    width: number,
+    zMin: number,
+    zMax: number,
+    segs: number,
+    yOffset = 0,
+    xAt?: (z: number) => number,
+  ) => {
     const geo = new THREE.PlaneGeometry(width, zMax - zMin, 1, segs);
     geo.rotateX(-Math.PI / 2);
     geo.translate(0, 0, (zMin + zMax) / 2);
     const pos = geo.attributes.position;
-    for (let i = 0; i < pos.count; i++) pos.setY(i, heightAt(pos.getZ(i)) + yOffset);
+    for (let i = 0; i < pos.count; i++) {
+      const z = pos.getZ(i);
+      pos.setY(i, heightAt(z) + yOffset);
+      if (xAt) pos.setX(i, pos.getX(i) + xAt(z));
+    }
     pos.needsUpdate = true;
     geo.computeVertexNormals();
     return geo;
+  };
+
+  // Sahip (27 Ağu, ASSET-109'un yaklaşım açısı/kompozisyonu geri bildirimi):
+  // dosdoğru bir patika oyuncunun kameradan gördüğü şey her zaman düz-önden
+  // okunuyordu, referans görselin "deniz bir yanda, kayalık+mağara öbür
+  // yanda, patika çapraz yükseliyor" hissi hiç çıkmıyordu. Patikayı (yalnız
+  // GÖRSEL şerit — mekanik `corridorHalfWidthAt` kelepçesi D=-8..0'da hâlâ
+  // dosdoğru |x|<3, dokunulmadı) tek bir yay ile büküyor: spawn'da (D≈-18)
+  // ve koridor başlangıcında (D=-8) x=0'a oturuyor (ikisi de sabit oyuncu
+  // konumları — bükülme onları kaçırmasın diye), aradaki açık koyda (D
+  // -19..-8) bir sinüs yayıyla yana savruluyor. Ağaç/kaya dekoru da AYNI
+  // eğriyi (`pathCenterX`) kullanıyor, patikanın üstüne ekilmesinler diye.
+  const pathCenterX = (z: number): number => {
+    if (z <= -19 || z >= -8) return 0;
+    const t = (z + 19) / 11; // 0 @ z=-19, 1 @ z=-8
+    return -3.6 * Math.sin(Math.PI * t);
   };
 
   const SAND_Z_MAX = -15; // kıyı şeridi: D -20..-15
@@ -425,7 +452,7 @@ export function buildCyclopsCave(): CyclopsCave {
   group.add(grass);
 
   const PATH_HALF_W = 2.2; // COVE_CLEAR_HALF_X (4.5) içinde kalır — kenarda çim payı
-  const pathGeo = makeGroundGeo(PATH_HALF_W * 2, -19, 0, 40, 0.015);
+  const pathGeo = makeGroundGeo(PATH_HALF_W * 2, -19, 0, 40, 0.015, pathCenterX);
   const pathTex = loadAlbedoTexture(assetUrl("assets/textures/rock_chalk_01_albedo_1024.webp")).clone();
   pathTex.needsUpdate = true;
   pathTex.wrapS = THREE.RepeatWrapping;
@@ -452,7 +479,7 @@ export function buildCyclopsCave(): CyclopsCave {
   const COVE_SPAWN_CLEAR = { x: 0, z: -18, r: 3.5 };
   const COVE_SHIP_CLEAR = { x: 11, z: -15, r: 9 };
   function coveDressingClear(x: number, z: number): boolean {
-    if (Math.abs(x) < COVE_CLEAR_HALF_X) return false;
+    if (Math.abs(x - pathCenterX(z)) < COVE_CLEAR_HALF_X) return false;
     if (Math.hypot(x - COVE_SPAWN_CLEAR.x, z - COVE_SPAWN_CLEAR.z) < COVE_SPAWN_CLEAR.r) return false;
     if (Math.hypot(x - COVE_SHIP_CLEAR.x, z - COVE_SHIP_CLEAR.z) < COVE_SHIP_CLEAR.r) return false;
     return true;
