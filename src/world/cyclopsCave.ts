@@ -1090,16 +1090,12 @@ export function buildCyclopsCave(): CyclopsCave {
     loadGltfBundle("assets/models/rock_cave_gate_stylized_01_mesh_3998.glb").then((bundle) => {
       const scene = bundle.scene;
       const keep: THREE.Mesh[] = [];
-      let caveMesh: THREE.Mesh | null = null;
       scene.traverse((obj) => {
         if (!(obj instanceof THREE.Mesh)) return;
         const matName = Array.isArray(obj.material) ? "" : (obj.material?.name ?? "");
         if (matName === "Floor" || matName === "Grass") {
           obj.visible = false;
           return;
-        }
-        if (matName === "Cave") {
-          caveMesh = obj;
         }
         if (matName === "Lamp_Glow") {
           // Sahip (27 Ağu, dokuzuncu geri bildirim): "girişte lamba tutan
@@ -1153,32 +1149,77 @@ export function buildCyclopsCave(): CyclopsCave {
       // Eksen ampirik bulunacak (kapının kendi 90° döndürme kuralıyla
       // aynı yöntem): `scene.rotation.y=90°` uygulandığından mesh'in
       // yerel Z ekseni dünya X'ine (yanlara) karşılık gelmesi bekleniyor.
-      if (caveMesh) {
-        // Sahip (27 Ağu): "taşı yanlara doğru genişlet." İlk iki deneme
-        // (`.scale.z`, sonra `.scale.x`) dünya X'ini HİÇ etkilemedi — GLB'nin
-        // kendi FBX-kökenli düğüm zincirinde (Sketchfab_model→*.fbx→
-        // RootNode→Object_1) bu mesh'e özel, eksen-hizalı olmayan bir
-        // ara-dönüş olduğu ölçümle doğrulandı (tek eksen X ölçeklendiğinde
-        // dünya Z VE Y birlikte değişti — saf bir eksen takası değil).
-        // ASSET-116 ağaç paketinde işe yarayan aynı teknik burada da
-        // uygulandı: mesh'in TAM çözümlenmiş dünya matrisini geometriye
-        // gömüp kendi transformunu kimliğe sıfırlayarak eksen-hizalı hale
-        // getirdik — bundan sonra `.scale.x` artık gerçekten ve yalnızca
-        // dünya X'ine karşılık geliyor, ekseni tahmin etmeye gerek kalmadı.
-        const m = caveMesh as THREE.Mesh;
-        scene.updateMatrixWorld(true);
-        const bakedGeo = m.geometry.clone();
-        bakedGeo.applyMatrix4(m.matrixWorld);
-        const bakedMesh = new THREE.Mesh(bakedGeo, m.material);
-        bakedMesh.receiveShadow = true;
-        bakedMesh.castShadow = true;
-        bakedMesh.frustumCulled = false;
-        m.parent?.remove(m);
-        const idx = keep.indexOf(m);
-        if (idx !== -1) keep[idx] = bakedMesh;
-        bakedMesh.scale.x *= 4;
-        cliffGroup.add(bakedMesh);
-      }
+      // **Düzeltme (27 Ağu, sahip, iki turda): "çok çekiştirilmiş
+      // göründü... duvar gibi bitişik uzatalım" → sonra "sana verdiğim taş
+      // kataloğunu kullanarak doğal görünen mağara duvarları yap, böyle
+      // iğrenç."** Üç önceki deneme de yanlıştı: `.scale.x` ile germek
+      // dokuyu deforme ediyordu; "Cave" mesh'ini `.clone()`layıp döşemek
+      // o belirgin MOR ağaç gövdesini de tekrarlıyordu (bariz kopyala-
+      // yapıştır); düz `rockMat` kutu-geometri ("bir önceki deneme") ise
+      // çirkin/yapay düz bir levha gibi görünüyordu. `caveMesh`'e hâlâ
+      // dokunulmuyor (kapı "bir önceki boyutuyla" kalıyor).
+      //
+      // Sahip'in daha önce Downloads'a indirip verdiği "Rocks Stylized"
+      // kataloğu (`rock-catalog/`, 11 farklı kaya mesh'i,
+      // `scripts/blender/convert_rockkit_stylized.py` ile dönüştürüldü —
+      // kaynağın kendi malzemesi de ASSET-117 gibi bozuk bir harici doku
+      // yoluna sahipti, gerçek dosyaya elle yeniden bağlandı) burada
+      // kullanılıyor: 11 farklı kaya şeklinden rastgele seçilen, boyut/
+      // dönüş varyasyonlu, üst üste yığılan gerçek bir kaya duvarı —
+      // kapının kendi kenarından (x=±5) kovun kenarına (x=±19.5) kadar.
+      loadGltfBundle("assets/models/rock_stylized_kit_01_mesh_11pcs.glb").then((rockBundle) => {
+        const rockPieces: THREE.Mesh[] = [];
+        rockBundle.scene.traverse((obj) => {
+          if (obj instanceof THREE.Mesh) rockPieces.push(obj);
+        });
+        if (rockPieces.length === 0) return;
+        const wallRand = mulberry32(20260903);
+        // Sahip'in kendi standardında (D=-8 civarı) kamerayı bir kayanın
+        // içine soktu, bulundu: en büyük parçanın yarıçapı ~4,2 m'ye
+        // kadar çıkabiliyordu, `WALL_INNER=5`'te merkezlenince patikaya
+        // taşıyordu. İç sınır 9'a çekildi, üst ölçek 3.8'den 2.6'ya
+        // düşürüldü — hâlâ doğal boyut çeşitliliği var ama patikaya
+        // taşmıyor.
+        const WALL_INNER = 9;
+        const WALL_OUTER = 19.5;
+        const WALL_MAX_HEIGHT = 9;
+        for (const side of [-1, 1]) {
+          let x = WALL_INNER;
+          while (x < WALL_OUTER) {
+            const rows = 2 + Math.floor(wallRand() * 2);
+            for (let row = 0; row < rows; row++) {
+              const template = rockPieces[Math.floor(wallRand() * rockPieces.length)];
+              const piece = template.clone();
+              piece.material = template.material;
+              const s = 1.2 + wallRand() * 1.4;
+              // `.setScalar()` OVERWRITES scale (not multiply) — bir ilk
+              // denemede bu, klonlanan GLTF düğümünün kendi taban ölçeğini
+              // (Blender'ın santimetre-benzeri ham birimlerini metreye
+              // çeviren 0.01) sildi, kayalar ~100× büyüyüp kamerayı içine
+              // aldı (`cliffWorldBox` 970 m'ye fırladı, tarayıcıda tüm
+              // ekran siyaha kesti). `.multiplyScalar()` mevcut taban
+              // ölçeğin üstüne çarpıyor, doğru.
+              piece.scale.multiplyScalar(s);
+              const y = Math.min(WALL_MAX_HEIGHT, row * 2.4 + wallRand() * 1.2);
+              piece.position.set(
+                side * (x + wallRand() * 1.2),
+                y,
+                0.5 + wallRand() * 2.4,
+              );
+              piece.rotation.set(
+                (wallRand() - 0.5) * 0.6,
+                wallRand() * Math.PI * 2,
+                (wallRand() - 0.5) * 0.6,
+              );
+              piece.receiveShadow = true;
+              piece.castShadow = true;
+              piece.frustumCulled = false;
+              cliffGroup.add(piece);
+            }
+            x += 1.6 + wallRand() * 1.1;
+          }
+        }
+      });
       cliffGroup.add(scene);
       cliffLoadedFlag = true;
     });
