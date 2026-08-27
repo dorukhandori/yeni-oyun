@@ -867,7 +867,7 @@ function buildNorthSpikeRocks(rand: () => number): THREE.Group {
  * textured ring using the generated hill backdrop (ASSET-023), which reads
  * far better than a flat-colour cone at that distance.
  */
-function buildDistantHills(rand: () => number): THREE.Group {
+export function buildDistantHills(rand: () => number): THREE.Group {
   const group = new THREE.Group();
   const nearLayer = {
     dist: ISLAND.radius + 110,

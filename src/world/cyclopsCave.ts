@@ -5,6 +5,7 @@ import { loadGltfBundle } from "./gltf";
 import { mulberry32 } from "./rng";
 import { ISLAND_KIT, placeKit } from "./islandKit";
 import { plantHero, paintHero } from "./ship";
+import { buildDistantHills } from "./terrain";
 import { SHIP, PALETTE, FLORA } from "../constants";
 
 /**
@@ -391,6 +392,25 @@ function loadCaveRockMaterial(): THREE.MeshStandardMaterial {
 export function buildCyclopsCave(): CyclopsCave {
   const group = new THREE.Group();
   const rockMat = loadCaveRockMaterial();
+
+  // Sahip (27 Ağu, on altıncı geri bildirim): "mağaranın ve adanın
+  // arkasındaki sonsuzluk hissine çalışacağız" — 5 yeni Sketchfab linki
+  // değerlendirildi, hiçbiri temiz kullanılabilir çıkmadı (2'si "Standard"
+  // lisans/indirilemiyor, 1'i yalnız iframe-embed — sayfa görüntüleyici,
+  // motora aktarılabilir bir 3D dosya vermiyor, 2'si indirilebilir ama
+  // milyonlarca üçgenli fotogrametri taraması + fotogerçekçi, üstelik biri
+  // ("Witcher 3 in Toussaint") kendi açıklamasında CD Projekt Red'e ait
+  // olduğunu ve yalnız gayriresmi izin alındığını söylüyor — CC olarak
+  // yeniden lisanslama hakkı vermez, kullanmadım). Bunun yerine Lotus'un
+  // kendi, zaten üretilmiş, sıfır ek kredi/lisans riski taşıyan uzak-tepe
+  // sistemini (terrain.ts `buildDistantHills`/`buildHillBackdropRing`,
+  // ASSET-023 `hill_backdrop_01_albedo_2048` dokusu) tekrar kullanıyoruz —
+  // ISLAND.radius+110 mesafesinde (varsayılan "real" profilde ~270 m),
+  // Cyclops'un ~115 m'lik toplam koy+mağara derinliğinin çok ötesinde,
+  // orijin (0,0,0) merkezli tam bir halka: hem koydan bakınca hem mağara
+  // ağzından dışarı bakınca ufukta beliriyor, mağara içinden görünmüyor
+  // (tavan/duvarlar zaten kapatıyor) — tam istenen yer.
+  group.add(buildDistantHills(mulberry32(20260831)));
 
   // Ground strip, split at the cave mouth (D=0) so cove+path can carry a
   // real sandy coastal look + the heightAt() slope, while the cave interior
