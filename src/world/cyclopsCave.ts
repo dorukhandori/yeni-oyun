@@ -1090,12 +1090,16 @@ export function buildCyclopsCave(): CyclopsCave {
     loadGltfBundle("assets/models/rock_cave_gate_stylized_01_mesh_3998.glb").then((bundle) => {
       const scene = bundle.scene;
       const keep: THREE.Mesh[] = [];
+      let caveMesh: THREE.Mesh | null = null;
       scene.traverse((obj) => {
         if (!(obj instanceof THREE.Mesh)) return;
         const matName = Array.isArray(obj.material) ? "" : (obj.material?.name ?? "");
         if (matName === "Floor" || matName === "Grass") {
           obj.visible = false;
           return;
+        }
+        if (matName === "Cave") {
+          caveMesh = obj;
         }
         if (matName === "Lamp_Glow") {
           // Sahip (27 Ağu, dokuzuncu geri bildirim): "girişte lamba tutan
@@ -1141,6 +1145,17 @@ export function buildCyclopsCave(): CyclopsCave {
       scene.position.x -= (fitted.min.x + fitted.max.x) / 2;
       scene.position.z -= (fitted.min.z + fitted.max.z) / 2;
       scene.position.y -= fitted.min.y;
+      // Sahip (27 Ağu): "mağara girişinin modelinde kullanılan taşı yanlara
+      // doğru genişlet." Yalnız "Cave" gövdesi (Entrance/Lamp_Glow'a
+      // dokunulmuyor) kendi yerel ekseninde genişletiliyor — bu adım
+      // yukarıdaki TARGET_WIDTH bbox-fit hesaplamasından SONRA yapılıyor ki
+      // genişletme genel ölçeği küçültüp kendi kendini geçersiz kılmasın.
+      // Eksen ampirik bulunacak (kapının kendi 90° döndürme kuralıyla
+      // aynı yöntem): `scene.rotation.y=90°` uygulandığından mesh'in
+      // yerel Z ekseni dünya X'ine (yanlara) karşılık gelmesi bekleniyor.
+      if (caveMesh) {
+        (caveMesh as THREE.Mesh).scale.z *= 1.7;
+      }
       cliffGroup.add(scene);
       cliffLoadedFlag = true;
     });
