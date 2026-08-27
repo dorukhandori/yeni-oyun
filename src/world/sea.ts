@@ -44,7 +44,19 @@ function sunDirection(day01: number): THREE.Vector3 {
   ).normalize();
 }
 
-function oceanMaterial(islandRadius: number, clipZMax: number): THREE.ShaderMaterial {
+function oceanMaterial(islandRadius: number, clipZMax: number, waveScale: number): THREE.ShaderMaterial {
+  // Gerstner amplitude = steepness/k (k=2π/wavelength) — the tallest Lotus
+  // wave (steepness 0.22, wavelength 36) crests at ~1.26 m, which a
+  // Cyclops-scale cove's paper-thin sand-to-sea height gap could never
+  // absorb (bkz. `heightAt()`'in yorumu, `cyclopsCave.ts`). `waveScale`
+  // (default 1, Lotus unchanged) scales steepness down for a sheltered
+  // cove's calmer water.
+  const scaledWaves = WAVE_UNIFORMS.map(([dx, dy, steepness, wavelength]) => [
+    dx,
+    dy,
+    steepness * waveScale,
+    wavelength,
+  ]) as typeof WAVE_UNIFORMS;
   const shallow = new THREE.Color(PALETTE.seaShallow);
   const mid = new THREE.Color(PALETTE.seaMid);
   const deep = new THREE.Color(PALETTE.seaDeep);
@@ -62,10 +74,10 @@ function oceanMaterial(islandRadius: number, clipZMax: number): THREE.ShaderMate
       THREE.UniformsLib.fog,
       {
         uTime: { value: 0 },
-        uWave0: { value: new THREE.Vector4(...WAVE_UNIFORMS[0]) },
-        uWave1: { value: new THREE.Vector4(...WAVE_UNIFORMS[1]) },
-        uWave2: { value: new THREE.Vector4(...WAVE_UNIFORMS[2]) },
-        uWave3: { value: new THREE.Vector4(...WAVE_UNIFORMS[3]) },
+        uWave0: { value: new THREE.Vector4(...scaledWaves[0]) },
+        uWave1: { value: new THREE.Vector4(...scaledWaves[1]) },
+        uWave2: { value: new THREE.Vector4(...scaledWaves[2]) },
+        uWave3: { value: new THREE.Vector4(...scaledWaves[3]) },
         uHull: { value: new THREE.Vector3(SHIP.pos.x, 0, SHIP.pos.z) },
         uHeading: { value: SHIP.rotY },
         uHullHalf: { value: new THREE.Vector2(SHIP.deckHalfL + 1.4, SHIP.deckHalfW + 1.1) },
@@ -329,10 +341,18 @@ export function buildSea(opts?: {
    * is the island's own radial discard, not a straight Z line).
    */
   clipZMax?: number;
+  /**
+   * Multiplies every Gerstner wave's steepness (so amplitude, since
+   * amplitude=steepness/k). Default 1 (Lotus's open-ocean waves,
+   * unchanged). A sheltered cove has calmer water — see `oceanMaterial()`'s
+   * own comment for the amplitude math this exists to tame.
+   */
+  waveScale?: number;
 }): Sea {
   const includeLagoon = opts?.includeLagoon ?? true;
   const shoreBlend = opts?.shoreBlend ?? true;
   const clipZMax = opts?.clipZMax ?? Infinity;
+  const waveScale = opts?.waveScale ?? 1;
   const group = new THREE.Group();
   const updaters: Array<(
     t: number,
@@ -342,7 +362,7 @@ export function buildSea(opts?: {
     day01?: number,
   ) => void> = [];
 
-  const mat = oceanMaterial(opts?.islandRadius ?? ISLAND.radius, clipZMax);
+  const mat = oceanMaterial(opts?.islandRadius ?? ISLAND.radius, clipZMax, waveScale);
   const patch = new THREE.Mesh(makeGrid(SEA_TEX.patchMeters, SEA_TEX.segments), mat);
   patch.frustumCulled = false;
   patch.matrixAutoUpdate = true;

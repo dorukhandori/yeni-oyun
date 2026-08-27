@@ -366,7 +366,22 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
   // Gerstner dalga tepelerinde görünür oluyordu). `uClipZMax` fragment
   // discard'ı ekledi (sea.ts) — deniz artık D=-1'in ötesinde hiç render
   // edilmiyor, eşiğe ya da içeriye asla sızamaz.
-  const sea = buildSea({ includeLagoon: false, islandRadius: 0, shoreBlend: false, clipZMax: -1 });
+  // waveScale: 0.2 — sahip (27 Ağu, onbeşinci geri bildirim): "suyu adanın
+  // içine kadar gelmesini kes." Yukarıdaki `clipZMax` yalnız D=0 eşiğini
+  // korur — kök neden bambaşkaydı: en büyük Lotus dalgası (steepness 0.22,
+  // wavelength 36) ~1,26 m'lik gerçek bir Gerstner genliğine sahip,
+  // kumun/çimin dünya-Y'sinden (`heightAt()`, en fazla ~0,4 m plato) kolayca
+  // yükseliyor — deniz kumun/çimin ORTASINDA (yalnız kıyıda değil) görünür
+  // oluyordu. Korunaklı bir koyun suyu zaten açık denizden çok daha sakin
+  // olmalı — dalga dikliği burada %20'ye indirildi (genlik de aynı oranda
+  // düşer), en büyük dalga artık ~0,25 m, platonun rahatça altında.
+  const sea = buildSea({
+    includeLagoon: false,
+    islandRadius: 0,
+    shoreBlend: false,
+    clipZMax: -1,
+    waveScale: 0.2,
+  });
   sea.group.position.z = -56;
   scene.add(sea.group);
 

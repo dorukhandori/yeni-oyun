@@ -81,13 +81,40 @@ const PATH_D_MIN = -8;
 const PATH_D_MAX = 0;
 const PATH_MAX_RISE = 1.5;
 
-/** Ground height (world Y) at a given world Z. Flat everywhere except the
- * cove->cave path, which rises to a gentle crest and returns to 0 by the
- * cave mouth. */
+// Sahip (27 Ağu, onbeşinci geri bildirim): "suyu adanın içine kadar
+// gelmesini kes" — koyun tamamı (D<-8) bu fonksiyonda hep DÜZ Y=0'dı,
+// deniz seviyesinden (`SEA_TEX.floorY`=-0,16) yalnız 16 cm yukarıda —
+// gerçek Gerstner dalga tepe genliği bunu zaman zaman aşıyor, kum/çim
+// ORTASINDA (yalnız kıyıda değil) su görünüyordu (kıyı sırtı — aşağıdaki
+// `ridgeHeightAt` — yalnız D≈-49..-52'yi kapsıyor, kalan ~40 m'yi değil).
+// Kalıcı çözüm: koyun tamamı dalga genliğinden çok daha yüksek bir "plato"
+// ya (0,4 m) kaldırıldı — hem mağara eşiğinde (D=0, iç mekan Y=0 varsayımı
+// hiç bozulmadan) hem de kıyı sırtının kendi tabanında (D=-49, sırt
+// geometrisiyle dikişsiz) TAM 0'a inen yumuşak, sürekli bir eğri.
+const COVE_PLATEAU = 0.4;
+const COVE_RISE_END = -14; // -8'den buraya kadar platoya yumuşak çıkış
+const COVE_FALL_START = -46; // buradan kıyı sırtına yumuşak iniş başlıyor
+const COVE_FALL_END = -49; // sırtın kendi tabanı (ridgeHeightAt'in d=0 noktası)
+
+/** Ground height (world Y) at a given world Z. Cave mouth (D=0) and interior
+ * (D>=0) are always exactly 0. D -8..0 is the original path hump (unchanged).
+ * D<-8 (the open cove) sits on a gentle raised plateau — well above the
+ * sea's floorY + wave amplitude — that eases back down to 0 right at the
+ * shore rock ridge's own base. */
 export function heightAt(z: number): number {
-  if (z <= PATH_D_MIN || z >= PATH_D_MAX) return 0;
-  const t = (z - PATH_D_MIN) / (PATH_D_MAX - PATH_D_MIN);
-  return PATH_MAX_RISE * Math.sin(Math.PI * t);
+  if (z >= PATH_D_MAX) return 0;
+  if (z > PATH_D_MIN) {
+    const t = (z - PATH_D_MIN) / (PATH_D_MAX - PATH_D_MIN);
+    return PATH_MAX_RISE * Math.sin(Math.PI * t);
+  }
+  if (z <= COVE_FALL_END) return 0;
+  if (z <= COVE_FALL_START) {
+    const t = (z - COVE_FALL_END) / (COVE_FALL_START - COVE_FALL_END);
+    return COVE_PLATEAU * (0.5 - 0.5 * Math.cos(t * Math.PI));
+  }
+  if (z <= COVE_RISE_END) return COVE_PLATEAU;
+  const t = (z - PATH_D_MIN) / (COVE_RISE_END - PATH_D_MIN);
+  return COVE_PLATEAU * (0.5 - 0.5 * Math.cos(t * Math.PI));
 }
 
 /**
@@ -433,6 +460,81 @@ export function buildCyclopsCave(): CyclopsCave {
     return -4.5 * Math.sin(Math.PI * t);
   };
 
+  // Sahip (27 Ağu, onbeşinci geri bildirim): "suyu adanın içine kadar
+  // gelmesini kes, buraya da kayalardan oluşan bir sahil görüntüsü
+  // kazandır." Kum düzlemi Y=0, deniz `SEA_TEX.floorY`=-0,16 — bu 16 cm'lik
+  // fark önceki turda (`shoreBlend:false`) düzeltilen z-fighting'den
+  // BAĞIMSIZ bir sorunla karşılaşıyor: gerçek Gerstner dalga tepe genliği
+  // zaman zaman bu farkı gerçekten aşıyor (koy uzadıkça daha fazla açık
+  // deniz aynı anda görünür oluyor, bir dalga tepesinin bunu yakalama
+  // ihtimali arttı) — deniz kuma "sızmıyor", gerçekten kumdan daha yükseğe
+  // dalgalanıyor. Kalıcı çözüm: gerçek kıyı hattında (D=-50, kumun dış
+  // kenarı) yükselen kayalık bir set — dalga genliğinden çok daha yüksek
+  // (~0,7 m), fiziksel bir engel; aynı zamanda sahibin "kayalık sahil"
+  // isteğini karşılıyor.
+  const RIDGE_PEAK_Z = -50.6;
+  const ridgeNoise = mulberry32(20260829);
+  const ridgeXNoise: number[] = [];
+  for (let i = 0; i < 48; i++) ridgeXNoise.push(ridgeNoise());
+  const ridgeHeightAt = (x: number, z: number): number => {
+    // D profili: kumla (z=-49) dikişsiz birleşiyor, tepe -50,6'da, denize
+    // doğru (z=-52) kısmen alçalıyor (yarı-batık kayalar hissi).
+    const d = Math.max(0, Math.min(1, (z + 49) / (-52 + 49)));
+    const base = Math.sin(d * Math.PI * 0.85) * 0.75;
+    const bucket = Math.max(0, Math.min(47, Math.round((x + 20) / 40 * 47)));
+    const jag = (ridgeXNoise[bucket] - 0.5) * 0.35;
+    return Math.max(0, base + jag * Math.sin(d * Math.PI));
+  };
+  const ridgeGeo = new THREE.PlaneGeometry(40, 3.5, 64, 10);
+  ridgeGeo.rotateX(-Math.PI / 2);
+  ridgeGeo.translate(0, 0, RIDGE_PEAK_Z);
+  {
+    const pos = ridgeGeo.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      pos.setY(i, ridgeHeightAt(pos.getX(i), pos.getZ(i)));
+    }
+    pos.needsUpdate = true;
+    ridgeGeo.computeVertexNormals();
+  }
+  const ridgeTex = loadAlbedoTexture(assetUrl("assets/textures/rock_chalk_01_albedo_1024.webp")).clone();
+  ridgeTex.needsUpdate = true;
+  ridgeTex.wrapS = THREE.RepeatWrapping;
+  ridgeTex.wrapT = THREE.RepeatWrapping;
+  ridgeTex.repeat.set(16, 1.5);
+  const ridge = new THREE.Mesh(
+    ridgeGeo,
+    new THREE.MeshStandardMaterial({ color: 0xa39d8c, roughness: 0.97, map: ridgeTex }),
+  );
+  ridge.receiveShadow = true;
+  ridge.castShadow = true;
+  group.add(ridge);
+  {
+    // Kayalardan oluşan sahil — sırtın üstüne/etrafına LOT-28 kaya kiti
+    // (zaten var, ekstra kredi yok), 1D bir sırt yerine gerçekten
+    // "kayalık" okunsun diye.
+    const shoreRockRand = mulberry32(20260830);
+    type ShoreSpot = { x: number; y: number; z: number; sx: number; sy: number; sz: number; rotY: number };
+    const shoreBoulders: ShoreSpot[] = [];
+    const shorePebbles: ShoreSpot[] = [];
+    for (let i = 0; i < 22; i++) {
+      const x = (shoreRockRand() * 2 - 1) * 19.5;
+      const z = -52 + shoreRockRand() * 4.5;
+      const s = 0.5 + shoreRockRand() * 1.1;
+      const spot: ShoreSpot = {
+        x,
+        y: ridgeHeightAt(x, z) - s * 0.15,
+        z,
+        sx: s * (0.85 + shoreRockRand() * 0.4),
+        sy: s * (0.6 + shoreRockRand() * 0.4),
+        sz: s * (0.85 + shoreRockRand() * 0.4),
+        rotY: shoreRockRand() * Math.PI * 2,
+      };
+      (i % 3 === 0 ? shorePebbles : shoreBoulders).push(spot);
+    }
+    void placeKit(group, ISLAND_KIT.boulder, shoreBoulders);
+    void placeKit(group, ISLAND_KIT.pebble, shorePebbles);
+  }
+
   const SAND_Z_MAX = -44; // kıyı şeridi: D -50..-44
   const sandGeo = makeGroundGeo(40, -50, SAND_Z_MAX, 16);
   const sandTex = loadAlbedoTexture(assetUrl("assets/textures/sand_coastal_01_albedo_512.webp")).clone();
@@ -530,7 +632,10 @@ export function buildCyclopsCave(): CyclopsCave {
   // bildirim turunda güncellendi).
   const COVE_CLEAR_HALF_X = 4.5; // corridorHalfWidthAt(path) 3 + tampon
   const COVE_SPAWN_CLEAR = { x: 0, z: -46, r: 3.5 };
-  const COVE_SHIP_CLEAR = { x: 11, z: -47, r: 9 };
+  // z=-51 — kayalık sahil sırtının (RIDGE_PEAK_Z=-50.6) hemen ötesi, gemi
+  // artık kuru kumun ortasında değil suyun kıyısında duruyor (onbeşinci
+  // geri bildirim turunda sırt eklenince eski z=-47 kumun içinde kalmıştı).
+  const COVE_SHIP_CLEAR = { x: 11, z: -51, r: 9 };
   function coveDressingClear(x: number, z: number): boolean {
     if (Math.abs(x - pathCenterX(z)) < COVE_CLEAR_HALF_X) return false;
     if (Math.hypot(x - COVE_SPAWN_CLEAR.x, z - COVE_SPAWN_CLEAR.z) < COVE_SPAWN_CLEAR.r) return false;
