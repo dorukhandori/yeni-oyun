@@ -1094,11 +1094,182 @@ export function buildCyclopsCave(): CyclopsCave {
   // artık kuru kumun ortasında değil suyun kıyısında duruyor (onbeşinci
   // geri bildirim turunda sırt eklenince eski z=-47 kumun içinde kalmıştı).
   const COVE_SHIP_CLEAR = { x: 11, z: -51, r: 9 };
-  function coveDressingClear(x: number, z: number): boolean {
+  // Patika/spawn/gemi'ye saygılı temel kontrol — göllerin KENDİ yerleşimi
+  // bunu kullanıyor (aşağıda). `coveDressingClear` (asıl dışa açık isim,
+  // tüm mevcut çağrı noktaları — ağaç/kaya/koyun/çim demeti — değişmeden
+  // kalıyor) bunun üstüne göl kaçınmasını da ekliyor; döngüsel bağımlılık
+  // olmasın diye göllerin kendisi bu ham fonksiyonu kullanıyor.
+  function baseDressingClear(x: number, z: number): boolean {
     if (Math.abs(x - pathCenterX(z)) < COVE_CLEAR_HALF_X) return false;
     if (Math.hypot(x - COVE_SPAWN_CLEAR.x, z - COVE_SPAWN_CLEAR.z) < COVE_SPAWN_CLEAR.r) return false;
     if (Math.hypot(x - COVE_SHIP_CLEAR.x, z - COVE_SHIP_CLEAR.z) < COVE_SHIP_CLEAR.r) return false;
     return true;
+  }
+
+  // Sahip (27 Ağu, yirmi üçüncü geri bildirim): "ada içerisinde ufak
+  // çukurlar ve su birikintileri olsun lotus adası gibi." Lotus'un kendi
+  // `ponds.ts`'i tamamen ada-yarıçapı/lagün-merkezli polar koordinatlara
+  // bağlı (LAGOON, LOTUS.zones, ISLAND.radius) — Cyclops'un düz D/derinlik
+  // tabanlı koordinat sistemine hiç uymuyor, doğrudan içe aktarılamaz. Aynı
+  // RUHU (heightmap'e oyulmuş bir çukur + içinde durgun su diski, aynı
+  // `PALETTE.lagoon` rengi/malzeme tarifi) Cyclops'un kendi basit
+  // koordinatlarıyla yeniden üretiyoruz.
+  type Puddle = { x: number; z: number; radius: number };
+  const PUDDLES: Puddle[] = [];
+  {
+    const puddleRand = mulberry32(20260911);
+    let guard = 0;
+    while (PUDDLES.length < 9 && guard < 500) {
+      guard++;
+      const side = PUDDLES.length % 2 === 0 ? 1 : -1;
+      const x = side * (4 + puddleRand() * 100);
+      const z = -46 + puddleRand() * 42;
+      const radius = 1.5 + puddleRand() * 2.1;
+      if (!baseDressingClear(x, z)) continue;
+      let ok = true;
+      for (const p of PUDDLES) {
+        if (Math.hypot(x - p.x, z - p.z) < p.radius + radius + 5) {
+          ok = false;
+          break;
+        }
+      }
+      if (!ok) continue;
+      PUDDLES.push({ x, z, radius });
+    }
+  }
+  const PUDDLE_DEPTH = 0.3;
+  const puddleDipAt = (x: number, z: number): number => {
+    let dip = 0;
+    for (const p of PUDDLES) {
+      const d = Math.hypot(x - p.x, z - p.z);
+      if (d < p.radius) {
+        const t = 1 - d / p.radius;
+        dip = Math.max(dip, PUDDLE_DEPTH * t * t); // kenarda sığ, ortada derin — gerçek bir çukur profili
+      }
+    }
+    return dip;
+  };
+  function coveDressingClear(x: number, z: number): boolean {
+    if (!baseDressingClear(x, z)) return false;
+    for (const p of PUDDLES) {
+      if (Math.hypot(x - p.x, z - p.z) < p.radius + 1.0) return false;
+    }
+    return true;
+  }
+  if (PUDDLES.length > 0) {
+    // Çim mesh'i zaten yukarıda tam kuruldu (`groundHeightAt` ile) — burada
+    // yalnız göl sitelerinin ETRAFINDA bir çukur oymak için vertex'leri
+    // tekrar dokunuyoruz (ayrı bir geçiş — grassGeo zaten `group`'un içinde,
+    // referansla değişiklik görünür oluyor).
+    const pos = grassGeo.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      const dip = puddleDipAt(pos.getX(i), pos.getZ(i));
+      if (dip > 0) pos.setY(i, pos.getY(i) - dip);
+    }
+    pos.needsUpdate = true;
+    grassGeo.computeVertexNormals();
+
+    const puddleWaterMat = new THREE.MeshStandardMaterial({
+      color: PALETTE.lagoon,
+      roughness: 0.78,
+      metalness: 0,
+      transparent: true,
+      opacity: 0.88,
+      envMapIntensity: 0.1,
+    });
+    const puddleWobbleRand = mulberry32(20260912);
+    for (const p of PUDDLES) {
+      const segments = 20;
+      const waterR = p.radius * 0.72; // PONDS.discInset ile aynı ruh — su, oyulan çukurdan küçük, asla kuru çime taşmıyor
+      const shape = new THREE.Shape();
+      const seed = p.x * 0.13 + p.z * 0.07;
+      for (let i = 0; i <= segments; i++) {
+        const a = (i / segments) * Math.PI * 2;
+        const rr = waterR * (1 + 0.14 * Math.sin(a * 3 + seed) + 0.08 * Math.sin(a * 5 - seed * 1.7));
+        const px = Math.cos(a) * rr;
+        const pz = -Math.sin(a) * rr;
+        if (i === 0) shape.moveTo(px, pz);
+        else shape.lineTo(px, pz);
+      }
+      const geo = new THREE.ShapeGeometry(shape, segments);
+      geo.rotateX(-Math.PI / 2);
+      const disc = new THREE.Mesh(geo, puddleWaterMat);
+      disc.position.set(p.x, groundHeightAt(p.x, p.z) - PUDDLE_DEPTH + 0.04, p.z);
+      disc.receiveShadow = true;
+      group.add(disc);
+      // Çukurun kenarına birkaç küçük taş — ıslak bir gölcük gibi okunsun,
+      // salt geometrik bir çanak değil.
+      const rimSpots: RockSpot[] = [];
+      const rimCount = 3 + Math.floor(puddleWobbleRand() * 3);
+      for (let i = 0; i < rimCount; i++) {
+        const a = puddleWobbleRand() * Math.PI * 2;
+        const d = p.radius * (0.85 + puddleWobbleRand() * 0.3);
+        const rx = p.x + Math.cos(a) * d;
+        const rz = p.z + Math.sin(a) * d;
+        const s = 0.35 + puddleWobbleRand() * 0.35;
+        rimSpots.push({
+          x: rx,
+          y: groundHeightAt(rx, rz) - 0.08,
+          z: rz,
+          sx: s,
+          sy: s * 0.75,
+          sz: s,
+          rotY: puddleWobbleRand() * Math.PI * 2,
+        });
+      }
+      scatterRockKit(group, rimSpots, puddleWobbleRand);
+    }
+  }
+
+  // Sahip (27 Ağu, yirmi üçüncü geri bildirim): "ada içerisinde belli
+  // belirsiz taş katalogumuzdan seçtiğin taşlarla mağara girişine
+  // patikalar olsun." Ana patika (`pathGeo`, dokulu tek şerit) zaten var —
+  // bunlar ONA EK, adanın çeşitli noktalarından kapıya doğru uzanan, seyrek/
+  // kesik (gerçek bir "belli belirsiz" iz — sürekli döşeli bir yol değil)
+  // küçük taş dizileri. Aynı ASSET-119 kitini (`scatterRockKit`, zaten
+  // yüklü) küçük ölçekte kullanıyor.
+  {
+    const trailRand = mulberry32(20260913);
+    const gateX = 0;
+    const gateZ = -3.5; // ana patikanın COVE_CLEAR_HALF_X'e girdiği yer civarı
+    const trailStarts = [
+      { x: 70, z: -8 },
+      { x: -60, z: -30 },
+      { x: 90, z: -40 },
+      { x: -95, z: -14 },
+    ];
+    const trailSpots: RockSpot[] = [];
+    for (const start of trailStarts) {
+      const steps = 26;
+      const wobbleSeed = trailRand() * 100;
+      for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        if (trailRand() < 0.5) continue; // "belli belirsiz" — sürekli değil, kesik kesik
+        const bx = start.x + (gateX - start.x) * t;
+        const bz = start.z + (gateZ - start.z) * t;
+        const wobble = Math.sin(t * 9 + wobbleSeed) * 2.2 * (1 - t * 0.6);
+        const x = bx + wobble;
+        const z = bz + (trailRand() - 0.5) * 1.5;
+        if (Math.abs(x - pathCenterX(z)) < COVE_CLEAR_HALF_X - 0.5) continue; // ana patikanın üstüne binmesin
+        if (!coveDressingClear(x, z)) continue;
+        // İlk denemede taşlar neredeyse görünmüyordu — hem küçük (0,3-0,6)
+        // hem 10 cm gömülüydüler, ada boyunca genişletilmiş yoğun 3B çim
+        // demeti alanı (bkz. yirmi birinci geri bildirim) altında tamamen
+        // kayboluyorlardı. Ölçek büyütüldü, gömme neredeyse sıfıra indirildi
+        // (gerçek bir taş yüzeyi gibi zeminin biraz üstünde okunsun).
+        const s = 0.55 + trailRand() * 0.4;
+        trailSpots.push({
+          x,
+          y: groundHeightAt(x, z) - 0.02,
+          z,
+          sx: s,
+          sy: s * 0.5,
+          sz: s,
+          rotY: trailRand() * Math.PI * 2,
+        });
+      }
+    }
+    scatterRockKit(group, trailSpots, trailRand);
   }
   // Rüzgâr/sallanma güncellemesi (çim + saz) — `placeKit()`'in döndürdüğü
   // `update(t)` callback'leri burada toplanıp `CyclopsCave.update()` ile
