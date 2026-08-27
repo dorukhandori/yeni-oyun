@@ -370,9 +370,26 @@ export interface RuneMarker {
  * bespoke replacement for those two isn't a sensible use of a generation
  * round; a generic real-world data map paired with a different but
  * similar-scale albedo doesn't read as wrong in practice.
+ *
+ * **ASSET-120 (27 Ağu, sahip):** "Cave on an alien planet (skybox)
+ * mağaranın içi için" (oturumun en başındaki isteği) + bu turda "mağaranın
+ * içi bundan olacak mutlaka" ile gönderdiği GLB — 4096×2048 equirect
+ * panorama, parıldayan camgöbeği biyolüminesan gölcükler + damlayan
+ * sarkıtlarla bir "yabancı gezegen mağarası." Tam gökküre olarak
+ * kullanılamadı: tünel kabuğu (ASSET-090) tamamen kapalı bir merged mesh,
+ * hiçbir açıklığı yok — bir gökküre küresi eklemek görünmez kalırdı (kabuk
+ * her zaman önünde/arkasında). Bunun yerine equirect'ten TEK bir albedo
+ * dokusu türetildi (`cave_alien_wall_01_albedo_1024.webp`, iki parlak
+ * "hotspot" bulut kümesi kırpılıp dışarıda bırakıldı — döşemede tekrar
+ * eden aydınlık lekeler yaratırdı) ve buradaki `map` bununla değiştirildi
+ * — mağaranın TÜM iç yüzeyleri (kabuk + niş/kaya/kapı proplarının hepsi bu
+ * fonksiyonu paylaşıyor) artık gerçekten "bundan" — sahibin istediği gibi.
+ * normalMap/roughnessMap yine PolyHaven'ın kendi data map'lerinde kaldı
+ * (yukarıdaki aynı gerekçe — equirect'ten gerçek yüzey-normal/pürüzlülük
+ * verisi çıkaramayız).
  */
 function loadCaveRockMaterial(): THREE.MeshStandardMaterial {
-  const map = loadAlbedoTexture(assetUrl("assets/textures/rock_cave_wall_02_albedo_1024.webp"));
+  const map = loadAlbedoTexture(assetUrl("assets/textures/cave_alien_wall_01_albedo_1024.webp"));
   const roughnessMap = loadDataTexture(assetUrl("assets/textures/rock_cave_wall_01_rough_1024.jpg"));
   const normalMap = loadDataTexture(assetUrl("assets/textures/rock_cave_wall_01_normal_1024.jpg"));
   for (const t of [map, roughnessMap, normalMap]) {
