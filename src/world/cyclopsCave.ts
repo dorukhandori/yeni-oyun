@@ -1154,7 +1154,30 @@ export function buildCyclopsCave(): CyclopsCave {
       // aynı yöntem): `scene.rotation.y=90°` uygulandığından mesh'in
       // yerel Z ekseni dünya X'ine (yanlara) karşılık gelmesi bekleniyor.
       if (caveMesh) {
-        (caveMesh as THREE.Mesh).scale.z *= 1.5;
+        // Sahip (27 Ağu): "taşı yanlara doğru genişlet." İlk iki deneme
+        // (`.scale.z`, sonra `.scale.x`) dünya X'ini HİÇ etkilemedi — GLB'nin
+        // kendi FBX-kökenli düğüm zincirinde (Sketchfab_model→*.fbx→
+        // RootNode→Object_1) bu mesh'e özel, eksen-hizalı olmayan bir
+        // ara-dönüş olduğu ölçümle doğrulandı (tek eksen X ölçeklendiğinde
+        // dünya Z VE Y birlikte değişti — saf bir eksen takası değil).
+        // ASSET-116 ağaç paketinde işe yarayan aynı teknik burada da
+        // uygulandı: mesh'in TAM çözümlenmiş dünya matrisini geometriye
+        // gömüp kendi transformunu kimliğe sıfırlayarak eksen-hizalı hale
+        // getirdik — bundan sonra `.scale.x` artık gerçekten ve yalnızca
+        // dünya X'ine karşılık geliyor, ekseni tahmin etmeye gerek kalmadı.
+        const m = caveMesh as THREE.Mesh;
+        scene.updateMatrixWorld(true);
+        const bakedGeo = m.geometry.clone();
+        bakedGeo.applyMatrix4(m.matrixWorld);
+        const bakedMesh = new THREE.Mesh(bakedGeo, m.material);
+        bakedMesh.receiveShadow = true;
+        bakedMesh.castShadow = true;
+        bakedMesh.frustumCulled = false;
+        m.parent?.remove(m);
+        const idx = keep.indexOf(m);
+        if (idx !== -1) keep[idx] = bakedMesh;
+        bakedMesh.scale.x *= 1.5;
+        cliffGroup.add(bakedMesh);
       }
       cliffGroup.add(scene);
       cliffLoadedFlag = true;
