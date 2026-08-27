@@ -469,9 +469,22 @@ export function buildCyclopsCave(): CyclopsCave {
   const TERRAIN_BACKDROP_SCALE_Y = 1.8;
   const TERRAIN_BACKDROP_BURY = -22;
   const TERRAIN_BACKDROP_TINT = 0x8fa8bd; // buildDistantHills nearLayer.color ile aynı
+  //
+  // **Düzeltme (27 Ağu, sahip): "mağara uzunluk derinlik arkaplana
+  // yerleştirdiğimiz dağ görselinin önünde kaldığı için girişte anormallik
+  // gözüküyor. adanın sağ ve sol sınırlarına da dağ modelini yerleştir."**
+  // Tek bir dağ örneği yalnız mağaranın arkasındaydı (D=150) — kapının
+  // hemen arkasında AÇIK GÖKYÜZÜNE karşı yalnız o dar açıda duruyordu, sağ/
+  // sol açılardan bakınca (kapının kendi "Cave" gövdesinin göründüğü
+  // açılar) arkada hiç dağ yoktu, çıplak ufuk + yakın kaba geometri yan
+  // yana bir "anormallik" gibi okunuyordu. Aynı meshin iki kopyası daha
+  // (`.clone(true)` — geometri/malzeme paylaşılıyor, ucuz; malzeme
+  // paylaşıldığı için tint bir kez uygulanması üç örneğe de yansıyor)
+  // adanın sağ ve sol sınırına eklendi — artık koydan hangi yöne bakarsa
+  // baksın ufukta bir dağ siluetinin devam ettiği hissi var.
   loadGltfBundle("assets/models/terrain_backdrop_01_mesh_2000.glb").then((bundle) => {
-    const scene = bundle.scene;
-    scene.traverse((obj) => {
+    const original = bundle.scene;
+    original.traverse((obj) => {
       if (obj instanceof THREE.Mesh) {
         obj.castShadow = false;
         obj.receiveShadow = false;
@@ -483,9 +496,18 @@ export function buildCyclopsCave(): CyclopsCave {
         }
       }
     });
-    scene.scale.set(1, TERRAIN_BACKDROP_SCALE_Y, 1);
-    scene.position.set(0, TERRAIN_BACKDROP_BURY, 150);
-    group.add(scene);
+    const placements = [
+      { x: 0, z: 150, rotY: 0 }, // mağaranın arkası
+      { x: 180, z: 20, rotY: Math.PI / 2 }, // sağ sınır
+      { x: -180, z: 20, rotY: -Math.PI / 2 }, // sol sınır
+    ];
+    placements.forEach((p, i) => {
+      const inst = i === 0 ? original : original.clone(true);
+      inst.scale.set(1, TERRAIN_BACKDROP_SCALE_Y, 1);
+      inst.position.set(p.x, TERRAIN_BACKDROP_BURY, p.z);
+      inst.rotation.y = p.rotY;
+      group.add(inst);
+    });
   });
 
   // Ground strip, split at the cave mouth (D=0) so cove+path can carry a
