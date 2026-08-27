@@ -688,6 +688,18 @@ export function buildCyclopsCave(): CyclopsCave {
           obj.visible = false;
           return;
         }
+        if (matName === "Lamp_Glow") {
+          // Sahip (27 Ağu, dokuzuncu geri bildirim): "girişte lamba tutan
+          // figür gözükmüyor" — model dosyasının kendi malzemesi
+          // (`KHR_materials_unlit`, hiç baseColor yok → glTF varsayılanı
+          // düz beyaz) parlayan bir alevden çok, ışıksız/gölgesiz düz
+          // beyaz bir kutu gibi render oluyordu; bu, oynanışta bariz
+          // "bozuk" okunuyordu. Aynı sıcak-alev tonu (`hearthGlow`,
+          // aşağıda) burada da kullanıldı — gerçek bir figür/heykel değil
+          // (modelde öyle bir mesh yok), ama en azından bir alev/lamba
+          // gibi okunuyor.
+          obj.material = new THREE.MeshBasicMaterial({ color: 0xffcf80 });
+        }
         obj.receiveShadow = true;
         obj.castShadow = true;
         obj.frustumCulled = false;
@@ -706,7 +718,13 @@ export function buildCyclopsCave(): CyclopsCave {
       for (const m of keep) box.expandByObject(m);
       const size = new THREE.Vector3();
       box.getSize(size);
-      const TARGET_WIDTH = 14; // önceki prosedürel kemer 22 m'ydi — bu model daha kompakt/dik oranlı
+      // Sahip (27 Ağu, dokuzuncu geri bildirim): "biraz daha küçültelim
+      // kamera kadrajına girsin" — bu modelin oranı önceki 22×15 m'lik
+      // (geniş/basık) levhadan farklı, kabaca kübik (~1:1 genişlik:
+      // yükseklik) — 14 m genişliğe ölçeklenince boyu da ~14 m'ye çıkıyor,
+      // normal oyuncu mesafesinde kameranın dikey görüş açısını aşıyordu.
+      // 10 m'ye çekildi (yükseklik de orantılı küçülüyor, tek skaler ölçek).
+      const TARGET_WIDTH = 10;
       scene.scale.setScalar(TARGET_WIDTH / Math.max(size.x, 0.01));
       scene.updateMatrixWorld(true);
       const fitted = new THREE.Box3();
@@ -742,7 +760,14 @@ export function buildCyclopsCave(): CyclopsCave {
   // aynı çim vertex-tint tekniği (yukarıdaki `grass` zemin bloğu) + LOT-28
   // selvi kitiyle basit bir "çim şapkası" bindirildi, gerçek bir Blender
   // yeniden-üretimi gerekmeden.
-  {
+  //
+  // Yalnız ASSET-114 (eski düz levha) için — sabit y=14.05 onun bilinen
+  // yüksekliğine göre hesaplanmıştı. ASSET-115 (Sketchfab kapı) çok daha
+  // kompakt/farklı oranlı olduğundan bu sabit yükseklik onun gerçek
+  // tepesinin çok üstünde kalıyor, "ağaçlar havada asılı kalmış" (sahip,
+  // dokuzuncu geri bildirim) buradan geliyordu — ayrıca kapının kendi
+  // dokusunda zaten yosun/yeşillik var, ek bir şapkaya ihtiyacı yok.
+  if (!USE_SKETCHFAB_GATE) {
     const capGeo = new THREE.PlaneGeometry(19, 2.6, 24, 4);
     capGeo.rotateX(-Math.PI / 2);
     capGeo.translate(0, 14.05, 0);
