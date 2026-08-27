@@ -1692,7 +1692,17 @@ export function buildCyclopsCave(): CyclopsCave {
         // kendi eski (onaylanmış) inceliğini/profilini koruyor.
         const SEAT_WIDTH = ISLAND_WIDTH;
         const SEAT_DEPTH = 40; // eski SEAT_WIDTH değeri — yalnız derinlik için, hiç büyümüyor
-        const SEAT_HEIGHT = 22; // kapının kendi ~12 m'sinden belirgin daha uzun, gerçek bir kütle hissi
+        // **Düzeltme (27 Ağu, sahip, üçüncü tur — "hâlâ aynı, yukarısında
+        // kapının dalları içerde gözüküyor"):** yalnız Z'de geri itmek
+        // (2→5) yetmedi — kütle geriye kayınca aynı mutlak yükseklikte
+        // kalıp kameraya göre ekranda daha YUKARI görünüyor (perspektif),
+        // bu da düşük-poly meshin kendi doğal olmayan düz üst/arka
+        // kenarını dalların TAM ÜSTÜNDE, gökyüzüne karşı ortaya
+        // çıkarıyordu — kaynağın kendisi (2047 üçgen, uzak silüet için
+        // optimize) bu kadar yakından bakılınca organik detay taşımıyor.
+        // Yükseklik belirgin artırıldı (22→34) ki o düz kenar çerçevenin
+        // çok üstünde, dalların asla göremeyeceği bir yükseklikte kalsın.
+        const SEAT_HEIGHT = 34; // kapının kendi ~12 m'sinden belirgin daha uzun, gerçek bir kütle hissi
         const NATIVE_WIDTH = 480;
         const NATIVE_HEIGHT = 21.2;
         seat.scale.set(SEAT_WIDTH / NATIVE_WIDTH, SEAT_HEIGHT / NATIVE_HEIGHT, SEAT_DEPTH / NATIVE_WIDTH);
@@ -1853,7 +1863,10 @@ export function buildCyclopsCave(): CyclopsCave {
         const scaleX = 7 + fogRand() * 9;
         const scaleY = 1.4 + fogRand() * 1.4;
         sprite.scale.set(scaleX, scaleY, 1);
-        const baseY = 0.2 + fogRand() * 1.4;
+        // Sahip (27 Ağu): "sisi biraz daha yükseltelim" — bant 0,2-1,6'dan
+        // 0,9-2,7'ye kaldırıldı (yer hizasına fazla yapışık/gömülü
+        // duruyordu).
+        const baseY = 0.9 + fogRand() * 1.8;
         sprite.position.set(side * dist, baseY, -1 + fogRand() * 6);
         group.add(sprite);
         fogSprites.push({ sprite, baseY, phase: fogRand() * Math.PI * 2, speed: 0.15 + fogRand() * 0.2 });
