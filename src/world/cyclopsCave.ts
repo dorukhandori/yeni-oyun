@@ -47,7 +47,7 @@ interface RoomSpan {
 // level-cyclops-cave.md §1.2 table, exact D/X/Y. Ceiling taper (mouth 6->4)
 // simplified to a flat value for the primitive pass.
 const ROOMS: RoomSpan[] = [
-  { id: "cove", dMin: -30, dMax: -8, halfWidth: Infinity, ceilingY: Infinity, color: 0x2a3a4a },
+  { id: "cove", dMin: -40, dMax: -8, halfWidth: Infinity, ceilingY: Infinity, color: 0x2a3a4a },
   { id: "path", dMin: -8, dMax: 0, halfWidth: 3, ceilingY: 12, color: 0x3a4a5a },
   { id: "mouth", dMin: 0, dMax: 8, halfWidth: 5, ceilingY: 5, color: 0x9a9488 },
   { id: "depot", dMin: 8, dMax: 22, halfWidth: 6, ceilingY: 4, color: 0x6b6a62 },
@@ -421,20 +421,20 @@ export function buildCyclopsCave(): CyclopsCave {
   // sinüs yayıyla yana savruluyor. Ağaç/kaya dekoru da AYNI eğriyi
   // (`pathCenterX`) kullanıyor, patikanın üstüne ekilmesinler diye.
   //
-  // Sahip (27 Ağu, altıncı geri bildirim): "denizden mağara arası biraz
-  // daha uzun olsun (yürüme yolu uzasın)" — kıyı D=-20'den D=-30'a çekildi
-  // (~%50 daha uzun yürüyüş), mağara ağzı D=0 sabit kaldı (odalar/kapılar
-  // D>=0'da, bu değişiklikten hiç etkilenmiyor). `player.position.z` clamp'i
-  // ve spawn/gemi konumları `cyclopsStop.ts`'te bu yeni uzunluğa göre
-  // güncellendi (bkz. o dosyadaki not).
+  // Sahip (27 Ağu, altıncı VE onikinci geri bildirim): "denizden mağara
+  // arası biraz daha uzun olsun (yürüme yolu uzasın)" — iki turda kıyı
+  // D=-20 → D=-30 → D=-40'a çekildi, mağara ağzı D=0 sabit kaldı
+  // (odalar/kapılar D>=0'da, bu değişiklikten hiç etkilenmiyor).
+  // `player.position.z` clamp'i ve spawn/gemi konumları `cyclopsStop.ts`'te
+  // bu yeni uzunluğa göre güncellendi (bkz. o dosyadaki not).
   const pathCenterX = (z: number): number => {
-    if (z <= -28 || z >= -8) return 0;
-    const t = (z + 28) / 20; // 0 @ z=-28, 1 @ z=-8
+    if (z <= -38 || z >= -8) return 0;
+    const t = (z + 38) / 30; // 0 @ z=-38, 1 @ z=-8
     return -4.5 * Math.sin(Math.PI * t);
   };
 
-  const SAND_Z_MAX = -24; // kıyı şeridi: D -30..-24
-  const sandGeo = makeGroundGeo(40, -30, SAND_Z_MAX, 12);
+  const SAND_Z_MAX = -34; // kıyı şeridi: D -40..-34
+  const sandGeo = makeGroundGeo(40, -40, SAND_Z_MAX, 14);
   const sandTex = loadAlbedoTexture(assetUrl("assets/textures/sand_coastal_01_albedo_512.webp")).clone();
   sandTex.needsUpdate = true;
   sandTex.wrapS = THREE.RepeatWrapping;
@@ -490,12 +490,12 @@ export function buildCyclopsCave(): CyclopsCave {
   group.add(grass);
 
   const PATH_HALF_W = 2.2; // COVE_CLEAR_HALF_X (4.5) içinde kalır — kenarda çim payı
-  const pathGeo = makeGroundGeo(PATH_HALF_W * 2, -28, 0, 56, 0.015, pathCenterX);
+  const pathGeo = makeGroundGeo(PATH_HALF_W * 2, -38, 0, 76, 0.015, pathCenterX);
   const pathTex = loadAlbedoTexture(assetUrl("assets/textures/rock_chalk_01_albedo_1024.webp")).clone();
   pathTex.needsUpdate = true;
   pathTex.wrapS = THREE.RepeatWrapping;
   pathTex.wrapT = THREE.RepeatWrapping;
-  pathTex.repeat.set(PATH_HALF_W * 2 * 0.45, 28 * 0.45);
+  pathTex.repeat.set(PATH_HALF_W * 2 * 0.45, 38 * 0.45);
   const path = new THREE.Mesh(
     pathGeo,
     new THREE.MeshStandardMaterial({ color: 0xc9c2af, roughness: 0.95, map: pathTex }),
@@ -516,8 +516,8 @@ export function buildCyclopsCave(): CyclopsCave {
   // `cyclopsStop.ts`'in yeni spawn'ıyla eşleşecek şekilde altıncı geri
   // bildirim turunda güncellendi).
   const COVE_CLEAR_HALF_X = 4.5; // corridorHalfWidthAt(path) 3 + tampon
-  const COVE_SPAWN_CLEAR = { x: 0, z: -26, r: 3.5 };
-  const COVE_SHIP_CLEAR = { x: 11, z: -27, r: 9 };
+  const COVE_SPAWN_CLEAR = { x: 0, z: -36, r: 3.5 };
+  const COVE_SHIP_CLEAR = { x: 11, z: -37, r: 9 };
   function coveDressingClear(x: number, z: number): boolean {
     if (Math.abs(x - pathCenterX(z)) < COVE_CLEAR_HALF_X) return false;
     if (Math.hypot(x - COVE_SPAWN_CLEAR.x, z - COVE_SPAWN_CLEAR.z) < COVE_SPAWN_CLEAR.r) return false;
@@ -531,8 +531,6 @@ export function buildCyclopsCave(): CyclopsCave {
   {
     const rand = mulberry32(20260827);
     type KitSpot = { x: number; y: number; z: number; sx: number; sy: number; sz: number; rotY: number };
-    const cypress: KitSpot[] = [];
-    const olive: KitSpot[] = [];
     const reed: KitSpot[] = [];
     const boulder: KitSpot[] = [];
     const pebble: KitSpot[] = [];
@@ -564,19 +562,21 @@ export function buildCyclopsCave(): CyclopsCave {
         placed++;
       }
     };
-    // Sayılar/aralıklar altıncı geri bildirim turunda (koy %50 uzadı)
-    // orantılı büyütüldü — aynı yoğunluk, daha uzun bir alana yayılıyor.
-    scatter(cypress, 8, -29, -1, 0.85, 0.55);
-    scatter(olive, 7, -28, -1, 0.9, 0.5);
-    // zMin -29 (not -30, the sand plane's own far edge) — a reed cluster
+    // Sayılar/aralıklar altıncı ve onikinci geri bildirim turlarında (koy
+    // iki kez uzadı) orantılı büyütüldü — aynı yoğunluk, daha uzun bir
+    // alana yayılıyor. Sahip (27 Ağu, onüçüncü geri bildirim): "diğer
+    // bizim ağaçları kaldır, tüm çevre benim gösterdiğim ile tasarlansın"
+    // — LOT-28 kitinin selvi/zeytin'i (cypress/olive) tamamen kaldırıldı,
+    // ağaç çeşitliliği artık yalnız ASSET-116 (Sketchfab paketi) — bkz.
+    // aşağıdaki `scatterPack` sayılarının bunu telafi etmek için artırıldığı
+    // yer. Kaya/saz/çim kitleri (bunlar "ağaç" değil) dokunulmadan kaldı.
+    // zMin -39 (not -40, the sand plane's own far edge) — a reed cluster
     // right at that seam read as floating over the sea from a low, close
     // camera angle (sahip'in referans görsel geri bildirimi turunda
     // bulundu).
-    scatter(reed, 10, -29, -22, 0.7, 0.5);
-    scatter(boulder, 7, -29, -0.5, 0.5, 0.5);
-    scatter(pebble, 14, -29, -0.5, 0.35, 0.35);
-    void placeKit(group, ISLAND_KIT.cypress, cypress);
-    void placeKit(group, ISLAND_KIT.olive, olive);
+    scatter(reed, 12, -39, -32, 0.7, 0.5);
+    scatter(boulder, 9, -39, -0.5, 0.5, 0.5);
+    scatter(pebble, 17, -39, -0.5, 0.35, 0.35);
     void placeKit(group, ISLAND_KIT.reed, reed, 0.08).then((u) => {
       if (u) kitUpdaters.push(u.update);
     });
@@ -668,35 +668,66 @@ export function buildCyclopsCave(): CyclopsCave {
         placed++;
       }
     };
-    scatterPack("tree-stylized-04-green", 5, -28, -2, 0.9, 0.5);
-    scatterPack("tree-stylized-02-dry", 4, -28, -2, 0.7, 0.4);
-    scatterPack("tree-stylized-01", 3, -28, -2, 0.8, 0.4);
-    scatterPack("daisy-flower-diffuse-01", 6, -29, -0.5, 0.8, 0.4);
-    scatterPack("daisy-flower-diffuse-02", 6, -29, -0.5, 0.8, 0.4);
-    scatterPack("daisy-flower-diffuse-03", 6, -29, -0.5, 0.8, 0.4);
-    scatterPack("daffodil-flower-01", 5, -29, -0.5, 0.8, 0.4);
-    scatterPack("daffodil-flower-02", 5, -29, -0.5, 0.8, 0.4);
-    scatterPack("grass-bushes-01", 10, -29, -0.5, 0.7, 0.5);
-    scatterPack("grass-bushes-02", 10, -29, -0.5, 0.7, 0.5);
+    // Sayılar sahibin "diğer ağaçları kaldır" isteği sonrası (LOT-28
+    // selvi/zeytin çıkınca boşalan çeşitliliği telafi etmek için) artırıldı.
+    scatterPack("tree-stylized-04-green", 11, -38, -2, 0.9, 0.5);
+    scatterPack("tree-stylized-02-dry", 9, -38, -2, 0.7, 0.4);
+    scatterPack("tree-stylized-01", 7, -38, -2, 0.8, 0.4);
+    scatterPack("daisy-flower-diffuse-01", 8, -39, -0.5, 0.8, 0.4);
+    scatterPack("daisy-flower-diffuse-02", 8, -39, -0.5, 0.8, 0.4);
+    scatterPack("daisy-flower-diffuse-03", 8, -39, -0.5, 0.8, 0.4);
+    scatterPack("daffodil-flower-01", 7, -39, -0.5, 0.8, 0.4);
+    scatterPack("daffodil-flower-02", 7, -39, -0.5, 0.8, 0.4);
+    scatterPack("grass-bushes-01", 13, -39, -0.5, 0.7, 0.5);
+    scatterPack("grass-bushes-02", 13, -39, -0.5, 0.7, 0.5);
 
     loadGltfBundle("assets/models/flora_lowpoly_pack_01_mesh_2336.glb").then((bundle) => {
-      const templates = new Map<string, THREE.Object3D>();
+      // Sahip (27 Ağu, onikinci geri bildirim): "ağaçlar yatık, dik
+      // durmuyor, diğer materyaller de öyle" — kök neden: bu paketin
+      // kaynağı bir FBX'ti (glTF'nin kendi node ağacında "RootNode"/fbx
+      // ara düğümleri görülüyordu), Blender'ın import+export round-trip'i
+      // FBX'in Z-up eksenini glTF'nin Y-up'ına çevirirken düzeltme
+      // rotasyonunu (−90° X) TÜR grup node'unun (`tree-stylized-04-green`
+      // gibi) kendi yerel transform'una gömdü (ham GLB'de doğrulandı:
+      // `rotation:[-0.707,0,0,0.707]`, artı ~100x ölçek, artı büyük bir
+      // translation — FBX'in kendi birim/eksen dönüşümü). Önceki kod bu
+      // node'u DOĞRUDAN klonlayıp kendi grubuma iğnelediğinden, o
+      // düzeltme rotasyonu hiçbir üst node'un onu iptal etmesi olmadan
+      // aynen kalıyor, ağaç yan yatmış gibi görünüyordu. Düzeltme: her
+      // mesh'in TAM world matrix'ini (`updateMatrixWorld` sonrası) doğrudan
+      // GEOMETRİYE pişiriyoruz (`applyMatrix4`) — hangi eksen/ölçek/konum
+      // tuhaflığı olursa olsun bir kere çözülüyor — sonra kendi mesh'imi
+      // sıfır transform'la, XZ'de ortalanmış ve tabanı y=0'a oturmuş yeni
+      // temiz bir grup içine koyuyoruz; benim kendi konum/ölçek/rotY'im
+      // artık üstüne temiz biniyor.
+      bundle.scene.updateMatrixWorld(true);
+      const templates = new Map<string, THREE.Group>();
       for (const spot of packSpots) {
         let tpl = templates.get(spot.name);
         if (!tpl) {
           const found = bundle.scene.getObjectByName(spot.name);
           if (!found) continue;
-          tpl = found;
+          const baked = new THREE.Group();
+          found.traverse((obj) => {
+            if (!(obj instanceof THREE.Mesh)) return;
+            const geo = obj.geometry.clone();
+            geo.applyMatrix4(obj.matrixWorld);
+            const mesh = new THREE.Mesh(geo, obj.material);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            mesh.frustumCulled = false;
+            baked.add(mesh);
+          });
+          const box = new THREE.Box3().setFromObject(baked);
+          const center = new THREE.Vector3();
+          box.getCenter(center);
+          for (const child of baked.children) {
+            (child as THREE.Mesh).geometry.translate(-center.x, -box.min.y, -center.z);
+          }
+          tpl = baked;
           templates.set(spot.name, tpl);
         }
         const inst = tpl.clone(true);
-        inst.traverse((obj) => {
-          if (obj instanceof THREE.Mesh) {
-            obj.castShadow = true;
-            obj.receiveShadow = true;
-            obj.frustumCulled = false;
-          }
-        });
         inst.position.set(spot.x, heightAt(spot.z), spot.z);
         inst.scale.setScalar(spot.scale);
         inst.rotation.y = spot.rotY;
@@ -1163,6 +1194,8 @@ export function buildCyclopsCave(): CyclopsCave {
   // olsunlar patikanın hemen kenarındaki çimde duruyorlar, üstünde değil —
   // ve yeni, daha uzun koy boyunca (D -27..-4) 6 yerine 8 koyuna çıkarıldı.
   const SHEEP_SPOTS: { x: number; z: number; rotY: number; scale: number }[] = [
+    { z: -35, side: 1, rotY: 0.7, scale: 0.98 },
+    { z: -31, side: -1, rotY: 1.9, scale: 1.03 },
     { z: -25, side: 1, rotY: 0.4, scale: 1.05 },
     { z: -22, side: -1, rotY: -1.1, scale: 0.92 },
     { z: -19, side: 1, rotY: 2.3, scale: 1.0 },
