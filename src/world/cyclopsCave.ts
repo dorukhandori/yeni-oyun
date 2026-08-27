@@ -658,22 +658,80 @@ export function buildCyclopsCave(): CyclopsCave {
   // Blender'ın kendi glTF export'u malzemeyi gömmedi (nedeni bulunamadı,
   // zaman kaybetmemek için) — chalk rengi burada, TS tarafında veriliyor,
   // tıpkı aşağıdaki kaya/kapı proplarının rockMat override deseni gibi.
+  // Sahip (27 Ağu, sekizinci geri bildirim): "Cave gate [Sketchfab] girişi
+  // için kullanmayı deneyebiliriz" — bir deneme, kesin karar değil. Tek
+  // satırlık bir anahtar: `false` yaparsan doğrudan eski prosedürel
+  // ASSET-114 kemerine döner, hiçbir başka kod değişmez.
+  const USE_SKETCHFAB_GATE = true;
   let cliffLoadedFlag = false;
   const cliffGroup = new THREE.Group();
   group.add(cliffGroup);
-  const cliffMat = new THREE.MeshStandardMaterial({ color: 0xe6e2d4, roughness: 0.95 });
-  loadGltfBundle("assets/models/rock_cyclops_cliff_01_mesh_4460.glb").then((bundle) => {
-    bundle.scene.traverse((obj) => {
-      if (obj instanceof THREE.Mesh) {
-        obj.material = cliffMat;
+
+  if (USE_SKETCHFAB_GATE) {
+    // ASSET-115 — "Cave gate Stylized" by alzarac, Sketchfab, CC-BY-4.0
+    // (atıf: docs/art/asset-registry.md). Blender'da import+export
+    // round-trip'iyle tek bir self-contained .glb'ye dönüştürüldü
+    // (`scripts/blender/convert_cave_gate_sketchfab.py`, dokular gömülü) —
+    // proje kuralı (pipeline.md §7) gereği hiçbir loose .bin/texture
+    // dosyası public/'a girmedi. Modelin kendi "Floor"/"Grass" parçaları
+    // (kendi diorama zemini) atlanıyor — Cyclops'un kendi zemin/patika
+    // sistemiyle çakışırdı; yalnız "Cave"/"Entrance"/"Lamp_Glow" tutuluyor.
+    // `ship.ts`'in `plantHero`'suyla aynı ruhta basit bir bbox-fit: hedef
+    // genişliğe ölçekle, X/Z'de ortala, en alçak noktayı y=0'a otur.
+    loadGltfBundle("assets/models/rock_cave_gate_stylized_01_mesh_3998.glb").then((bundle) => {
+      const scene = bundle.scene;
+      const keep: THREE.Mesh[] = [];
+      scene.traverse((obj) => {
+        if (!(obj instanceof THREE.Mesh)) return;
+        const matName = Array.isArray(obj.material) ? "" : (obj.material?.name ?? "");
+        if (matName === "Floor" || matName === "Grass") {
+          obj.visible = false;
+          return;
+        }
         obj.receiveShadow = true;
         obj.castShadow = true;
         obj.frustumCulled = false;
-      }
+        keep.push(obj);
+      });
+      // Modelin kendi "ön"ü D=0 eşiğine bakmıyordu — Sketchfab'ın kendi
+      // kamera kuralı bizim +Z-derinleşir kuralımızla örtüşmüyor. 0°/180°
+      // ikisi de düz kayaydı (görünür açıklık yok); 90°'de gerçek oyma
+      // kemer (altın sütunlar + baykuş/canavar yüzü) tam eşiğe bakıyor —
+      // üç açı da tarayıcıda tek tek denenip doğrulandı. Sıra önemli:
+      // rotasyon EN BAŞTA — ölçek/ortalama hesapları döndürülmüş son
+      // konuma göre yapılmalı, yoksa asimetrik gövde ortadan kayar.
+      scene.rotation.y = Math.PI / 2;
+      scene.updateMatrixWorld(true);
+      const box = new THREE.Box3();
+      for (const m of keep) box.expandByObject(m);
+      const size = new THREE.Vector3();
+      box.getSize(size);
+      const TARGET_WIDTH = 14; // önceki prosedürel kemer 22 m'ydi — bu model daha kompakt/dik oranlı
+      scene.scale.setScalar(TARGET_WIDTH / Math.max(size.x, 0.01));
+      scene.updateMatrixWorld(true);
+      const fitted = new THREE.Box3();
+      for (const m of keep) fitted.expandByObject(m);
+      scene.position.x -= (fitted.min.x + fitted.max.x) / 2;
+      scene.position.z -= (fitted.min.z + fitted.max.z) / 2;
+      scene.position.y -= fitted.min.y;
+      cliffGroup.add(scene);
+      cliffLoadedFlag = true;
     });
-    cliffGroup.add(bundle.scene);
-    cliffLoadedFlag = true;
-  });
+  } else {
+    const cliffMat = new THREE.MeshStandardMaterial({ color: 0xe6e2d4, roughness: 0.95 });
+    loadGltfBundle("assets/models/rock_cyclops_cliff_01_mesh_4460.glb").then((bundle) => {
+      bundle.scene.traverse((obj) => {
+        if (obj instanceof THREE.Mesh) {
+          obj.material = cliffMat;
+          obj.receiveShadow = true;
+          obj.castShadow = true;
+          obj.frustumCulled = false;
+        }
+      });
+      cliffGroup.add(bundle.scene);
+      cliffLoadedFlag = true;
+    });
+  }
 
   // Sahip (27 Ağu, yedinci geri bildirim): "mağaranın arkasını vs de
   // kompozisyona uygun hale getir" — kayalık kütlenin TEPESİ çıplak
