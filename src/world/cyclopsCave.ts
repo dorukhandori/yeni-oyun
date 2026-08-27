@@ -781,7 +781,39 @@ export function buildCyclopsCave(): CyclopsCave {
   // tekrarı (`repeat.x`) genişlikle orantılı büyütüldü (13→72) ki aynı
   // texel yoğunluğu korunsun, gerilip bulanıklaşmasın.
   const ISLAND_WIDTH = 220;
+  // **Düzeltme (27 Ağu, sahip): "hâlâ zemin tam oturmadı, alttan su
+  // dalgalandıkça gözüküyor, mağara tarafında hâlâ deniz görüyorum."**
+  // `heightAt(z)` mağara eşiğine (D=0) ve sırtın tabanına (D=-49) doğru
+  // BİLEREK sıfıra iniyor (dar patikanın kendi eşiğiyle dikişsiz
+  // birleşmesi için, `COVE_RISE_END`/`COVE_FALL_START` arası yumuşak
+  // geçiş) — dar 40 m şeritte bu hiç sorun değildi, ama genişleyen 220 m'lik
+  // dış bölge AYNI sıfıra-inen geçişi çok daha geniş/görünür bir alanda
+  // miras aldı, dalga oradan sızıyor. Paylaşılan bir `groundHeightAt(x,z)`
+  // — yalnız dış kesimde (|x|>18) `heightAt`'in eğrisi ne olursa olsun
+  // gerçek bir taban garanti ediyor (x=18..26 yumuşak geçiş, x>26 tam
+  // taban) — hem zemin MESH'i hem AŞAĞIDAKİ tüm dış bölge scatter'ları
+  // (ağaç/kaya/koyun) TEK bir fonksiyonu paylaşıyor. **İkinci bulunan bug
+  // (aynı sahip mesajı, "çiçekler/koyunlar/çimenler gömülmüş gibi"):** ilk
+  // denemede yalnız MESH yükseltilmişti, scatter'lar hâlâ düz `heightAt(z)`
+  // kullanıyordu — zemin onların üstüne çıkıp gömülü gösteriyordu. Artık
+  // hepsi aynı fonksiyonu çağırıyor, uyumsuzluk yapısal olarak imkânsız.
+  const OUTER_FLOOR = COVE_PLATEAU + 0.35;
+  const groundHeightAt = (x: number, z: number): number => {
+    const base = heightAt(z);
+    const ax = Math.abs(x);
+    if (ax <= 18) return base;
+    const blend = THREE.MathUtils.smoothstep(ax, 18, 26);
+    return base + blend * Math.max(0, OUTER_FLOOR - base);
+  };
   const grassGeo = makeGroundGeo(ISLAND_WIDTH, SAND_Z_MAX, 0, 40);
+  {
+    const pos = grassGeo.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      pos.setY(i, groundHeightAt(pos.getX(i), pos.getZ(i)));
+    }
+    pos.needsUpdate = true;
+    grassGeo.computeVertexNormals();
+  }
   {
     const cDry = new THREE.Color(0x5a6a3a);
     const cMid = new THREE.Color(0x475a32);
@@ -884,7 +916,7 @@ export function buildCyclopsCave(): CyclopsCave {
         const s = scaleMin + rand() * scaleRange;
         list.push({
           x,
-          y: heightAt(z),
+          y: groundHeightAt(x, z),
           z,
           sx: s * (0.86 + rand() * 0.22),
           sy: s * (0.9 + rand() * 0.2),
@@ -931,7 +963,7 @@ export function buildCyclopsCave(): CyclopsCave {
         const s = 0.45 + rand() * 0.9;
         outerRock.push({
           x,
-          y: heightAt(z),
+          y: groundHeightAt(x, z),
           z,
           sx: s * (0.86 + rand() * 0.22),
           sy: s * (0.9 + rand() * 0.2),
@@ -942,6 +974,39 @@ export function buildCyclopsCave(): CyclopsCave {
       }
     }
     scatterRockKit(group, outerRock, rand);
+    // Sahip (27 Ağu): "sahil düz bir çizgi gibi olmasın, girintili çıkıntılı
+    // ve rock kataloğumuzdan büyük kayalarla asimetrik bir görüntü
+    // oluştursun." Genişleyen çim düzleminin arka kenarı (z=SAND_Z_MAX=-44,
+    // dış bölgenin denize bakan sınırı) düz bir mesh kenarıydı, hiç dekor
+    // yoktu. Sınıra bitişik, BÜYÜK ölçekli (yukarıdaki genel `outerRock`
+    // kümesinden belirgin daha iri) bir kaya dizisi — her kaya kendi z
+    // konumunda rastgele ileri/geri kaydırılıyor (`jitter`), sınırı fiziksel
+    // olarak girintili/çıkıntılı yapıyor.
+    const coastRock: KitSpot[] = [];
+    {
+      let placed = 0;
+      let guard = 0;
+      while (placed < 26 && guard < 26 * 20) {
+        guard++;
+        const side = placed % 2 === 0 ? 1 : -1;
+        const x = side * (20 + rand() * 85);
+        const jitter = (rand() - 0.5) * 7; // ileri/geri, düz çizgiyi kırıyor
+        const z = SAND_Z_MAX + jitter;
+        if (!coveDressingClear(x, z)) continue;
+        const s = 1.1 + rand() * 1.6; // "büyük kayalar" — outerRock'tan (0.45-1.35) belirgin daha iri
+        coastRock.push({
+          x,
+          y: groundHeightAt(x, z),
+          z,
+          sx: s * (0.86 + rand() * 0.3),
+          sy: s * (0.75 + rand() * 0.3),
+          sz: s * (0.86 + rand() * 0.3),
+          rotY: rand() * Math.PI * 2,
+        });
+        placed++;
+      }
+    }
+    scatterRockKit(group, coastRock, rand);
 
     // Sahip (27 Ağu, onuncu geri bildirim): "neden Lotus adasındaki çimler
     // burda kullanılmıyor? hâlâ yerler düz yeşil." Doğru tespit — o zamana
@@ -1123,7 +1188,7 @@ export function buildCyclopsCave(): CyclopsCave {
           templates.set(spot.name, tpl);
         }
         const inst = tpl.clone(true);
-        inst.position.set(spot.x, heightAt(spot.z), spot.z);
+        inst.position.set(spot.x, groundHeightAt(spot.x, spot.z), spot.z);
         inst.scale.setScalar(spot.scale);
         inst.rotation.y = spot.rotY;
         group.add(inst);
@@ -1808,7 +1873,7 @@ export function buildCyclopsCave(): CyclopsCave {
   loadGltfBundle("assets/models/creature_sheep_01_stand_3100.glb").then((bundle) => {
     for (const spot of SHEEP_SPOTS) {
       const sheep = bundle.scene.clone(true);
-      sheep.position.set(spot.x, heightAt(spot.z), spot.z);
+      sheep.position.set(spot.x, groundHeightAt(spot.x, spot.z), spot.z);
       sheep.rotation.y = spot.rotY;
       sheep.scale.setScalar(spot.scale);
       group.add(sheep);
