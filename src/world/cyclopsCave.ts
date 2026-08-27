@@ -636,6 +636,75 @@ export function buildCyclopsCave(): CyclopsCave {
     });
   }
 
+  // ASSET-116 — Sketchfab "Low poly trees, flowers and grass" (Márcio
+  // Meireles, CC-BY-4.0). Sahip (27 Ağu, onbirinci geri bildirim): "sana
+  // ağaç/maki/çim modeli bulup göndericem" — bu paket LOT-28 kitinin
+  // (selvi/zeytin/kaya) yanına ek çeşitlilik katıyor: gerçek yaprak
+  // dokulu bir yaz ağacı, kuru bir "maki" ağacı, üç küçük çiçek türü,
+  // iki çim demeti varyantı. Autumn (sonbahar sarı/kahve) iki ağaç
+  // varyantı ve "brown" zemin yaması, bu oyunun sıcak Ege YAZ paletiyle
+  // çelişeceğinden Blender export'undan önce tamamen atıldı
+  // (`scripts/blender/convert_lowpoly_trees_sketchfab.py`) — hiç
+  // yüklenmiyorlar bile. Kalan her "tür" kendi glTF node grubu olarak
+  // geldiğinden (`tree-stylized-04-green` gibi, kendi 1-2 alt-mesh'iyle
+  // birlikte) — LOT-28 kitinin tek-geometri `instanceKit()` deseni yerine
+  // (bu paket çoklu-malzemeli, tek geometriye birleşmiyor) boulderCluster
+  // deseniyle aynı basit `.clone(true)` yaklaşımı kullanıldı: three.js
+  // `clone()` geometri/malzemeyi PAYLAŞIR (kopyalamaz), bu yüzden onlarca
+  // örnek yine ucuz.
+  {
+    const rand2 = mulberry32(20260828);
+    type PackSpot = { name: string; x: number; z: number; scale: number; rotY: number };
+    const packSpots: PackSpot[] = [];
+    const scatterPack = (name: string, count: number, zMin: number, zMax: number, scaleMin: number, scaleRange: number) => {
+      let placed = 0;
+      let guard = 0;
+      while (placed < count && guard < count * 20) {
+        guard++;
+        const x = (rand2() * 2 - 1) * 19;
+        const z = zMin + rand2() * (zMax - zMin);
+        if (!coveDressingClear(x, z)) continue;
+        packSpots.push({ name, x, z, scale: scaleMin + rand2() * scaleRange, rotY: rand2() * Math.PI * 2 });
+        placed++;
+      }
+    };
+    scatterPack("tree-stylized-04-green", 5, -28, -2, 0.9, 0.5);
+    scatterPack("tree-stylized-02-dry", 4, -28, -2, 0.7, 0.4);
+    scatterPack("tree-stylized-01", 3, -28, -2, 0.8, 0.4);
+    scatterPack("daisy-flower-diffuse-01", 6, -29, -0.5, 0.8, 0.4);
+    scatterPack("daisy-flower-diffuse-02", 6, -29, -0.5, 0.8, 0.4);
+    scatterPack("daisy-flower-diffuse-03", 6, -29, -0.5, 0.8, 0.4);
+    scatterPack("daffodil-flower-01", 5, -29, -0.5, 0.8, 0.4);
+    scatterPack("daffodil-flower-02", 5, -29, -0.5, 0.8, 0.4);
+    scatterPack("grass-bushes-01", 10, -29, -0.5, 0.7, 0.5);
+    scatterPack("grass-bushes-02", 10, -29, -0.5, 0.7, 0.5);
+
+    loadGltfBundle("assets/models/flora_lowpoly_pack_01_mesh_2336.glb").then((bundle) => {
+      const templates = new Map<string, THREE.Object3D>();
+      for (const spot of packSpots) {
+        let tpl = templates.get(spot.name);
+        if (!tpl) {
+          const found = bundle.scene.getObjectByName(spot.name);
+          if (!found) continue;
+          tpl = found;
+          templates.set(spot.name, tpl);
+        }
+        const inst = tpl.clone(true);
+        inst.traverse((obj) => {
+          if (obj instanceof THREE.Mesh) {
+            obj.castShadow = true;
+            obj.receiveShadow = true;
+            obj.frustumCulled = false;
+          }
+        });
+        inst.position.set(spot.x, heightAt(spot.z), spot.z);
+        inst.scale.setScalar(spot.scale);
+        inst.rotation.y = spot.rotY;
+        group.add(inst);
+      }
+    });
+  }
+
   // "Gemimiz" — Lotus'un gerçek kahraman gemisi (aynı GLB, aynı fit/boyama
   // mantığı — `ship.ts`'ten `plantHero`/`paintHero` bu tur için export
   // edildi), Cyclops'un küçük koyuna sığması için ek bir ölçek küçültmesiyle
