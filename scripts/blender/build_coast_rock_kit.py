@@ -5,15 +5,24 @@ shoreline (Blender 5.2 headless) — replaces the failed photogrammetry scan
 isolated piece came out as a torn/holed shell — see that asset's registry
 entry for the full root-cause writeup).
 
-Same proven technique as `build_island_kit.py`'s `build_boulder()` (already
-shipped, live on Lotus as ASSET-068/069) — vertex-colour chalk shading +
-cavity-crease painting, no texture file needed at all, zero occlusion risk
-since this is authored geometry, not a scan. Extended here with a MULTI-BLOB
-union per rock (2-4 overlapping ico-spheres at randomized offsets/scales,
-same join-based technique as that script's `build_olive()` canopy) so each
-rock reads as a genuinely irregular, asymmetric weathered boulder instead of
-one deformed sphere — sahip: "gerçekçi, asimetrik ... gerçek bir sahil
-hissi."
+Same geometry technique as `build_island_kit.py`'s `build_boulder()` (already
+shipped, live on Lotus as ASSET-068/069) — a MULTI-BLOB union per rock (2-4
+overlapping ico-spheres at randomized offsets/scales, same join-based
+technique as that script's `build_olive()` canopy) so each rock reads as a
+genuinely irregular, asymmetric weathered boulder instead of one deformed
+sphere — sahip: "gerçekçi, asimetrik ... gerçek bir sahil hissi."
+
+**Materyal (v2, 27 Ağu — sahip: "sahildeki beyaz kayaların deseni bizim
+katalogdaki desen olsun, gerçeğe yakın olsun"):** v1 vertex-colour düz
+tebeşir tonuydu (`build_island_kit.py` ile aynı, doku dosyası yok) — sahip
+bunu yeterince "gerçek" bulmadı. Artık ASSET-119'un kendi taş kataloğunun
+(`rock_stylized_kit_01_mesh_11pcs.glb`, RocksStylized_M — 11 farklı gerçek
+taş fotoğrafının UV-atlas'ı, yosun/likenli koyu gri kireçtaşı) gömülü
+`stones_baseColor/Normal/Roughness.png` dokuları `extract_rockkit_textures.py`
+(tek seferlik, saf Python — Blender gerekmez) ile `art-source/raw/`'a
+ayıklanıp buraya yeniden uygulanıyor — `bpy.ops.uv.smart_project()` ile her
+kayanın kendi UV'si (çok-blob birleşimi düzensiz bir silüet olduğu için
+otomatik/triplanar değil, gerçek bir unwrap gerekiyor).
 
 12 pieces across 3 size tiers (small pebble → large outcrop boulder) so the
 runtime scatter can vary density/scale for a natural, uneven coastline
@@ -30,20 +39,13 @@ import math
 import sys
 from pathlib import Path
 
-import bmesh
 import bpy
 from mathutils import Vector, noise
-
-# art-bible.md §2 (linear 0-1) — same chalk palette as ASSET-031/068/069,
-# already proven live on Lotus; keeps the Cyclops cove in the same Aegean
-# visual language rather than introducing a new material/texture.
-CHALK = (0.902, 0.886, 0.831)
-CHALK_CREASE = (0.725, 0.714, 0.671)
-CHALK_WET = (0.60, 0.60, 0.58)  # deeper crevice tone for the biggest outcrops
 
 SEED = 20260827
 ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / "public" / "assets" / "models" / "rock_coast_kit_01_mesh_12pcs.glb"
+TEX_DIR = ROOT / "art-source" / "raw"
 
 
 def rng(i: int, j: int = 0) -> float:
@@ -61,20 +63,58 @@ def reset_scene() -> None:
             bpy.data.materials.remove(mat)
 
 
-def make_material(name: str, color: tuple[float, float, float], roughness: float) -> bpy.types.Material:
-    mat = bpy.data.materials.new(name)
+def make_rock_catalog_material() -> bpy.types.Material:
+    """ASSET-119's own real stone photo (stones_baseColor/Normal/Roughness,
+    extracted by extract_rockkit_textures.py) — same node-wiring pattern as
+    convert_rockkit_stylized.py used for the original 11-piece kit, so this
+    procedural kit's rocks read as the SAME material/pattern sahip already
+    approved ("bizim katalogdaki desen olsun, gerçeğe yakın olsun"), not a
+    flat vertex-colour tint.
+    """
+    mat = bpy.data.materials.new("coast_rock_catalog")
     mat.use_nodes = True
     nt = mat.node_tree
     bsdf = nt.nodes.get("Principled BSDF")
-    bsdf.inputs["Base Color"].default_value = (*color, 1.0)
-    bsdf.inputs["Roughness"].default_value = roughness
+
+    albedo_img = bpy.data.images.load(str(TEX_DIR / "rockkit_stones_baseColor.png"))
+    albedo_tex = nt.nodes.new("ShaderNodeTexImage")
+    albedo_tex.image = albedo_img
+    albedo_tex.location = (-560, 300)
+    nt.links.new(albedo_tex.outputs["Color"], bsdf.inputs["Base Color"])
+
+    rough_img = bpy.data.images.load(str(TEX_DIR / "rockkit_stones_Roughness.png"))
+    rough_img.colorspace_settings.name = "Non-Color"
+    rough_tex = nt.nodes.new("ShaderNodeTexImage")
+    rough_tex.image = rough_img
+    rough_tex.location = (-560, 40)
+    nt.links.new(rough_tex.outputs["Color"], bsdf.inputs["Roughness"])
+
+    normal_img = bpy.data.images.load(str(TEX_DIR / "rockkit_stones_Normal.png"))
+    normal_img.colorspace_settings.name = "Non-Color"
+    normal_tex = nt.nodes.new("ShaderNodeTexImage")
+    normal_tex.image = normal_img
+    normal_tex.location = (-560, -220)
+    normal_map_node = nt.nodes.new("ShaderNodeNormalMap")
+    normal_map_node.location = (-280, -220)
+    nt.links.new(normal_tex.outputs["Color"], normal_map_node.inputs["Color"])
+    nt.links.new(normal_map_node.outputs["Normal"], bsdf.inputs["Normal"])
+
     if "Metallic" in bsdf.inputs:
         bsdf.inputs["Metallic"].default_value = 0.0
-    attr = nt.nodes.new("ShaderNodeVertexColor")
-    attr.layer_name = "Color"
-    attr.location = (-280, 200)
-    nt.links.new(attr.outputs["Color"], bsdf.inputs["Base Color"])
     return mat
+
+
+def unwrap_uv(obj: bpy.types.Object) -> None:
+    # Çok-blob birleşimi düzensiz/kıvrımlı bir silüet — otomatik box/
+    # triplanar mapping yerine gerçek bir Smart UV Project gerekiyor ki
+    # gerçek taş dokusu her yüzeyde makul oranda otursun, gerilmesin.
+    bpy.ops.object.select_all(action="DESELECT")
+    obj.select_set(True)
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.select_all(action="SELECT")
+    bpy.ops.uv.smart_project(angle_limit=math.radians(66), island_margin=0.03)
+    bpy.ops.object.mode_set(mode="OBJECT")
 
 
 def assign_mat(obj: bpy.types.Object, mat: bpy.types.Material) -> None:
@@ -99,38 +139,6 @@ def flatten_bottom(obj: bpy.types.Object, keep: float = 0.22) -> None:
     for v in obj.data.vertices:
         if v.co.z < cut:
             v.co.z = lo + (v.co.z - lo) * 0.15
-
-
-def paint_cavity(
-    obj: bpy.types.Object,
-    body: tuple[float, float, float],
-    crease: tuple[float, float, float],
-) -> None:
-    mesh = obj.data
-    if "Color" in mesh.color_attributes:
-        mesh.color_attributes.remove(mesh.color_attributes["Color"])
-    attr = mesh.color_attributes.new(name="Color", type="BYTE_COLOR", domain="POINT")
-    bm = bmesh.new()
-    bm.from_mesh(mesh)
-    bm.verts.ensure_lookup_table()
-    bm.normal_update()
-    for i, v in enumerate(bm.verts):
-        if not v.link_edges:
-            t = 0.0
-        else:
-            acc = 0.0
-            for e in v.link_edges:
-                other = e.other_vert(v)
-                delta = other.co - v.co
-                if delta.length < 1e-8:
-                    continue
-                acc += delta.normalized().dot(v.normal)
-            acc /= max(1, len(v.link_edges))
-            t = max(0.0, min(1.0, (0.15 - acc) * 2.4))
-        col = [body[k] * (1.0 - t) + crease[k] * t for k in range(3)] + [1.0]
-        attr.data[i].color = col
-    bm.free()
-    mesh.color_attributes.active_color = attr
 
 
 def decimate(obj: bpy.types.Object, ratio: float) -> None:
@@ -168,7 +176,9 @@ def plant_on_ground(obj: bpy.types.Object) -> None:
     bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
 
 
-def build_rock(name: str, idx: int, blob_count: int, base_radius: float, squash: float) -> bpy.types.Object:
+def build_rock(
+    name: str, idx: int, blob_count: int, base_radius: float, squash: float, mat: bpy.types.Material
+) -> bpy.types.Object:
     """Multi-blob union — 2-4 overlapping ico-spheres at randomized offsets/
     scales, joined into one mesh (same technique as build_island_kit.py's
     build_olive() canopy). This is what gives a genuinely irregular,
@@ -223,9 +233,8 @@ def build_rock(name: str, idx: int, blob_count: int, base_radius: float, squash:
     target_ratio = min(1.0, 900 / max(1, tri_count))
     if target_ratio < 0.95:
         decimate(obj, target_ratio)
-    body = CHALK if base_radius < 1.1 else tuple(CHALK[k] * 0.9 + CHALK_WET[k] * 0.1 for k in range(3))
-    paint_cavity(obj, body, CHALK_CREASE)
-    assign_mat(obj, make_material(f"coast_rock_{idx:02d}", CHALK, 0.93))
+    unwrap_uv(obj)
+    assign_mat(obj, mat)
     plant_on_ground(obj)
     shade_smooth(obj)
     return obj
@@ -254,10 +263,12 @@ SPECS = [
 
 def main() -> int:
     reset_scene()
+    # Tek paylaşılan malzeme — 12 kaya da aynı dokuyu kullanıyor, ayrı ayrı
+    # materyal/doku yaratmak GLB'ye aynı görüntüyü 12 kez gömerdi.
+    shared_mat = make_rock_catalog_material()
     objs = []
     for idx, blob_count, base_radius, squash in SPECS:
-        reset_objs_before = set(bpy.data.objects.keys())
-        obj = build_rock(f"SM_CoastRock_{idx:02d}", idx, blob_count, base_radius, squash)
+        obj = build_rock(f"SM_CoastRock_{idx:02d}", idx, blob_count, base_radius, squash, shared_mat)
         objs.append(obj)
         tris = len(obj.data.polygons)
         print(f"  {obj.name}: r={base_radius:.2f} blobs={blob_count} tris={tris}")
@@ -277,9 +288,7 @@ def main() -> int:
         export_lights=False,
         export_extras=False,
         export_materials="EXPORT",
-        export_vertex_color="ACTIVE",
-        export_all_vertex_colors=True,
-        export_texcoords=False,
+        export_texcoords=True,
         export_normals=True,
         export_tangents=False,
     )

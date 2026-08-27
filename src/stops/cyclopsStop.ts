@@ -759,8 +759,8 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     giant.visible = false;
     cave.setDoorOpen(true);
     cave.setInnerGateOpen(false);
-    ambient.intensity = 1.1;
-    hemi.intensity = 0.7;
+    // `ambient`/`hemi` artık hiç değişmiyor (bkz. "dışarısı sabit aydınlık"
+    // notu aşağıda) — burada yeniden atamaya gerek yok.
     player.position.set(0, 0, -46); // koy üç kez uzadı, spawn D=-18→-26→-36→-46
     playerFacing = 0;
     // Bulundu (kendi testimde, 26 Ağu): rig.snap yalnız kurulumda çağrılıyordu
@@ -871,8 +871,12 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
       phase = "return";
       if (walkGiantTowards({ x: 0, z: 0 })) {
         cave.setDoorOpen(false);
-        ambient.intensity = 0.5;
-        hemi.intensity = 0.3;
+        // Sahip (27 Ağu, on dokuzuncu geri bildirim): "dışarısı sabit
+        // aydınlık olmalıdır" — `ambient`/`hemi` TÜM sahneyi kaplayan
+        // global ışıklar, kapı durumuna göre artık değişmiyor (bkz.
+        // cyclopsCave.ts'teki hearthLight/torchLight titreşim notu —
+        // "içeride yanıp sönme" ihtiyacı artık yalnız o yerel ışıklarla
+        // karşılanıyor).
         say("Kapı kapandı.");
         wanderLegsLeft = 2; // "bir süre random dolaşıyor" — 2 rastgele nokta
         giantTarget = pickWanderTarget();
@@ -971,8 +975,6 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
         walkGiantTowards({ x: 0, z: 0 });
         if (giant.position.z <= 0) {
           cave.setDoorOpen(true);
-          ambient.intensity = 1.1;
-          hemi.intensity = 0.7;
           say("Kapı açıldı.");
           phase = "out";
         }

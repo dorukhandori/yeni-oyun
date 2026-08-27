@@ -702,11 +702,24 @@ export function buildCyclopsCave(): CyclopsCave {
     // mesafede hâlâ fazla belirgin/hazır bir kütle gibi duruyordu. Merkez
     // x=±150'ye geri çekildi (incelme aynı kaldı) — hem thin hem uzak,
     // gerçekten yalnız hazy bir ufuk siluetine dönüşsün diye.
+    // **Düzeltme (27 Ağu, sahip, ekran görüntüsüyle): "mağaranın yanları
+    // hâlâ sonsuzluk efekti yok, buraların görünmemesi lazım."** Yukarıdaki
+    // üç örnek yalnız z=20/150'de (mağara ağzının hemen arkası) duruyordu —
+    // ama koy o zamandan beri iki kez uzadı, oyuncu artık z=-50'ye kadar
+    // (açık koyun tamamı, gemi dahil) serbestçe geziyor. O bölgeden yana
+    // baktığında en yakın "sağ/sol sınır" örneği hâlâ z=20'deydi — 40-70 m
+    // GERİDE, tam yana bakan bir açıda görünür bir boşluk bırakıyordu
+    // (yalnız halkanın seyrek/rastgele 12 konisi o açıyı garanti kapsamıyor).
+    // İki örnek daha eklendi (z=-40, açık koyun ortası) — sağ/sol sınır artık
+    // koyun HEM mağara ağzına yakın hem açık deniz ucuna yakın kesiminde de
+    // dolu, oyuncunun asıl gezdiği tüm z aralığında sürekli bir siluet var.
     const SIDE_THICKNESS_SCALE = 0.35;
     const placements = [
       { x: 0, z: 150, rotY: 0, thin: false }, // mağaranın arkası
-      { x: 150, z: 20, rotY: Math.PI / 2, thin: true }, // sağ sınır — uzak siluet
-      { x: -150, z: 20, rotY: -Math.PI / 2, thin: true }, // sol sınır — uzak siluet
+      { x: 150, z: 20, rotY: Math.PI / 2, thin: true }, // sağ sınır — mağara ağzı yakını
+      { x: -150, z: 20, rotY: -Math.PI / 2, thin: true }, // sol sınır — mağara ağzı yakını
+      { x: 150, z: -40, rotY: Math.PI / 2, thin: true }, // sağ sınır — açık koy ortası
+      { x: -150, z: -40, rotY: -Math.PI / 2, thin: true }, // sol sınır — açık koy ortası
     ];
     placements.forEach((p, i) => {
       const inst = i === 0 ? original : original.clone(true);
@@ -1846,7 +1859,8 @@ export function buildCyclopsCave(): CyclopsCave {
 
   // Hearth (pens) — point light, radius toggles 6.0 (open) / 3.0 (closed),
   // same warm colour both states (tuning.md §12 CYCLOPS_LIGHT_RADIUS*).
-  const hearthLight = new THREE.PointLight(0xeeae6a, 3.2, 6.0, 2);
+  const HEARTH_BASE_INTENSITY = 3.2;
+  const hearthLight = new THREE.PointLight(0xeeae6a, HEARTH_BASE_INTENSITY, 6.0, 2);
   hearthLight.position.set(HEARTH_POS.x, 0.6, HEARTH_POS.z);
   group.add(hearthLight);
   const hearthGlow = new THREE.Mesh(
@@ -1858,9 +1872,30 @@ export function buildCyclopsCave(): CyclopsCave {
 
   // Torch (inner nook) — fixed 3.0 m radius regardless of door state
   // (tuning.md §12 table: "zaten dar/sabit, kapıdan etkilenmiyor").
-  const torchLight = new THREE.PointLight(0xeeae6a, 2.2, 3.0, 2);
+  const TORCH_BASE_INTENSITY = 2.2;
+  const torchLight = new THREE.PointLight(0xeeae6a, TORCH_BASE_INTENSITY, 3.0, 2);
   torchLight.position.set(TORCH_POS.x, 1.6, TORCH_POS.z);
   group.add(torchLight);
+  // Sahip (27 Ağu, on dokuzuncu geri bildirim): "mağaranın dışı hep
+  // aydınlık, mağaranın içinde ışık yanıp sönmeli, dışarısı sabit aydınlık
+  // olmalıdır." Önceden `ambient`/`hemi` (cyclopsStop.ts, TÜM sahneyi
+  // kaplayan tek global ışık) kapı açık/kapalı durumuna göre iki sabit
+  // seviye arasında geçiş yapıyordu — hem "yanıp sönme" değil düz bir
+  // anahtar/switch'ti, hem de GLOBAL olduğu için dışarıyı da etkiliyordu
+  // (istenen "dışarısı sabit" ile çelişiyordu). Doğru mimari zaten
+  // buradaydı: ocak/meşale ışıkları (`hearthLight`/`torchLight`) yalnız
+  // mağara İÇİNDE, kısa menzilli (3-6 m) noktasal ışıklar — düşme mesafeleri
+  // dışarıya hiç ulaşmıyor, bu yüzden onları titretmek YAPISAL olarak
+  // yalnız içeriyi etkiliyor, dışarıya hiç sızmıyor. Katmanlı sinüs
+  // (birkaç farklı frekans + ışık başına faz kayması, gerçek bir alev
+  // gibi düzensiz ama deterministik) `update(t)`'te uygulanıyor —
+  // `ambient`/`hemi`'nin kendisi artık HİÇ değişmiyor (cyclopsStop.ts'teki
+  // üç eski atama kaldırıldı).
+  const lightFlicker = (t: number, phase: number): number =>
+    1 +
+    0.16 * Math.sin(t * 6.1 + phase) +
+    0.09 * Math.sin(t * 13.7 + phase * 1.7) +
+    0.05 * Math.sin(t * 2.3 + phase * 0.4);
 
   // Hide spots — real geometry (rock outcropping or wall niche), randomised
   // position/type per room per session (see generateHideSpots() above).
@@ -2182,6 +2217,8 @@ export function buildCyclopsCave(): CyclopsCave {
     items,
     update(t: number) {
       for (const fn of kitUpdaters) fn(t);
+      hearthLight.intensity = HEARTH_BASE_INTENSITY * lightFlicker(t, 0);
+      torchLight.intensity = TORCH_BASE_INTENSITY * lightFlicker(t, 2.3);
     },
     setDoorOpen,
     hearthLight,
