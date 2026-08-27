@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import type { TestHooks } from "../game";
-import { CAMERA, RENDER, SAILOR, PLAYER, SEA_TEX } from "../constants";
+import { CAMERA, RENDER, SAILOR, PLAYER } from "../constants";
 import { CameraRig } from "../render/cameraRig";
 import { Input } from "../systems/input";
 import { isCoarsePointer } from "../ui/orientation";
@@ -385,42 +385,14 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
   sea.group.position.z = -56;
   scene.add(sea.group);
 
-  // Sahip'in kendi indirdiği Sketchfab dalga meshi (27 Ağu):
-  // "@sea_wave-_deniz_dalgas.glb artık deniz böyle gözüksün istiyorum."
-  // Gerçek 3D dalga geometrisi (54K vertex, 107K üçgen), fotogerçekçi bir
-  // deniz-fotoğrafı dokusu (`alphaMode:BLEND`, parlak/pırıltılı) — sahibe
-  // stil uyumsuzluğu (bu oyunun low-poly/painterly diliyle çelişiyor)
-  // açıkça söylendi, "yine de entegre et" onayı alındı. Cyclops'un
-  // prosedürel Gerstner denizinin (yukarıdaki `buildSea()`) TAMAMINI
-  // kaplamak pratik değildi (bu tek statik/tekrarlamayan foto-mesh 400m'lik
-  // deniz yamasını döşeyemez, dikişler görünürdü) — bunun yerine kıyının
-  // hemen önünde, oyuncunun her zaman baktığı yere tek bir "hero" dalga
-  // parçası olarak yerleştirildi, geri kalan deniz yüzeyi hâlâ shader'dan
-  // geliyor. `scripts/blender/convert_seawave_sketchfab.py`: kaynağın kendi
-  // FBX-kökenli düğüm zinciri (ASSET-116 ağaç paketiyle aynı şekil) tam
-  // sahne import edilip her mesh'in TAM çözümlenmiş dünya matrisi
-  // geometriye gömülerek düzeltildi (alt-düğüm ayıklamadığımız için
-  // ASSET-116'daki gibi elle eksen-düzeltmesi gerekmedi). Gerçek boyut
-  // (düğüm zincirindeki gizli ölçek çözülünce) ~28×29 m, ~2,3 m dalga
-  // kabarması — ham accessor'daki 182×187 m yanıltıcıydı (düğüm ölçeği
-  // hesaba katılmamış ham mesh-space veriydi).
-  loadGltfBundle("assets/models/sea_wave_crest_01_mesh_107k.glb").then((bundle) => {
-    const wave = bundle.scene;
-    wave.traverse((obj) => {
-      if (obj instanceof THREE.Mesh) {
-        obj.frustumCulled = false;
-        obj.castShadow = false;
-        obj.receiveShadow = false;
-      }
-    });
-    // Rotasyon ampirik bulundu (cave-gate ile aynı yöntem, tarayıcıda
-    // denenip doğrulandı): 0° dalgayı kıyı taşlarının altına gömülü/düz
-    // gösteriyordu, 90°'de doku kıyı suyunun tüm genişliğine daha doğal
-    // yayılıyor, gerçek bir "artık deniz böyle" hissi veriyor.
-    wave.rotation.y = Math.PI / 2;
-    wave.position.set(0, SEA_TEX.floorY, -60);
-    scene.add(wave);
-  });
+  // ASSET-118 (Sketchfab dalga meshi, "hero" kıyı parçası) — sahip geri
+  // aldırdı (27 Ağu): "deniz olmamış, tüm denize yayılmamış, girişini
+  // yaptığın değişikliği geri al." Tek bir ~28m'lik yama, 400m'lik deniz
+  // yamasının çok küçük bir kısmını kaplıyordu, "artık deniz böyle
+  // gözüksün" beklentisini karşılamadı. Kod tamamen kaldırıldı (asset
+  // dosyası/registry kaydı duruyor, gelecekte farklı bir yaklaşımla —
+  // örn. tüm görünür deniz alanını gerçekten kaplayan bir çözümle —
+  // tekrar denenebilir).
 
   // Bulundu (sahip playtest'i, 25 Ağu): sahne neredeyse hiç görünmüyordu —
   // ışık sabitti, kapı açık/kapalı hiçbir fark yaratmıyordu (tasarım

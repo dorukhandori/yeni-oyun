@@ -1088,18 +1088,23 @@ export function buildCyclopsCave(): CyclopsCave {
           obj.material = new THREE.MeshBasicMaterial({ color: 0xffcf80 });
         }
         if (matName === "Cave") {
-          // Sahip (27 Ağu): "mağaranın yanları filan çok kötü görünüyor" —
-          // modelin kendi "Cave" gövdesi zaten belgelenmiş bir sınırlamaydı
-          // (ASSET-115 notu: yalnız ön/90° açı gerçek oyma kemer gösteriyor,
-          // diğer açılar "düz kaya"), ama şimdi arkaya eklenen dağ
-          // (ASSET-117) ve daha az ağaç örtüsüyle daha da çıplak/düz-gri bir
-          // levha gibi göze batıyordu. Sketchfab'ın kendi düz/detaysız
-          // malzemesi yerine Cyclops'un KENDİ mağara kaya dokusu
-          // (`rockMat`, aşağıdaki niş/kaya proplarıyla aynı, gerçek
-          // dokulu) verildi — en azından gerçek kaya detayı var, düz renk
-          // değil; sahibin istediği "arka dağla uyumlu kaplama" fikrine de
-          // (aşağıdaki kaya kümesi eki) bir adım daha yaklaştırıyor.
-          obj.material = rockMat.clone();
+          // Sahip (27 Ağu, onuncu geri bildirim): "mağaranın yanları filan
+          // çok kötü görünüyor." İlk denemem (`rockMat` dokusu vermek)
+          // yeni bir sorun açtı — sahip ekran görüntüsüyle: modelin kendi
+          // "Cave" gövdesinin UV'si bu dokuyla bozuk/tel örgü gibi bir
+          // desen üretti (sahibin "olmamış" dediği görüntü). Sahip
+          // netleştirdi: "ben tüm mağara kaplamasından bahsettim" — birkaç
+          // yan kaya değil, TÜM Cave gövdesi. Kesin çözüm: gövdeyi
+          // tamamen gizle (Floor/Grass ile aynı desen), yerine aşağıda
+          // gerçek bir LOT-28 kaya yığını inşa edildi — arkı (`Entrance`)
+          // her yönden saran, tepesini de örten bir tümsek, ASSET-117
+          // dağıyla aynı kaya diline ait. `keep`'e yine de ekleniyor ki
+          // bbox-fit hesaplaması (aşağıda) Cave'in gerçek boyutuna göre
+          // yapılmaya devam etsin — ölçek/konum sahibin onayladığı gibi
+          // aynı kalıyor, yalnız render'dan düşüyor.
+          obj.visible = false;
+          keep.push(obj);
+          return;
         }
         obj.receiveShadow = true;
         obj.castShadow = true;
@@ -1136,34 +1141,48 @@ export function buildCyclopsCave(): CyclopsCave {
       cliffGroup.add(scene);
       cliffLoadedFlag = true;
 
-      // Sahip (27 Ağu): "mağaranın yanları filan çok kötü görünüyor, belki
-      // arka tarafa koyduğumuz dağ ile uyumlu bir şekilde kaplayıp o
-      // görüntünün içine gömeriz mağarayı." "Cave" malzemesinin dokusu
-      // yukarıda `rockMat`'e çevrildi (düz renk yerine gerçek kaya
-      // dokusu) ama geometrisi hâlâ kaba/düz kalıyordu — bu, LOT-28 kaya
-      // kiti kümesi geometrik olarak "gömüyor": kapının iki yanına, 10 m
-      // genişliğinin hemen dışına, gerçek bir kaya yığınının kapıyı
-      // doğal olarak sardığı izlenimini vermek için.
+      // Sahip (27 Ağu, onuncu geri bildirim, netleştirme): "ben tüm
+      // mağara kaplamasından bahsettim" — birkaç yan kaya değil, çıplak
+      // bırakılan "Cave" gövdesinin YERİNE geçen gerçek bir tümsek.
+      // LOT-28 kaya kiti ile arkı (`Entrance`, ~10 m hedef genişlik) her
+      // yönden saran bir dağılım: yanlar + üst + arka, ortadaki geçit
+      // (x∈[-2.6,2.6], y<4.6, |z|<1.8 — arkın kendi açıklığı) hariç
+      // tutularak oyuncunun geçişini engellemiyor, ASSET-117 dağıyla
+      // aynı kaya diline ait (rockMat'in kullandığı aynı doku).
+      //
+      // **Düzeltme (aynı turda, tarayıcıda bulundu):** ilk denemede boşluk
+      // kontrolü yalnız kayanın MERKEZ noktasını sınıra göre kontrol
+      // ediyordu, kayanın kendi yarıçapını (`s`) hesaba katmıyordu — büyük
+      // bir kaya merkezi sınırın hemen dışında olsa bile kenarıyla geçide
+      // taşabiliyordu (tarayıcıda gerçekten yolu tıkadığı görüldü). `s`
+      // artık boşluk kontrolünden ÖNCE hesaplanıp sınıra pay olarak
+      // ekleniyor.
       const gateRockRand = mulberry32(20260901);
-      type FlankSpot = { x: number; y: number; z: number; sx: number; sy: number; sz: number; rotY: number };
-      const flankBoulders: FlankSpot[] = [];
-      for (let side = -1; side <= 1; side += 2) {
-        for (let i = 0; i < 5; i++) {
-          const s = 0.9 + gateRockRand() * 1.4;
-          const x = side * (5.5 + gateRockRand() * 3.5);
-          const z = -1 + gateRockRand() * 4;
-          flankBoulders.push({
-            x,
-            y: -s * 0.25,
-            z,
-            sx: s * (0.85 + gateRockRand() * 0.4),
-            sy: s * (0.7 + gateRockRand() * 0.35),
-            sz: s * (0.85 + gateRockRand() * 0.4),
-            rotY: gateRockRand() * Math.PI * 2,
-          });
-        }
+      type MoundSpot = { x: number; y: number; z: number; sx: number; sy: number; sz: number; rotY: number };
+      const gateMound: MoundSpot[] = [];
+      let placed = 0;
+      let guard = 0;
+      while (placed < 26 && guard < 400) {
+        guard++;
+        const x = (gateRockRand() * 2 - 1) * 8.5;
+        const y = gateRockRand() * 7.5;
+        const z = -2.5 + gateRockRand() * 6.5;
+        const s = 0.8 + gateRockRand() * 1.3;
+        // Açıklığı boş bırak (arkın kendi geçidi) — kayanın kendi
+        // yarıçapı kadar payla.
+        if (Math.abs(x) < 2.6 + s && y < 4.6 + s * 0.6 && Math.abs(z) < 1.8 + s) continue;
+        gateMound.push({
+          x,
+          y: Math.max(-0.3, y - s * 0.6),
+          z,
+          sx: s * (0.85 + gateRockRand() * 0.4),
+          sy: s * (0.7 + gateRockRand() * 0.35),
+          sz: s * (0.85 + gateRockRand() * 0.4),
+          rotY: gateRockRand() * Math.PI * 2,
+        });
+        placed++;
       }
-      void placeKit(cliffGroup, ISLAND_KIT.boulder, flankBoulders);
+      void placeKit(cliffGroup, ISLAND_KIT.boulder, gateMound);
     });
   } else {
     const cliffMat = new THREE.MeshStandardMaterial({ color: 0xe6e2d4, roughness: 0.95 });
