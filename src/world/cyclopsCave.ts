@@ -573,11 +573,16 @@ export function buildCyclopsCave(): CyclopsCave {
     // ince bir sırt gibi okunuyor. İncelme sayesinde merkez de daha güvenle
     // yakınlaştırılabildi (yeni yarı-kalınlık ~91×0,35≈32 m, x=60'ta yakın
     // kenar ≈28 m — kovun ~20 m kenarını hâlâ güvenle geçiyor).
+    // **Düzeltme (27 Ağu, sahip): "sağa ve sola gelen dağ görüntüsünü de
+    // kıs, sadece uzak bir siluet olucak."** x=60 + incelme (0,35×) yakın
+    // mesafede hâlâ fazla belirgin/hazır bir kütle gibi duruyordu. Merkez
+    // x=±150'ye geri çekildi (incelme aynı kaldı) — hem thin hem uzak,
+    // gerçekten yalnız hazy bir ufuk siluetine dönüşsün diye.
     const SIDE_THICKNESS_SCALE = 0.35;
     const placements = [
       { x: 0, z: 150, rotY: 0, thin: false }, // mağaranın arkası
-      { x: 60, z: 20, rotY: Math.PI / 2, thin: true }, // sağ sınır
-      { x: -60, z: 20, rotY: -Math.PI / 2, thin: true }, // sol sınır
+      { x: 150, z: 20, rotY: Math.PI / 2, thin: true }, // sağ sınır — uzak siluet
+      { x: -150, z: 20, rotY: -Math.PI / 2, thin: true }, // sol sınır — uzak siluet
     ];
     placements.forEach((p, i) => {
       const inst = i === 0 ? original : original.clone(true);
@@ -1122,7 +1127,15 @@ export function buildCyclopsCave(): CyclopsCave {
   shellMat.normalMap = shellMat.normalMap!.clone();
   for (const t of [shellMat.map, shellMat.roughnessMap, shellMat.normalMap]) {
     t.needsUpdate = true;
-    t.repeat.set(1 / 4.4, 1 / 4.4);
+    // Sahip (27 Ağu): "kesilmiş ve birbirini tekrarlayan ufak bir desen
+    // gözüküyor sadece." ASSET-120'nin ilk kırpımı büyük/tekil sarkıt
+    // silüetleri taşıyordu — göz bunları anında tekrar eden bir motif
+    // olarak yakalıyordu, tek başına tekrar sıklığı sorunu değildi. Doku
+    // daha tekdüze/soyut bir bant ile değiştirildi (aynı dosya yolu,
+    // ASSET-120 notu güncellendi) AYRICA döşeme boyutu 4,4 m'den 9 m'ye
+    // büyütüldü — aynı yüzeyde daha az tekrar, panel sınırları daha az
+    // göze batıyor.
+    t.repeat.set(1 / 9, 1 / 9);
   }
   loadGltfBundle("assets/models/cave_cyclops_shell_01_mesh_68.glb").then((bundle) => {
     bundle.scene.traverse((obj) => {
