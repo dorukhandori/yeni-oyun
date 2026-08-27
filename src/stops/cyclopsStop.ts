@@ -13,6 +13,7 @@ import {
   roomIdAt,
   roomBounds,
   heightAt,
+  groundHeightAt,
   HEARTH_POS,
   TORCH_POS,
 } from "../world/cyclopsCave";
@@ -1088,7 +1089,14 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
       player.position.x = Math.max(-hw + PLAYER_RADIUS, Math.min(hw - PLAYER_RADIUS, player.position.x));
     }
     player.position.z = Math.max(-49, Math.min(64.5, player.position.z)); // koy D=-50'ye uzadı, -19→-29→-39→-49
-    player.position.y = heightAt(player.position.z); // koy/patika yokuşu
+    // Sahip (27 Ağu, on sekizinci geri bildirim): "karakter ve koyunlar ve
+    // çimenler zeminin altında kalıyor." Kök neden: burada hâlâ düz
+    // `heightAt(z)` kullanılıyordu — X'i hiç bilmiyordu. Genişletilmiş
+    // adanın dış kesimi (|x|>18) görsel olarak `groundHeightAt`'in taban
+    // yükseltmesini (+0,35 m'ye kadar) kullanıyor (bkz. cyclopsCave.ts) —
+    // oyuncu oraya yürüyünce eski kod onu görsel zeminin ALTINDA
+    // bırakıyordu. Aynı, tek paylaşılan fonksiyona geçildi.
+    player.position.y = groundHeightAt(player.position.x, player.position.z); // koy/patika yokuşu
 
     // ------------------------------------------------------- player rig
     // game.ts'in aynı deseni (facing + SAILOR.meshFacing, üstel yumuşatma) —

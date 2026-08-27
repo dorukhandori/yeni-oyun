@@ -118,6 +118,31 @@ export function heightAt(z: number): number {
   return COVE_PLATEAU * (0.5 - 0.5 * Math.cos(t * Math.PI));
 }
 
+// Genişletilmiş adanın (`ISLAND_WIDTH`, x=±110) dış kesimi için X-farkındalı
+// taban — `heightAt(z)` yalnız Z'ye göre hesaplıyor ve mağara eşiği/sırt
+// tabanına doğru BİLEREK sıfıra iniyor (dar orijinal şeritte sorun değildi,
+// bkz. `buildCyclopsCave()` içindeki uzun not) — `|x|>18`'de gerçek bir
+// taban (`COVE_PLATEAU+0,35`) garanti ediyor, x=18-26 yumuşak geçiş.
+// **Modül seviyesine taşındı ve export edildi (27 Ağu, on sekizinci geri
+// bildirim: "karakter ve koyunlar ve çimenler zeminin altında kalıyor"):**
+// önceden yalnız `buildCyclopsCave()` içinde yerel bir closure'du, TÜM dış
+// bölge dekoru (ağaç/kaya/koyun/çim) onu kullanıyordu — ama `cyclopsStop.ts`
+// oyuncunun kendi Y'sini hâlâ düz `heightAt(player.position.z)` ile
+// hesaplıyordu (X'i hiç bilmiyordu), oyuncu geniş dış bölgeye (|x|>18)
+// yürüyünce görsel olarak yükseltilmiş zeminin ALTINDA kalıyordu — aynı
+// eski "gömülü dekor" hatasının bu kez OYUNCUNUN KENDİSİNDE tekrarı.
+// Kalıcı çözüm: TEK bir modül-seviyesi export, hem `buildCyclopsCave()`
+// hem `cyclopsStop.ts` aynı fonksiyonu çağırıyor — uyumsuzluk yapısal
+// olarak imkânsız hâle geldi.
+const OUTER_FLOOR = COVE_PLATEAU + 0.35;
+export function groundHeightAt(x: number, z: number): number {
+  const base = heightAt(z);
+  const ax = Math.abs(x);
+  if (ax <= 18) return base;
+  const blend = THREE.MathUtils.smoothstep(ax, 18, 26);
+  return base + blend * Math.max(0, OUTER_FLOOR - base);
+}
+
 /**
  * Bulundu (sahip playtest'i, 26 Ağu 2026): "dev içeri giriyor random
  * dolaşıyor ama duvarlara yakın sağa sola hiç gitmiyor random bir şekilde."
@@ -722,13 +747,28 @@ export function buildCyclopsCave(): CyclopsCave {
     segs: number,
     yOffset = 0,
     xAt?: (z: number) => number,
+    opts?: { xSegs?: number; edgeJitter?: (x: number, edge: "min" | "max") => number },
   ) => {
-    const geo = new THREE.PlaneGeometry(width, zMax - zMin, 1, segs);
+    // `xSegs` (varsayılan 1, tüm eski çağrıları birebir aynı bırakır) —
+    // sahip (27 Ağu, on yedinci geri bildirim): "sahil kumu ... adayla
+    // bütünleşik değil." Kum/çim dikişi X ekseninde HİÇ alt bölünmemiş
+    // (xSegs=1) düz bir kenardı — hiçbir jitter'ın kırabileceği bir şey
+    // yoktu. `edgeJitter(x, "min"|"max")` yalnız o kenardaki satırın Z'sini
+    // kaydırıyor — sand/grass ÇAĞRILARI AYNI fonksiyonu paylaştığı sürece
+    // (biri "max", öbürü "min" kenarında) iki mesh dikişsiz iç içe geçiyor.
+    const xSegs = opts?.xSegs ?? 1;
+    const geo = new THREE.PlaneGeometry(width, zMax - zMin, xSegs, segs);
     geo.rotateX(-Math.PI / 2);
     geo.translate(0, 0, (zMin + zMax) / 2);
     const pos = geo.attributes.position;
     for (let i = 0; i < pos.count; i++) {
-      const z = pos.getZ(i);
+      const x = pos.getX(i);
+      let z = pos.getZ(i);
+      if (opts?.edgeJitter) {
+        if (Math.abs(z - zMin) < 1e-4) z += opts.edgeJitter(x, "min");
+        else if (Math.abs(z - zMax) < 1e-4) z += opts.edgeJitter(x, "max");
+        pos.setZ(i, z);
+      }
       pos.setY(i, heightAt(z) + yOffset);
       if (xAt) pos.setX(i, pos.getX(i) + xAt(z));
     }
@@ -736,6 +776,12 @@ export function buildCyclopsCave(): CyclopsCave {
     geo.computeVertexNormals();
     return geo;
   };
+  // Kum/çim dikişinin paylaştığı kenar eğrisi — deterministik, düşük
+  // frekanslı iki sinüs toplamı (kum dilleri çime, çim parmakları kuma
+  // uzanıyor gibi). Genlik ~2 m: gerçek bir kıyı çizgisinin kendi
+  // düzensizliğine yakın, ama abartılı bir "testere dişi" değil.
+  const sandGrassSeamJitter = (x: number): number =>
+    Math.sin(x * 0.17) * 1.4 + Math.sin(x * 0.61 + 1.3) * 0.7;
 
   // Sahip (27 Ağu, ASSET-109'un yaklaşım açısı/kompozisyonu geri bildirimi):
   // dosdoğru bir patika oyuncunun kameradan gördüğü şey her zaman düz-önden
@@ -825,16 +871,76 @@ export function buildCyclopsCave(): CyclopsCave {
     scatterCoastRockKit(group, shoreSpots, shoreRockRand);
   }
 
+  // Sahip (27 Ağu, on yedinci geri bildirim): "sahil kumu hiç gerçekçi
+  // değil ve adayla bütünleşik değil." İki ayrı gerçek sorun: (1) kum
+  // şeridi hâlâ eski 40 m'lik dar genişlikte kalmıştı (`ISLAND_WIDTH`
+  // aşağıda 220'ye büyütülmeden ÖNCE tanımlanmamıştı burada) — genişleyen
+  // 220 m'lik çim ADAYI'nın büyük kısmı hiç kum GÖRMEDEN doğrudan suya
+  // iniyordu, tam da "adayla bütünleşik değil" şikayeti. (2) düz tek renk
+  // (`color:0xd8c090`) + döşenen tek doku, hiç ton varyasyonu olmadan —
+  // "boyalı" okunuyordu (grass'ın kendi `vertexColors` tekniğiyle aynı
+  // sorunun aynısı, orada zaten bir kez çözülmüştü). `ISLAND_WIDTH` bu
+  // yüzden buraya taşındı (aşağıda tekrar kullanılıyor, grass'ın kendi
+  // genişliğiyle paylaşılıyor).
+  const ISLAND_WIDTH = 220;
   const SAND_Z_MAX = -44; // kıyı şeridi: D -50..-44
-  const sandGeo = makeGroundGeo(40, -50, SAND_Z_MAX, 16);
+  const sandGeo = makeGroundGeo(ISLAND_WIDTH, -50, SAND_Z_MAX, 16, 0, undefined, {
+    xSegs: 90,
+    edgeJitter: (x, edge) => (edge === "max" ? sandGrassSeamJitter(x) : 0),
+  });
+  {
+    // `makeGroundGeo` yalnız Z'ye göre yükseklik veriyor (`heightAt(z)`) —
+    // grass'ın kendi outer-floor yükseltmesini (`groundHeightAt`, |x|>18'de
+    // +0,35 m'ye kadar) UYGULAMAZSA, dış bölgede kum SAND_Z_MAX dikişinde
+    // grass'tan alçak kalır, aradaki ~0,35 m görünür bir basamak/uçurum
+    // oluşturur. Grass'la TUTARLI olsun diye kum da aynı fonksiyonu
+    // uyguluyor.
+    const pos = sandGeo.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      pos.setY(i, groundHeightAt(pos.getX(i), pos.getZ(i)));
+    }
+    pos.needsUpdate = true;
+    sandGeo.computeVertexNormals();
+  }
   const sandTex = loadAlbedoTexture(assetUrl("assets/textures/sand_coastal_01_albedo_512.webp")).clone();
   sandTex.needsUpdate = true;
   sandTex.wrapS = THREE.RepeatWrapping;
   sandTex.wrapT = THREE.RepeatWrapping;
-  sandTex.repeat.set(8, 2.4);
+  sandTex.repeat.set(8 * (ISLAND_WIDTH / 40), 2.4);
+  {
+    // Grass'ın kendi tri-tone `vertexColors` tekniğiyle aynı desen: (a) ince
+    // taneli ton varyasyonu (düz-boyalı hissi kırar), (b) kıyı sırtına/denize
+    // yakın uçta (z→-50) koyulaşan "ıslak kum" bandı — gerçek bir sahilde
+    // dalga/sıçrama her zaman oradan başlar, (c) çim sınırına yakın uçta
+    // (z→SAND_Z_MAX) hafif yeşilimsi bir geçiş — iki dokunun sert dikişi
+    // yerine yumuşak bir el değişimi.
+    const cDry = new THREE.Color(0xe0c69c);
+    const cMid = new THREE.Color(0xcda877);
+    const cWet = new THREE.Color(0x8f7550);
+    const cGrassEdge = new THREE.Color(0x6d7a4c);
+    const pos = sandGeo.attributes.position;
+    const col = new Float32Array(pos.count * 3);
+    const tmp = new THREE.Color();
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i);
+      const z = pos.getZ(i);
+      const n =
+        0.5 +
+        0.5 * (Math.sin(x * 0.55 + z * 0.42) * 0.6 + Math.sin(x * 1.4 - z * 0.8 + 2.1) * 0.4);
+      tmp.copy(cDry).lerp(cMid, n);
+      const wetT = 1 - THREE.MathUtils.smoothstep(z, -50, -46.5);
+      tmp.lerp(cWet, wetT * 0.65);
+      const grassT = THREE.MathUtils.smoothstep(z, -47, SAND_Z_MAX);
+      tmp.lerp(cGrassEdge, grassT * 0.3);
+      col[i * 3] = tmp.r;
+      col[i * 3 + 1] = tmp.g;
+      col[i * 3 + 2] = tmp.b;
+    }
+    sandGeo.setAttribute("color", new THREE.BufferAttribute(col, 3));
+  }
   const sand = new THREE.Mesh(
     sandGeo,
-    new THREE.MeshStandardMaterial({ color: 0xd8c090, roughness: 1, map: sandTex }),
+    new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, map: sandTex }),
   );
   sand.receiveShadow = true;
   group.add(sand);
@@ -868,8 +974,8 @@ export function buildCyclopsCave(): CyclopsCave {
   // yüzden gemi/sırt/deniz bölgesine (z<SAND_Z_MAX) hiç dokunmuyor,
   // "gemi alanı hariç" otomatik sağlanıyor: çim asla oraya uzanmıyor. Doku
   // tekrarı (`repeat.x`) genişlikle orantılı büyütüldü (13→72) ki aynı
-  // texel yoğunluğu korunsun, gerilip bulanıklaşmasın.
-  const ISLAND_WIDTH = 220;
+  // texel yoğunluğu korunsun, gerilip bulanıklaşmasın. (`ISLAND_WIDTH`
+  // artık yukarıda, kum şeridiyle paylaşılan tek bir tanım olarak duruyor.)
   // **Düzeltme (27 Ağu, sahip): "hâlâ zemin tam oturmadı, alttan su
   // dalgalandıkça gözüküyor, mağara tarafında hâlâ deniz görüyorum."**
   // `heightAt(z)` mağara eşiğine (D=0) ve sırtın tabanına (D=-49) doğru
@@ -886,15 +992,13 @@ export function buildCyclopsCave(): CyclopsCave {
   // denemede yalnız MESH yükseltilmişti, scatter'lar hâlâ düz `heightAt(z)`
   // kullanıyordu — zemin onların üstüne çıkıp gömülü gösteriyordu. Artık
   // hepsi aynı fonksiyonu çağırıyor, uyumsuzluk yapısal olarak imkânsız.
-  const OUTER_FLOOR = COVE_PLATEAU + 0.35;
-  const groundHeightAt = (x: number, z: number): number => {
-    const base = heightAt(z);
-    const ax = Math.abs(x);
-    if (ax <= 18) return base;
-    const blend = THREE.MathUtils.smoothstep(ax, 18, 26);
-    return base + blend * Math.max(0, OUTER_FLOOR - base);
-  };
-  const grassGeo = makeGroundGeo(ISLAND_WIDTH, SAND_Z_MAX, 0, 40);
+  // (`groundHeightAt` artık modül seviyesinde tanımlı/export edilmiş —
+  // yukarıdaki `heightAt`'in hemen altına bkz., 27 Ağu on sekizinci geri
+  // bildirim: oyuncunun kendisi de aynı fonksiyonu kullanmalıydı.)
+  const grassGeo = makeGroundGeo(ISLAND_WIDTH, SAND_Z_MAX, 0, 40, 0, undefined, {
+    xSegs: 90,
+    edgeJitter: (x, edge) => (edge === "min" ? sandGrassSeamJitter(x) : 0),
+  });
   {
     const pos = grassGeo.attributes.position;
     for (let i = 0; i < pos.count; i++) {
@@ -907,6 +1011,12 @@ export function buildCyclopsCave(): CyclopsCave {
     const cDry = new THREE.Color(0x5a6a3a);
     const cMid = new THREE.Color(0x475a32);
     const cDeep = new THREE.Color(0x384427);
+    // Sahip (27 Ağu, on yedinci geri bildirim): "sahil kumu ... adayla
+    // bütünleşik değil" — kumun kendi tarafı (yukarıda) çim rengine doğru
+    // hafif kayıyordu ama çim tarafı bunu KARŞILAMIYORDU, dikiş hâlâ tek
+    // yönlü/sert okunuyordu. Simetrik: çimin de kendi SAND_Z_MAX ucu kuma
+    // doğru hafifçe sıcaklaşıyor.
+    const cSandEdge = new THREE.Color(0xa8975f);
     const pos = grassGeo.attributes.position;
     const col = new Float32Array(pos.count * 3);
     const tmp = new THREE.Color();
@@ -917,6 +1027,8 @@ export function buildCyclopsCave(): CyclopsCave {
         0.5 +
         0.5 * (Math.sin(x * 0.6 + z * 0.37) * 0.6 + Math.sin(x * 1.3 - z * 0.9 + 1.7) * 0.4);
       tmp.copy(n < 0.5 ? cDry : cMid).lerp(n < 0.5 ? cMid : cDeep, (n < 0.5 ? n : n - 0.5) * 2);
+      const sandT = 1 - THREE.MathUtils.smoothstep(z, SAND_Z_MAX, SAND_Z_MAX + 3.5);
+      tmp.lerp(cSandEdge, sandT * 0.3);
       col[i * 3] = tmp.r;
       col[i * 3 + 1] = tmp.g;
       col[i * 3 + 2] = tmp.b;
@@ -1030,6 +1142,42 @@ export function buildCyclopsCave(): CyclopsCave {
     scatter(reed, 14, -49, -42, 0.7, 0.5);
     scatter(boulder, 11, -49, -0.5, 0.5, 0.5);
     scatter(pebble, 20, -49, -0.5, 0.35, 0.35);
+    // Sahip (27 Ağu, on yedinci geri bildirim): "sahil kumu ... adayla
+    // bütünleşik değil." Yukarıdaki `scatter()`'ın sazlığı yalnız iç şeridi
+    // (x<19) kapsıyordu — genişletilmiş dış kıyının (x=20..105) tamamında
+    // kum/çim dikişi hiçbir dekorla kırılmadan çıplak, dümdüz bir çizgi
+    // olarak kalıyordu (yeni `coastRock` kümeleri bunu kısmen kırıyor ama
+    // seyrek — asıl çizgi hâlâ görünüyordu). Aynı sazlığı dikişin TAM
+    // üstüne (z jitter SAND_Z_MAX'ın her iki yanına) serpiyoruz — gerçek 3B
+    // geometri düz çizgiyi fiziksel olarak kırıyor, salt renk geçişinden
+    // çok daha güçlü bir "gerçek" hissi.
+    {
+      const edgeRand = mulberry32(20260908);
+      let placed = 0;
+      let guard = 0;
+      while (placed < 44 && guard < 44 * 20) {
+        guard++;
+        const side = placed % 2 === 0 ? 1 : -1;
+        const x = side * (20 + edgeRand() * 85);
+        const z = SAND_Z_MAX + (edgeRand() - 0.5) * 5.5; // dikişin her iki yanı
+        if (edgeRand() < 0.4) {
+          placed++; // gerçek boşluklar da kalsın, tam bir çit gibi olmasın
+          continue;
+        }
+        if (!coveDressingClear(x, z)) continue;
+        const s = 0.6 + edgeRand() * 0.55;
+        reed.push({
+          x,
+          y: groundHeightAt(x, z),
+          z,
+          sx: s,
+          sy: s,
+          sz: s,
+          rotY: edgeRand() * Math.PI * 2,
+        });
+        placed++;
+      }
+    }
     void placeKit(group, ISLAND_KIT.reed, reed, 0.08).then((u) => {
       if (u) kitUpdaters.push(u.update);
     });
@@ -1121,7 +1269,7 @@ export function buildCyclopsCave(): CyclopsCave {
           const h = FLORA.grassHeightScale * (0.85 + rand() * 0.3);
           grassPoses.push({
             x: jx,
-            y: heightAt(jz) - FLORA.grassSink,
+            y: groundHeightAt(jx, jz) - FLORA.grassSink,
             z: jz,
             sx: spread,
             sy: h,
