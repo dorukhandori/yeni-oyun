@@ -412,6 +412,25 @@ export function buildCyclopsCave(): CyclopsCave {
   // (tavan/duvarlar zaten kapatıyor) — tam istenen yer.
   group.add(buildDistantHills(mulberry32(20260831)));
 
+  // Sahip'in az önce indirdiği ambientCG "Terrain003" (CC0, gerçek
+  // heykellenmiş arazi meshi, 2047 üçgen) — deniz ufkunda, halkanın hemen
+  // önünde tek, daha detaylı bir dağ silueti olarak. `scripts/blender/
+  // convert_terrain003_ambientcg.py` ile dönüştürüldü: MTL'nin bozuk Windows
+  // yolu yüzünden doku elle yeniden bağlandı, yalnız albedo tutuldu
+  // (normal/roughness/AO/metallic bir sis-siluetine hiç katkı yapmaz),
+  // 1024px'e küçültüldü, taban y=0'a oturtulup 480 m genişliğe ölçeklendi.
+  loadGltfBundle("assets/models/terrain_backdrop_01_mesh_2000.glb").then((bundle) => {
+    const scene = bundle.scene;
+    scene.traverse((obj) => {
+      if (obj instanceof THREE.Mesh) {
+        obj.castShadow = false;
+        obj.receiveShadow = false;
+      }
+    });
+    scene.position.set(0, 0, -150);
+    group.add(scene);
+  });
+
   // Ground strip, split at the cave mouth (D=0) so cove+path can carry a
   // real sandy coastal look + the heightAt() slope, while the cave interior
   // stays the flat rock floor it always was. Plan §4.2 (Hafif+): "bugün
