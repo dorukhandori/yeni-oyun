@@ -1663,16 +1663,25 @@ export function buildCyclopsCave(): CyclopsCave {
         // çimenler ne kadar uzanıyorsa uzansın."** `SEAT_WIDTH=40` kovun
         // ESKİ genişliğine göreydi (x=±20) — ada o zamandan beri `ISLAND_
         // WIDTH=220`'ye genişledi, plaka artık çok dar kalıyor, iki
-        // yanında (özellikle kapı açısından bakınca) çimenle plaka
-        // arasında kapının kendi teal iç dokusunun sızdığı çirkin bir
-        // boşluk/kenar bırakıyordu (ekran görüntüsündeki mavi-teal dikdörtgen
-        // tam bu). Artık `ISLAND_WIDTH` ile birebir aynı — plaka çimin
-        // uzandığı her yere kadar uzanıyor, kenar kalmıyor.
+        // yanında çimenle plaka arasında kapının kendi teal iç dokusunun
+        // sızdığı çirkin bir boşluk/kenar bırakıyordu.
+        // **Düzeltme (27 Ağu, sahip, ikinci ekran görüntüsüyle): "hayır tüm
+        // gökyüzü ve giriş kapısı buna gömüldü, böyle olmaması lazım.
+        // sadece yatay uzaması lazım."** İlk düzeltme HATALIYDI — `X` VE
+        // `Z` (derinlik) ikisi de AYNI `SEAT_WIDTH/NATIVE_WIDTH` oranıyla
+        // ölçekleniyordu, yani genişliği 40'tan 220'ye büyütmek kütlenin
+        // DERİNLİĞİNİ de (öne doğru, oyuncuya/gökyüzüne doğru) 5,5×
+        // büyütüp koca bir blok hâline getirdi — kapıyı ve gökyüzünü
+        // gerçekten yuttu. Genişlik (X) ve derinlik (Z) artık BAĞIMSIZ:
+        // yalnız X, `ISLAND_WIDTH` ile büyüyor; derinlik eski 40 m'lik
+        // orana sabit kalıyor (`SEAT_DEPTH`) — kütle yalnız YATAY uzanıyor,
+        // kendi eski (onaylanmış) inceliğini/profilini koruyor.
         const SEAT_WIDTH = ISLAND_WIDTH;
+        const SEAT_DEPTH = 40; // eski SEAT_WIDTH değeri — yalnız derinlik için, hiç büyümüyor
         const SEAT_HEIGHT = 22; // kapının kendi ~12 m'sinden belirgin daha uzun, gerçek bir kütle hissi
         const NATIVE_WIDTH = 480;
         const NATIVE_HEIGHT = 21.2;
-        seat.scale.set(SEAT_WIDTH / NATIVE_WIDTH, SEAT_HEIGHT / NATIVE_HEIGHT, SEAT_WIDTH / NATIVE_WIDTH);
+        seat.scale.set(SEAT_WIDTH / NATIVE_WIDTH, SEAT_HEIGHT / NATIVE_HEIGHT, SEAT_DEPTH / NATIVE_WIDTH);
         // Taban zaten yerel y=0'da (Blender'daki transform_apply) — dikey
         // gerdirme orijin etrafında olduğundan taban yerinde kalıyor,
         // yalnız tepe yükseliyor; ekstra "gömme" gerekmiyor (ASSET-117'nin
