@@ -311,7 +311,8 @@ function makeGrid(span: number, segs: number): THREE.PlaneGeometry {
   return geo;
 }
 
-export function buildSea(): Sea {
+export function buildSea(opts?: { includeLagoon?: boolean }): Sea {
+  const includeLagoon = opts?.includeLagoon ?? true;
   const group = new THREE.Group();
   const updaters: Array<(
     t: number,
@@ -365,61 +366,63 @@ export function buildSea(): Sea {
     mat.uniforms.uEnableWaves.value = 1;
   });
 
-  void loadKitGeometry(LAGOON_URL).then((geo) => {
-    const mesh = new THREE.Mesh(
-      geo,
-      new THREE.MeshStandardMaterial({
-        vertexColors: true,
-        roughness: 0.55,
-        metalness: 0,
-        envMapIntensity: 0.25,
-      }),
-    );
-    mesh.position.set(LAGOON.center.x, LAGOON.waterY, LAGOON.center.z);
-    mesh.receiveShadow = true;
-    group.add(mesh);
-    updaters.push((t) => {
-      mesh.position.y = LAGOON.waterY + Math.sin(t * 0.45) * 0.02;
+  if (includeLagoon) {
+    void loadKitGeometry(LAGOON_URL).then((geo) => {
+      const mesh = new THREE.Mesh(
+        geo,
+        new THREE.MeshStandardMaterial({
+          vertexColors: true,
+          roughness: 0.55,
+          metalness: 0,
+          envMapIntensity: 0.25,
+        }),
+      );
+      mesh.position.set(LAGOON.center.x, LAGOON.waterY, LAGOON.center.z);
+      mesh.receiveShadow = true;
+      group.add(mesh);
+      updaters.push((t) => {
+        mesh.position.y = LAGOON.waterY + Math.sin(t * 0.45) * 0.02;
+      });
     });
-  });
 
-  const padTex = loadAlbedoTexture(assetUrl("assets/textures/flora_lilypad_01_albedo_512.webp"));
-  const padAspect = 547 / 643;
-  const padMat = new THREE.MeshStandardMaterial({
-    map: padTex,
-    color: PALETTE.pad,
-    transparent: true,
-    alphaTest: 0.35,
-    roughness: 0.9,
-    side: THREE.DoubleSide,
-  });
-  const padGeo = new THREE.PlaneGeometry(padAspect, 1);
-  padGeo.rotateX(-Math.PI / 2);
-  const padRand = mulberry32(20260816);
-  const padMesh = new THREE.InstancedMesh(padGeo, padMat, FLORA.lilyPads);
-  const padDummy = new THREE.Object3D();
-  let padCount = 0;
-  for (let i = 0; i < FLORA.lilyPads * 3 && padCount < FLORA.lilyPads; i++) {
-    const a = padRand() * Math.PI * 2;
-    const r = 2.2 + padRand() * (LAGOON.radius * 0.72);
-    const x = LAGOON.center.x + Math.cos(a) * r;
-    const z = LAGOON.center.z + Math.sin(a) * r;
-    if (Math.hypot(x - LAGOON.center.x, z - LAGOON.center.z) < 1.4) continue;
-    const s = 0.85 + padRand() * 0.7;
-    padDummy.position.set(x, LAGOON.waterY + 0.03, z);
-    padDummy.scale.set(s, 1, s);
-    padDummy.rotation.set(0, padRand() * Math.PI * 2, 0);
-    padDummy.updateMatrix();
-    padMesh.setMatrixAt(padCount, padDummy.matrix);
-    padCount++;
+    const padTex = loadAlbedoTexture(assetUrl("assets/textures/flora_lilypad_01_albedo_512.webp"));
+    const padAspect = 547 / 643;
+    const padMat = new THREE.MeshStandardMaterial({
+      map: padTex,
+      color: PALETTE.pad,
+      transparent: true,
+      alphaTest: 0.35,
+      roughness: 0.9,
+      side: THREE.DoubleSide,
+    });
+    const padGeo = new THREE.PlaneGeometry(padAspect, 1);
+    padGeo.rotateX(-Math.PI / 2);
+    const padRand = mulberry32(20260816);
+    const padMesh = new THREE.InstancedMesh(padGeo, padMat, FLORA.lilyPads);
+    const padDummy = new THREE.Object3D();
+    let padCount = 0;
+    for (let i = 0; i < FLORA.lilyPads * 3 && padCount < FLORA.lilyPads; i++) {
+      const a = padRand() * Math.PI * 2;
+      const r = 2.2 + padRand() * (LAGOON.radius * 0.72);
+      const x = LAGOON.center.x + Math.cos(a) * r;
+      const z = LAGOON.center.z + Math.sin(a) * r;
+      if (Math.hypot(x - LAGOON.center.x, z - LAGOON.center.z) < 1.4) continue;
+      const s = 0.85 + padRand() * 0.7;
+      padDummy.position.set(x, LAGOON.waterY + 0.03, z);
+      padDummy.scale.set(s, 1, s);
+      padDummy.rotation.set(0, padRand() * Math.PI * 2, 0);
+      padDummy.updateMatrix();
+      padMesh.setMatrixAt(padCount, padDummy.matrix);
+      padCount++;
+    }
+    padMesh.count = padCount;
+    padMesh.instanceMatrix.needsUpdate = true;
+    padMesh.frustumCulled = false;
+    group.add(padMesh);
+    updaters.push((t) => {
+      padMesh.position.y = Math.sin(t * 0.45) * 0.012;
+    });
   }
-  padMesh.count = padCount;
-  padMesh.instanceMatrix.needsUpdate = true;
-  padMesh.frustumCulled = false;
-  group.add(padMesh);
-  updaters.push((t) => {
-    padMesh.position.y = Math.sin(t * 0.45) * 0.012;
-  });
 
   return {
     group,

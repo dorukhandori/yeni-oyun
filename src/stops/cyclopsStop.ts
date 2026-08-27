@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import type { TestHooks } from "../game";
-import { CAMERA, SAILOR, PLAYER } from "../constants";
+import { CAMERA, RENDER, SAILOR, PLAYER } from "../constants";
 import { CameraRig } from "../render/cameraRig";
 import { Input } from "../systems/input";
 import { isCoarsePointer } from "../ui/orientation";
@@ -16,6 +16,7 @@ import {
   TORCH_POS,
 } from "../world/cyclopsCave";
 import { Bursts } from "../systems/burst";
+import { buildSea } from "../world/sea";
 
 /**
  * Cyclops Cave (2nd Odyssey stop) — primitive playable mechanic.
@@ -243,9 +244,74 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
   renderer.setSize(window.innerWidth, window.innerHeight);
 
   const scene = new THREE.Scene();
+  // Fallback flat colour — only ever seen for the first frame before the
+  // sky sphere below is added (or if it somehow fails to load), so it
+  // doesn't need to match the real sky.
   scene.background = new THREE.Color(0x1a222c);
 
-  const camera = new THREE.PerspectiveCamera(CAMERA.fov, window.innerWidth / window.innerHeight, 0.1, 200);
+  const camera = new THREE.PerspectiveCamera(CAMERA.fov, window.innerWidth / window.innerHeight, 0.1, 400);
+
+  // ASSET-109's "Tam" exterior pass (sahip, 27 Ağu): "dışarısı hiç referans
+  // görsele benzemiyor" — Cyclops bilerek Lotus'un `createStage()`'ını
+  // kullanmıyor (kendi ayrı render yolu, CLAUDE.md'nin standing note'u),
+  // ama koy/patika artık gerçek bir gökyüzü + deniz hak ediyor. Lotus'un
+  // günlük döngüsünü (skyTime/dayProgress) TAMAMEN atlıyoruz — Cyclops'ta
+  // hiç gün/dusk kavramı yok, sabit "sun-drenched Aegean" öğleden sonrası
+  // yeter. `stage.ts`'in gradyan gökyüzü shader'ı burada statik
+  // uniform'larla (day-progress update loop'u olmadan) birebir kopyalandı;
+  // asıl bulut/güneş-diski sistemleri (`clouds.ts`/`sunDisk.ts`) atlandı —
+  // onlar update-loop'a bağlı, bu ilk geçiş için orantısız bir yatırım.
+  const skyTop = new THREE.Color(RENDER.skyTop);
+  const skyHorizon = new THREE.Color(RENDER.skyHorizon);
+  const skyMat = new THREE.ShaderMaterial({
+    side: THREE.BackSide,
+    depthWrite: false,
+    fog: false,
+    toneMapped: false,
+    uniforms: {
+      top: { value: skyTop },
+      horizon: { value: skyHorizon },
+    },
+    vertexShader: /* glsl */ `
+      varying vec3 vPos;
+      void main() {
+        vPos = position;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      uniform vec3 top;
+      uniform vec3 horizon;
+      varying vec3 vPos;
+      void main() {
+        float h = clamp(normalize(vPos).y * 1.6 + 0.12, 0.0, 1.0);
+        vec3 c = mix(horizon, top, pow(h, 0.7));
+        gl_FragColor = vec4(c, 1.0);
+      }
+    `,
+  });
+  const skyMesh = new THREE.Mesh(new THREE.SphereGeometry(360, 32, 20), skyMat);
+  skyMesh.renderOrder = -3;
+  skyMesh.frustumCulled = false;
+  scene.add(skyMesh);
+
+  // ASSET-109'un koyu — "sea shading shallow turquoise near the shore to
+  // mid/deep lapis further out". Lotus'un zaten var olan Gerstner deniz
+  // sistemi (`buildSea()`, tam bağımsız fonksiyon, Lotus-özel global
+  // duruma bağlı değil) yeniden kullanıldı — yeni bir su shader'ı
+  // yazılmadı. Koy D=-20..-8 aralığında (bkz. ROOMS); deniz D=-26'ya
+  // (kıyı çizgisi kabaca kum/su geçişine denk gelsin diye) taşındı, oradan
+  // öteye (daha negatif D'ye, oyuncunun hiç erişemeyeceği açık denize)
+  // uzanıyor — `player.position.z` zaten -19'da clamp'leniyor, bu yüzden
+  // deniz yalnızca bir arka plan, hiç yürünebilir alan değil.
+  // includeLagoon: false — Lotus'un durgun gölet+nilüfer diski Lotus'un
+  // kendi LAGOON.center sabitine (yerel orijine yakın) konumlanıyor; sea
+  // grubu buraya -26 kaydırılınca o gölet Cyclops'un koyunun tam ortasında,
+  // denizin üstünde soluk/beyaz bir "blob" olarak beliriyordu (sahip
+  // ekran görüntüsünde görüldü). Gölet Cyclops'a ait değil, kapatıldı.
+  const sea = buildSea({ includeLagoon: false });
+  sea.group.position.z = -26;
+  scene.add(sea.group);
 
   // Bulundu (sahip playtest'i, 25 Ağu): sahne neredeyse hiç görünmüyordu —
   // ışık sabitti, kapı açık/kapalı hiçbir fark yaratmıyordu (tasarım
@@ -971,6 +1037,14 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     }
     hearthEmbers.update(dt);
 
+    // Sea's own hull/foam-wake uniforms default to Lotus's SHIP.pos if not
+    // given — harmless here since Cyclops has no ship, but parked far
+    // outside the visible patch anyway so the wake shader never draws
+    // anything near the cove. (The actual white blob seen in-screenshot
+    // was the Lotus lagoon disc, fixed via buildSea({ includeLagoon: false })
+    // above — this hull parking is unrelated, kept as cheap insurance.)
+    sea.update(simTime, new THREE.Vector3(0, 0, -400), 0);
+
     // -------------------------------------------------------------- crush
     // giant.visible (fiziksel varlığı), phase==="present" değil — dev artık
     // gerçekten yürüyerek girip çıktığı için girerken/çıkarken de (RETURN/
@@ -1075,6 +1149,9 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     // -------------------------------------------------------------- camera
     rig.update(player.position, dt);
     playerLight.position.set(player.position.x, player.position.y + 1.4, player.position.z);
+    // Sky sphere is camera-centered (same convention as stage.ts) — copy
+    // AFTER rig.update() so it uses this frame's final camera position.
+    skyMesh.position.copy(camera.position);
 
     if (messageT > 0) messageT -= dt;
 
@@ -1135,6 +1212,7 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
         for (let i = 0; i < n; i++) step(dt);
       },
       render: () => renderer.render(scene, camera),
+      rotateCamera: (yaw: number, pitch = 0) => rig.rotate(yaw, pitch),
       cameraPos: () => ({ x: camera.position.x, y: camera.position.y, z: camera.position.z }),
       setMove: (x: number, z: number) => {
         manualMove.x = x;
