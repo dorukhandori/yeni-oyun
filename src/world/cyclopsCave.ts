@@ -1265,6 +1265,12 @@ export function buildCyclopsCave(): CyclopsCave {
     // adasına göre kalibre, burada da aynı yoğunluk/ölçek) — yalnız alan
     // Cyclops'un kendi çim bandına (`SAND_Z_MAX`..0) ve patika/spawn/gemi
     // boşluklarına kısıtlandı.
+    // **Düzeltme (27 Ağu, sahip, yirmi birinci geri bildirim):** "adanın
+    // diğer kalan yeşil zemininde çimenler yok, sadece belli bir yerinde
+    // var." Doğru — `x` aralığı hâlâ eski dar kova göreydi (-19..19),
+    // genişletilmiş dış bölge (x=20..105, ağaç/kaya/koyunun zaten
+    // kapladığı aynı alan) hiç çim demeti almıyordu. Aralık tek bir
+    // sürekli `-105..105`'e çıkarıldı — artık ada boyunca aynı yoğunluk.
     const grassPoses: KitSpot[] = [];
     {
       const spacing = FLORA.grassFieldSpacing;
@@ -1273,7 +1279,7 @@ export function buildCyclopsCave(): CyclopsCave {
       for (let z = SAND_Z_MAX; z <= 0; z += hexH) {
         const ox = (row % 2) * spacing * 0.5;
         row++;
-        for (let x = -19; x <= 19; x += spacing) {
+        for (let x = -105; x <= 105; x += spacing) {
           const jx = x + ox + (rand() - 0.5) * spacing * 0.38;
           const jz = z + (rand() - 0.5) * hexH * 0.38;
           if (jz < SAND_Z_MAX || jz > 0) continue;
@@ -1600,13 +1606,21 @@ export function buildCyclopsCave(): CyclopsCave {
       // yükseklik) — 14 m genişliğe ölçeklenince boyu da ~14 m'ye çıkıyor,
       // normal oyuncu mesafesinde kameranın dikey görüş açısını aşıyordu.
       // 10 m'ye çekildi (yükseklik de orantılı küçülüyor, tek skaler ölçek).
-      const TARGET_WIDTH = 10;
+      // Sahip (27 Ağu, yirminci geri bildirim): "kapıyı biraz daha büyüt
+      // ve biraz daha öne çıkart. kapının tüm ayrıntıları görüntülenebilir
+      // olsun istiyorum." 10 m'den 12 m'ye büyütüldü (~%20); ayrıca merkez
+      // sonradan `GATE_FORWARD_OFFSET` kadar -Z'ye (mağara ağzı D=0'dan
+      // dışarıya, açık koya/oyuncuya doğru) kaydırılıyor — oyuncu eşiğe
+      // yaklaşmadan da kapının oymalarını/ayrıntılarını daha yakından
+      // görebilsin diye.
+      const TARGET_WIDTH = 12;
+      const GATE_FORWARD_OFFSET = 1.3;
       scene.scale.setScalar(TARGET_WIDTH / Math.max(size.x, 0.01));
       scene.updateMatrixWorld(true);
       const fitted = new THREE.Box3();
       for (const m of keep) fitted.expandByObject(m);
       scene.position.x -= (fitted.min.x + fitted.max.x) / 2;
-      scene.position.z -= (fitted.min.z + fitted.max.z) / 2;
+      scene.position.z -= (fitted.min.z + fitted.max.z) / 2 + GATE_FORWARD_OFFSET;
       scene.position.y -= fitted.min.y;
       // Sahip (27 Ağu): "mağara girişinin modelinde kullanılan taşı yanlara
       // doğru genişlet." Yalnız "Cave" gövdesi (Entrance/Lamp_Glow'a
@@ -1686,7 +1700,13 @@ export function buildCyclopsCave(): CyclopsCave {
         // gerdirme orijin etrafında olduğundan taban yerinde kalıyor,
         // yalnız tepe yükseliyor; ekstra "gömme" gerekmiyor (ASSET-117'nin
         // uzak örneğinin aksine, bu mesh zemine hemen oturuyor).
-        seat.position.set(0, 0, 2);
+        // **Düzeltme (27 Ağu, sahip, ekran görüntüsüyle): "kapının üst
+        // tarafındaki ağaç dalları dağın içinde kalıyor."** Kapı bu turda
+        // %20 büyütüldü (dalları da orantılı uzadı) — mağara kütlesi hâlâ
+        // eski z=2'deydi, artık daha uzun dalların tepesiyle aynı derinlik
+        // aralığına giriyor, gerçek bir Z-örtüşme/kesişme oluşuyordu. z=5'e
+        // itilip dallara gerçek bir boşluk/mesafe bırakıldı.
+        seat.position.set(0, 0, 5);
         cliffGroup.add(seat);
       });
       cliffGroup.add(scene);
@@ -1797,21 +1817,43 @@ export function buildCyclopsCave(): CyclopsCave {
       tex.needsUpdate = true;
       return tex;
     })();
+    // **Düzeltme (27 Ağu, sahip, yirmi birinci geri bildirim): "sisi daha
+    // yatay şekilde uzun yay ama asla kapıyı kapatmasın."** Eski menzil
+    // (3,4-19,4 m) dar kalıyordu — sis kapının hemen yanında toplanmış bir
+    // küme gibi okunuyordu, geniş kovu boydan boya kucaklayan bir "yay"
+    // hissi vermiyordu. Menzil ~48 m'ye kadar uzatıldı (kapıya en yakın
+    // sınır AYNI, `doorHalfWidth+1.5` — açıklık hiç değişmiyor, hâlâ asla
+    // kapanmıyor), aynı yoğunluğu daha uzun bir mesafede korumak için
+    // parça sayısı da artırıldı.
+    // **Düzeltme (27 Ağu, sahip, ekran görüntüsüyle): "sis sadece duvara
+    // yapışık yuvarlak ışık huzmeleri gibi gözüküyor, yatay bir sis
+    // bulutu olsun istiyorum."** Kök neden: `sprite.scale.setScalar(...)`
+    // her sprite'ı EŞİT en/boy ile ölçekliyordu — bir Sprite her zaman
+    // kameraya dönük düz bir kare olduğundan, eşit ölçek kaçınılmaz
+    // olarak YUVARLAK bir ışık topu/huzme gibi okunuyordu, dokunun kendi
+    // radial-gradient şekli yüzünden. Artık X çok daha geniş, Y çok daha
+    // basık (`scaleX`/`scaleY` ayrı) — her parça yuvarlak bir top değil
+    // yatay, yassı bir sis şeridi. Ayrıca yükseklik aralığı daraltıldı
+    // (0,2-1,6 m, önceki 0,3-3,8) — zeminde sürünen bir sis bulutu hissi,
+    // havada asılı duran ayrı ışık küreleri değil; opaklık da hafif
+    // düşürüldü (daha çok parça üst üste binince tek tek "top" olarak
+    // ayırt edilmesinler, sürekli bir bulut gibi kaynaşsınlar diye).
     const fogRand = mulberry32(20260904);
     const fogSprites: Array<{ sprite: THREE.Sprite; baseY: number; phase: number; speed: number }> = [];
     for (const side of [-1, 1]) {
-      for (let i = 0; i < 9; i++) {
+      for (let i = 0; i < 16; i++) {
         const mat = new THREE.SpriteMaterial({
           map: fogTex,
           transparent: true,
           depthWrite: false,
-          opacity: 0.4 + fogRand() * 0.35,
+          opacity: 0.28 + fogRand() * 0.22,
         });
         const sprite = new THREE.Sprite(mat);
-        const dist = doorHalfWidth + 1.5 + fogRand() * 16; // açıklığa hiç girmiyor
-        const scale = 3 + fogRand() * 5;
-        sprite.scale.setScalar(scale);
-        const baseY = 0.3 + fogRand() * 3.5;
+        const dist = doorHalfWidth + 1.5 + fogRand() * 46; // açıklığa hiç girmiyor
+        const scaleX = 7 + fogRand() * 9;
+        const scaleY = 1.4 + fogRand() * 1.4;
+        sprite.scale.set(scaleX, scaleY, 1);
+        const baseY = 0.2 + fogRand() * 1.4;
         sprite.position.set(side * dist, baseY, -1 + fogRand() * 6);
         group.add(sprite);
         fogSprites.push({ sprite, baseY, phase: fogRand() * Math.PI * 2, speed: 0.15 + fogRand() * 0.2 });
@@ -1819,7 +1861,7 @@ export function buildCyclopsCave(): CyclopsCave {
     }
     kitUpdaters.push((t) => {
       for (const f of fogSprites) {
-        f.sprite.position.y = f.baseY + Math.sin(t * f.speed + f.phase) * 0.25;
+        f.sprite.position.y = f.baseY + Math.sin(t * f.speed + f.phase) * 0.12;
       }
     });
   }
