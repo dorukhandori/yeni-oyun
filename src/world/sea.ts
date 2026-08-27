@@ -44,7 +44,7 @@ function sunDirection(day01: number): THREE.Vector3 {
   ).normalize();
 }
 
-function oceanMaterial(islandRadius: number): THREE.ShaderMaterial {
+function oceanMaterial(islandRadius: number, clipZMax: number): THREE.ShaderMaterial {
   const shallow = new THREE.Color(PALETTE.seaShallow);
   const mid = new THREE.Color(PALETTE.seaMid);
   const deep = new THREE.Color(PALETTE.seaDeep);
@@ -94,6 +94,7 @@ function oceanMaterial(islandRadius: number): THREE.ShaderMaterial {
         uSunDir: { value: sunDirection(0) },
         uSunColor: { value: sun },
         uSky: { value: sky },
+        uClipZMax: { value: clipZMax },
       },
     ]),
     vertexShader: /* glsl */ `
@@ -226,6 +227,7 @@ function oceanMaterial(islandRadius: number): THREE.ShaderMaterial {
       uniform float uIslandR;
       uniform float uWobbleA;
       uniform float uWobbleB;
+      uniform float uClipZMax;
 
       varying vec3 vWorld;
       varying vec2 vOrig;
@@ -240,6 +242,7 @@ function oceanMaterial(islandRadius: number): THREE.ShaderMaterial {
       }
 
       void main() {
+        if (vWorld.z > uClipZMax) discard;
         float r = length(vOrig);
         float coast = coastR(vOrig);
         if (r < coast - uOverlap) discard;
@@ -318,9 +321,18 @@ export function buildSea(opts?: {
    * against Lotus's own shoreline mesh — see note at its call site below.
    * Default true (Lotus unchanged). */
   shoreBlend?: boolean;
+  /**
+   * World-Z ceiling — fragments with `vWorld.z` beyond this are discarded.
+   * The patch/flood planes are enormous (hundreds of metres) and, with
+   * `islandRadius: 0`, nothing else stops them rendering past a small
+   * cove's own shoreline. Default `Infinity` (Lotus unchanged — its shore
+   * is the island's own radial discard, not a straight Z line).
+   */
+  clipZMax?: number;
 }): Sea {
   const includeLagoon = opts?.includeLagoon ?? true;
   const shoreBlend = opts?.shoreBlend ?? true;
+  const clipZMax = opts?.clipZMax ?? Infinity;
   const group = new THREE.Group();
   const updaters: Array<(
     t: number,
@@ -330,7 +342,7 @@ export function buildSea(opts?: {
     day01?: number,
   ) => void> = [];
 
-  const mat = oceanMaterial(opts?.islandRadius ?? ISLAND.radius);
+  const mat = oceanMaterial(opts?.islandRadius ?? ISLAND.radius, clipZMax);
   const patch = new THREE.Mesh(makeGrid(SEA_TEX.patchMeters, SEA_TEX.segments), mat);
   patch.frustumCulled = false;
   patch.matrixAutoUpdate = true;

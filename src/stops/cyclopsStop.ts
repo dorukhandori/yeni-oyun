@@ -357,7 +357,16 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
   // coast - uOverlap` (fragment) / `coastR()` (vertex) uIslandR=0 iken hep
   // false/aktif kalıyor, delik tamamen kapanıyor — Lotus/workbench'in
   // varsayılanı (`ISLAND.radius`) değişmedi.
-  const sea = buildSea({ includeLagoon: false, islandRadius: 0, shoreBlend: false });
+  // clipZMax: -1 — sahip (27 Ağu, yedinci geri bildirim): "deniz suyu
+  // mağara girişine kadar ulaşıyor ve içerisine de geliyor." Kök neden:
+  // patch/flood düzlemleri yüzlerce metre (SEA_TEX.patchMeters/floodMeters)
+  // — `islandRadius: 0` deliği kapattığından beri hiçbir şey onların D=0
+  // eşiğini, hatta mağaranın 65 m'lik iç kompleksinin tamamını geçmesini
+  // engellemiyordu (Y=-0.16'da, opak zeminin altında olsa da bazı açılarda/
+  // Gerstner dalga tepelerinde görünür oluyordu). `uClipZMax` fragment
+  // discard'ı ekledi (sea.ts) — deniz artık D=-1'in ötesinde hiç render
+  // edilmiyor, eşiğe ya da içeriye asla sızamaz.
+  const sea = buildSea({ includeLagoon: false, islandRadius: 0, shoreBlend: false, clipZMax: -1 });
   sea.group.position.z = -36;
   scene.add(sea.group);
 

@@ -675,6 +675,64 @@ export function buildCyclopsCave(): CyclopsCave {
     cliffLoadedFlag = true;
   });
 
+  // Sahip (27 Ağu, yedinci geri bildirim): "mağaranın arkasını vs de
+  // kompozisyona uygun hale getir" — kayalık kütlenin TEPESİ çıplak
+  // tebeşir taşıydı, referans görsel (ASSET-109) ise kayalığın üstünü
+  // altın-yeşil bir çim şeridi + birkaç selviyle taçlandırıyor, yandan/
+  // arkadan bakınca kütle çıplak, düz bir levha gibi okunuyordu. Kayalığın
+  // kendi bounding box'ı (`cliffWorldBox` debug alanı) y-tepesi ~14'te —
+  // aynı çim vertex-tint tekniği (yukarıdaki `grass` zemin bloğu) + LOT-28
+  // selvi kitiyle basit bir "çim şapkası" bindirildi, gerçek bir Blender
+  // yeniden-üretimi gerekmeden.
+  {
+    const capGeo = new THREE.PlaneGeometry(19, 2.6, 24, 4);
+    capGeo.rotateX(-Math.PI / 2);
+    capGeo.translate(0, 14.05, 0);
+    const cDry = new THREE.Color(PALETTE.grassDry);
+    const cMid = new THREE.Color(PALETTE.grass);
+    const cDeep = new THREE.Color(PALETTE.grassDeep);
+    const pos = capGeo.attributes.position;
+    const col = new Float32Array(pos.count * 3);
+    const tmp = new THREE.Color();
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i);
+      const z = pos.getZ(i);
+      const n = 0.5 + 0.5 * Math.sin(x * 0.7 + z * 1.3);
+      tmp.copy(n < 0.5 ? cDry : cMid).lerp(n < 0.5 ? cMid : cDeep, (n < 0.5 ? n : n - 0.5) * 2);
+      col[i * 3] = tmp.r;
+      col[i * 3 + 1] = tmp.g;
+      col[i * 3 + 2] = tmp.b;
+    }
+    capGeo.setAttribute("color", new THREE.BufferAttribute(col, 3));
+    const capTex = loadAlbedoTexture(assetUrl("assets/textures/flora_drygrass_01_albedo_1024.webp")).clone();
+    capTex.needsUpdate = true;
+    capTex.wrapS = THREE.RepeatWrapping;
+    capTex.wrapT = THREE.RepeatWrapping;
+    capTex.repeat.set(6, 1);
+    const cap = new THREE.Mesh(
+      capGeo,
+      new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, map: capTex }),
+    );
+    cap.receiveShadow = true;
+    cliffGroup.add(cap);
+
+    const rimCypress = [
+      { x: -6.5, rotY: 0.4, s: 1.1 },
+      { x: -1.2, rotY: 2.1, s: 0.95 },
+      { x: 3.4, rotY: 4.0, s: 1.2 },
+      { x: 7.8, rotY: 1.3, s: 1.0 },
+    ].map((t) => ({
+      x: t.x,
+      y: 14.05,
+      z: 0.2,
+      sx: t.s,
+      sy: t.s * 1.1,
+      sz: t.s,
+      rotY: t.rotY,
+    }));
+    void placeKit(cliffGroup, ISLAND_KIT.cypress, rimCypress);
+  }
+
   // Hearth (pens) — point light, radius toggles 6.0 (open) / 3.0 (closed),
   // same warm colour both states (tuning.md §12 CYCLOPS_LIGHT_RADIUS*).
   const hearthLight = new THREE.PointLight(0xeeae6a, 3.2, 6.0, 2);
