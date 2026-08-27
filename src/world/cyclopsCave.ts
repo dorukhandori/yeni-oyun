@@ -533,10 +533,23 @@ export function buildCyclopsCave(): CyclopsCave {
         }
       }
     });
+    // **Düzeltme (27 Ağu, sahip): "sağ ve sol tarafta dağ görsellerine
+    // kadar hâlâ boşluk var."** x=±180 kapının arkasına oturttuğumuz yakın
+    // kütleden (±20) çok uzaktaydı — koydan yana bakınca aradaki ~160 m
+    // boş gökyüzü olarak görünüyordu. **İlk denemede x=±25'e çekildi ama
+    // bu, mesh'in kendi gerçek kalınlığını hesaba katmıyordu:** 90°
+    // döndürülünce meshin yerel X ekseni (480 m, "genişlik") dünya Z'ye
+    // (kovun uzunluğu boyunca — istenen), yerel Z ekseni (~182 m, "diğer
+    // yatay eksen") dünya X'ine (yana doğru KALINLIK) karşılık geliyor —
+    // yarı-kalınlık ~91 m, x=25'te merkezlenince yakın kenarı x≈-66'ya
+    // kadar kova içine gömülüyordu (tarayıcıda kamera meshin içinde
+    // sıkıştı, doğrulandı). Merkez x=±120'ye çekildi (yakın kenar
+    // ≈120-91=29, kovun ~20 m kenarını güvenle geçiyor) — hem x=±180'den
+    // belirgin daha yakın/bağlantılı hem kovu istila etmiyor.
     const placements = [
       { x: 0, z: 150, rotY: 0 }, // mağaranın arkası
-      { x: 180, z: 20, rotY: Math.PI / 2 }, // sağ sınır
-      { x: -180, z: 20, rotY: -Math.PI / 2 }, // sol sınır
+      { x: 120, z: 20, rotY: Math.PI / 2 }, // sağ sınır
+      { x: -120, z: 20, rotY: -Math.PI / 2 }, // sol sınır
     ];
     placements.forEach((p, i) => {
       const inst = i === 0 ? original : original.clone(true);
