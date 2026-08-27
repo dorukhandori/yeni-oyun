@@ -447,6 +447,94 @@ export function buildCyclopsCave(): CyclopsCave {
     });
   };
 
+  // ASSET-122 — sahip: "sahili ve kumları biz mi tasarlasak? gerçekçi,
+  // asimetrik ve gerçek bir sahil hissi veren modelleme yapalım uçtan uca
+  // adamızı kaplayabilsin. ama kum hissi önemli." ASSET-121'in (fotogrametri
+  // tarama, geri alındı — aşağıdaki not) yerine PROSEDÜREL bir kıyı kaya
+  // kiti: `build_coast_rock_kit.py`, `build_island_kit.py`'nin AYNI,
+  // kanıtlanmış tekniğiyle (vertex-renk tebeşir gölgeleme + cavity-crease
+  // boyama — ASSET-068/069 ile birebir aynı, Lotus'ta hâlâ canlı) ama
+  // ÇOK-BLOB birleşimiyle genişletildi (kayaya göre 2-4 üst üste binen,
+  // rastgele döndürülmüş/ölçeklenmiş ico-sphere — `build_olive()`'in
+  // kanopi tekniğiyle aynı `join()` mantığı): her kaya gerçekten
+  // düzensiz/asimetrik bir siluet, tek deforme küre değil. Tarama riski
+  // YOK — tamamen üretilmiş geometri, occlusion/delik sorunu yapısal
+  // olarak imkânsız. 12 parça, 3 boy sınıfı (küçük çakıl → orta kaya →
+  // büyük mahmuz), `rock_coast_kit_01_mesh_12pcs.glb`.
+  type CoastRockSpot = { x: number; y: number; z: number; sx: number; sy: number; sz: number; rotY: number };
+  const coastRockKitPieces: Promise<THREE.Mesh[]> = loadGltfBundle(
+    "assets/models/rock_coast_kit_01_mesh_12pcs.glb",
+  ).then((bundle) => {
+    const pieces: THREE.Mesh[] = [];
+    bundle.scene.traverse((obj) => {
+      if (obj instanceof THREE.Mesh) pieces.push(obj);
+    });
+    return pieces;
+  });
+  const scatterCoastRockKit = (parent: THREE.Object3D, spots: CoastRockSpot[], rand: () => number) => {
+    void coastRockKitPieces.then((pieces) => {
+      if (pieces.length === 0) return;
+      for (const spot of spots) {
+        // Kit küçükten büyüğe sıralı (SM_CoastRock_01..12) — ağırlıklı
+        // seçim: çoğunlukla küçük/orta (doğal kıyıda çakıl/orta taş
+        // çoğunlukta), seyrek büyük mahmuz (dramatik ama nadir aksan).
+        const r = rand();
+        let idx: number;
+        if (r < 0.45) idx = Math.floor(rand() * 4);
+        else if (r < 0.85) idx = 4 + Math.floor(rand() * 4);
+        else idx = 8 + Math.floor(rand() * 4);
+        const template = pieces[Math.min(pieces.length - 1, idx)];
+        const piece = template.clone();
+        piece.material = template.material;
+        // ASSET-119'un 100x büyüme dersi: `.multiply()`, asla `.set()`.
+        piece.scale.multiply(new THREE.Vector3(spot.sx, spot.sy, spot.sz));
+        piece.position.set(spot.x, spot.y, spot.z);
+        piece.rotation.y = spot.rotY;
+        piece.receiveShadow = true;
+        piece.castShadow = true;
+        piece.frustumCulled = false;
+        parent.add(piece);
+      }
+    });
+  };
+  // Küme-tabanlı kıyı yerleşimi — bağımsız rastgele serpme yerine, gerçek
+  // kıyılar gibi bazı noktalarda kaya kümeleri, aralarında GERÇEK açık kum
+  // (sahip: "kum hissi önemli"). `gapChance` boş bırakılan slot oranı —
+  // kıyının ~%35-45'i kasıtlı olarak taşsız kalıyor.
+  const buildCoastClusters = (
+    rand: () => number,
+    slotCount: number,
+    gapChance: number,
+    posAt: (i: number) => { x: number; z: number },
+    jitterRadius: number,
+    scaleRange: [number, number],
+    heightFn: (x: number, z: number) => number,
+    clearFn?: (x: number, z: number) => boolean,
+  ): CoastRockSpot[] => {
+    const spots: CoastRockSpot[] = [];
+    for (let i = 0; i < slotCount; i++) {
+      if (rand() < gapChance) continue;
+      const center = posAt(i);
+      const n = 1 + Math.floor(rand() * 4); // 1-4 taş / küme
+      for (let k = 0; k < n; k++) {
+        const x = center.x + (rand() - 0.5) * jitterRadius * 2;
+        const z = center.z + (rand() - 0.5) * jitterRadius * 2;
+        if (clearFn && !clearFn(x, z)) continue;
+        const s = scaleRange[0] + rand() * (scaleRange[1] - scaleRange[0]);
+        spots.push({
+          x,
+          y: heightFn(x, z),
+          z,
+          sx: s * (0.85 + rand() * 0.3),
+          sy: s * (0.8 + rand() * 0.3),
+          sz: s * (0.85 + rand() * 0.3),
+          rotY: rand() * Math.PI * 2,
+        });
+      }
+    }
+    return spots;
+  };
+
   // ASSET-121 denemesi (fotogrametri sahil kaya taraması) GERİ ALINDI —
   // kaynağın kendi verisinde düzeltilemez bir kusur bulundu: kayalar
   // sahada sıkışık bir YIĞIN olarak taranmış, birbirlerini kapatıyorlar
@@ -721,30 +809,20 @@ export function buildCyclopsCave(): CyclopsCave {
   ridge.castShadow = true;
   group.add(ridge);
   {
-    // Kayalardan oluşan sahil — sırtın üstüne/etrafına LOT-28 kaya kiti
-    // (zaten var, ekstra kredi yok), 1D bir sırt yerine gerçekten
-    // "kayalık" okunsun diye.
+    // ASSET-122 — kıyı sırtı artık ASSET-119'un düz-serpme kalıbı yerine
+    // `buildCoastClusters`: 16 slot boyunca (x=-19.5..19.5), ~%40'ı boş
+    // (açık kum), doluysa 1-4 taşlık doğal bir küme.
     const shoreRockRand = mulberry32(20260830);
-    type ShoreSpot = { x: number; y: number; z: number; sx: number; sy: number; sz: number; rotY: number };
-    const shoreBoulders: ShoreSpot[] = [];
-    const shorePebbles: ShoreSpot[] = [];
-    for (let i = 0; i < 22; i++) {
-      const x = (shoreRockRand() * 2 - 1) * 19.5;
-      const z = -52 + shoreRockRand() * 4.5;
-      const s = 0.5 + shoreRockRand() * 1.1;
-      const spot: ShoreSpot = {
-        x,
-        y: ridgeHeightAt(x, z) - s * 0.15,
-        z,
-        sx: s * (0.85 + shoreRockRand() * 0.4),
-        sy: s * (0.6 + shoreRockRand() * 0.4),
-        sz: s * (0.85 + shoreRockRand() * 0.4),
-        rotY: shoreRockRand() * Math.PI * 2,
-      };
-      (i % 3 === 0 ? shorePebbles : shoreBoulders).push(spot);
-    }
-    scatterRockKit(group, shoreBoulders, shoreRockRand);
-    scatterRockKit(group, shorePebbles, shoreRockRand);
+    const shoreSpots = buildCoastClusters(
+      shoreRockRand,
+      16,
+      0.4,
+      (i) => ({ x: -19.5 + (i / 15) * 39, z: -49.7 }),
+      2.7,
+      [0.45, 1.15],
+      (x, z) => ridgeHeightAt(x, z) - 0.12,
+    );
+    scatterCoastRockKit(group, shoreSpots, shoreRockRand);
   }
 
   const SAND_Z_MAX = -44; // kıyı şeridi: D -50..-44
@@ -993,31 +1071,28 @@ export function buildCyclopsCave(): CyclopsCave {
     // kümesinden belirgin daha iri) bir kaya dizisi — her kaya kendi z
     // konumunda rastgele ileri/geri kaydırılıyor (`jitter`), sınırı fiziksel
     // olarak girintili/çıkıntılı yapıyor.
-    const coastRock: KitSpot[] = [];
-    {
-      let placed = 0;
-      let guard = 0;
-      while (placed < 26 && guard < 26 * 20) {
-        guard++;
-        const side = placed % 2 === 0 ? 1 : -1;
-        const x = side * (20 + rand() * 85);
-        const jitter = (rand() - 0.5) * 7; // ileri/geri, düz çizgiyi kırıyor
-        const z = SAND_Z_MAX + jitter;
-        if (!coveDressingClear(x, z)) continue;
-        const s = 1.1 + rand() * 1.6; // "büyük kayalar" — outerRock'tan (0.45-1.35) belirgin daha iri
-        coastRock.push({
-          x,
-          y: groundHeightAt(x, z),
-          z,
-          sx: s * (0.86 + rand() * 0.3),
-          sy: s * (0.75 + rand() * 0.3),
-          sz: s * (0.86 + rand() * 0.3),
-          rotY: rand() * Math.PI * 2,
-        });
-        placed++;
-      }
+    // ASSET-122 — genişletilmiş ada sınırındaki "büyük kayalar" da artık
+    // aynı prosedürel kit'ten (ASSET-119 değil), küme+boşluk düzeniyle —
+    // sahip: "uçtan uca adamızı kaplayabilsin ama kum hissi önemli." Her
+    // tarafta 10 slot, ~%40'ı boş, doluysa 1-4 taşlık küme (nadiren kit'in
+    // en büyük 4 parçasından biri — "büyük mahmuz" aksanı).
+    const coastRockRand = mulberry32(20260907);
+    const outerCoastSpots: CoastRockSpot[] = [];
+    for (const side of [1, -1] as const) {
+      outerCoastSpots.push(
+        ...buildCoastClusters(
+          coastRockRand,
+          10,
+          0.4,
+          (i) => ({ x: side * (20 + (i / 9) * 85), z: SAND_Z_MAX }),
+          4.5,
+          [0.7, 2.0],
+          (x, z) => groundHeightAt(x, z),
+          coveDressingClear,
+        ),
+      );
     }
-    scatterRockKit(group, coastRock, rand);
+    scatterCoastRockKit(group, outerCoastSpots, coastRockRand);
 
     // Sahip (27 Ağu, onuncu geri bildirim): "neden Lotus adasındaki çimler
     // burda kullanılmıyor? hâlâ yerler düz yeşil." Doğru tespit — o zamana
