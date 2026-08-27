@@ -413,12 +413,17 @@ export function buildCyclopsCave(): CyclopsCave {
   group.add(buildDistantHills(mulberry32(20260831)));
 
   // Sahip'in az önce indirdiği ambientCG "Terrain003" (CC0, gerçek
-  // heykellenmiş arazi meshi, 2047 üçgen) — deniz ufkunda, halkanın hemen
-  // önünde tek, daha detaylı bir dağ silueti olarak. `scripts/blender/
-  // convert_terrain003_ambientcg.py` ile dönüştürüldü: MTL'nin bozuk Windows
-  // yolu yüzünden doku elle yeniden bağlandı, yalnız albedo tutuldu
-  // (normal/roughness/AO/metallic bir sis-siluetine hiç katkı yapmaz),
-  // 1024px'e küçültüldü, taban y=0'a oturtulup 480 m genişliğe ölçeklendi.
+  // heykellenmiş arazi meshi, 2047 üçgen) — mağaranın ARKASINDA (D>0,
+  // mağara içinin de ötesinde), halkanın hemen içinde tek, daha detaylı bir
+  // dağ silueti olarak. **Düzeltme (27 Ağu, sahip):** "yanlış yere
+  // koymuşsun mağaranın arkasına koyacaktın" — ilk denemede D=-150'ye
+  // (denize doğru, kovun önü) koymuştum; mağara D=0 eşiğinden D>0'a doğru
+  // kazılıyor (en derin oda "pens" D≈65'e kadar), "arkası" oraya göre daha
+  // da +Z, D≈+150. `scripts/blender/convert_terrain003_ambientcg.py` ile
+  // dönüştürüldü: MTL'nin bozuk Windows yolu yüzünden doku elle yeniden
+  // bağlandı, yalnız albedo tutuldu (normal/roughness/AO/metallic bir
+  // sis-siluetine hiç katkı yapmaz), 1024px'e küçültüldü, taban y=0'a
+  // oturtulup 480 m genişliğe ölçeklendi.
   loadGltfBundle("assets/models/terrain_backdrop_01_mesh_2000.glb").then((bundle) => {
     const scene = bundle.scene;
     scene.traverse((obj) => {
@@ -427,7 +432,7 @@ export function buildCyclopsCave(): CyclopsCave {
         obj.receiveShadow = false;
       }
     });
-    scene.position.set(0, 0, -150);
+    scene.position.set(0, 0, 150);
     group.add(scene);
   });
 
