@@ -1087,6 +1087,20 @@ export function buildCyclopsCave(): CyclopsCave {
           // gibi okunuyor.
           obj.material = new THREE.MeshBasicMaterial({ color: 0xffcf80 });
         }
+        if (matName === "Cave") {
+          // Sahip (27 Ağu): "mağaranın yanları filan çok kötü görünüyor" —
+          // modelin kendi "Cave" gövdesi zaten belgelenmiş bir sınırlamaydı
+          // (ASSET-115 notu: yalnız ön/90° açı gerçek oyma kemer gösteriyor,
+          // diğer açılar "düz kaya"), ama şimdi arkaya eklenen dağ
+          // (ASSET-117) ve daha az ağaç örtüsüyle daha da çıplak/düz-gri bir
+          // levha gibi göze batıyordu. Sketchfab'ın kendi düz/detaysız
+          // malzemesi yerine Cyclops'un KENDİ mağara kaya dokusu
+          // (`rockMat`, aşağıdaki niş/kaya proplarıyla aynı, gerçek
+          // dokulu) verildi — en azından gerçek kaya detayı var, düz renk
+          // değil; sahibin istediği "arka dağla uyumlu kaplama" fikrine de
+          // (aşağıdaki kaya kümesi eki) bir adım daha yaklaştırıyor.
+          obj.material = rockMat.clone();
+        }
         obj.receiveShadow = true;
         obj.castShadow = true;
         obj.frustumCulled = false;
@@ -1121,6 +1135,35 @@ export function buildCyclopsCave(): CyclopsCave {
       scene.position.y -= fitted.min.y;
       cliffGroup.add(scene);
       cliffLoadedFlag = true;
+
+      // Sahip (27 Ağu): "mağaranın yanları filan çok kötü görünüyor, belki
+      // arka tarafa koyduğumuz dağ ile uyumlu bir şekilde kaplayıp o
+      // görüntünün içine gömeriz mağarayı." "Cave" malzemesinin dokusu
+      // yukarıda `rockMat`'e çevrildi (düz renk yerine gerçek kaya
+      // dokusu) ama geometrisi hâlâ kaba/düz kalıyordu — bu, LOT-28 kaya
+      // kiti kümesi geometrik olarak "gömüyor": kapının iki yanına, 10 m
+      // genişliğinin hemen dışına, gerçek bir kaya yığınının kapıyı
+      // doğal olarak sardığı izlenimini vermek için.
+      const gateRockRand = mulberry32(20260901);
+      type FlankSpot = { x: number; y: number; z: number; sx: number; sy: number; sz: number; rotY: number };
+      const flankBoulders: FlankSpot[] = [];
+      for (let side = -1; side <= 1; side += 2) {
+        for (let i = 0; i < 5; i++) {
+          const s = 0.9 + gateRockRand() * 1.4;
+          const x = side * (5.5 + gateRockRand() * 3.5);
+          const z = -1 + gateRockRand() * 4;
+          flankBoulders.push({
+            x,
+            y: -s * 0.25,
+            z,
+            sx: s * (0.85 + gateRockRand() * 0.4),
+            sy: s * (0.7 + gateRockRand() * 0.35),
+            sz: s * (0.85 + gateRockRand() * 0.4),
+            rotY: gateRockRand() * Math.PI * 2,
+          });
+        }
+      }
+      void placeKit(cliffGroup, ISLAND_KIT.boulder, flankBoulders);
     });
   } else {
     const cliffMat = new THREE.MeshStandardMaterial({ color: 0xe6e2d4, roughness: 0.95 });
