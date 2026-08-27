@@ -5,7 +5,7 @@ import { loadGltfBundle } from "./gltf";
 import { mulberry32 } from "./rng";
 import { ISLAND_KIT, placeKit } from "./islandKit";
 import { plantHero, paintHero } from "./ship";
-import { SHIP } from "../constants";
+import { SHIP, PALETTE } from "../constants";
 
 /**
  * Cyclops Cave (2nd stop) — primitive, code-only geometry + world content.
@@ -47,7 +47,7 @@ interface RoomSpan {
 // level-cyclops-cave.md §1.2 table, exact D/X/Y. Ceiling taper (mouth 6->4)
 // simplified to a flat value for the primitive pass.
 const ROOMS: RoomSpan[] = [
-  { id: "cove", dMin: -20, dMax: -8, halfWidth: Infinity, ceilingY: Infinity, color: 0x2a3a4a },
+  { id: "cove", dMin: -30, dMax: -8, halfWidth: Infinity, ceilingY: Infinity, color: 0x2a3a4a },
   { id: "path", dMin: -8, dMax: 0, halfWidth: 3, ceilingY: 12, color: 0x3a4a5a },
   { id: "mouth", dMin: 0, dMax: 8, halfWidth: 5, ceilingY: 5, color: 0x9a9488 },
   { id: "depot", dMin: 8, dMax: 22, halfWidth: 6, ceilingY: 4, color: 0x6b6a62 },
@@ -413,24 +413,31 @@ export function buildCyclopsCave(): CyclopsCave {
   // okunuyordu, referans görselin "deniz bir yanda, kayalık+mağara öbür
   // yanda, patika çapraz yükseliyor" hissi hiç çıkmıyordu. Patikayı (yalnız
   // GÖRSEL şerit — mekanik `corridorHalfWidthAt` kelepçesi D=-8..0'da hâlâ
-  // dosdoğru |x|<3, dokunulmadı) tek bir yay ile büküyor: spawn'da (D≈-18)
+  // dosdoğru |x|<3, dokunulmadı) tek bir yay ile büküyor: spawn'da (D≈-26)
   // ve koridor başlangıcında (D=-8) x=0'a oturuyor (ikisi de sabit oyuncu
-  // konumları — bükülme onları kaçırmasın diye), aradaki açık koyda (D
-  // -19..-8) bir sinüs yayıyla yana savruluyor. Ağaç/kaya dekoru da AYNI
-  // eğriyi (`pathCenterX`) kullanıyor, patikanın üstüne ekilmesinler diye.
+  // konumları — bükülme onları kaçırmasın diye), aradaki açık koyda bir
+  // sinüs yayıyla yana savruluyor. Ağaç/kaya dekoru da AYNI eğriyi
+  // (`pathCenterX`) kullanıyor, patikanın üstüne ekilmesinler diye.
+  //
+  // Sahip (27 Ağu, altıncı geri bildirim): "denizden mağara arası biraz
+  // daha uzun olsun (yürüme yolu uzasın)" — kıyı D=-20'den D=-30'a çekildi
+  // (~%50 daha uzun yürüyüş), mağara ağzı D=0 sabit kaldı (odalar/kapılar
+  // D>=0'da, bu değişiklikten hiç etkilenmiyor). `player.position.z` clamp'i
+  // ve spawn/gemi konumları `cyclopsStop.ts`'te bu yeni uzunluğa göre
+  // güncellendi (bkz. o dosyadaki not).
   const pathCenterX = (z: number): number => {
-    if (z <= -19 || z >= -8) return 0;
-    const t = (z + 19) / 11; // 0 @ z=-19, 1 @ z=-8
-    return -3.6 * Math.sin(Math.PI * t);
+    if (z <= -28 || z >= -8) return 0;
+    const t = (z + 28) / 20; // 0 @ z=-28, 1 @ z=-8
+    return -4.5 * Math.sin(Math.PI * t);
   };
 
-  const SAND_Z_MAX = -15; // kıyı şeridi: D -20..-15
-  const sandGeo = makeGroundGeo(40, -20, SAND_Z_MAX, 10);
+  const SAND_Z_MAX = -24; // kıyı şeridi: D -30..-24
+  const sandGeo = makeGroundGeo(40, -30, SAND_Z_MAX, 12);
   const sandTex = loadAlbedoTexture(assetUrl("assets/textures/sand_coastal_01_albedo_512.webp")).clone();
   sandTex.needsUpdate = true;
   sandTex.wrapS = THREE.RepeatWrapping;
   sandTex.wrapT = THREE.RepeatWrapping;
-  sandTex.repeat.set(8, 2);
+  sandTex.repeat.set(8, 2.4);
   const sand = new THREE.Mesh(
     sandGeo,
     new THREE.MeshStandardMaterial({ color: 0xd8c090, roughness: 1, map: sandTex }),
@@ -438,26 +445,55 @@ export function buildCyclopsCave(): CyclopsCave {
   sand.receiveShadow = true;
   group.add(sand);
 
-  const grassGeo = makeGroundGeo(40, SAND_Z_MAX, 0, 32);
+  // Sahip (27 Ağu, altıncı geri bildirim): "yerler hâlâ bizim Lotus
+  // adasındaki gibi çimen değil" — doku dosyası zaten Lotus'un ta kendi
+  // `flora_drygrass_01`'iydi ama malzeme rengi (`0xcbb96a`, sıcak altın/kum
+  // tonu) onu çimden çok kuma yakın gösteriyordu. Lotus'un terrain.ts'i
+  // `PALETTE.grass{,Dry,Deep}` (gerçek yeşilimsi zeytin tonları, `constants.ts`)
+  // ile bir `vTint` vertex-rengi çarpıyor — burada aynı üç tonun basit bir
+  // vertex-color karışımı eklendi (Lotus'un tam `onBeforeCompile` shader'ı
+  // değil, sadece `vertexColors:true` + üç ton arası deterministik bir
+  // gürültü), düz tek-renk dokunun "boyalı plastik" hissini kırıyor.
+  const grassGeo = makeGroundGeo(40, SAND_Z_MAX, 0, 40);
+  {
+    const cDry = new THREE.Color(PALETTE.grassDry);
+    const cMid = new THREE.Color(PALETTE.grass);
+    const cDeep = new THREE.Color(PALETTE.grassDeep);
+    const pos = grassGeo.attributes.position;
+    const col = new Float32Array(pos.count * 3);
+    const tmp = new THREE.Color();
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i);
+      const z = pos.getZ(i);
+      const n =
+        0.5 +
+        0.5 * (Math.sin(x * 0.6 + z * 0.37) * 0.6 + Math.sin(x * 1.3 - z * 0.9 + 1.7) * 0.4);
+      tmp.copy(n < 0.5 ? cDry : cMid).lerp(n < 0.5 ? cMid : cDeep, (n < 0.5 ? n : n - 0.5) * 2);
+      col[i * 3] = tmp.r;
+      col[i * 3 + 1] = tmp.g;
+      col[i * 3 + 2] = tmp.b;
+    }
+    grassGeo.setAttribute("color", new THREE.BufferAttribute(col, 3));
+  }
   const grassTex = loadAlbedoTexture(assetUrl("assets/textures/flora_drygrass_01_albedo_1024.webp")).clone();
   grassTex.needsUpdate = true;
   grassTex.wrapS = THREE.RepeatWrapping;
   grassTex.wrapT = THREE.RepeatWrapping;
-  grassTex.repeat.set(13, 5);
+  grassTex.repeat.set(13, 8);
   const grass = new THREE.Mesh(
     grassGeo,
-    new THREE.MeshStandardMaterial({ color: 0xcbb96a, roughness: 1, map: grassTex }),
+    new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, map: grassTex }),
   );
   grass.receiveShadow = true;
   group.add(grass);
 
   const PATH_HALF_W = 2.2; // COVE_CLEAR_HALF_X (4.5) içinde kalır — kenarda çim payı
-  const pathGeo = makeGroundGeo(PATH_HALF_W * 2, -19, 0, 40, 0.015, pathCenterX);
+  const pathGeo = makeGroundGeo(PATH_HALF_W * 2, -28, 0, 56, 0.015, pathCenterX);
   const pathTex = loadAlbedoTexture(assetUrl("assets/textures/rock_chalk_01_albedo_1024.webp")).clone();
   pathTex.needsUpdate = true;
   pathTex.wrapS = THREE.RepeatWrapping;
   pathTex.wrapT = THREE.RepeatWrapping;
-  pathTex.repeat.set(PATH_HALF_W * 2 * 0.45, 19 * 0.45);
+  pathTex.repeat.set(PATH_HALF_W * 2 * 0.45, 28 * 0.45);
   const path = new THREE.Mesh(
     pathGeo,
     new THREE.MeshStandardMaterial({ color: 0xc9c2af, roughness: 0.95, map: pathTex }),
@@ -468,16 +504,18 @@ export function buildCyclopsCave(): CyclopsCave {
   // Cove exterior dressing (27 Ağu 2026, sahip): "mağaranın dışarısı bizim
   // ilk oyundaki ada gibi olsun — belli patika mağaraya giden, gerçek
   // ağaçlar/yeşillik, taşlar, gemimiz." Önce sadece düz kum vardı — kova/
-  // patika bandı (D -20..0) hiç giydirilmemişti. Lotus'un kendi LOT-28 ada
-  // kiti (`islandKit.ts`, `placeKit`) sıfır yeni asset üretimiyle doğrudan
+  // patika bandı hiç giydirilmemişti. Lotus'un kendi LOT-28 ada kiti
+  // (`islandKit.ts`, `placeKit`) sıfır yeni asset üretimiyle doğrudan
   // yeniden kullanıldı — aynı Ege palet/silüeti, ekstra kredi yok. Patika
   // görsel olarak zaten mekanik bir gerçek: `corridorHalfWidthAt` D=-8..0'da
   // oyuncuyu |x|<3'e kelepçeliyor (LOT-53'ün "belli belirsiz patika" ruhu) —
   // dekor bu koridoru sadece GÖRÜNÜR kılıyor, ağaçları/kayaları ondan uzak
-  // tutarak. Oyuncu spawn'ı (0,0,-18) ve gemi çevresi de temiz tutuluyor.
+  // tutarak. Oyuncu spawn'ı ve gemi çevresi de temiz tutuluyor (konumlar
+  // `cyclopsStop.ts`'in yeni spawn'ıyla eşleşecek şekilde altıncı geri
+  // bildirim turunda güncellendi).
   const COVE_CLEAR_HALF_X = 4.5; // corridorHalfWidthAt(path) 3 + tampon
-  const COVE_SPAWN_CLEAR = { x: 0, z: -18, r: 3.5 };
-  const COVE_SHIP_CLEAR = { x: 11, z: -15, r: 9 };
+  const COVE_SPAWN_CLEAR = { x: 0, z: -26, r: 3.5 };
+  const COVE_SHIP_CLEAR = { x: 11, z: -27, r: 9 };
   function coveDressingClear(x: number, z: number): boolean {
     if (Math.abs(x - pathCenterX(z)) < COVE_CLEAR_HALF_X) return false;
     if (Math.hypot(x - COVE_SPAWN_CLEAR.x, z - COVE_SPAWN_CLEAR.z) < COVE_SPAWN_CLEAR.r) return false;
@@ -520,15 +558,17 @@ export function buildCyclopsCave(): CyclopsCave {
         placed++;
       }
     };
-    scatter(cypress, 6, -20, -1, 0.85, 0.55);
-    scatter(olive, 5, -19, -1, 0.9, 0.5);
-    // zMin -19 (not -20, the sand plane's own far edge) — a reed cluster
+    // Sayılar/aralıklar altıncı geri bildirim turunda (koy %50 uzadı)
+    // orantılı büyütüldü — aynı yoğunluk, daha uzun bir alana yayılıyor.
+    scatter(cypress, 8, -29, -1, 0.85, 0.55);
+    scatter(olive, 7, -28, -1, 0.9, 0.5);
+    // zMin -29 (not -30, the sand plane's own far edge) — a reed cluster
     // right at that seam read as floating over the sea from a low, close
     // camera angle (sahip'in referans görsel geri bildirimi turunda
     // bulundu).
-    scatter(reed, 8, -19, -14, 0.7, 0.5);
-    scatter(boulder, 5, -20, -0.5, 0.5, 0.5);
-    scatter(pebble, 10, -20, -0.5, 0.35, 0.35);
+    scatter(reed, 10, -29, -22, 0.7, 0.5);
+    scatter(boulder, 7, -29, -0.5, 0.5, 0.5);
+    scatter(pebble, 14, -29, -0.5, 0.35, 0.35);
     void placeKit(group, ISLAND_KIT.cypress, cypress);
     void placeKit(group, ISLAND_KIT.olive, olive);
     void placeKit(group, ISLAND_KIT.reed, reed, 0.08);
@@ -845,12 +885,28 @@ export function buildCyclopsCave(): CyclopsCave {
   // Sketchfab). Rig yok (düz statik mesh), tek
   // `.clone(true)` her kopya için güvenli — Polyphemos'un aksine
   // SkeletonUtils'e gerek yok.
+  // Altıncı geri bildirim (27 Ağu, sahip): "taş patikada etrafta yayılmış
+  // koyunlar vs yok" — önceki 4 sabit nokta sabit x değerleriyle
+  // konumlanmıştı, koy bu turda uzayıp patika `pathCenterX` ile eğrilince
+  // ikisi arasındaki ilişki eskimişti. Artık patikanın KENDİ eğrisine göre
+  // (`pathCenterX(z) + yan mesafe`) konumlanıyor — hangi D'de olurlarsa
+  // olsunlar patikanın hemen kenarındaki çimde duruyorlar, üstünde değil —
+  // ve yeni, daha uzun koy boyunca (D -27..-4) 6 yerine 8 koyuna çıkarıldı.
   const SHEEP_SPOTS: { x: number; z: number; rotY: number; scale: number }[] = [
-    { x: -3.2, z: -16, rotY: 0.4, scale: 1.05 },
-    { x: 4.1, z: -13.5, rotY: -1.1, scale: 0.92 },
-    { x: -2.4, z: -9.5, rotY: 2.3, scale: 1.0 },
-    { x: 2.1, z: -3.2, rotY: -0.6, scale: 0.97 },
-  ];
+    { z: -25, side: 1, rotY: 0.4, scale: 1.05 },
+    { z: -22, side: -1, rotY: -1.1, scale: 0.92 },
+    { z: -19, side: 1, rotY: 2.3, scale: 1.0 },
+    { z: -16, side: -1, rotY: 1.6, scale: 0.95 },
+    { z: -13, side: 1, rotY: -0.9, scale: 0.9 },
+    { z: -10, side: -1, rotY: 2.8, scale: 1.02 },
+    { z: -7, side: 1, rotY: -0.3, scale: 0.96 },
+    { z: -4, side: -1, rotY: 1.1, scale: 1.0 },
+  ].map((s) => ({
+    x: pathCenterX(s.z) + s.side * (PATH_HALF_W + 1.3),
+    z: s.z,
+    rotY: s.rotY,
+    scale: s.scale,
+  }));
   let sheepLoadedFlag = false;
   loadGltfBundle("assets/models/creature_sheep_01_stand_3100.glb").then((bundle) => {
     for (const spot of SHEEP_SPOTS) {

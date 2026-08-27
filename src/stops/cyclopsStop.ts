@@ -332,11 +332,14 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
   // mid/deep lapis further out". Lotus'un zaten var olan Gerstner deniz
   // sistemi (`buildSea()`, tam bağımsız fonksiyon, Lotus-özel global
   // duruma bağlı değil) yeniden kullanıldı — yeni bir su shader'ı
-  // yazılmadı. Koy D=-20..-8 aralığında (bkz. ROOMS); deniz D=-26'ya
-  // (kıyı çizgisi kabaca kum/su geçişine denk gelsin diye) taşındı, oradan
-  // öteye (daha negatif D'ye, oyuncunun hiç erişemeyeceği açık denize)
-  // uzanıyor — `player.position.z` zaten -19'da clamp'leniyor, bu yüzden
-  // deniz yalnızca bir arka plan, hiç yürünebilir alan değil.
+  // yazılmadı. Koy D=-30..-8 aralığında (bkz. ROOMS, altıncı geri bildirim
+  // turunda -20'den -30'a uzatıldı — "denizden mağara arası biraz daha
+  // uzun olsun"); deniz D=-36'ya (kıyı şeridinin kendi yakın kenarı D=-30'un
+  // ~6 m ötesi — kıyı çizgisi kabaca kum/su geçişine denk gelsin diye, eski
+  // -20/-26 ilişkisiyle aynı oran) taşındı, oradan öteye (daha negatif
+  // D'ye, oyuncunun hiç erişemeyeceği açık denize) uzanıyor —
+  // `player.position.z` zaten -29'da clamp'leniyor, bu yüzden deniz
+  // yalnızca bir arka plan, hiç yürünebilir alan değil.
   // includeLagoon: false — Lotus'un durgun gölet+nilüfer diski Lotus'un
   // kendi LAGOON.center sabitine (yerel orijine yakın) konumlanıyor; sea
   // grubu buraya -26 kaydırılınca o gölet Cyclops'un koyunun tam ortasında,
@@ -355,7 +358,7 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
   // false/aktif kalıyor, delik tamamen kapanıyor — Lotus/workbench'in
   // varsayılanı (`ISLAND.radius`) değişmedi.
   const sea = buildSea({ includeLagoon: false, islandRadius: 0, shoreBlend: false });
-  sea.group.position.z = -26;
+  sea.group.position.z = -36;
   scene.add(sea.group);
 
   // Bulundu (sahip playtest'i, 25 Ağu): sahne neredeyse hiç görünmüyordu —
@@ -395,7 +398,7 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
   // Rig'in kendi orijini AYAKLARDA (fitGltfHeight), eski kapsülün MERKEZİ
   // değil — bu yüzden y artık 0 (bkz. aşağıdaki iki `player.position.set`).
   const player = new THREE.Group();
-  player.position.set(0, 0, -18);
+  player.position.set(0, 0, -26); // altıncı geri bildirim: koy uzadı, spawn D=-18'den D=-26'ya taşındı
   scene.add(player);
   playerLight.position.copy(player.position);
   playerLight.position.y += 1.4;
@@ -724,7 +727,7 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     cave.setInnerGateOpen(false);
     ambient.intensity = 1.1;
     hemi.intensity = 0.7;
-    player.position.set(0, 0, -18);
+    player.position.set(0, 0, -26); // altıncı geri bildirim: koy uzadı, spawn D=-18'den D=-26'ya taşındı
     playerFacing = 0;
     // Bulundu (kendi testimde, 26 Ağu): rig.snap yalnız kurulumda çağrılıyordu
     // — resetRun() sonrası kamera KAYBETTIN anındaki (mağara içi) konumundan
@@ -1051,7 +1054,7 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     if (Number.isFinite(hw)) {
       player.position.x = Math.max(-hw + PLAYER_RADIUS, Math.min(hw - PLAYER_RADIUS, player.position.x));
     }
-    player.position.z = Math.max(-19, Math.min(64.5, player.position.z));
+    player.position.z = Math.max(-29, Math.min(64.5, player.position.z)); // koy D=-30'a uzadı, -19→-29
     player.position.y = heightAt(player.position.z); // koy/patika yokuşu
 
     // ------------------------------------------------------- player rig
