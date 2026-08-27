@@ -367,7 +367,7 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
   // discard'ı ekledi (sea.ts) — deniz artık D=-1'in ötesinde hiç render
   // edilmiyor, eşiğe ya da içeriye asla sızamaz.
   const sea = buildSea({ includeLagoon: false, islandRadius: 0, shoreBlend: false, clipZMax: -1 });
-  sea.group.position.z = -46;
+  sea.group.position.z = -56;
   scene.add(sea.group);
 
   // Bulundu (sahip playtest'i, 25 Ağu): sahne neredeyse hiç görünmüyordu —
@@ -407,7 +407,7 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
   // Rig'in kendi orijini AYAKLARDA (fitGltfHeight), eski kapsülün MERKEZİ
   // değil — bu yüzden y artık 0 (bkz. aşağıdaki iki `player.position.set`).
   const player = new THREE.Group();
-  player.position.set(0, 0, -36); // altıncı+onikinci geri bildirim: koy iki kez uzadı, spawn D=-18→-26→-36
+  player.position.set(0, 0, -46); // koy üç kez uzadı, spawn D=-18→-26→-36→-46
   scene.add(player);
   playerLight.position.copy(player.position);
   playerLight.position.y += 1.4;
@@ -736,7 +736,7 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     cave.setInnerGateOpen(false);
     ambient.intensity = 1.1;
     hemi.intensity = 0.7;
-    player.position.set(0, 0, -36); // altıncı+onikinci geri bildirim: koy iki kez uzadı, spawn D=-18→-26→-36
+    player.position.set(0, 0, -46); // koy üç kez uzadı, spawn D=-18→-26→-36→-46
     playerFacing = 0;
     // Bulundu (kendi testimde, 26 Ağu): rig.snap yalnız kurulumda çağrılıyordu
     // — resetRun() sonrası kamera KAYBETTIN anındaki (mağara içi) konumundan
@@ -1063,7 +1063,7 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     if (Number.isFinite(hw)) {
       player.position.x = Math.max(-hw + PLAYER_RADIUS, Math.min(hw - PLAYER_RADIUS, player.position.x));
     }
-    player.position.z = Math.max(-39, Math.min(64.5, player.position.z)); // koy D=-40'a uzadı, -19→-29→-39
+    player.position.z = Math.max(-49, Math.min(64.5, player.position.z)); // koy D=-50'ye uzadı, -19→-29→-39→-49
     player.position.y = heightAt(player.position.z); // koy/patika yokuşu
 
     // ------------------------------------------------------- player rig

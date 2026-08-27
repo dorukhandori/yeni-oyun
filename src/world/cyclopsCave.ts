@@ -47,7 +47,7 @@ interface RoomSpan {
 // level-cyclops-cave.md §1.2 table, exact D/X/Y. Ceiling taper (mouth 6->4)
 // simplified to a flat value for the primitive pass.
 const ROOMS: RoomSpan[] = [
-  { id: "cove", dMin: -40, dMax: -8, halfWidth: Infinity, ceilingY: Infinity, color: 0x2a3a4a },
+  { id: "cove", dMin: -50, dMax: -8, halfWidth: Infinity, ceilingY: Infinity, color: 0x2a3a4a },
   { id: "path", dMin: -8, dMax: 0, halfWidth: 3, ceilingY: 12, color: 0x3a4a5a },
   { id: "mouth", dMin: 0, dMax: 8, halfWidth: 5, ceilingY: 5, color: 0x9a9488 },
   { id: "depot", dMin: 8, dMax: 22, halfWidth: 6, ceilingY: 4, color: 0x6b6a62 },
@@ -428,13 +428,13 @@ export function buildCyclopsCave(): CyclopsCave {
   // `player.position.z` clamp'i ve spawn/gemi konumları `cyclopsStop.ts`'te
   // bu yeni uzunluğa göre güncellendi (bkz. o dosyadaki not).
   const pathCenterX = (z: number): number => {
-    if (z <= -38 || z >= -8) return 0;
-    const t = (z + 38) / 30; // 0 @ z=-38, 1 @ z=-8
+    if (z <= -48 || z >= -8) return 0;
+    const t = (z + 48) / 40; // 0 @ z=-48, 1 @ z=-8
     return -4.5 * Math.sin(Math.PI * t);
   };
 
-  const SAND_Z_MAX = -34; // kıyı şeridi: D -40..-34
-  const sandGeo = makeGroundGeo(40, -40, SAND_Z_MAX, 14);
+  const SAND_Z_MAX = -44; // kıyı şeridi: D -50..-44
+  const sandGeo = makeGroundGeo(40, -50, SAND_Z_MAX, 16);
   const sandTex = loadAlbedoTexture(assetUrl("assets/textures/sand_coastal_01_albedo_512.webp")).clone();
   sandTex.needsUpdate = true;
   sandTex.wrapS = THREE.RepeatWrapping;
@@ -456,11 +456,24 @@ export function buildCyclopsCave(): CyclopsCave {
   // vertex-color karışımı eklendi (Lotus'un tam `onBeforeCompile` shader'ı
   // değil, sadece `vertexColors:true` + üç ton arası deterministik bir
   // gürültü), düz tek-renk dokunun "boyalı plastik" hissini kırıyor.
+  //
+  // Sahip (27 Ağu, ondördüncü geri bildirim): "adanın çimen olan zemini
+  // ağaçlarla uyumlu olmamış" — ilk denemem (paketin kendi
+  // "plant-ground-green-01" dokusunu döşemek) yanlış çıktı: o doku tek bir
+  // bitki demeti FOTOĞRAFI, siyah arka planlı bir "kesim" sprite'ı (tek
+  // obje olarak yerleştirilmek için), döşenebilir bir zemin deseni değil —
+  // tekrarlanınca ekranda çirkin siyah lekeler bıraktı, geri alındı.
+  // Gerçek kök neden renkti: `PALETTE.grass*` (Lotus'un SICAK/PARLAK yaz
+  // çayırı) bu paketin gerçek yaprak dokularından ÖRNEKLENEN ortalama
+  // renklerden (tree-branches-mix ≈ #475A32, grass-01 ≈ #384427 — çok daha
+  // KOYU/SOĞUK bir orman-yeşili) belirgin şekilde farklıydı. Üç ton bu
+  // ölçülen renklere göre yeniden ayarlandı, aynı doku/vertex-tint tekniği
+  // kalıyor.
   const grassGeo = makeGroundGeo(40, SAND_Z_MAX, 0, 40);
   {
-    const cDry = new THREE.Color(PALETTE.grassDry);
-    const cMid = new THREE.Color(PALETTE.grass);
-    const cDeep = new THREE.Color(PALETTE.grassDeep);
+    const cDry = new THREE.Color(0x5a6a3a);
+    const cMid = new THREE.Color(0x475a32);
+    const cDeep = new THREE.Color(0x384427);
     const pos = grassGeo.attributes.position;
     const col = new Float32Array(pos.count * 3);
     const tmp = new THREE.Color();
@@ -490,12 +503,12 @@ export function buildCyclopsCave(): CyclopsCave {
   group.add(grass);
 
   const PATH_HALF_W = 2.2; // COVE_CLEAR_HALF_X (4.5) içinde kalır — kenarda çim payı
-  const pathGeo = makeGroundGeo(PATH_HALF_W * 2, -38, 0, 76, 0.015, pathCenterX);
+  const pathGeo = makeGroundGeo(PATH_HALF_W * 2, -48, 0, 96, 0.015, pathCenterX);
   const pathTex = loadAlbedoTexture(assetUrl("assets/textures/rock_chalk_01_albedo_1024.webp")).clone();
   pathTex.needsUpdate = true;
   pathTex.wrapS = THREE.RepeatWrapping;
   pathTex.wrapT = THREE.RepeatWrapping;
-  pathTex.repeat.set(PATH_HALF_W * 2 * 0.45, 38 * 0.45);
+  pathTex.repeat.set(PATH_HALF_W * 2 * 0.45, 48 * 0.45);
   const path = new THREE.Mesh(
     pathGeo,
     new THREE.MeshStandardMaterial({ color: 0xc9c2af, roughness: 0.95, map: pathTex }),
@@ -516,8 +529,8 @@ export function buildCyclopsCave(): CyclopsCave {
   // `cyclopsStop.ts`'in yeni spawn'ıyla eşleşecek şekilde altıncı geri
   // bildirim turunda güncellendi).
   const COVE_CLEAR_HALF_X = 4.5; // corridorHalfWidthAt(path) 3 + tampon
-  const COVE_SPAWN_CLEAR = { x: 0, z: -36, r: 3.5 };
-  const COVE_SHIP_CLEAR = { x: 11, z: -37, r: 9 };
+  const COVE_SPAWN_CLEAR = { x: 0, z: -46, r: 3.5 };
+  const COVE_SHIP_CLEAR = { x: 11, z: -47, r: 9 };
   function coveDressingClear(x: number, z: number): boolean {
     if (Math.abs(x - pathCenterX(z)) < COVE_CLEAR_HALF_X) return false;
     if (Math.hypot(x - COVE_SPAWN_CLEAR.x, z - COVE_SPAWN_CLEAR.z) < COVE_SPAWN_CLEAR.r) return false;
@@ -546,7 +559,11 @@ export function buildCyclopsCave(): CyclopsCave {
       let guard = 0;
       while (placed < count && guard < count * 20) {
         guard++;
-        const x = (rand() * 2 - 1) * 19;
+        // Onikinci geri bildirim (bkz. aşağıdaki `scatterPack`): saf
+        // rastgele X küçük sayılarda bir tarafa yığılabiliyor, sırayla
+        // sol/sağ üretiliyor.
+        const side = placed % 2 === 0 ? 1 : -1;
+        const x = side * (1 + rand() * 18);
         const z = zMin + rand() * (zMax - zMin);
         if (!coveDressingClear(x, z)) continue;
         const s = scaleMin + rand() * scaleRange;
@@ -574,9 +591,9 @@ export function buildCyclopsCave(): CyclopsCave {
     // right at that seam read as floating over the sea from a low, close
     // camera angle (sahip'in referans görsel geri bildirimi turunda
     // bulundu).
-    scatter(reed, 12, -39, -32, 0.7, 0.5);
-    scatter(boulder, 9, -39, -0.5, 0.5, 0.5);
-    scatter(pebble, 17, -39, -0.5, 0.35, 0.35);
+    scatter(reed, 14, -49, -42, 0.7, 0.5);
+    scatter(boulder, 11, -49, -0.5, 0.5, 0.5);
+    scatter(pebble, 20, -49, -0.5, 0.35, 0.35);
     void placeKit(group, ISLAND_KIT.reed, reed, 0.08).then((u) => {
       if (u) kitUpdaters.push(u.update);
     });
@@ -656,12 +673,18 @@ export function buildCyclopsCave(): CyclopsCave {
     const rand2 = mulberry32(20260828);
     type PackSpot = { name: string; x: number; z: number; scale: number; rotY: number };
     const packSpots: PackSpot[] = [];
+    // Sahip (27 Ağu, ondördüncü geri bildirim): "sağ taraftaki ağaç
+    // yoğunluğu az olmuş" — saf rastgele X (`(rand()*2-1)*19`) küçük
+    // sayılarda (7-11 tane) şansa bağlı olarak bir tarafa yığılabiliyordu.
+    // Artık her çağrı sayıyı iki yarıya bölüp SIRAYLA sol/sağ (x<0/x>0)
+    // üretiyor — hangi tohum çıkarsa çıksın iki taraf da garanti dengeli.
     const scatterPack = (name: string, count: number, zMin: number, zMax: number, scaleMin: number, scaleRange: number) => {
       let placed = 0;
       let guard = 0;
       while (placed < count && guard < count * 20) {
         guard++;
-        const x = (rand2() * 2 - 1) * 19;
+        const side = placed % 2 === 0 ? 1 : -1;
+        const x = side * (1 + rand2() * 18);
         const z = zMin + rand2() * (zMax - zMin);
         if (!coveDressingClear(x, z)) continue;
         packSpots.push({ name, x, z, scale: scaleMin + rand2() * scaleRange, rotY: rand2() * Math.PI * 2 });
@@ -669,17 +692,19 @@ export function buildCyclopsCave(): CyclopsCave {
       }
     };
     // Sayılar sahibin "diğer ağaçları kaldır" isteği sonrası (LOT-28
-    // selvi/zeytin çıkınca boşalan çeşitliliği telafi etmek için) artırıldı.
-    scatterPack("tree-stylized-04-green", 11, -38, -2, 0.9, 0.5);
-    scatterPack("tree-stylized-02-dry", 9, -38, -2, 0.7, 0.4);
-    scatterPack("tree-stylized-01", 7, -38, -2, 0.8, 0.4);
-    scatterPack("daisy-flower-diffuse-01", 8, -39, -0.5, 0.8, 0.4);
-    scatterPack("daisy-flower-diffuse-02", 8, -39, -0.5, 0.8, 0.4);
-    scatterPack("daisy-flower-diffuse-03", 8, -39, -0.5, 0.8, 0.4);
-    scatterPack("daffodil-flower-01", 7, -39, -0.5, 0.8, 0.4);
-    scatterPack("daffodil-flower-02", 7, -39, -0.5, 0.8, 0.4);
-    scatterPack("grass-bushes-01", 13, -39, -0.5, 0.7, 0.5);
-    scatterPack("grass-bushes-02", 13, -39, -0.5, 0.7, 0.5);
+    // selvi/zeytin çıkınca boşalan çeşitliliği telafi etmek için), sonra
+    // "sağ taraf az" geri bildirimiyle bir kez daha artırıldı; koy da
+    // -40'tan -50'ye uzadığı için aralıklar da genişletildi.
+    scatterPack("tree-stylized-04-green", 14, -48, -2, 0.9, 0.5);
+    scatterPack("tree-stylized-02-dry", 11, -48, -2, 0.7, 0.4);
+    scatterPack("tree-stylized-01", 9, -48, -2, 0.8, 0.4);
+    scatterPack("daisy-flower-diffuse-01", 9, -49, -0.5, 0.8, 0.4);
+    scatterPack("daisy-flower-diffuse-02", 9, -49, -0.5, 0.8, 0.4);
+    scatterPack("daisy-flower-diffuse-03", 9, -49, -0.5, 0.8, 0.4);
+    scatterPack("daffodil-flower-01", 8, -49, -0.5, 0.8, 0.4);
+    scatterPack("daffodil-flower-02", 8, -49, -0.5, 0.8, 0.4);
+    scatterPack("grass-bushes-01", 15, -49, -0.5, 0.7, 0.5);
+    scatterPack("grass-bushes-02", 15, -49, -0.5, 0.7, 0.5);
 
     loadGltfBundle("assets/models/flora_lowpoly_pack_01_mesh_2336.glb").then((bundle) => {
       // Sahip (27 Ağu, onikinci geri bildirim): "ağaçlar yatık, dik
@@ -733,6 +758,7 @@ export function buildCyclopsCave(): CyclopsCave {
         inst.rotation.y = spot.rotY;
         group.add(inst);
       }
+
     });
   }
 
@@ -1194,6 +1220,8 @@ export function buildCyclopsCave(): CyclopsCave {
   // olsunlar patikanın hemen kenarındaki çimde duruyorlar, üstünde değil —
   // ve yeni, daha uzun koy boyunca (D -27..-4) 6 yerine 8 koyuna çıkarıldı.
   const SHEEP_SPOTS: { x: number; z: number; rotY: number; scale: number }[] = [
+    { z: -45, side: 1, rotY: 1.2, scale: 1.0 },
+    { z: -41, side: -1, rotY: 0.2, scale: 0.94 },
     { z: -35, side: 1, rotY: 0.7, scale: 0.98 },
     { z: -31, side: -1, rotY: 1.9, scale: 1.03 },
     { z: -25, side: 1, rotY: 0.4, scale: 1.05 },
