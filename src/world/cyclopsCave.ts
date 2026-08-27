@@ -447,6 +447,41 @@ export function buildCyclopsCave(): CyclopsCave {
     });
   };
 
+  // ASSET-121 — sahip'in gönderdiği gerçek bir fotogrametri taraması (8
+  // farklı kıyı kayası, "beach_rocks_raw_scan.glb"): "bunu tüm sahil
+  // kıyısına giydir." `scripts/blender/convert_beach_rocks_scan.py` ile
+  // 123 MB'tan 4,15 MB'a indirildi (her kaya kendi alt-mesh'leriyle
+  // birleştirilip ~1800 üçgene decimate edildi, kendi benzersiz doku
+  // atlası 512px'e küçültüldü) — `scatterRockKit` ile AYNI desen,
+  // yalnız ayrı bir kit/promise (ASSET-119'a hiç dokunmuyor, o hâlâ genel
+  // kova dekoru için kullanılıyor).
+  const beachRockKitPieces: Promise<THREE.Mesh[]> = loadGltfBundle(
+    "assets/models/rock_beach_scan_kit_01_mesh_8pcs.glb",
+  ).then((bundle) => {
+    const pieces: THREE.Mesh[] = [];
+    bundle.scene.traverse((obj) => {
+      if (obj instanceof THREE.Mesh) pieces.push(obj);
+    });
+    return pieces;
+  });
+  const scatterBeachRockKit = (parent: THREE.Object3D, spots: RockSpot[], rand: () => number) => {
+    void beachRockKitPieces.then((pieces) => {
+      if (pieces.length === 0) return;
+      for (const spot of spots) {
+        const template = pieces[Math.floor(rand() * pieces.length)];
+        const piece = template.clone();
+        piece.material = template.material;
+        piece.scale.multiply(new THREE.Vector3(spot.sx, spot.sy, spot.sz));
+        piece.position.set(spot.x, spot.y, spot.z);
+        piece.rotation.y = spot.rotY;
+        piece.receiveShadow = true;
+        piece.castShadow = true;
+        piece.frustumCulled = false;
+        parent.add(piece);
+      }
+    });
+  };
+
   // Sahip (27 Ağu, on altıncı geri bildirim): "mağaranın ve adanın
   // arkasındaki sonsuzluk hissine çalışacağız" — 5 yeni Sketchfab linki
   // değerlendirildi, hiçbiri temiz kullanılabilir çıkmadı (2'si "Standard"
@@ -732,8 +767,11 @@ export function buildCyclopsCave(): CyclopsCave {
       };
       (i % 3 === 0 ? shorePebbles : shoreBoulders).push(spot);
     }
-    scatterRockKit(group, shoreBoulders, shoreRockRand);
-    scatterRockKit(group, shorePebbles, shoreRockRand);
+    // ASSET-121 — "tüm sahil kıyısına giydir": kıyı sırtındaki (shore
+    // ridge) kayalar artık ASSET-119'un stilize kitinden değil, sahip'in
+    // gönderdiği gerçek fotogrametri taramasından.
+    scatterBeachRockKit(group, shoreBoulders, shoreRockRand);
+    scatterBeachRockKit(group, shorePebbles, shoreRockRand);
   }
 
   const SAND_Z_MAX = -44; // kıyı şeridi: D -50..-44
@@ -1006,7 +1044,9 @@ export function buildCyclopsCave(): CyclopsCave {
         placed++;
       }
     }
-    scatterRockKit(group, coastRock, rand);
+    // ASSET-121 — genişletilmiş ada sınırındaki büyük kıyı kayaları da
+    // aynı gerçek tarama kitinden ("tüm sahil kıyısına giydir").
+    scatterBeachRockKit(group, coastRock, rand);
 
     // Sahip (27 Ağu, onuncu geri bildirim): "neden Lotus adasındaki çimler
     // burda kullanılmıyor? hâlâ yerler düz yeşil." Doğru tespit — o zamana
