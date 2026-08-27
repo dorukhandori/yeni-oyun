@@ -1160,6 +1160,55 @@ export function buildCyclopsCave(): CyclopsCave {
     });
   }
 
+  // Sahip (27 Ağu): "dışarıdan baktığımda yandan mağaranın içini
+  // görüyorum." Sahip onayladı — gerçek bir boşluk, sadece koyu doku
+  // değil. ASSET-115'in kendi "Cave" gövdesi GLB'den ölçülünce aslında
+  // yeterince büyük bir hacim (~9×8×8 m) ve her iki yüzü de render
+  // ediliyor (`doubleSided:true`, backface-culling sorunu değil) — ama
+  // Sketchfab'ın kendi organik/düzensiz heykel şekli, mağara ağzı
+  // odasının ("mouth", `halfWidth=5`, `ceilingY=5`) gerçek dikdörtgen
+  // kesitiyle her açıdan tam örtüşmüyor, bazı yan açılarda gerçek bir
+  // boşluktan tünelin karanlığı sızıyor.
+  //
+  // Önceki iki deneme (Sketchfab mesh'ine `rockMat` dokusu vermek —
+  // UV'si bozuk çıktı; Cave'i gizleyip LOT-28 kaya kümesiyle sarmak) her
+  // ikisi de sahip tarafından geri alındı. Bu kez Sketchfab'ın kendi
+  // kusurlu mesh'ine hiç dokunulmuyor — onun YERİNE, arkasına basit,
+  // kendi UV'si düzgün, GARANTİ SIZDIRMAZ bir kutu-geometri "arka
+  // perde" ekleniyor: mağara ağzı odasının gerçek kesitini (halfWidth 5,
+  // ceilingY 5) dolduran, yalnız kapının kendi açıklığını (x∈[-1.9,1.9],
+  // y<2.4) boş bırakan üç parça (sol/sağ/üst) — `rockMat` ile (temiz
+  // BoxGeometry UV'sinde önceki bozuk desen sorunu oluşmaz). Görsel
+  // olarak hemen hiç fark edilmiyor (zaten Cave/Entrance'ın arkasında
+  // kalıyor), yalnız gerçek boşluklardan artık düz kaya görünüyor,
+  // tünel karanlığı değil.
+  {
+    const backHalfWidth = 5;
+    const backHeight = 5;
+    const doorHalfWidth = 1.9;
+    const doorHeight = 2.4;
+    const backDepth = 3;
+    const backZ = 1.6;
+    const sideWidth = backHalfWidth - doorHalfWidth;
+    const leftWall = new THREE.Mesh(
+      new THREE.BoxGeometry(sideWidth, backHeight, backDepth),
+      rockMat.clone(),
+    );
+    leftWall.position.set(-doorHalfWidth - sideWidth / 2, backHeight / 2, backZ);
+    const rightWall = leftWall.clone();
+    rightWall.position.x = doorHalfWidth + sideWidth / 2;
+    const topWall = new THREE.Mesh(
+      new THREE.BoxGeometry(doorHalfWidth * 2, backHeight - doorHeight, backDepth),
+      rockMat.clone(),
+    );
+    topWall.position.set(0, doorHeight + (backHeight - doorHeight) / 2, backZ);
+    for (const m of [leftWall, rightWall, topWall]) {
+      m.receiveShadow = true;
+      m.castShadow = false;
+      group.add(m);
+    }
+  }
+
   // Sahip (27 Ağu, yedinci geri bildirim): "mağaranın arkasını vs de
   // kompozisyona uygun hale getir" — kayalık kütlenin TEPESİ çıplak
   // tebeşir taşıydı, referans görsel (ASSET-109) ise kayalığın üstünü
