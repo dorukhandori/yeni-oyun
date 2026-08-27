@@ -448,15 +448,42 @@ export function buildCyclopsCave(): CyclopsCave {
   // bantlar (0-3, üst sınır 11,3 m) yerin altına gömüldü, yalnız
   // nötr gri-mavimsi üst bantlar (166-169 RGB, düşük doygunluk)
   // görünür kalıyor — uzak/sisli bir dağ silüetine daha uygun.
-  const TERRAIN_BACKDROP_BURY = -14;
+  //
+  // **Düzeltme (27 Ağu, sahip): "hâlâ aynı, turuncu rengi bizim
+  // dağlarla uyumlu yap, dağların boyunu da yükselt."** Gömme derinliği
+  // yanlış teşhisti — "sarılık" bir yükseklik-bandı sorunu değil,
+  // dokunun KENDİ genel tonu (en gri bandı bile R>G≈B, ılık bir gri)
+  // `buildDistantHills`'in mevcut tepelerinin soğuk mavi-gri paletiyle
+  // (`nearLayer.color` 0x8fa8bd, B>G>R) baştan uyumsuzdu — hangi
+  // yükseklikte kessek de sıcak kalıyordu. Malzemeye aynı mavi-gri
+  // rengi çarpan (multiply) bir `color` tint'i verilip doku o palete
+  // çekildi (Blender'a dönmeye gerek yok, GLTFLoader materyali
+  // `MeshStandardMaterial` çıkarıyor, `.color` doğrudan texture'ı
+  // çarpıyor). Boy için: mesh'in KENDİ orijini zaten tabana (yerel
+  // y=0) oturtulmuştu (Blender'daki `transform_apply`), o yüzden
+  // `scene.scale.y` orijin etrafında ölçekleyip tabanı yerinde bırakır
+  // — yalnız tepe yükselir. 1,8× dikey ölçek uygulandı (görünür
+  // yükseklik ~7 m'den ~16 m'ye çıktı); sıcak bandın yerel eşiği de
+  // aynı oranda büyüdüğünden (11,3 m → 20,3 m) gömme -14'ten -22'ye
+  // büyütüldü ki hâlâ tam gizlensin.
+  const TERRAIN_BACKDROP_SCALE_Y = 1.8;
+  const TERRAIN_BACKDROP_BURY = -22;
+  const TERRAIN_BACKDROP_TINT = 0x8fa8bd; // buildDistantHills nearLayer.color ile aynı
   loadGltfBundle("assets/models/terrain_backdrop_01_mesh_2000.glb").then((bundle) => {
     const scene = bundle.scene;
     scene.traverse((obj) => {
       if (obj instanceof THREE.Mesh) {
         obj.castShadow = false;
         obj.receiveShadow = false;
+        const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+        for (const m of mats) {
+          if (m instanceof THREE.MeshStandardMaterial) {
+            m.color.set(TERRAIN_BACKDROP_TINT);
+          }
+        }
       }
     });
+    scene.scale.set(1, TERRAIN_BACKDROP_SCALE_Y, 1);
     scene.position.set(0, TERRAIN_BACKDROP_BURY, 150);
     group.add(scene);
   });
