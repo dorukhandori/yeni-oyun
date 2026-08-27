@@ -1132,7 +1132,7 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
       );
     }
     hearthEmbers.update(dt);
-    cave.update(simTime); // çim/saz rüzgâr sallanması (ISLAND_KIT sway shader'ı)
+    cave.update(simTime, dt); // çim/saz rüzgâr sallanması + koyun dolaşma AI'ı (dt hareket için)
 
     // Sea's own hull/foam-wake uniforms default to Lotus's SHIP.pos if not
     // given — harmless here since Cyclops has no ship, but parked far

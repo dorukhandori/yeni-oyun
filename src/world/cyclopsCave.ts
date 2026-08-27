@@ -339,8 +339,10 @@ function makeItemMesh(kind: ItemKind): THREE.Object3D {
 export interface CyclopsCave {
   group: THREE.Group;
   items: CaveItem[];
-  /** Çim/saz rüzgâr sallanması — `cyclopsStop.ts`'in `step()`'i her karede çağırır. */
-  update(t: number): void;
+  /** Çim/saz rüzgâr sallanması + koyun dolaşma AI'ı — `cyclopsStop.ts`'in
+   * `step()`'i her karede çağırır. `dt` koyunların kendi hareket
+   * entegrasyonu için (rüzgâr sallanması hâlâ yalnız mutlak `t` kullanıyor). */
+  update(t: number, dt: number): void;
   /** Toggle the two local light sources between door-open and door-closed radii (tuning.md §12/§12.1). */
   setDoorOpen(open: boolean): void;
   hearthLight: THREE.PointLight;
@@ -2226,6 +2228,39 @@ export function buildCyclopsCave(): CyclopsCave {
     }
   }
   let sheepLoadedFlag = false;
+  // Sahip (27 Ağu, yirmi ikinci geri bildirim): "koyunlar artık hareket
+  // etsin. random adanın her yerinde dolaşsın." Önceden koyunlar TAMAMEN
+  // statikti — tek seferlik `SHEEP_SPOTS` yerleşiminden sonra hiç
+  // güncellenmiyordu (`cyclopsStop.ts`'in `step()`'i yalnız yükleme
+  // durumunu okuyordu, pozisyon dokunulmuyordu). Basit bir "hedefe yürü,
+  // biraz dur, yeni rastgele hedef seç" davranışı — dev'in
+  // `walkGiantTowards`'ıyla aynı ruhta ama çok daha basit (koşum/animasyon
+  // yok, yalnız pozisyon+rotasyon). Her koyun kendi mevcut konumunun
+  // yakınında (≤22 m) yeni bir hedef seçiyor — `coveDressingClear` ile
+  // patika/spawn/gemi bölgelerine hâlâ saygılı, ada sınırları içinde kalıyor.
+  type SheepWanderer = {
+    obj: THREE.Object3D;
+    target: { x: number; z: number };
+    speed: number;
+    facing: number;
+    idleT: number;
+  };
+  const sheepWanderers: SheepWanderer[] = [];
+  const sheepWanderRand = mulberry32(20260909);
+  const SHEEP_WANDER_MIN_X = -ISLAND_WIDTH / 2 + 6;
+  const SHEEP_WANDER_MAX_X = ISLAND_WIDTH / 2 - 6;
+  const SHEEP_WANDER_MIN_Z = -48;
+  const SHEEP_WANDER_MAX_Z = -3;
+  const pickSheepTarget = (fromX: number, fromZ: number): { x: number; z: number } => {
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const ang = sheepWanderRand() * Math.PI * 2;
+      const dist = 6 + sheepWanderRand() * 16;
+      const x = Math.max(SHEEP_WANDER_MIN_X, Math.min(SHEEP_WANDER_MAX_X, fromX + Math.cos(ang) * dist));
+      const z = Math.max(SHEEP_WANDER_MIN_Z, Math.min(SHEEP_WANDER_MAX_Z, fromZ + Math.sin(ang) * dist));
+      if (coveDressingClear(x, z)) return { x, z };
+    }
+    return { x: fromX, z: fromZ }; // uygun hedef bulunamadıysa yerinde kal
+  };
   loadGltfBundle("assets/models/creature_sheep_01_stand_3100.glb").then((bundle) => {
     for (const spot of SHEEP_SPOTS) {
       const sheep = bundle.scene.clone(true);
@@ -2233,6 +2268,13 @@ export function buildCyclopsCave(): CyclopsCave {
       sheep.rotation.y = spot.rotY;
       sheep.scale.setScalar(spot.scale);
       group.add(sheep);
+      sheepWanderers.push({
+        obj: sheep,
+        target: pickSheepTarget(spot.x, spot.z),
+        speed: 0.55 + sheepWanderRand() * 0.5,
+        facing: spot.rotY,
+        idleT: sheepWanderRand() * 4,
+      });
     }
     sheepLoadedFlag = true;
   });
@@ -2302,10 +2344,34 @@ export function buildCyclopsCave(): CyclopsCave {
   return {
     group,
     items,
-    update(t: number) {
+    update(t: number, dt: number) {
       for (const fn of kitUpdaters) fn(t);
       hearthLight.intensity = HEARTH_BASE_INTENSITY * lightFlicker(t, 0);
       torchLight.intensity = TORCH_BASE_INTENSITY * lightFlicker(t, 2.3);
+      for (const w of sheepWanderers) {
+        if (w.idleT > 0) {
+          w.idleT -= dt;
+          continue;
+        }
+        const dx = w.target.x - w.obj.position.x;
+        const dz = w.target.z - w.obj.position.z;
+        const dist = Math.hypot(dx, dz);
+        if (dist < 0.4) {
+          w.target = pickSheepTarget(w.obj.position.x, w.obj.position.z);
+          w.idleT = 1.5 + sheepWanderRand() * 4.5; // yeni bacağa geçmeden önce doğal bir mola
+          continue;
+        }
+        const targetFacing = Math.atan2(dx, dz);
+        let fd = targetFacing - w.facing;
+        while (fd > Math.PI) fd -= Math.PI * 2;
+        while (fd < -Math.PI) fd += Math.PI * 2;
+        w.facing += fd * (1 - Math.exp(-dt / 0.4)); // dev'in kendi dönüş yumuşatmasıyla aynı desen
+        w.obj.rotation.y = w.facing;
+        const step = Math.min(dist, w.speed * dt);
+        w.obj.position.x += (dx / dist) * step;
+        w.obj.position.z += (dz / dist) * step;
+        w.obj.position.y = groundHeightAt(w.obj.position.x, w.obj.position.z);
+      }
     },
     setDoorOpen,
     hearthLight,
