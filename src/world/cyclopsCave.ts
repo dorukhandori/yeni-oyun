@@ -393,6 +393,43 @@ export function buildCyclopsCave(): CyclopsCave {
   const group = new THREE.Group();
   const rockMat = loadCaveRockMaterial();
 
+  // Sahip (27 Ağu): "aynı zamanda yerdeki beyaz taşları bizim rock
+  // katalogdaki gerçek taşlarla değiştir. doğal gözüksün." Kovda dağılmış
+  // LOT-28 kitinin düz-beyaz `boulder`/`pebble` parçaları (kıyı sırtı +
+  // genel kova taşları, iki ayrı `placeKit` çağrısı) ASSET-119'un aynı
+  // 11 parçalık gerçek kaya kiti ile değiştiriliyor. Kit bir kez
+  // yükleniyor, her iki dağılım noktası da aynı promise'i paylaşıyor.
+  type RockSpot = { x: number; y: number; z: number; sx: number; sy: number; sz: number; rotY: number };
+  const rockKitPieces: Promise<THREE.Mesh[]> = loadGltfBundle(
+    "assets/models/rock_stylized_kit_01_mesh_11pcs.glb",
+  ).then((bundle) => {
+    const pieces: THREE.Mesh[] = [];
+    bundle.scene.traverse((obj) => {
+      if (obj instanceof THREE.Mesh) pieces.push(obj);
+    });
+    return pieces;
+  });
+  const scatterRockKit = (parent: THREE.Object3D, spots: RockSpot[], rand: () => number) => {
+    void rockKitPieces.then((pieces) => {
+      if (pieces.length === 0) return;
+      for (const spot of spots) {
+        const template = pieces[Math.floor(rand() * pieces.length)];
+        const piece = template.clone();
+        piece.material = template.material;
+        // ASSET-119'un ilk denemesindeki ders: `.set()` GLTF düğümünün
+        // kendi taban ölçeğini (0.01) silerdi — `.multiply()` üstüne
+        // çarpıyor, doğru.
+        piece.scale.multiply(new THREE.Vector3(spot.sx, spot.sy, spot.sz));
+        piece.position.set(spot.x, spot.y, spot.z);
+        piece.rotation.y = spot.rotY;
+        piece.receiveShadow = true;
+        piece.castShadow = true;
+        piece.frustumCulled = false;
+        parent.add(piece);
+      }
+    });
+  };
+
   // Sahip (27 Ağu, on altıncı geri bildirim): "mağaranın ve adanın
   // arkasındaki sonsuzluk hissine çalışacağız" — 5 yeni Sketchfab linki
   // değerlendirildi, hiçbiri temiz kullanılabilir çıkmadı (2'si "Standard"
@@ -649,8 +686,8 @@ export function buildCyclopsCave(): CyclopsCave {
       };
       (i % 3 === 0 ? shorePebbles : shoreBoulders).push(spot);
     }
-    void placeKit(group, ISLAND_KIT.boulder, shoreBoulders);
-    void placeKit(group, ISLAND_KIT.pebble, shorePebbles);
+    scatterRockKit(group, shoreBoulders, shoreRockRand);
+    scatterRockKit(group, shorePebbles, shoreRockRand);
   }
 
   const SAND_Z_MAX = -44; // kıyı şeridi: D -50..-44
@@ -820,8 +857,8 @@ export function buildCyclopsCave(): CyclopsCave {
     void placeKit(group, ISLAND_KIT.reed, reed, 0.08).then((u) => {
       if (u) kitUpdaters.push(u.update);
     });
-    void placeKit(group, ISLAND_KIT.boulder, boulder);
-    void placeKit(group, ISLAND_KIT.pebble, pebble);
+    scatterRockKit(group, boulder, rand);
+    scatterRockKit(group, pebble, rand);
 
     // Sahip (27 Ağu, onuncu geri bildirim): "neden Lotus adasındaki çimler
     // burda kullanılmıyor? hâlâ yerler düz yeşil." Doğru tespit — o zamana
@@ -1149,76 +1186,59 @@ export function buildCyclopsCave(): CyclopsCave {
       // Eksen ampirik bulunacak (kapının kendi 90° döndürme kuralıyla
       // aynı yöntem): `scene.rotation.y=90°` uygulandığından mesh'in
       // yerel Z ekseni dünya X'ine (yanlara) karşılık gelmesi bekleniyor.
-      // **Düzeltme (27 Ağu, sahip, iki turda): "çok çekiştirilmiş
-      // göründü... duvar gibi bitişik uzatalım" → sonra "sana verdiğim taş
+      // **Düzeltme (27 Ağu, sahip, üç turda):** "çok çekiştirilmiş
+      // göründü... duvar gibi bitişik uzatalım" → "sana verdiğim taş
       // kataloğunu kullanarak doğal görünen mağara duvarları yap, böyle
-      // iğrenç."** Üç önceki deneme de yanlıştı: `.scale.x` ile germek
-      // dokuyu deforme ediyordu; "Cave" mesh'ini `.clone()`layıp döşemek
-      // o belirgin MOR ağaç gövdesini de tekrarlıyordu (bariz kopyala-
-      // yapıştır); düz `rockMat` kutu-geometri ("bir önceki deneme") ise
-      // çirkin/yapay düz bir levha gibi görünüyordu. `caveMesh`'e hâlâ
-      // dokunulmuyor (kapı "bir önceki boyutuyla" kalıyor).
-      //
-      // Sahip'in daha önce Downloads'a indirip verdiği "Rocks Stylized"
-      // kataloğu (`rock-catalog/`, 11 farklı kaya mesh'i,
-      // `scripts/blender/convert_rockkit_stylized.py` ile dönüştürüldü —
-      // kaynağın kendi malzemesi de ASSET-117 gibi bozuk bir harici doku
-      // yoluna sahipti, gerçek dosyaya elle yeniden bağlandı) burada
-      // kullanılıyor: 11 farklı kaya şeklinden rastgele seçilen, boyut/
-      // dönüş varyasyonlu, üst üste yığılan gerçek bir kaya duvarı —
-      // kapının kendi kenarından (x=±5) kovun kenarına (x=±19.5) kadar.
-      loadGltfBundle("assets/models/rock_stylized_kit_01_mesh_11pcs.glb").then((rockBundle) => {
-        const rockPieces: THREE.Mesh[] = [];
-        rockBundle.scene.traverse((obj) => {
-          if (obj instanceof THREE.Mesh) rockPieces.push(obj);
-        });
-        if (rockPieces.length === 0) return;
-        const wallRand = mulberry32(20260903);
-        // Sahip'in kendi standardında (D=-8 civarı) kamerayı bir kayanın
-        // içine soktu, bulundu: en büyük parçanın yarıçapı ~4,2 m'ye
-        // kadar çıkabiliyordu, `WALL_INNER=5`'te merkezlenince patikaya
-        // taşıyordu. İç sınır 9'a çekildi, üst ölçek 3.8'den 2.6'ya
-        // düşürüldü — hâlâ doğal boyut çeşitliliği var ama patikaya
-        // taşmıyor.
-        const WALL_INNER = 9;
-        const WALL_OUTER = 19.5;
-        const WALL_MAX_HEIGHT = 9;
-        for (const side of [-1, 1]) {
-          let x = WALL_INNER;
-          while (x < WALL_OUTER) {
-            const rows = 2 + Math.floor(wallRand() * 2);
-            for (let row = 0; row < rows; row++) {
-              const template = rockPieces[Math.floor(wallRand() * rockPieces.length)];
-              const piece = template.clone();
-              piece.material = template.material;
-              const s = 1.2 + wallRand() * 1.4;
-              // `.setScalar()` OVERWRITES scale (not multiply) — bir ilk
-              // denemede bu, klonlanan GLTF düğümünün kendi taban ölçeğini
-              // (Blender'ın santimetre-benzeri ham birimlerini metreye
-              // çeviren 0.01) sildi, kayalar ~100× büyüyüp kamerayı içine
-              // aldı (`cliffWorldBox` 970 m'ye fırladı, tarayıcıda tüm
-              // ekran siyaha kesti). `.multiplyScalar()` mevcut taban
-              // ölçeğin üstüne çarpıyor, doğru.
-              piece.scale.multiplyScalar(s);
-              const y = Math.min(WALL_MAX_HEIGHT, row * 2.4 + wallRand() * 1.2);
-              piece.position.set(
-                side * (x + wallRand() * 1.2),
-                y,
-                0.5 + wallRand() * 2.4,
-              );
-              piece.rotation.set(
-                (wallRand() - 0.5) * 0.6,
-                wallRand() * Math.PI * 2,
-                (wallRand() - 0.5) * 0.6,
-              );
-              piece.receiveShadow = true;
-              piece.castShadow = true;
-              piece.frustumCulled = false;
-              cliffGroup.add(piece);
+      // iğrenç" → **"şimdi mevcut mağarayı sil. sana gönderdiğim mağara
+      // için kullanabileceğimiz assetlerden bu kapıya mağarayı oturt.
+      // mağara enlemesine tüm ada kadar olsun. yanlarda hiç boşluk
+      // kalmasın. girişe tam oturmuş gibi gözüksün."** Dört deneme
+      // sırayla reddedildi: `.scale.x` germe (deforme), "Cave" mesh'ini
+      // döşemek (mor ağaç gövdesi tekrarlanıyordu), düz `rockMat` kutu
+      // (çirkin), LOT-28 tarzı dağınık kaya kümesi (`rock_stylized_kit`
+      // — bu artık silindi, kapının hemen yanına kullanılmıyor, aşağıdaki
+      // §"beyaz taşlar" scatter'ında hâlâ kullanılıyor). Sahip "terrain
+      // klasörüne bak" dedi — ASSET-117'nin ZATEN dönüştürülmüş meshini
+      // (`terrain_backdrop_01_mesh_2000.glb`, ambientCG Terrain003)
+      // burada TEKRAR ama FARKLI bir amaçla kullanıyoruz: orada uzak/
+      // buğulu bir ufuk silüetiydi (480 m genişlik, ~150 m uzaklıkta),
+      // burada kapının HEMEN arkasına, kovun tam genişliğine (40 m,
+      // x=±20) oturan, gerçek bir "dağın içine oyulmuş kapı" hissi veren
+      // yakın bir kütle. Doğal en/boy oranı (480 m'de ~21 m yükseklik)
+      // bu ölçekte fazla düz/basık kalırdı — bağımsız bir dikey gerdirme
+      // (`SEAT_SCALE_Y`) ile gerçek bir kütle hissi veriyor.
+      loadGltfBundle("assets/models/terrain_backdrop_01_mesh_2000.glb").then((seatBundle) => {
+        const seat = seatBundle.scene;
+        const SEAT_TINT = 0x8fa8bd; // buildDistantHills nearLayer.color ile aynı, tutarlılık
+        seat.traverse((obj) => {
+          if (obj instanceof THREE.Mesh) {
+            obj.castShadow = true;
+            obj.receiveShadow = true;
+            obj.frustumCulled = false;
+            const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+            for (const m of mats) {
+              if (m instanceof THREE.MeshStandardMaterial) m.color.set(SEAT_TINT);
             }
-            x += 1.6 + wallRand() * 1.1;
           }
-        }
+        });
+        // Doğal boyut (GLB'nin kendi bake edilmiş ölçeği, `convert_
+        // terrain003_ambientcg.py`'deki TARGET_WIDTH=480'e göre): genişlik
+        // 480 m, yükseklik ~21,2 m. İlk denemede `seatScaleXZ * SEAT_
+        // SCALE_Y` formülü yanlış hesaplandı — sonuç kapının kendi 12 m
+        // yüksekliğinden bile KISA çıktı (`cliffWorldBox.y` değişmedi,
+        // ölçümle yakalandı). Hedef yükseklik/genişlik artık BAĞIMSIZ ve
+        // doğrudan hesaplanıyor.
+        const SEAT_WIDTH = 40; // kovun tam genişliği (x=±20), yanlarda boşluk kalmasın
+        const SEAT_HEIGHT = 22; // kapının kendi ~12 m'sinden belirgin daha uzun, gerçek bir kütle hissi
+        const NATIVE_WIDTH = 480;
+        const NATIVE_HEIGHT = 21.2;
+        seat.scale.set(SEAT_WIDTH / NATIVE_WIDTH, SEAT_HEIGHT / NATIVE_HEIGHT, SEAT_WIDTH / NATIVE_WIDTH);
+        // Taban zaten yerel y=0'da (Blender'daki transform_apply) — dikey
+        // gerdirme orijin etrafında olduğundan taban yerinde kalıyor,
+        // yalnız tepe yükseliyor; ekstra "gömme" gerekmiyor (ASSET-117'nin
+        // uzak örneğinin aksine, bu mesh zemine hemen oturuyor).
+        seat.position.set(0, 0, 2);
+        cliffGroup.add(seat);
       });
       cliffGroup.add(scene);
       cliffLoadedFlag = true;
