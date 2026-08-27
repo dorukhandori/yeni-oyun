@@ -546,14 +546,25 @@ export function buildCyclopsCave(): CyclopsCave {
     // sıkıştı, doğrulandı). Merkez x=±120'ye çekildi (yakın kenar
     // ≈120-91=29, kovun ~20 m kenarını güvenle geçiyor) — hem x=±180'den
     // belirgin daha yakın/bağlantılı hem kovu istila etmiyor.
+    // **Düzeltme (27 Ağu, sahip): "yanlardan gelen dağ görüntüsü çok yakın
+    // onu inceltmemiz lazım."** x=120'de yarı-kalınlığı (~91 m, yukarıdaki
+    // notta ölçülen yerel-Z→dünya-X eksen takası) hâlâ tam haliyle
+    // duruyordu — kalın/bulky bir kütle gibi yakın hissediliyordu. Yalnız
+    // yan örneklerde (`i>0`) yerel Z'ye (dünya X'teki KALINLIK) ekstra bir
+    // `SIDE_THICKNESS_SCALE` çarpanı uygulanıyor — uzunluk (dünya Z boyunca
+    // kovun kenarı) ve yükseklik dokunulmadan kalıyor, yalnız yana doğru
+    // ince bir sırt gibi okunuyor. İncelme sayesinde merkez de daha güvenle
+    // yakınlaştırılabildi (yeni yarı-kalınlık ~91×0,35≈32 m, x=60'ta yakın
+    // kenar ≈28 m — kovun ~20 m kenarını hâlâ güvenle geçiyor).
+    const SIDE_THICKNESS_SCALE = 0.35;
     const placements = [
-      { x: 0, z: 150, rotY: 0 }, // mağaranın arkası
-      { x: 120, z: 20, rotY: Math.PI / 2 }, // sağ sınır
-      { x: -120, z: 20, rotY: -Math.PI / 2 }, // sol sınır
+      { x: 0, z: 150, rotY: 0, thin: false }, // mağaranın arkası
+      { x: 60, z: 20, rotY: Math.PI / 2, thin: true }, // sağ sınır
+      { x: -60, z: 20, rotY: -Math.PI / 2, thin: true }, // sol sınır
     ];
     placements.forEach((p, i) => {
       const inst = i === 0 ? original : original.clone(true);
-      inst.scale.set(1, TERRAIN_BACKDROP_SCALE_Y, 1);
+      inst.scale.set(1, TERRAIN_BACKDROP_SCALE_Y, p.thin ? SIDE_THICKNESS_SCALE : 1);
       inst.position.set(p.x, TERRAIN_BACKDROP_BURY, p.z);
       inst.rotation.y = p.rotY;
       group.add(inst);
@@ -1319,6 +1330,60 @@ export function buildCyclopsCave(): CyclopsCave {
       m.castShadow = false;
       group.add(m);
     }
+
+    // Sahip (27 Ağu): "kapının yanlarına doğru uzanan ama kapıyı asla
+    // kapatmayan yoğun bir sis olsun." `sunDisk.ts`'in `discTexture`/
+    // `haloTexture`'ıyla aynı basit radial-gradient canvas deseni — dışa
+    // bağımlılık yok. Sprite'lar her zaman kameraya dönük (billboard),
+    // gerçek bir sis hacmi hissi için ucuz. Açıklığın (`doorHalfWidth`)
+    // dışında, iki yana yayılan bir küme — merkeze en yakın sprite bile
+    // `doorHalfWidth + 1,5` m'den başlıyor, kapı hiçbir zaman kapanmıyor.
+    // Hafif bir dikey/opaklık dalgalanmasıyla (`kitUpdaters`, zaten
+    // rüzgâr/çim sallanması için var olan aynı mekanizma) durağan değil,
+    // "yaşayan" bir sis hissi.
+    const fogTex = (() => {
+      const size = 256;
+      const canvas = document.createElement("canvas");
+      canvas.width = canvas.height = size;
+      const ctx = canvas.getContext("2d")!;
+      const cx = size / 2;
+      const g = ctx.createRadialGradient(cx, cx, 0, cx, cx, cx);
+      g.addColorStop(0, "rgba(214,222,230,0.85)");
+      g.addColorStop(0.35, "rgba(200,210,220,0.55)");
+      g.addColorStop(0.7, "rgba(190,200,212,0.22)");
+      g.addColorStop(1, "rgba(190,200,212,0)");
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, size, size);
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.needsUpdate = true;
+      return tex;
+    })();
+    const fogRand = mulberry32(20260904);
+    const fogSprites: Array<{ sprite: THREE.Sprite; baseY: number; phase: number; speed: number }> = [];
+    for (const side of [-1, 1]) {
+      for (let i = 0; i < 9; i++) {
+        const mat = new THREE.SpriteMaterial({
+          map: fogTex,
+          transparent: true,
+          depthWrite: false,
+          opacity: 0.4 + fogRand() * 0.35,
+        });
+        const sprite = new THREE.Sprite(mat);
+        const dist = doorHalfWidth + 1.5 + fogRand() * 16; // açıklığa hiç girmiyor
+        const scale = 3 + fogRand() * 5;
+        sprite.scale.setScalar(scale);
+        const baseY = 0.3 + fogRand() * 3.5;
+        sprite.position.set(side * dist, baseY, -1 + fogRand() * 6);
+        group.add(sprite);
+        fogSprites.push({ sprite, baseY, phase: fogRand() * Math.PI * 2, speed: 0.15 + fogRand() * 0.2 });
+      }
+    }
+    kitUpdaters.push((t) => {
+      for (const f of fogSprites) {
+        f.sprite.position.y = f.baseY + Math.sin(t * f.speed + f.phase) * 0.25;
+      }
+    });
   }
 
   // Sahip (27 Ağu, yedinci geri bildirim): "mağaranın arkasını vs de
