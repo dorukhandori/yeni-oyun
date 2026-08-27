@@ -5,7 +5,7 @@ import { loadGltfBundle } from "./gltf";
 import { mulberry32 } from "./rng";
 import { ISLAND_KIT, placeKit } from "./islandKit";
 import { plantHero, paintHero } from "./ship";
-import { SHIP, PALETTE } from "../constants";
+import { SHIP, PALETTE, FLORA } from "../constants";
 
 /**
  * Cyclops Cave (2nd stop) — primitive, code-only geometry + world content.
@@ -286,6 +286,8 @@ function makeItemMesh(kind: ItemKind): THREE.Object3D {
 export interface CyclopsCave {
   group: THREE.Group;
   items: CaveItem[];
+  /** Çim/saz rüzgâr sallanması — `cyclopsStop.ts`'in `step()`'i her karede çağırır. */
+  update(t: number): void;
   /** Toggle the two local light sources between door-open and door-closed radii (tuning.md §12/§12.1). */
   setDoorOpen(open: boolean): void;
   hearthLight: THREE.PointLight;
@@ -522,6 +524,10 @@ export function buildCyclopsCave(): CyclopsCave {
     if (Math.hypot(x - COVE_SHIP_CLEAR.x, z - COVE_SHIP_CLEAR.z) < COVE_SHIP_CLEAR.r) return false;
     return true;
   }
+  // Rüzgâr/sallanma güncellemesi (çim + saz) — `placeKit()`'in döndürdüğü
+  // `update(t)` callback'leri burada toplanıp `CyclopsCave.update()` ile
+  // dışa açılıyor, `cyclopsStop.ts`'in kendi `step()`'i her karede çağırıyor.
+  const kitUpdaters: Array<(t: number) => void> = [];
   {
     const rand = mulberry32(20260827);
     type KitSpot = { x: number; y: number; z: number; sx: number; sy: number; sz: number; rotY: number };
@@ -571,9 +577,63 @@ export function buildCyclopsCave(): CyclopsCave {
     scatter(pebble, 14, -29, -0.5, 0.35, 0.35);
     void placeKit(group, ISLAND_KIT.cypress, cypress);
     void placeKit(group, ISLAND_KIT.olive, olive);
-    void placeKit(group, ISLAND_KIT.reed, reed, 0.08);
+    void placeKit(group, ISLAND_KIT.reed, reed, 0.08).then((u) => {
+      if (u) kitUpdaters.push(u.update);
+    });
     void placeKit(group, ISLAND_KIT.boulder, boulder);
     void placeKit(group, ISLAND_KIT.pebble, pebble);
+
+    // Sahip (27 Ağu, onuncu geri bildirim): "neden Lotus adasındaki çimler
+    // burda kullanılmıyor? hâlâ yerler düz yeşil." Doğru tespit — o zamana
+    // kadar yalnız DÜZ, dokulu bir zemin vardı (kum→çim geçişi), Lotus'un
+    // asıl "çim" hissi ise `terrain.ts`'in kendi `buildGrassTufts()`'ü:
+    // yere yatık binlerce gerçek 3B çim demeti (`ISLAND_KIT.grass`), ince
+    // dokulu bir alt-zemin değil. O katman burada hiç yoktu. Aynı hex-grid
+    // dağılım tekniği + aynı `FLORA.grass*` sabitleri (Lotus'un tam
+    // adasına göre kalibre, burada da aynı yoğunluk/ölçek) — yalnız alan
+    // Cyclops'un kendi çim bandına (`SAND_Z_MAX`..0) ve patika/spawn/gemi
+    // boşluklarına kısıtlandı.
+    const grassPoses: KitSpot[] = [];
+    {
+      const spacing = FLORA.grassFieldSpacing;
+      const hexH = spacing * 0.8660254;
+      let row = 0;
+      for (let z = SAND_Z_MAX; z <= 0; z += hexH) {
+        const ox = (row % 2) * spacing * 0.5;
+        row++;
+        for (let x = -19; x <= 19; x += spacing) {
+          const jx = x + ox + (rand() - 0.5) * spacing * 0.38;
+          const jz = z + (rand() - 0.5) * hexH * 0.38;
+          if (jz < SAND_Z_MAX || jz > 0) continue;
+          if (!coveDressingClear(jx, jz)) continue;
+          const spread = FLORA.grassSpreadScale * (0.9 + rand() * 0.2);
+          const h = FLORA.grassHeightScale * (0.85 + rand() * 0.3);
+          grassPoses.push({
+            x: jx,
+            y: heightAt(jz) - FLORA.grassSink,
+            z: jz,
+            sx: spread,
+            sy: h,
+            sz: spread,
+            rotY: rand() * Math.PI * 2,
+          });
+        }
+      }
+    }
+    void placeKit(group, ISLAND_KIT.grass, grassPoses, {
+      sway: FLORA.grassSway,
+      doubleSide: true,
+      castShadow: false,
+      receiveShadow: false,
+      envMapIntensity: 0,
+      vertexColors: false,
+      color: PALETTE.grassDeep,
+      lambert: true,
+      lumaMax: 0.3,
+      chunkMeters: FLORA.grassChunkMeters,
+    }).then((u) => {
+      if (u) kitUpdaters.push(u.update);
+    });
   }
 
   // "Gemimiz" — Lotus'un gerçek kahraman gemisi (aynı GLB, aynı fit/boyama
@@ -1125,6 +1185,9 @@ export function buildCyclopsCave(): CyclopsCave {
   return {
     group,
     items,
+    update(t: number) {
+      for (const fn of kitUpdaters) fn(t);
+    },
     setDoorOpen,
     hearthLight,
     torchLight,
