@@ -437,7 +437,18 @@ export function buildCyclopsCave(): CyclopsCave {
   // (`h*0.5-h*0.42`) — aynı numara burada da: mesh'i yüksekliğinin
   // yaklaşık yarısı kadar batırıp yalnız üst/renkli kesimi görünür
   // bırakıyoruz, boşluk kapanıyor.
-  const TERRAIN_BACKDROP_BURY = -10;
+  //
+  // **Düzeltme (27 Ağu, sahip, ekran görüntüsüyle): "hâlâ sarılıklar
+  // filan kalıyor."** -10 m gömme boşluğu kapattı ama yeterince derin
+  // değildi — Python'un ölçtüğü yükseklik-renk bantlarına göre "sıcak
+  // toprak" tonu (RGB~170-180, R>G>B belirgin) tam ~11,3 m'ye kadar
+  // sürüyor, ondan sonra griye dönüyor; -10 m'de bu sıcak bandın üst
+  // ucu hâlâ ~1,3 m yerin üstünde kalıp gri sisli gövdenin altında
+  // sarımsı bir "yaka" gibi görünüyordu. -14 m'ye çekilip tüm sıcak
+  // bantlar (0-3, üst sınır 11,3 m) yerin altına gömüldü, yalnız
+  // nötr gri-mavimsi üst bantlar (166-169 RGB, düşük doygunluk)
+  // görünür kalıyor — uzak/sisli bir dağ silüetine daha uygun.
+  const TERRAIN_BACKDROP_BURY = -14;
   loadGltfBundle("assets/models/terrain_backdrop_01_mesh_2000.glb").then((bundle) => {
     const scene = bundle.scene;
     scene.traverse((obj) => {
