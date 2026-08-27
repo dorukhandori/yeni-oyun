@@ -44,7 +44,7 @@ function sunDirection(day01: number): THREE.Vector3 {
   ).normalize();
 }
 
-function oceanMaterial(): THREE.ShaderMaterial {
+function oceanMaterial(islandRadius: number): THREE.ShaderMaterial {
   const shallow = new THREE.Color(PALETTE.seaShallow);
   const mid = new THREE.Color(PALETTE.seaMid);
   const deep = new THREE.Color(PALETTE.seaDeep);
@@ -69,7 +69,7 @@ function oceanMaterial(): THREE.ShaderMaterial {
         uHull: { value: new THREE.Vector3(SHIP.pos.x, 0, SHIP.pos.z) },
         uHeading: { value: SHIP.rotY },
         uHullHalf: { value: new THREE.Vector2(SHIP.deckHalfL + 1.4, SHIP.deckHalfW + 1.1) },
-        uIslandR: { value: ISLAND.radius },
+        uIslandR: { value: islandRadius },
         uWobbleA: { value: ISLAND.wobbleA },
         uWobbleB: { value: ISLAND.wobbleB },
         uShoreCalm: { value: SEA_TEX.shoreCalm },
@@ -311,8 +311,16 @@ function makeGrid(span: number, segs: number): THREE.PlaneGeometry {
   return geo;
 }
 
-export function buildSea(opts?: { includeLagoon?: boolean }): Sea {
+export function buildSea(opts?: {
+  includeLagoon?: boolean;
+  islandRadius?: number;
+  /** Negative polygon-offset that makes the patch win shore z-fights
+   * against Lotus's own shoreline mesh — see note at its call site below.
+   * Default true (Lotus unchanged). */
+  shoreBlend?: boolean;
+}): Sea {
   const includeLagoon = opts?.includeLagoon ?? true;
+  const shoreBlend = opts?.shoreBlend ?? true;
   const group = new THREE.Group();
   const updaters: Array<(
     t: number,
@@ -322,16 +330,27 @@ export function buildSea(opts?: { includeLagoon?: boolean }): Sea {
     day01?: number,
   ) => void> = [];
 
-  const mat = oceanMaterial();
+  const mat = oceanMaterial(opts?.islandRadius ?? ISLAND.radius);
   const patch = new THREE.Mesh(makeGrid(SEA_TEX.patchMeters, SEA_TEX.segments), mat);
   patch.frustumCulled = false;
   patch.matrixAutoUpdate = true;
   patch.receiveShadow = false;
   patch.castShadow = false;
   patch.renderOrder = 2;
-  mat.polygonOffset = true;
-  mat.polygonOffsetFactor = -1;
-  mat.polygonOffsetUnits = -1;
+  // Negative offset intentionally pulls the patch's depth toward the camera
+  // so it wins z-fights against Lotus's own shoreline mesh (foam/shore
+  // blend at the waterline). Lotus's shore sits a hair above sea level by
+  // design, so this is safe there. Cyclops's beach (cyclopsCave.ts) sits
+  // only 0.16 m above SEA_TEX.floorY across a much larger, flatter patch —
+  // at a grazing camera angle this offset was enough to make the sea win
+  // against sand it should have lost to, i.e. water visibly bleeding over
+  // the beach near the player (sahip'in "deniz düzgün görünmüyor" — ikinci
+  // tur — geri bildirimi). Cyclops opts out; Lotus keeps the trick.
+  if (shoreBlend) {
+    mat.polygonOffset = true;
+    mat.polygonOffsetFactor = -1;
+    mat.polygonOffsetUnits = -1;
+  }
   group.add(patch);
 
   const floodMat = mat.clone();

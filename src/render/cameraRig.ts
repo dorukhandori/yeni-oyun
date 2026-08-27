@@ -17,6 +17,15 @@ export class CameraRig {
     private groundAt: (x: number, z: number) => number,
     /** Rest boom. Phones pass `CAMERA.distTouch`; desktop uses `CAMERA.dist`. */
     private startDist: number = CAMERA.dist,
+    /**
+     * Optional lateral/vertical/depth collision clamp — mutates the desired
+     * camera position in place to pull it back inside valid world bounds
+     * (e.g. a cave's room envelope). Applied inside `desired()`, so it
+     * covers both `update()` and `snap()`. Omitted by Lotus (open world,
+     * no such constraint); Cyclops passes one to stop the boom camera from
+     * swinging past a room's walls into unmodeled open air outside the cave.
+     */
+    private clampPos?: (pos: THREE.Vector3) => void,
   ) {
     this.zoomDist = startDist;
   }
@@ -80,6 +89,7 @@ export class CameraRig {
     out.y = focus.y + height + extraHeight + this.pitch * 3.2;
     const floor = Math.max(0, this.groundAt(out.x, out.z)) + CAMERA.minClearance;
     if (out.y < floor) out.y = floor;
+    this.clampPos?.(out);
     return out;
   }
 

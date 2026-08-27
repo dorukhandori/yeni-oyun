@@ -9,6 +9,7 @@ import { createHumanoidActor, type HumanoidActor } from "../world/humanoidRig";
 import {
   buildCyclopsCave,
   corridorHalfWidthAt,
+  roomAt,
   roomIdAt,
   roomBounds,
   heightAt,
@@ -94,6 +95,38 @@ const CYCLOPS_GIANT_PROXIMITY_RADIUS = 8.0;
 const CYCLOPS_PROXIMITY_MULTIPLIER = 2.0;
 const PLAYER_SPEED = 4.0;
 const PLAYER_RADIUS = 0.4;
+const CAMERA_WALL_MARGIN = 0.5;
+
+/**
+ * Bulundu (sahip playtest'i, 27 Ağu 2026): "kamera hâlâ mağaranın dışına
+ * kaçabiliyor" — kamera zoom kilidi (bkz. `rig.rotate` yorumunda) boom'u
+ * sabitledi ama `CameraRig.desired()` o sabit boom'u odanın gerçek
+ * çeperine hiç bakmadan focus'tan ekliyordu. Oyuncu eşiğe (D=0) ya da dar
+ * bir boğaza yakınken kamera D=0'ın altına (path/cove — ROOMS'ta hiç duvar
+ * verisi olmayan, `halfWidth:Infinity` açık dış alan) veya odanın
+ * `halfWidth`'inin dışına savrulabiliyordu. Kabuk `BackSide` malzemeyle
+ * yalnız İÇERİDEN görünür olduğundan, kamera bir kez o sınırın dışına
+ * çıkınca kabuk tamamen görünmez oluyor, arkasındaki gökyüzü/deniz'e
+ * bakılıyordu — sahibin "dışarı kaçıyor" dediği tam olarak buydu.
+ *
+ * `CameraRig`'e artık genel bir `clampPos` hook'u geçiliyor (Lotus'ta
+ * kullanılmıyor, no-op): X, oyuncu çarpışmasıyla aynı `corridorHalfWidthAt`
+ * kaynağından kelepçeleniyor; Y, odanın `ceilingY`'siyle; Z ise oyuncu
+ * D>=0'dayken (mağaranın içindeyken) kameranın D=0 eşiğinin altına asla
+ * düşmemesi ile — bu son satır olmadan X kelepçesi işe yaramıyordu, çünkü
+ * path/cove'un `halfWidth:Infinity` olması X ekseninde hiç sınır koymuyor.
+ */
+function clampCameraInsideCave(pos: THREE.Vector3, playerZ: number): void {
+  if (playerZ >= 0) pos.z = Math.max(pos.z, CAMERA_WALL_MARGIN);
+  const room = roomAt(pos.z);
+  if (Number.isFinite(room.halfWidth)) {
+    const hw = room.halfWidth - CAMERA_WALL_MARGIN;
+    pos.x = Math.max(-hw, Math.min(hw, pos.x));
+  }
+  if (Number.isFinite(room.ceilingY)) {
+    pos.y = Math.min(pos.y, room.ceilingY - CAMERA_WALL_MARGIN);
+  }
+}
 /**
  * Bulundu (sahip talebi, 26 Ağu 2026): "dash movement da olacak, yerde
  * sürünme gibi." İki yeni oyuncu hareketi — henüz tuning.md'ye işlenmedi
@@ -309,7 +342,19 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
   // grubu buraya -26 kaydırılınca o gölet Cyclops'un koyunun tam ortasında,
   // denizin üstünde soluk/beyaz bir "blob" olarak beliriyordu (sahip
   // ekran görüntüsünde görüldü). Gölet Cyclops'a ait değil, kapatıldı.
-  const sea = buildSea({ includeLagoon: false });
+  //
+  // islandRadius: 0 — sahip "deniz hâlâ düzgün görünmüyor" dedi (27 Ağu,
+  // ikinci geri bildirim). Kök neden: sea shader'ının hem vertex hem
+  // fragment kısmı `uIslandR` (Lotus'un kendi adası) yarıçapında dairesel
+  // bir "discard" deliği açıyor — normalde Lotus adası o deliğin içine
+  // oturuyor, deniz ada geometrisiyle çakışmasın diye. Cyclops'ta orada
+  // hiç ada yok; o delik dümdüz gökyüzünün (RENDER.skyHorizon, sıcak
+  // amber) direkt görünmesine yol açıyordu — kumsalla asıl dalgalı deniz
+  // arasında düz, sert kenarlı turuncu bir şerit olarak fark edildi. `r <
+  // coast - uOverlap` (fragment) / `coastR()` (vertex) uIslandR=0 iken hep
+  // false/aktif kalıyor, delik tamamen kapanıyor — Lotus/workbench'in
+  // varsayılanı (`ISLAND.radius`) değişmedi.
+  const sea = buildSea({ includeLagoon: false, islandRadius: 0, shoreBlend: false });
   sea.group.position.z = -26;
   scene.add(sea.group);
 
@@ -377,7 +422,12 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
   // (Lotus'a özgü hiçbir şey tutmuyor) — sıfırdan yazmak yerine yeniden
   // kullanıldı. Zemin hep y=0 (primitif geometri), gerçek `heightAt`
   // eşdeğeri yok.
-  const rig = new CameraRig(camera, (_x, z) => heightAt(z), isCoarsePointer() ? CAMERA.distTouch : CAMERA.dist);
+  const rig = new CameraRig(
+    camera,
+    (_x, z) => heightAt(z),
+    isCoarsePointer() ? CAMERA.distTouch : CAMERA.dist,
+    (pos) => clampCameraInsideCave(pos, player.position.z),
+  );
   rig.snap(player.position);
   const fwd = new THREE.Vector3();
   const rightV = new THREE.Vector3();
