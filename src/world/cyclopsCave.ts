@@ -2,6 +2,10 @@ import * as THREE from "three";
 import { assetUrl } from "../assets/paths";
 import { loadAlbedoTexture, loadDataTexture } from "./sprite";
 import { loadGltfBundle } from "./gltf";
+import { mulberry32 } from "./rng";
+import { ISLAND_KIT, placeKit } from "./islandKit";
+import { plantHero, paintHero } from "./ship";
+import { SHIP } from "../constants";
 
 /**
  * Cyclops Cave (2nd stop) — primitive, code-only geometry + world content.
@@ -391,6 +395,92 @@ export function buildCyclopsCave(): CyclopsCave {
   );
   beach.receiveShadow = true;
   group.add(beach);
+
+  // Cove exterior dressing (27 Ağu 2026, sahip): "mağaranın dışarısı bizim
+  // ilk oyundaki ada gibi olsun — belli patika mağaraya giden, gerçek
+  // ağaçlar/yeşillik, taşlar, gemimiz." Önce sadece düz kum vardı — kova/
+  // patika bandı (D -20..0) hiç giydirilmemişti. Lotus'un kendi LOT-28 ada
+  // kiti (`islandKit.ts`, `placeKit`) sıfır yeni asset üretimiyle doğrudan
+  // yeniden kullanıldı — aynı Ege palet/silüeti, ekstra kredi yok. Patika
+  // görsel olarak zaten mekanik bir gerçek: `corridorHalfWidthAt` D=-8..0'da
+  // oyuncuyu |x|<3'e kelepçeliyor (LOT-53'ün "belli belirsiz patika" ruhu) —
+  // dekor bu koridoru sadece GÖRÜNÜR kılıyor, ağaçları/kayaları ondan uzak
+  // tutarak. Oyuncu spawn'ı (0,0,-18) ve gemi çevresi de temiz tutuluyor.
+  const COVE_CLEAR_HALF_X = 4.5; // corridorHalfWidthAt(path) 3 + tampon
+  const COVE_SPAWN_CLEAR = { x: 0, z: -18, r: 3.5 };
+  const COVE_SHIP_CLEAR = { x: 11, z: -15, r: 9 };
+  function coveDressingClear(x: number, z: number): boolean {
+    if (Math.abs(x) < COVE_CLEAR_HALF_X) return false;
+    if (Math.hypot(x - COVE_SPAWN_CLEAR.x, z - COVE_SPAWN_CLEAR.z) < COVE_SPAWN_CLEAR.r) return false;
+    if (Math.hypot(x - COVE_SHIP_CLEAR.x, z - COVE_SHIP_CLEAR.z) < COVE_SHIP_CLEAR.r) return false;
+    return true;
+  }
+  {
+    const rand = mulberry32(20260827);
+    type KitSpot = { x: number; y: number; z: number; sx: number; sy: number; sz: number; rotY: number };
+    const cypress: KitSpot[] = [];
+    const olive: KitSpot[] = [];
+    const reed: KitSpot[] = [];
+    const boulder: KitSpot[] = [];
+    const pebble: KitSpot[] = [];
+    const scatter = (
+      list: KitSpot[],
+      count: number,
+      zMin: number,
+      zMax: number,
+      scaleMin: number,
+      scaleRange: number,
+    ) => {
+      let placed = 0;
+      let guard = 0;
+      while (placed < count && guard < count * 20) {
+        guard++;
+        const x = (rand() * 2 - 1) * 19;
+        const z = zMin + rand() * (zMax - zMin);
+        if (!coveDressingClear(x, z)) continue;
+        const s = scaleMin + rand() * scaleRange;
+        list.push({
+          x,
+          y: heightAt(z),
+          z,
+          sx: s * (0.86 + rand() * 0.22),
+          sy: s * (0.9 + rand() * 0.2),
+          sz: s * (0.86 + rand() * 0.22),
+          rotY: rand() * Math.PI * 2,
+        });
+        placed++;
+      }
+    };
+    scatter(cypress, 6, -20, -1, 0.85, 0.55);
+    scatter(olive, 5, -19, -1, 0.9, 0.5);
+    scatter(reed, 8, -20, -14, 0.7, 0.5);
+    scatter(boulder, 5, -20, -0.5, 0.5, 0.5);
+    scatter(pebble, 10, -20, -0.5, 0.35, 0.35);
+    void placeKit(group, ISLAND_KIT.cypress, cypress);
+    void placeKit(group, ISLAND_KIT.olive, olive);
+    void placeKit(group, ISLAND_KIT.reed, reed, 0.08);
+    void placeKit(group, ISLAND_KIT.boulder, boulder);
+    void placeKit(group, ISLAND_KIT.pebble, pebble);
+  }
+
+  // "Gemimiz" — Lotus'un gerçek kahraman gemisi (aynı GLB, aynı fit/boyama
+  // mantığı — `ship.ts`'ten `plantHero`/`paintHero` bu tur için export
+  // edildi), Cyclops'un küçük koyuna sığması için ek bir ölçek küçültmesiyle
+  // (koy yalnız 40×20 m — Lotus'un 42 m tam boyu burada sığmaz). Yalnız
+  // görsel — "gemiye teslim" tetiği zaten `player.position.z<=-15`'e bağlı
+  // (bkz. cyclopsStop.ts), bu geminin gerçek konumu o bandın içinde, mekanik
+  // değişmedi.
+  const COVE_SHIP_SCALE = 0.42; // ~17.6 m — SHIP.length (42) × bu
+  loadGltfBundle(SHIP.mesh).then((bundle) => {
+    const hull = bundle.scene;
+    plantHero(hull);
+    paintHero(hull);
+    hull.scale.multiplyScalar(COVE_SHIP_SCALE);
+    hull.rotation.y = -1.1;
+    hull.position.x += COVE_SHIP_CLEAR.x;
+    hull.position.z += COVE_SHIP_CLEAR.z;
+    group.add(hull);
+  });
 
   const floorGeo = new THREE.PlaneGeometry(40, 65);
   floorGeo.rotateX(-Math.PI / 2);

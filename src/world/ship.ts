@@ -323,7 +323,14 @@ function plantCauseway(root: THREE.Group, hx: number, hz: number, rotY: number):
   if (b.length) root.add(instanceRocks(new THREE.DodecahedronGeometry(0.48, 0), b, PALETTE.causewayWet));
 }
 
-function plantHero(scene: THREE.Object3D): void {
+/**
+ * Fit + centre + hull-keel-seat a raw hero-ship GLB scene in place. Exported
+ * (27 Ağu 2026) so Cyclops can plant the same real ship on its own beach
+ * (sahip: "gemimiz" among the exterior dressing asks) without duplicating
+ * this fitting logic — self-contained beyond the generic `SHIP.*` constants,
+ * no Lotus run-state involved.
+ */
+export function plantHero(scene: THREE.Object3D): void {
   scene.rotation.y = SHIP.meshFacing;
   scene.updateMatrixWorld(true);
   const box = new THREE.Box3().setFromObject(scene);
@@ -377,7 +384,8 @@ function hullKeelY(root: THREE.Object3D): number {
   return at(SHIP.keelQuantile);
 }
 
-function paintHero(root: THREE.Object3D): void {
+/** Exported alongside `plantHero` — see its comment. */
+export function paintHero(root: THREE.Object3D): void {
   root.traverse((obj) => {
     const mesh = obj as THREE.Mesh;
     if (!mesh.isMesh) return;
