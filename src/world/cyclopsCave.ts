@@ -1176,7 +1176,7 @@ export function buildCyclopsCave(): CyclopsCave {
         m.parent?.remove(m);
         const idx = keep.indexOf(m);
         if (idx !== -1) keep[idx] = bakedMesh;
-        bakedMesh.scale.x *= 1.5;
+        bakedMesh.scale.x *= 4;
         cliffGroup.add(bakedMesh);
       }
       cliffGroup.add(scene);
