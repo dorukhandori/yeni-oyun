@@ -424,6 +424,20 @@ export function buildCyclopsCave(): CyclopsCave {
   // bağlandı, yalnız albedo tutuldu (normal/roughness/AO/metallic bir
   // sis-siluetine hiç katkı yapmaz), 1024px'e küçültüldü, taban y=0'a
   // oturtulup 480 m genişliğe ölçeklendi.
+  //
+  // **Düzeltme (27 Ağu, sahip): "havada kaldı görünüm."** Kök neden doku
+  // değildi (vertex-UV renk örneklemesiyle doğrulandı — düşük irtifa=sıcak
+  // toprak, yüksek irtifa=gri kaya, doğal bir gradyan, hiç mavi/gökyüzü
+  // rengi yok). Gerçek sebep: mesh'in tabanı tam y=0'a oturtulmuştu ama
+  // Cyclops'un gerçek zemini yalnız ~D65'e kadar var, dağ D150'de —
+  // aradaki ~85 m'de hiç zemin geometrisi yok, o boşlukta dağın alçak
+  // kesimi gökyüzüne karışıp "havada asılı" bir tepe gibi okunuyordu.
+  // `buildDistantHills`'in kendi koni tepeleri de aynı sorunu yaşamamak
+  // için tabanlarını bilerek yerin altına gömüyor
+  // (`h*0.5-h*0.42`) — aynı numara burada da: mesh'i yüksekliğinin
+  // yaklaşık yarısı kadar batırıp yalnız üst/renkli kesimi görünür
+  // bırakıyoruz, boşluk kapanıyor.
+  const TERRAIN_BACKDROP_BURY = -10;
   loadGltfBundle("assets/models/terrain_backdrop_01_mesh_2000.glb").then((bundle) => {
     const scene = bundle.scene;
     scene.traverse((obj) => {
@@ -432,7 +446,7 @@ export function buildCyclopsCave(): CyclopsCave {
         obj.receiveShadow = false;
       }
     });
-    scene.position.set(0, 0, 150);
+    scene.position.set(0, TERRAIN_BACKDROP_BURY, 150);
     group.add(scene);
   });
 
