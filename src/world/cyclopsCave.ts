@@ -772,7 +772,16 @@ export function buildCyclopsCave(): CyclopsCave {
   // KOYU/SOĞUK bir orman-yeşili) belirgin şekilde farklıydı. Üç ton bu
   // ölçülen renklere göre yeniden ayarlandı, aynı doku/vertex-tint tekniği
   // kalıyor.
-  const grassGeo = makeGroundGeo(40, SAND_Z_MAX, 0, 40);
+  // Sahip (27 Ağu): "gemi hariç, diğer deniz olan her yer adanın tabanı
+  // gibi olsun — adayı genişlet, aynı assetleri kullanabilirsin, koyunları
+  // da doğal random at." Çim düzleminin GENİŞLİĞİ 40'tan 220'ye
+  // (x=±20→±110) büyütüldü — Z aralığı (SAND_Z_MAX..0) hiç değişmedi, bu
+  // yüzden gemi/sırt/deniz bölgesine (z<SAND_Z_MAX) hiç dokunmuyor,
+  // "gemi alanı hariç" otomatik sağlanıyor: çim asla oraya uzanmıyor. Doku
+  // tekrarı (`repeat.x`) genişlikle orantılı büyütüldü (13→72) ki aynı
+  // texel yoğunluğu korunsun, gerilip bulanıklaşmasın.
+  const ISLAND_WIDTH = 220;
+  const grassGeo = makeGroundGeo(ISLAND_WIDTH, SAND_Z_MAX, 0, 40);
   {
     const cDry = new THREE.Color(0x5a6a3a);
     const cMid = new THREE.Color(0x475a32);
@@ -797,7 +806,7 @@ export function buildCyclopsCave(): CyclopsCave {
   grassTex.needsUpdate = true;
   grassTex.wrapS = THREE.RepeatWrapping;
   grassTex.wrapT = THREE.RepeatWrapping;
-  grassTex.repeat.set(13, 8);
+  grassTex.repeat.set(13 * (ISLAND_WIDTH / 40), 8);
   const grass = new THREE.Mesh(
     grassGeo,
     new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, map: grassTex }),
@@ -905,6 +914,34 @@ export function buildCyclopsCave(): CyclopsCave {
     });
     scatterRockKit(group, boulder, rand);
     scatterRockKit(group, pebble, rand);
+    // Sahip (27 Ağu): "adayı genişlet, aynı assetleri kullanabilirsin" —
+    // dış bölgeye (x=20..105) de aynı gerçek kaya kiti (ASSET-119)
+    // ekleniyor, `scatter()` paylaşılan yardımcısına dokunmadan (reed'in
+    // kendi dar kıyı aralığını bozmamak için) kendi basit döngüsüyle.
+    const outerRock: KitSpot[] = [];
+    {
+      let placed = 0;
+      let guard = 0;
+      while (placed < 34 && guard < 34 * 20) {
+        guard++;
+        const side = placed % 2 === 0 ? 1 : -1;
+        const x = side * (20 + rand() * 85);
+        const z = -44 + rand() * 43.5;
+        if (!coveDressingClear(x, z)) continue;
+        const s = 0.45 + rand() * 0.9;
+        outerRock.push({
+          x,
+          y: heightAt(z),
+          z,
+          sx: s * (0.86 + rand() * 0.22),
+          sy: s * (0.9 + rand() * 0.2),
+          sz: s * (0.86 + rand() * 0.22),
+          rotY: rand() * Math.PI * 2,
+        });
+        placed++;
+      }
+    }
+    scatterRockKit(group, outerRock, rand);
 
     // Sahip (27 Ağu, onuncu geri bildirim): "neden Lotus adasındaki çimler
     // burda kullanılmıyor? hâlâ yerler düz yeşil." Doğru tespit — o zamana
@@ -984,13 +1021,28 @@ export function buildCyclopsCave(): CyclopsCave {
     // sayılarda (7-11 tane) şansa bağlı olarak bir tarafa yığılabiliyordu.
     // Artık her çağrı sayıyı iki yarıya bölüp SIRAYLA sol/sağ (x<0/x>0)
     // üretiyor — hangi tohum çıkarsa çıksın iki taraf da garanti dengeli.
-    const scatterPack = (name: string, count: number, zMin: number, zMax: number, scaleMin: number, scaleRange: number) => {
+    // Sahip (27 Ağu): "gemi hariç deniz olan her yer adanın tabanı gibi
+    // olsun — adayı genişlet, aynı assetleri kullanabilirsin." `xMin`/`xMax`
+    // eklendi (varsayılan 1/18 — TÜM mevcut çağrıları birebir aynı
+    // davranışta bırakıyor) ki aşağıda aynı ağaç türleriyle yeni, geniş
+    // "dış bölge" (x=20..105) taze bir çağrı seti kullanabilsin, iç
+    // kovun zaten ayarlanmış yoğunluğuna dokunmadan.
+    const scatterPack = (
+      name: string,
+      count: number,
+      zMin: number,
+      zMax: number,
+      scaleMin: number,
+      scaleRange: number,
+      xMin = 1,
+      xMax = 18,
+    ) => {
       let placed = 0;
       let guard = 0;
       while (placed < count && guard < count * 20) {
         guard++;
         const side = placed % 2 === 0 ? 1 : -1;
-        const x = side * (1 + rand2() * 18);
+        const x = side * (xMin + rand2() * (xMax - xMin));
         const z = zMin + rand2() * (zMax - zMin);
         if (!coveDressingClear(x, z)) continue;
         packSpots.push({ name, x, z, scale: scaleMin + rand2() * scaleRange, rotY: rand2() * Math.PI * 2 });
@@ -1011,6 +1063,18 @@ export function buildCyclopsCave(): CyclopsCave {
     scatterPack("daffodil-flower-02", 8, -49, -0.5, 0.8, 0.4);
     scatterPack("grass-bushes-01", 15, -49, -0.5, 0.7, 0.5);
     scatterPack("grass-bushes-02", 15, -49, -0.5, 0.7, 0.5);
+    // Dış bölge (x=20..105, ISLAND_WIDTH ile aynı sınır) — aynı türler,
+    // daha geniş bir alana daha seyrek bir yoğunlukla (sayılar iç kovun
+    // ~4 katı alanına göre orantılı, ama tıka basa doldurmuyor — "ada"
+    // hissi versin, tek tip bir orman duvarı değil).
+    scatterPack("tree-stylized-04-green", 30, -44, -2, 0.9, 0.6, 20, 105);
+    scatterPack("tree-stylized-02-dry", 24, -44, -2, 0.7, 0.5, 20, 105);
+    scatterPack("tree-stylized-01", 20, -44, -2, 0.8, 0.5, 20, 105);
+    scatterPack("daisy-flower-diffuse-01", 16, -44, -0.5, 0.8, 0.4, 20, 105);
+    scatterPack("daisy-flower-diffuse-02", 16, -44, -0.5, 0.8, 0.4, 20, 105);
+    scatterPack("daffodil-flower-01", 14, -44, -0.5, 0.8, 0.4, 20, 105);
+    scatterPack("grass-bushes-01", 26, -44, -0.5, 0.7, 0.5, 20, 105);
+    scatterPack("grass-bushes-02", 26, -44, -0.5, 0.7, 0.5, 20, 105);
 
     loadGltfBundle("assets/models/flora_lowpoly_pack_01_mesh_2336.glb").then((bundle) => {
       // Sahip (27 Ağu, onikinci geri bildirim): "ağaçlar yatık, dik
@@ -1717,6 +1781,29 @@ export function buildCyclopsCave(): CyclopsCave {
     rotY: s.rotY,
     scale: s.scale,
   }));
+  // Sahip (27 Ağu): "koyunları da doğal random at." Sabit `SHEEP_SPOTS`
+  // (yalnız patikanın kenarı) dokunulmadan bırakıldı — dış bölgeye
+  // (x=20..105) gerçekten RASTGELE bir küme ekleniyor, `coveDressingClear`
+  // ile aynı yasak bölgelere (patika/spawn/gemi) saygılı.
+  {
+    const outerSheepRand = mulberry32(20260906);
+    let placed = 0;
+    let guard = 0;
+    while (placed < 16 && guard < 16 * 25) {
+      guard++;
+      const side = placed % 2 === 0 ? 1 : -1;
+      const x = side * (20 + outerSheepRand() * 85);
+      const z = -44 + outerSheepRand() * 43.5;
+      if (!coveDressingClear(x, z)) continue;
+      SHEEP_SPOTS.push({
+        x,
+        z,
+        rotY: outerSheepRand() * Math.PI * 2,
+        scale: 0.88 + outerSheepRand() * 0.28,
+      });
+      placed++;
+    }
+  }
   let sheepLoadedFlag = false;
   loadGltfBundle("assets/models/creature_sheep_01_stand_3100.glb").then((bundle) => {
     for (const spot of SHEEP_SPOTS) {
