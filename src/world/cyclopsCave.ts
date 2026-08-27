@@ -372,29 +372,71 @@ export function buildCyclopsCave(): CyclopsCave {
   // 1024² çıktı köşegen gölge bantlarında dikiş gösteriyordu (aynı ASSET-015
   // sand_gold_01 dersi), merkezden 480² kırpılıp 512'ye ölçeklenerek
   // düzeltildi, 2x2 döşemede dikişsiz doğrulandı.
-  const beachGeo = new THREE.PlaneGeometry(40, 20, 1, 40);
-  beachGeo.rotateX(-Math.PI / 2);
-  beachGeo.translate(0, 0, -10); // covers D -20..0
-  {
-    // heightAt() displacement — flat sand in the cove, a gentle crest along
-    // the path, back to exactly 0 at the cave-mouth seam (D=0) so it meets
-    // the (flat, Y=0) interior floor below with no step/gap.
-    const pos = beachGeo.attributes.position;
-    for (let i = 0; i < pos.count; i++) pos.setY(i, heightAt(pos.getZ(i)));
+  //
+  // 27 Ağu 2026, sahip (referans görsele bakarak): "yerler çim ve patika
+  // toprak taşlık olmalı" — az önce tüm kova düz kumdu, ASSET-109/104'ün
+  // referans görseli ise yalnız kıyı şeridinde kum, geri kalanı kuru/altın
+  // bir çim yamacı + üstüne döşenmiş taş bir patika gösteriyor. Üç ayrı
+  // düzlem (Lotus'un `buildGroundMaterial()`'ındaki tam onBeforeCompile
+  // splat-shader'ı burada gerekmiyor — Cyclops'un koridoru zaten düz bir
+  // şerit, karmaşık bir path-mask'e ihtiyaç yok): kıyıda dar bir kum
+  // şeridi (Lotus'un aynı ASSET-110 dokusu), onun ötesi çim (Lotus'un
+  // terrain.ts'in kullandığı AYNI `flora_drygrass_01` dokusu — "Lotus
+  // adasındaki assetlerle" isteğiyle birebir), ikisinin üstüne bindirilmiş
+  // dar bir taş patika şeridi (`rock_chalk_01`, sıkı tekrarla "döşeli taş"
+  // okunsun diye) — hepsi aynı `heightAt(z)` tümseğine oturuyor, D=0'da
+  // aynı dikişsiz sıfıra iniyor.
+  const makeGroundGeo = (width: number, zMin: number, zMax: number, segs: number, yOffset = 0) => {
+    const geo = new THREE.PlaneGeometry(width, zMax - zMin, 1, segs);
+    geo.rotateX(-Math.PI / 2);
+    geo.translate(0, 0, (zMin + zMax) / 2);
+    const pos = geo.attributes.position;
+    for (let i = 0; i < pos.count; i++) pos.setY(i, heightAt(pos.getZ(i)) + yOffset);
     pos.needsUpdate = true;
-    beachGeo.computeVertexNormals();
-  }
-  const beachTex = loadAlbedoTexture(assetUrl("assets/textures/sand_coastal_01_albedo_512.webp")).clone();
-  beachTex.needsUpdate = true;
-  beachTex.wrapS = THREE.RepeatWrapping;
-  beachTex.wrapT = THREE.RepeatWrapping;
-  beachTex.repeat.set(8, 5);
-  const beach = new THREE.Mesh(
-    beachGeo,
-    new THREE.MeshStandardMaterial({ color: 0xd8c090, roughness: 1, map: beachTex }),
+    geo.computeVertexNormals();
+    return geo;
+  };
+
+  const SAND_Z_MAX = -15; // kıyı şeridi: D -20..-15
+  const sandGeo = makeGroundGeo(40, -20, SAND_Z_MAX, 10);
+  const sandTex = loadAlbedoTexture(assetUrl("assets/textures/sand_coastal_01_albedo_512.webp")).clone();
+  sandTex.needsUpdate = true;
+  sandTex.wrapS = THREE.RepeatWrapping;
+  sandTex.wrapT = THREE.RepeatWrapping;
+  sandTex.repeat.set(8, 2);
+  const sand = new THREE.Mesh(
+    sandGeo,
+    new THREE.MeshStandardMaterial({ color: 0xd8c090, roughness: 1, map: sandTex }),
   );
-  beach.receiveShadow = true;
-  group.add(beach);
+  sand.receiveShadow = true;
+  group.add(sand);
+
+  const grassGeo = makeGroundGeo(40, SAND_Z_MAX, 0, 32);
+  const grassTex = loadAlbedoTexture(assetUrl("assets/textures/flora_drygrass_01_albedo_1024.webp")).clone();
+  grassTex.needsUpdate = true;
+  grassTex.wrapS = THREE.RepeatWrapping;
+  grassTex.wrapT = THREE.RepeatWrapping;
+  grassTex.repeat.set(13, 5);
+  const grass = new THREE.Mesh(
+    grassGeo,
+    new THREE.MeshStandardMaterial({ color: 0xcbb96a, roughness: 1, map: grassTex }),
+  );
+  grass.receiveShadow = true;
+  group.add(grass);
+
+  const PATH_HALF_W = 2.2; // COVE_CLEAR_HALF_X (4.5) içinde kalır — kenarda çim payı
+  const pathGeo = makeGroundGeo(PATH_HALF_W * 2, -19, 0, 40, 0.015);
+  const pathTex = loadAlbedoTexture(assetUrl("assets/textures/rock_chalk_01_albedo_1024.webp")).clone();
+  pathTex.needsUpdate = true;
+  pathTex.wrapS = THREE.RepeatWrapping;
+  pathTex.wrapT = THREE.RepeatWrapping;
+  pathTex.repeat.set(PATH_HALF_W * 2 * 0.45, 19 * 0.45);
+  const path = new THREE.Mesh(
+    pathGeo,
+    new THREE.MeshStandardMaterial({ color: 0xc9c2af, roughness: 0.95, map: pathTex }),
+  );
+  path.receiveShadow = true;
+  group.add(path);
 
   // Cove exterior dressing (27 Ağu 2026, sahip): "mağaranın dışarısı bizim
   // ilk oyundaki ada gibi olsun — belli patika mağaraya giden, gerçek
@@ -453,7 +495,11 @@ export function buildCyclopsCave(): CyclopsCave {
     };
     scatter(cypress, 6, -20, -1, 0.85, 0.55);
     scatter(olive, 5, -19, -1, 0.9, 0.5);
-    scatter(reed, 8, -20, -14, 0.7, 0.5);
+    // zMin -19 (not -20, the sand plane's own far edge) — a reed cluster
+    // right at that seam read as floating over the sea from a low, close
+    // camera angle (sahip'in referans görsel geri bildirimi turunda
+    // bulundu).
+    scatter(reed, 8, -19, -14, 0.7, 0.5);
     scatter(boulder, 5, -20, -0.5, 0.5, 0.5);
     scatter(pebble, 10, -20, -0.5, 0.35, 0.35);
     void placeKit(group, ISLAND_KIT.cypress, cypress);
