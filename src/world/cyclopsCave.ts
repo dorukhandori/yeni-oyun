@@ -72,15 +72,158 @@ export function corridorHalfWidthAt(z: number): number {
   return roomAt(z).halfWidth;
 }
 
-// Üretim planı §4.2 (Hafif+ kapsam): patika düz bir yürüyüş değil, gerçek bir
-// "yokuş" olsun — ama mağara içi (D>=0, halihazırda tüm oda/item/gizli-kapı
-// mantığı Y=0 varsayıyor) hiç etkilenmesin, blast-radius'u path aralığına
-// kilitli tutmak için. Bu yüzden düz bir rampa değil, kumsalda (D=-8) 0'dan
-// başlayıp yolun ortasında tepe yapan, mağara eşiğine (D=0) tam olarak 0'a
-// dönen bir "tümsek" (sinüs) eğrisi: eşikte süreksizlik/basamak olmaz.
-const PATH_D_MIN = -8;
-const PATH_D_MAX = 0;
-const PATH_MAX_RISE = 1.5;
+// ===================================================================
+// KOY ARAZİSİ — landform (28 Ağu 2026, tam yeniden yazım)
+// ===================================================================
+//
+// Sahip: **"adanin komplesini hic begenmiyorum geometrisel olarak.
+// dikdortgen gozukuyor bir kere."** — ve haklıydı, tam anlamıyla:
+// eski dış arazi GERÇEKTEN iki dikdörtgendi. `PlaneGeometry` ile kurulan
+// bir kum şeridi (z=-50..-44) ve bir çim şeridi (z=-44..0), ikisi de
+// x=-110..+110 arası kusursuz dikdörtgen, ve yüksekliği YALNIZ Z'ye bağlı
+// tek bir fonksiyondan (`heightAt(z)`) alıyorlardı — yani ada boyunca her
+// x için TIPATIP aynı profil. Bunun kaçınılmaz sonucu: cetvelle çizilmiş
+// düz bir kıyı çizgisi, sert kesilmiş yan kenarlar, ve hiçbir açıdan kara
+// formu okunmayan dümdüz bir masa. Üstüne ne kadar ağaç/kaya/çim serpilirse
+// serpilsin altındaki geometri dikdörtgen kaldığı sürece sahne "amatör"
+// okunmaya devam ediyordu — nitekim öyle de oldu.
+//
+// Yeni tasarım tek bir sürekli, asimetrik arazi alanı (heightfield).
+// Referans görselin (ASSET-109) kendi kompozisyonunu üç eğriye çeviriyor,
+// üçü de x'in fonksiyonu ve üçü de çok frekanslı gürültüyle organik:
+//
+//   1. `shoreLineZ(x)` — karanın suyla buluştuğu yer. Ortada koy derin
+//      içeri giriyor (gemi/spawn burada), batıya doğru kıyı hızla geri
+//      çekilip kara bitiyor (açık deniz = "sonsuzluk" ferahlığı, referansın
+//      sol yarısı), doğuya doğru kara devam ediyor ama daralıyor.
+//   2. `cliffFootZ(x)` — kayalığın yükselmeye başladığı yer, yani koyun
+//      GERÇEK iç sınırı. Ortada mağara ağzının hemen arkasında (z≈+1),
+//      iki yana doğru öne süpürülüyor — kova sarılan iki burun kolu.
+//      Yürünebilir kara bu iki eğri arasında kalan alan: ortada geniş,
+//      kollarda daralan, gerçek bir körfez planı.
+//   3. `cliffTopY(x)` — kayalık platosunun yüksekliği. Doğuda büyük
+//      tebeşir burnu (~28 m), batıya doğru alçalan kayalık bir mahmuz
+//      (~7 m). Asimetri kasıtlı: referansın kendi asimetrisi bu
+//      (sağda kayalık, solda açık deniz), ve simetri "dikdörtgen"
+//      hissinin yarısıdır.
+//
+// Mağara İÇİ (D>=0) hiç etkilenmiyor — tüm oda/item/gizli-kapı mantığı
+// hâlâ Y=0 varsayıyor, `groundHeightAt` orada hâlâ tam 0 döndürüyor.
+
+/** Piecewise-linear tablo interpolasyonu — eğrileri elle yazmanın en
+ * okunabilir/ayarlanabilir yolu. Tablolar x'e göre ARTAN sıralı olmalı. */
+function lerpTable(table: readonly (readonly [number, number])[], x: number): number {
+  if (x <= table[0][0]) return table[0][1];
+  const last = table[table.length - 1];
+  if (x >= last[0]) return last[1];
+  for (let i = 1; i < table.length; i++) {
+    const [x1, y1] = table[i];
+    if (x <= x1) {
+      const [x0, y0] = table[i - 1];
+      const t = (x - x0) / (x1 - x0);
+      // smoothstep interpolasyon — düz lineer kırılmalar araziyi yine
+      // "çokgen/yapay" gösterirdi, tablonun düğüm noktalarında teğet
+      // sürekliliği istiyoruz.
+      return y0 + (y1 - y0) * (t * t * (3 - 2 * t));
+    }
+  }
+  return last[1];
+}
+
+/** Kıyı çizgisi (kara/su sınırı) — kara z > shoreLineZ(x) tarafında. */
+const SHORE_TABLE = [
+  [-118, 6],
+  [-100, -1],
+  [-84, -10],
+  [-66, -22],
+  [-48, -34],
+  [-30, -44],
+  [-14, -50],
+  [0, -52],
+  [16, -51],
+  [34, -48],
+  [52, -44],
+  [70, -39],
+  [88, -33],
+  [118, -25],
+] as const;
+
+export function shoreLineZ(x: number): number {
+  return (
+    lerpTable(SHORE_TABLE, x) +
+    Math.sin(x * 0.055 + 1.3) * 2.6 +
+    Math.sin(x * 0.131 + 0.4) * 1.4 +
+    Math.sin(x * 0.317 + 2.7) * 0.7
+  );
+}
+
+/** Kayalığın tabanı — yürünebilir koyun iç (mağara tarafı) sınırı. */
+const FOOT_TABLE = [
+  [-118, 4],
+  [-102, -2],
+  [-86, -10],
+  [-70, -18],
+  [-54, -25],
+  [-40, -29],
+  [-28, -25],
+  [-19, -14],
+  [-12, -3],
+  // Mağara ağzı nişi: kayalık kapının hemen ARKASINDAN yükseliyor, iki
+  // yanında öne çıkıp onu kucaklıyor — kapı bir çim tarlasının ortasına
+  // konmuş bağımsız bir obje değil, kayanın içine oyulmuş bir delik gibi
+  // okunsun diye.
+  [-9, 1],
+  [9, 1],
+  [12, -3],
+  [20, -12],
+  [32, -19],
+  [46, -25],
+  [62, -29],
+  [78, -32],
+  [96, -33],
+  [118, -27],
+] as const;
+
+export function cliffFootZ(x: number): number {
+  return (
+    lerpTable(FOOT_TABLE, x) +
+    // Niş bölgesinde (|x|<13) gürültü YOK — kapının oturduğu düzlem temiz
+    // kalmalı, yoksa taban çizgisi kapının içine dalgalanır.
+    (Math.abs(x) < 13
+      ? 0
+      : Math.sin(x * 0.073 + 0.9) * 2.4 +
+        Math.sin(x * 0.164 + 2.2) * 1.3 +
+        Math.sin(x * 0.383 + 1.1) * 0.6)
+  );
+}
+
+/** Kayalık platosunun tepe yüksekliği. */
+const TOP_TABLE = [
+  [-118, 6],
+  [-96, 9],
+  [-74, 12],
+  [-54, 15],
+  [-36, 18],
+  [-20, 22],
+  [0, 26],
+  [22, 29],
+  [44, 27],
+  [66, 24],
+  [88, 20],
+  [118, 16],
+] as const;
+
+export function cliffTopY(x: number): number {
+  return (
+    lerpTable(TOP_TABLE, x) +
+    Math.sin(x * 0.091 + 2.0) * 2.2 +
+    Math.sin(x * 0.203 + 0.7) * 1.1 +
+    Math.sin(x * 0.47 + 3.3) * 0.45
+  );
+}
+
+/** Mağara ağzının önündeki düz "avlu" — arazi eşiğe doğru tam 0'a iner. */
+const FORECOURT = { x: 0, z: 1.5, inner: 5.5, outer: 18 };
 
 // Sahip (27 Ağu, onbeşinci geri bildirim): "suyu adanın içine kadar
 // gelmesini kes" — koyun tamamı (D<-8) bu fonksiyonda hep DÜZ Y=0'dı,
@@ -92,55 +235,112 @@ const PATH_MAX_RISE = 1.5;
 // ya (0,4 m) kaldırıldı — hem mağara eşiğinde (D=0, iç mekan Y=0 varsayımı
 // hiç bozulmadan) hem de kıyı sırtının kendi tabanında (D=-49, sırt
 // geometrisiyle dikişsiz) TAM 0'a inen yumuşak, sürekli bir eğri.
-const COVE_PLATEAU = 0.4;
-const COVE_RISE_END = -14; // -8'den buraya kadar platoya yumuşak çıkış
-const COVE_FALL_START = -46; // buradan kıyı sırtına yumuşak iniş başlıyor
-const COVE_FALL_END = -49; // sırtın kendi tabanı (ridgeHeightAt'in d=0 noktası)
-
-/** Ground height (world Y) at a given world Z. Cave mouth (D=0) and interior
- * (D>=0) are always exactly 0. D -8..0 is the original path hump (unchanged).
- * D<-8 (the open cove) sits on a gentle raised plateau — well above the
- * sea's floorY + wave amplitude — that eases back down to 0 right at the
- * shore rock ridge's own base. */
-export function heightAt(z: number): number {
-  if (z >= PATH_D_MAX) return 0;
-  if (z > PATH_D_MIN) {
-    const t = (z - PATH_D_MIN) / (PATH_D_MAX - PATH_D_MIN);
-    return PATH_MAX_RISE * Math.sin(Math.PI * t);
-  }
-  if (z <= COVE_FALL_END) return 0;
-  if (z <= COVE_FALL_START) {
-    const t = (z - COVE_FALL_END) / (COVE_FALL_START - COVE_FALL_END);
-    return COVE_PLATEAU * (0.5 - 0.5 * Math.cos(t * Math.PI));
-  }
-  if (z <= COVE_RISE_END) return COVE_PLATEAU;
-  const t = (z - PATH_D_MIN) / (COVE_RISE_END - PATH_D_MIN);
-  return COVE_PLATEAU * (0.5 - 0.5 * Math.cos(t * Math.PI));
+/** Kayalık yüzey profili: taban çizgisinden (d=0) plato tepesine (d>=20).
+ * Üç `smoothstep` katmanı — talus eteği, dik tebeşir yüzü, tepe yuvarlaması.
+ * Bir heightfield gerçek bir dikey duvar üretemez; bunun yerine ~65-70°'lik
+ * bir yüz + dikey strata renk bandı (aşağıdaki `chalkTint`) + tabana
+ * serpilen moloz kayalarla referansın uçurum hissi kuruluyor. */
+function cliffProfile(d: number, h: number): number {
+  if (d <= 0) return 0;
+  const talus = THREE.MathUtils.smoothstep(d, 0, 3.2);
+  const face = THREE.MathUtils.smoothstep(d, 1.6, 9.5);
+  const rim = THREE.MathUtils.smoothstep(d, 8, 21);
+  return h * (0.1 * talus + 0.6 * face + 0.3 * rim);
 }
 
-// Genişletilmiş adanın (`ISLAND_WIDTH`, x=±110) dış kesimi için X-farkındalı
-// taban — `heightAt(z)` yalnız Z'ye göre hesaplıyor ve mağara eşiği/sırt
-// tabanına doğru BİLEREK sıfıra iniyor (dar orijinal şeritte sorun değildi,
-// bkz. `buildCyclopsCave()` içindeki uzun not) — `|x|>18`'de gerçek bir
-// taban (`COVE_PLATEAU+0,35`) garanti ediyor, x=18-26 yumuşak geçiş.
-// **Modül seviyesine taşındı ve export edildi (27 Ağu, on sekizinci geri
-// bildirim: "karakter ve koyunlar ve çimenler zeminin altında kalıyor"):**
-// önceden yalnız `buildCyclopsCave()` içinde yerel bir closure'du, TÜM dış
-// bölge dekoru (ağaç/kaya/koyun/çim) onu kullanıyordu — ama `cyclopsStop.ts`
-// oyuncunun kendi Y'sini hâlâ düz `heightAt(player.position.z)` ile
-// hesaplıyordu (X'i hiç bilmiyordu), oyuncu geniş dış bölgeye (|x|>18)
-// yürüyünce görsel olarak yükseltilmiş zeminin ALTINDA kalıyordu — aynı
-// eski "gömülü dekor" hatasının bu kez OYUNCUNUN KENDİSİNDE tekrarı.
-// Kalıcı çözüm: TEK bir modül-seviyesi export, hem `buildCyclopsCave()`
-// hem `cyclopsStop.ts` aynı fonksiyonu çağırıyor — uyumsuzluk yapısal
-// olarak imkânsız hâle geldi.
-const OUTER_FLOOR = COVE_PLATEAU + 0.35;
-export function groundHeightAt(x: number, z: number): number {
-  const base = heightAt(z);
+/** Mağara ağzının ARKASI (|x|<13). Burada kayalık çok daha hızlı yükselmek
+ * ZORUNDA: eşiğin (D=0) hemen ötesinde mağara ağzı odasının tavanı yalnız
+ * 5 m'de ve oyuncu kovadan kapıya baktığında kapının ÜSTÜNDE gökyüzü
+ * görmemeli (önceki turların "turuncu sızıntı"sının asıl geometrik sebebi
+ * buydu — kapı bağımsız bir obje olarak duruyordu, arkasında kütle yoktu).
+ * Bu yüzden niş bölgesinde ayrı, çok dik bir profil: 3,5 m derinlikte
+ * zaten 12 m yüksekte, yani kapının kendi tepesinin (~12 m) üstünde. */
+function browProfile(d: number, h: number): number {
+  if (d <= 0) return 0;
+  // İki kademe (28 Ağu, ekran görüntüsü + raycast bulgusu): ilk kademe
+  // ~2,2 m derinlikte zaten ~%55 yüksekliğe fırlıyor — kapının taç
+  // noktasının (12 m) hemen üstünü kayanın kendisi dolduruyor, arkadaki
+  // karartma kutuları/kabuk hiçbir açıdan görünmüyor; ikinci kademe
+  // 6 m'de platoya tamamlanıyor.
+  return h * (0.55 * THREE.MathUtils.smoothstep(d, 0, 2.2) + 0.45 * THREE.MathUtils.smoothstep(d, 1.8, 6));
+}
+
+/** Kayalığın görsel yüzeyi — YALNIZ mesh için. Oyuncu/dekor bunu kullanmaz
+ * (bkz. `groundHeightAt`), yoksa kayalığa "tırmanmış" olurlardı. */
+export function cliffSurfaceY(x: number, z: number): number {
+  const d = z - cliffFootZ(x);
+  if (d <= 0) return 0;
+  const h = cliffTopY(x);
   const ax = Math.abs(x);
-  if (ax <= 18) return base;
-  const blend = THREE.MathUtils.smoothstep(ax, 18, 26);
-  return base + blend * Math.max(0, OUTER_FLOOR - base);
+  const steep = browProfile(d, h);
+  const normal = cliffProfile(d, h);
+  // |x|<11 tam dik "kaş", 11-17 arası geçiş, ötesi normal uçurum profili.
+  const brow = 1 - THREE.MathUtils.smoothstep(ax, 11, 17);
+  let y = normal + (steep - normal) * brow;
+  // Yüzeyde dikey oluk/rib deseni (art-director speci: dikey erozyon
+  // kolonları, 1,5-2,5 m periyot) — salt renk değil GERÇEK geometri, çünkü
+  // silüet ve gölge de bu desenden beslenmeli.
+  const faceMask = THREE.MathUtils.smoothstep(d, 0.6, 5) * (1 - THREE.MathUtils.smoothstep(d, 12, 22));
+  // Genlikler ilk turdan (0,42/0,75) belirgin büyütüldü + ince üçüncü
+  // frekans eklendi — 0,7 m'lik yeni vertex aralığında desen artık
+  // çözünüyor ama eski genlikte yüz hâlâ "gerilmiş kumaş" gibi pürüzsüz
+  // okunuyordu; gölge/silüet ancak gerçek girinti-çıkıntıyla oluşuyor.
+  y += faceMask * (Math.sin(x * 3.1 + 0.6) * 0.85 + Math.sin(x * 1.27 + 2.4) * 1.25 + Math.sin(x * 6.4 + 1.9) * 0.32);
+  return Math.max(0, y);
+}
+
+/** Yürünebilir koy zemini — kıyı çizgisinden kayalığın tabanına. */
+function coveFloorY(x: number, z: number): number {
+  if (z >= 0) return 0;
+  const sz = shoreLineZ(x);
+  if (z < sz) {
+    // Su altı: kıyı çizgisinin ötesinde zemin hızla deniz tabanına iniyor.
+    return -0.05 - THREE.MathUtils.smoothstep(sz - z, 0, 9) * 1.6;
+  }
+  const fz = cliffFootZ(x);
+  // A. Kumsaldan içeri yükselen kıyı rampası (ıslak kum → kuru kum → çim).
+  let y = 0.04 + THREE.MathUtils.smoothstep(z, sz, sz + 11) * 1.35;
+  // B. Kayalığın eteğine doğru yükselen çayır yamacı — referansın koyunların
+  //    otladığı altın yamacı bu; koy artık düz bir masa değil eğimli bir kase.
+  y += THREE.MathUtils.smoothstep(z, fz - 26, fz - 1) * 2.2;
+  // C. Alçak frekanslı dalgalanma — "dümdüz levha" okumasını kıran asıl şey.
+  y +=
+    Math.sin(x * 0.075 + z * 0.055) * 0.42 +
+    Math.sin(x * 0.185 - z * 0.12 + 2.1) * 0.26 +
+    Math.sin(x * 0.44 + z * 0.31 + 1.1) * 0.13;
+  // D. Mağara ağzı avlusu: eşiğe yaklaşan her şey tam 0'a iniyor — mağara
+  //    içi (D>=0) hâlâ Y=0 varsayıyor, eşikte basamak olmamalı.
+  const dx = x - FORECOURT.x;
+  const dz = z - FORECOURT.z;
+  const r = Math.sqrt(dx * dx + dz * dz);
+  y *= THREE.MathUtils.smoothstep(r, FORECOURT.inner, FORECOURT.outer);
+  return y;
+}
+
+/**
+ * Oyuncunun/dekorun üstünde durduğu zemin. Mağara içi (D>=0) her zaman TAM
+ * 0 — tüm oda/item/gizli-kapı mantığı bunu varsayıyor, dokunulmadı.
+ * Kayalık kütlesi BİLEREK dahil değil: kayalık tırmanılabilir bir yüzey
+ * değil, koyun duvarı (bkz. `cyclopsStop.ts`'teki yürünebilirlik kelepçesi).
+ */
+export function groundHeightAt(x: number, z: number): number {
+  if (z >= 0) return 0;
+  return coveFloorY(x, z);
+}
+
+/** Geriye dönük uyumluluk: yalnız-Z imzası hâlâ birkaç çağrı noktasında
+ * (dev'in Y'si, kamera kelepçesi) kullanılıyor — merkez hattı örnekliyor. */
+export function heightAt(z: number): number {
+  return groundHeightAt(0, z);
+}
+
+/** Bir nokta yürünebilir kara mı? Hem kıyı çizgisinin içinde hem kayalığın
+ * tabanının dışında olmalı. Oyuncu kelepçesi, dekor serpme ve koyun
+ * gezinmesi TEK bu fonksiyonu paylaşıyor — "dekor suda/kayanın içinde"
+ * sınıfı hatalar yapısal olarak imkânsız hâle geliyor. */
+export function isCoveLand(x: number, z: number, margin = 0): boolean {
+  if (z >= 0) return true; // mağara içi kendi duvar mantığını kullanıyor
+  return z > shoreLineZ(x) + margin && z < cliffFootZ(x) - margin;
 }
 
 /**
@@ -624,6 +824,17 @@ export function buildCyclopsCave(): CyclopsCave {
   // ufku degil, kapinin oyuldugu kayanin kendi yakin dokusu, kasitli
   // olarak sabit/yakin.
   const horizonGroup = buildDistantHills(mulberry32(20260831));
+  // Yalnız dokulu ufuk HALKASI kalsın — `buildDistantHills`'in 12 düz-renk
+  // konisi Lotus'un kendi adası çevresinde işe yarıyor ama Cyclops'un açık
+  // deniz ufkunda, kameraya kilitli grupta, suyun ÜSTÜNDE asılı duran sert
+  // kenarlı soluk üçgenler gibi okunuyordu (28 Ağu ekran görüntüsüyle
+  // doğrulandı — "kağıttan yelkenler"). Referansın uzak silüeti ufuk
+  // çizgisine oturan alçak, puslu bir bant — onu halka zaten veriyor.
+  for (const child of [...horizonGroup.children]) {
+    if (child instanceof THREE.Mesh && child.geometry instanceof THREE.ConeGeometry) {
+      horizonGroup.remove(child);
+    }
+  }
   group.add(horizonGroup);
 
   // Ground strip, split at the cave mouth (D=0) so cove+path can carry a
@@ -678,19 +889,16 @@ export function buildCyclopsCave(): CyclopsCave {
         else if (Math.abs(z - zMax) < 1e-4) z += opts.edgeJitter(x, "max");
         pos.setZ(i, z);
       }
-      pos.setY(i, heightAt(z) + yOffset);
       if (xAt) pos.setX(i, pos.getX(i) + xAt(z));
+      // Yükseklik SON X konumundan örnekleniyor (28 Ağu landform) — zemin
+      // artık X'e de bağlı dalgalanıyor; merkez hattın yüksekliğini (eski
+      // `heightAt(z)`) kullanmak patikayı yamaçta yer yer yüzdürür/gömerdi.
+      pos.setY(i, groundHeightAt(pos.getX(i), z) + yOffset);
     }
     pos.needsUpdate = true;
     geo.computeVertexNormals();
     return geo;
   };
-  // Kum/çim dikişinin paylaştığı kenar eğrisi — deterministik, düşük
-  // frekanslı iki sinüs toplamı (kum dilleri çime, çim parmakları kuma
-  // uzanıyor gibi). Genlik ~2 m: gerçek bir kıyı çizgisinin kendi
-  // düzensizliğine yakın, ama abartılı bir "testere dişi" değil.
-  const sandGrassSeamJitter = (x: number): number =>
-    Math.sin(x * 0.17) * 1.4 + Math.sin(x * 0.61 + 1.3) * 0.7;
 
   // Sahip (27 Ağu, ASSET-109'un yaklaşım açısı/kompozisyonu geri bildirimi):
   // dosdoğru bir patika oyuncunun kameradan gördüğü şey her zaman düz-önden
@@ -715,246 +923,381 @@ export function buildCyclopsCave(): CyclopsCave {
     return -4.5 * Math.sin(Math.PI * t);
   };
 
-  // Sahip (27 Ağu, onbeşinci geri bildirim): "suyu adanın içine kadar
-  // gelmesini kes, buraya da kayalardan oluşan bir sahil görüntüsü
-  // kazandır." Kum düzlemi Y=0, deniz `SEA_TEX.floorY`=-0,16 — bu 16 cm'lik
-  // fark önceki turda (`shoreBlend:false`) düzeltilen z-fighting'den
-  // BAĞIMSIZ bir sorunla karşılaşıyor: gerçek Gerstner dalga tepe genliği
-  // zaman zaman bu farkı gerçekten aşıyor (koy uzadıkça daha fazla açık
-  // deniz aynı anda görünür oluyor, bir dalga tepesinin bunu yakalama
-  // ihtimali arttı) — deniz kuma "sızmıyor", gerçekten kumdan daha yükseğe
-  // dalgalanıyor. Kalıcı çözüm: gerçek kıyı hattında (D=-50, kumun dış
-  // kenarı) yükselen kayalık bir set — dalga genliğinden çok daha yüksek
-  // (~0,7 m), fiziksel bir engel; aynı zamanda sahibin "kayalık sahil"
-  // isteğini karşılıyor.
-  const RIDGE_PEAK_Z = -50.6;
-  const ridgeNoise = mulberry32(20260829);
-  const ridgeXNoise: number[] = [];
-  for (let i = 0; i < 48; i++) ridgeXNoise.push(ridgeNoise());
-  const ridgeHeightAt = (x: number, z: number): number => {
-    // D profili: kumla (z=-49) dikişsiz birleşiyor, tepe -50,6'da, denize
-    // doğru (z=-52) kısmen alçalıyor (yarı-batık kayalar hissi).
-    const d = Math.max(0, Math.min(1, (z + 49) / (-52 + 49)));
-    const base = Math.sin(d * Math.PI * 0.85) * 0.75;
-    const bucket = Math.max(0, Math.min(47, Math.round((x + 20) / 40 * 47)));
-    const jag = (ridgeXNoise[bucket] - 0.5) * 0.35;
-    return Math.max(0, base + jag * Math.sin(d * Math.PI));
-  };
-  const ridgeGeo = new THREE.PlaneGeometry(40, 3.5, 64, 10);
-  ridgeGeo.rotateX(-Math.PI / 2);
-  ridgeGeo.translate(0, 0, RIDGE_PEAK_Z);
-  {
-    const pos = ridgeGeo.attributes.position;
-    for (let i = 0; i < pos.count; i++) {
-      pos.setY(i, ridgeHeightAt(pos.getX(i), pos.getZ(i)));
-    }
-    pos.needsUpdate = true;
-    ridgeGeo.computeVertexNormals();
-  }
-  const ridgeTex = loadAlbedoTexture(assetUrl("assets/textures/rock_chalk_01_albedo_1024.webp")).clone();
-  ridgeTex.needsUpdate = true;
-  ridgeTex.wrapS = THREE.RepeatWrapping;
-  ridgeTex.wrapT = THREE.RepeatWrapping;
-  ridgeTex.repeat.set(16, 1.5);
-  const ridge = new THREE.Mesh(
-    ridgeGeo,
-    new THREE.MeshStandardMaterial({ color: 0xa39d8c, roughness: 0.97, map: ridgeTex }),
-  );
-  ridge.receiveShadow = true;
-  ridge.castShadow = true;
-  group.add(ridge);
-  {
-    // ASSET-122 — kıyı sırtı artık ASSET-119'un düz-serpme kalıbı yerine
-    // `buildCoastClusters`: 16 slot boyunca (x=-19.5..19.5), ~%40'ı boş
-    // (açık kum), doluysa 1-4 taşlık doğal bir küme.
-    const shoreRockRand = mulberry32(20260830);
-    const shoreSpots = buildCoastClusters(
-      shoreRockRand,
-      16,
-      0.4,
-      (i) => ({ x: -19.5 + (i / 15) * 39, z: -49.7 }),
-      2.7,
-      [0.45, 1.15],
-      (x, z) => ridgeHeightAt(x, z) - 0.12,
-    );
-    scatterCoastRockKit(group, shoreSpots, shoreRockRand);
-  }
-
-  // Sahip (27 Ağu, on yedinci geri bildirim): "sahil kumu hiç gerçekçi
-  // değil ve adayla bütünleşik değil." İki ayrı gerçek sorun: (1) kum
-  // şeridi hâlâ eski 40 m'lik dar genişlikte kalmıştı (`ISLAND_WIDTH`
-  // aşağıda 220'ye büyütülmeden ÖNCE tanımlanmamıştı burada) — genişleyen
-  // 220 m'lik çim ADAYI'nın büyük kısmı hiç kum GÖRMEDEN doğrudan suya
-  // iniyordu, tam da "adayla bütünleşik değil" şikayeti. (2) düz tek renk
-  // (`color:0xd8c090`) + döşenen tek doku, hiç ton varyasyonu olmadan —
-  // "boyalı" okunuyordu (grass'ın kendi `vertexColors` tekniğiyle aynı
-  // sorunun aynısı, orada zaten bir kez çözülmüştü). `ISLAND_WIDTH` bu
-  // yüzden buraya taşındı (aşağıda tekrar kullanılıyor, grass'ın kendi
-  // genişliğiyle paylaşılıyor).
-  const ISLAND_WIDTH = 220;
-  const SAND_Z_MAX = -44; // kıyı şeridi: D -50..-44
-  const sandGeo = makeGroundGeo(ISLAND_WIDTH, -50, SAND_Z_MAX, 16, 0, undefined, {
-    xSegs: 90,
-    edgeJitter: (x, edge) => (edge === "max" ? sandGrassSeamJitter(x) : 0),
-  });
-  {
-    // `makeGroundGeo` yalnız Z'ye göre yükseklik veriyor (`heightAt(z)`) —
-    // grass'ın kendi outer-floor yükseltmesini (`groundHeightAt`, |x|>18'de
-    // +0,35 m'ye kadar) UYGULAMAZSA, dış bölgede kum SAND_Z_MAX dikişinde
-    // grass'tan alçak kalır, aradaki ~0,35 m görünür bir basamak/uçurum
-    // oluşturur. Grass'la TUTARLI olsun diye kum da aynı fonksiyonu
-    // uyguluyor.
-    const pos = sandGeo.attributes.position;
-    for (let i = 0; i < pos.count; i++) {
-      pos.setY(i, groundHeightAt(pos.getX(i), pos.getZ(i)));
-    }
-    pos.needsUpdate = true;
-    sandGeo.computeVertexNormals();
-  }
-  const sandTex = loadAlbedoTexture(assetUrl("assets/textures/sand_coastal_01_albedo_512.webp")).clone();
-  sandTex.needsUpdate = true;
-  sandTex.wrapS = THREE.RepeatWrapping;
-  sandTex.wrapT = THREE.RepeatWrapping;
-  sandTex.repeat.set(8 * (ISLAND_WIDTH / 40), 2.4);
-  {
-    // Grass'ın kendi tri-tone `vertexColors` tekniğiyle aynı desen: (a) ince
-    // taneli ton varyasyonu (düz-boyalı hissi kırar), (b) kıyı sırtına/denize
-    // yakın uçta (z→-50) koyulaşan "ıslak kum" bandı — gerçek bir sahilde
-    // dalga/sıçrama her zaman oradan başlar, (c) çim sınırına yakın uçta
-    // (z→SAND_Z_MAX) hafif yeşilimsi bir geçiş — iki dokunun sert dikişi
-    // yerine yumuşak bir el değişimi.
-    const cDry = new THREE.Color(0xe0c69c);
-    const cMid = new THREE.Color(0xcda877);
-    const cWet = new THREE.Color(0x8f7550);
-    const cGrassEdge = new THREE.Color(0x6d7a4c);
-    const pos = sandGeo.attributes.position;
-    const col = new Float32Array(pos.count * 3);
-    const tmp = new THREE.Color();
-    for (let i = 0; i < pos.count; i++) {
-      const x = pos.getX(i);
-      const z = pos.getZ(i);
-      const n =
-        0.5 +
-        0.5 * (Math.sin(x * 0.55 + z * 0.42) * 0.6 + Math.sin(x * 1.4 - z * 0.8 + 2.1) * 0.4);
-      tmp.copy(cDry).lerp(cMid, n);
-      const wetT = 1 - THREE.MathUtils.smoothstep(z, -50, -46.5);
-      tmp.lerp(cWet, wetT * 0.65);
-      const grassT = THREE.MathUtils.smoothstep(z, -47, SAND_Z_MAX);
-      tmp.lerp(cGrassEdge, grassT * 0.3);
-      col[i * 3] = tmp.r;
-      col[i * 3 + 1] = tmp.g;
-      col[i * 3 + 2] = tmp.b;
-    }
-    sandGeo.setAttribute("color", new THREE.BufferAttribute(col, 3));
-  }
-  const sand = new THREE.Mesh(
-    sandGeo,
-    new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, map: sandTex }),
-  );
-  sand.receiveShadow = true;
-  group.add(sand);
-
-  // Sahip (27 Ağu, altıncı geri bildirim): "yerler hâlâ bizim Lotus
-  // adasındaki gibi çimen değil" — doku dosyası zaten Lotus'un ta kendi
-  // `flora_drygrass_01`'iydi ama malzeme rengi (`0xcbb96a`, sıcak altın/kum
-  // tonu) onu çimden çok kuma yakın gösteriyordu. Lotus'un terrain.ts'i
-  // `PALETTE.grass{,Dry,Deep}` (gerçek yeşilimsi zeytin tonları, `constants.ts`)
-  // ile bir `vTint` vertex-rengi çarpıyor — burada aynı üç tonun basit bir
-  // vertex-color karışımı eklendi (Lotus'un tam `onBeforeCompile` shader'ı
-  // değil, sadece `vertexColors:true` + üç ton arası deterministik bir
-  // gürültü), düz tek-renk dokunun "boyalı plastik" hissini kırıyor.
+  // ================================================================
+  // KOY ARAZİSİ MESH'İ — tek sürekli heightfield
+  // ================================================================
   //
-  // Sahip (27 Ağu, ondördüncü geri bildirim): "adanın çimen olan zemini
-  // ağaçlarla uyumlu olmamış" — ilk denemem (paketin kendi
-  // "plant-ground-green-01" dokusunu döşemek) yanlış çıktı: o doku tek bir
-  // bitki demeti FOTOĞRAFI, siyah arka planlı bir "kesim" sprite'ı (tek
-  // obje olarak yerleştirilmek için), döşenebilir bir zemin deseni değil —
-  // tekrarlanınca ekranda çirkin siyah lekeler bıraktı, geri alındı.
-  // Gerçek kök neden renkti: `PALETTE.grass*` (Lotus'un SICAK/PARLAK yaz
-  // çayırı) bu paketin gerçek yaprak dokularından ÖRNEKLENEN ortalama
-  // renklerden (tree-branches-mix ≈ #475A32, grass-01 ≈ #384427 — çok daha
-  // KOYU/SOĞUK bir orman-yeşili) belirgin şekilde farklıydı. Üç ton bu
-  // ölçülen renklere göre yeniden ayarlandı, aynı doku/vertex-tint tekniği
-  // kalıyor.
-  // Sahip (27 Ağu): "gemi hariç, diğer deniz olan her yer adanın tabanı
-  // gibi olsun — adayı genişlet, aynı assetleri kullanabilirsin, koyunları
-  // da doğal random at." Çim düzleminin GENİŞLİĞİ 40'tan 220'ye
-  // (x=±20→±110) büyütüldü — Z aralığı (SAND_Z_MAX..0) hiç değişmedi, bu
-  // yüzden gemi/sırt/deniz bölgesine (z<SAND_Z_MAX) hiç dokunmuyor,
-  // "gemi alanı hariç" otomatik sağlanıyor: çim asla oraya uzanmıyor. Doku
-  // tekrarı (`repeat.x`) genişlikle orantılı büyütüldü (13→72) ki aynı
-  // texel yoğunluğu korunsun, gerilip bulanıklaşmasın. (`ISLAND_WIDTH`
-  // artık yukarıda, kum şeridiyle paylaşılan tek bir tanım olarak duruyor.)
-  // **Düzeltme (27 Ağu, sahip): "hâlâ zemin tam oturmadı, alttan su
-  // dalgalandıkça gözüküyor, mağara tarafında hâlâ deniz görüyorum."**
-  // `heightAt(z)` mağara eşiğine (D=0) ve sırtın tabanına (D=-49) doğru
-  // BİLEREK sıfıra iniyor (dar patikanın kendi eşiğiyle dikişsiz
-  // birleşmesi için, `COVE_RISE_END`/`COVE_FALL_START` arası yumuşak
-  // geçiş) — dar 40 m şeritte bu hiç sorun değildi, ama genişleyen 220 m'lik
-  // dış bölge AYNI sıfıra-inen geçişi çok daha geniş/görünür bir alanda
-  // miras aldı, dalga oradan sızıyor. Paylaşılan bir `groundHeightAt(x,z)`
-  // — yalnız dış kesimde (|x|>18) `heightAt`'in eğrisi ne olursa olsun
-  // gerçek bir taban garanti ediyor (x=18..26 yumuşak geçiş, x>26 tam
-  // taban) — hem zemin MESH'i hem AŞAĞIDAKİ tüm dış bölge scatter'ları
-  // (ağaç/kaya/koyun) TEK bir fonksiyonu paylaşıyor. **İkinci bulunan bug
-  // (aynı sahip mesajı, "çiçekler/koyunlar/çimenler gömülmüş gibi"):** ilk
-  // denemede yalnız MESH yükseltilmişti, scatter'lar hâlâ düz `heightAt(z)`
-  // kullanıyordu — zemin onların üstüne çıkıp gömülü gösteriyordu. Artık
-  // hepsi aynı fonksiyonu çağırıyor, uyumsuzluk yapısal olarak imkânsız.
-  // (`groundHeightAt` artık modül seviyesinde tanımlı/export edilmiş —
-  // yukarıdaki `heightAt`'in hemen altına bkz., 27 Ağu on sekizinci geri
-  // bildirim: oyuncunun kendisi de aynı fonksiyonu kullanmalıydı.)
-  const grassGeo = makeGroundGeo(ISLAND_WIDTH, SAND_Z_MAX, 0, 40, 0, undefined, {
-    xSegs: 90,
-    edgeJitter: (x, edge) => (edge === "min" ? sandGrassSeamJitter(x) : 0),
-  });
-  {
-    const pos = grassGeo.attributes.position;
+  // Sahip (28 Ağu): "adanin komplesini hic begenmiyorum geometrisel
+  // olarak. dikdortgen gozukuyor bir kere."
+  //
+  // Burada ESKİDEN üç ayrı dikdörtgen `PlaneGeometry` vardı — kum şeridi
+  // (z=-50..-44), çim şeridi (z=-44..0) ve bir de düz kıyı sırtı — her biri
+  // x=-110..+110 arası tam dikdörtgen, yüksekliği yalnız Z'ye bağlı. Yani
+  // kıyı çizgisi cetvelle çizilmiş düz bir çizgi, adanın yan kenarları
+  // sert kesik, zemin dümdüz bir masaydı. Hepsi kaldırıldı.
+  //
+  // Yerine: modül başındaki üç landform eğrisinden (`shoreLineZ` /
+  // `cliffFootZ` / `cliffTopY`) örneklenen TEK bir sürekli arazi.
+  // Kum, çim, tebeşir kayalık ve deniz altı zemini artık ayrı mesh'ler
+  // değil — aynı yüzeyin, eğime ve yüksekliğe göre farklı boyanmış
+  // bölgeleri. Bu, "kum ile çim arasında dikiş", "adanın kenarı sert
+  // kesik", "kayalık ayrı bir obje gibi duruyor" sınıfı hataların
+  // tamamını yapısal olarak imkânsız kılıyor: tek yüzey, tek fonksiyon.
+  const ISLAND_WIDTH = 236;
+  const TERRAIN_Z_MIN = -64;
+  const TERRAIN_Z_MAX = 44;
+
+  /** Görsel yüzey: yürünebilir koy zemini VE kayalık kütlesi birlikte. */
+  const terrainY = (x: number, z: number): number =>
+    Math.max(coveFloorY(x, z), cliffSurfaceY(x, z));
+
+  const terrainGeo = (() => {
+    // 300×170 (~51k vertex) — önceki 190×104'te hücreler ~1,2 m'ydi ve
+    // kayalık yüzünün 1,5-2,5 m'lik dikey oluk deseni Nyquist'in tam
+    // sınırında kalıp alias'lanıyordu (yüzey pürüzsüz bir çarşaf gibi
+    // okunuyordu — ajan turunun kendi tespit ettiği "strata aliasing"
+    // hatası). ~0,7 m hücreyle desen gerçekten çözünüyor.
+    const xSegs = 300;
+    const zSegs = 170;
+    const geo = new THREE.PlaneGeometry(ISLAND_WIDTH, TERRAIN_Z_MAX - TERRAIN_Z_MIN, xSegs, zSegs);
+    geo.rotateX(-Math.PI / 2);
+    geo.translate(0, 0, (TERRAIN_Z_MIN + TERRAIN_Z_MAX) / 2);
+    const pos = geo.attributes.position;
     for (let i = 0; i < pos.count; i++) {
-      pos.setY(i, groundHeightAt(pos.getX(i), pos.getZ(i)));
+      // Izgara düğümlerini kendi içinde de kaydırıyoruz — kusursuz kare
+      // ızgara, özellikle sığ eğimlerde, gözle görülür bir "kumaş dokusu"
+      // moiré'si üretiyor ve yine yapay/dikdörtgen okunuyor.
+      const gx = pos.getX(i);
+      const gz = pos.getZ(i);
+      const jx = gx + Math.sin(gx * 0.9 + gz * 1.7) * 0.42;
+      const jz = gz + Math.sin(gx * 1.3 - gz * 0.8) * 0.38;
+      pos.setX(i, jx);
+      pos.setZ(i, jz);
+      pos.setY(i, terrainY(jx, jz));
     }
     pos.needsUpdate = true;
-    grassGeo.computeVertexNormals();
-  }
+    geo.computeVertexNormals();
+    return geo;
+  })();
+
   {
-    const cDry = new THREE.Color(0x5a6a3a);
-    const cMid = new THREE.Color(0x475a32);
-    const cDeep = new THREE.Color(0x384427);
-    // Sahip (27 Ağu, on yedinci geri bildirim): "sahil kumu ... adayla
-    // bütünleşik değil" — kumun kendi tarafı (yukarıda) çim rengine doğru
-    // hafif kayıyordu ama çim tarafı bunu KARŞILAMIYORDU, dikiş hâlâ tek
-    // yönlü/sert okunuyordu. Simetrik: çimin de kendi SAND_Z_MAX ucu kuma
-    // doğru hafifçe sıcaklaşıyor.
-    const cSandEdge = new THREE.Color(0xa8975f);
-    const pos = grassGeo.attributes.position;
+    // Boyama tamamen prosedürel: her vertex kendi yüksekliğine, eğimine ve
+    // kıyı çizgisine olan mesafesine bakıp hangi "malzeme" olduğuna karar
+    // veriyor. Hex'lerin tamamı art-bible §2'den (art-director speci,
+    // 28 Ağu) — palet dışı renk yok.
+    const cWetSand = new THREE.Color(0x8f7550);
+    const cSand = new THREE.Color(0xe0c69c);
+    const cGrass = new THREE.Color(0x93964f); // bible "Kavruk yeşil"
+    const cGrassShade = new THREE.Color(0x6b7f4a); // bible "Zeytin yeşili"
+    const cChalk = new THREE.Color(0xe6e2d4); // bible "Tebeşir beyazı kaya"
+    // Bible "Kaya gölgesi"nden bir tık daha koyu (0xb9b6ab→0x9c9787):
+    // güneş + ACES altında strata bantlarının koyusu aksi hâlde beyaza
+    // yıkanıp kayboluyordu (ekran görüntüsüyle doğrulandı) — bant
+    // kontrastı ancak böyle ekranda gerçekten okunuyor.
+    const cChalkShade = new THREE.Color(0x9c9787);
+    const pos = terrainGeo.attributes.position;
+    const nrm = terrainGeo.attributes.normal;
     const col = new Float32Array(pos.count * 3);
+    // Splat ağırlıkları (x=kaya, y=kum) — aşağıdaki malzeme shader'ı bu
+    // attribute ile hangi DOKUnun örnekleneceğini seçiyor; vertex rengi
+    // yalnız ton/palet katmanı olarak kalıyor (doku detayı ortalamaya
+    // normalize edilip çarpıldığından paleti kaydırmıyor).
+    const splat = new Float32Array(pos.count * 2);
     const tmp = new THREE.Color();
+    const rock = new THREE.Color();
+    const soil = new THREE.Color();
     for (let i = 0; i < pos.count; i++) {
       const x = pos.getX(i);
+      const y = pos.getY(i);
       const z = pos.getZ(i);
-      const n =
+      // Eğim: normalin dikeyden sapması. Art-director speci: >60° saf kaya,
+      // 40-60° karışım, <40° tam çim.
+      const slopeDeg = Math.acos(Math.min(1, Math.max(0, nrm.getY(i)))) * (180 / Math.PI);
+      let rockT = THREE.MathUtils.smoothstep(slopeDeg, 38, 60);
+      // Eğim tek başına yetmez: kayalığın TEPESİ de düzdür ama çim değil
+      // kaya olmalı... hayır, referansta tam tersi — tepe altın çim
+      // şapkası. Bu yüzden yalnız "kayalık kütlesinin gerçekten yükseldiği"
+      // yerde (yüzey, yürünebilir zeminin belirgin üstünde) kaya zorlanıyor,
+      // plato düz olduğu için doğal olarak çime dönüyor.
+      const cliffRise = cliffSurfaceY(x, z) - coveFloorY(x, z);
+      rockT = Math.max(rockT, THREE.MathUtils.smoothstep(cliffRise, 1.2, 4.5) * 0.92);
+      // Plato tepesi: eğim düşükse ve gerçekten yüksekteysek çime geri dön
+      // (referansın kayalık üstündeki kuru ot şeridi).
+      if (slopeDeg < 26 && y > 6) rockT *= 1 - THREE.MathUtils.smoothstep(slopeDeg, 22, 8);
+      // Dikey strata: art-director speci "1,5-2,5 m periyot, lit:shade 60:40,
+      // yumuşak kenar". İki frekans + faz kayması, düzenli çizgi olmasın diye.
+      const band =
         0.5 +
-        0.5 * (Math.sin(x * 0.6 + z * 0.37) * 0.6 + Math.sin(x * 1.3 - z * 0.9 + 1.7) * 0.4);
-      tmp.copy(n < 0.5 ? cDry : cMid).lerp(n < 0.5 ? cMid : cDeep, (n < 0.5 ? n : n - 0.5) * 2);
-      const sandT = 1 - THREE.MathUtils.smoothstep(z, SAND_Z_MAX, SAND_Z_MAX + 3.5);
-      tmp.lerp(cSandEdge, sandT * 0.3);
-      col[i * 3] = tmp.r;
-      col[i * 3 + 1] = tmp.g;
-      col[i * 3 + 2] = tmp.b;
+        0.5 * Math.sin(x * 2.75 + Math.sin(x * 0.61) * 1.6 + z * 0.22) * 0.7 +
+        0.5 * Math.sin(x * 1.13 + 2.2) * 0.3;
+      rock.copy(cChalkShade).lerp(cChalk, THREE.MathUtils.smoothstep(band, 0.18, 0.72));
+      // Taban gölgesi — kayalığın dibi her zaman biraz daha koyu (moloz,
+      // kendi üstünden gelen kapanma). Silüetin "kesilmiş karton" gibi
+      // görünmesini engelleyen ucuz numara.
+      rock.lerp(cChalkShade, (1 - THREE.MathUtils.smoothstep(y, 0.5, 7)) * 0.35);
+
+      // Çim: alçak frekanslı iki tonlu karışım.
+      const gn =
+        0.5 + 0.5 * (Math.sin(x * 0.29 + z * 0.21) * 0.6 + Math.sin(x * 0.77 - z * 0.53 + 1.7) * 0.4);
+      soil.copy(cGrassShade).lerp(cGrass, gn);
+      // Kum: kıyı çizgisinin yakınında. Islak bant tam su kenarında.
+      const sz = shoreLineZ(x);
+      const sandT = 1 - THREE.MathUtils.smoothstep(z, sz + 1.5, sz + 10);
+      tmp.copy(cSand).lerp(cWetSand, 1 - THREE.MathUtils.smoothstep(z, sz - 1.5, sz + 2.2));
+      soil.lerp(tmp, sandT);
+
+      soil.lerp(rock, rockT);
+      col[i * 3] = soil.r;
+      col[i * 3 + 1] = soil.g;
+      col[i * 3 + 2] = soil.b;
+      splat[i * 2] = rockT;
+      splat[i * 2 + 1] = sandT * (1 - rockT);
     }
-    grassGeo.setAttribute("color", new THREE.BufferAttribute(col, 3));
+    terrainGeo.setAttribute("color", new THREE.BufferAttribute(col, 3));
+    terrainGeo.setAttribute("aSplat", new THREE.BufferAttribute(splat, 2));
   }
-  const grassTex = loadAlbedoTexture(assetUrl("assets/textures/flora_drygrass_01_albedo_1024.webp")).clone();
-  grassTex.needsUpdate = true;
-  grassTex.wrapS = THREE.RepeatWrapping;
-  grassTex.wrapT = THREE.RepeatWrapping;
-  grassTex.repeat.set(13 * (ISLAND_WIDTH / 40), 8);
-  const grass = new THREE.Mesh(
-    grassGeo,
-    new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, map: grassTex }),
-  );
-  grass.receiveShadow = true;
-  group.add(grass);
+
+  // ------------------------------------------------------------------
+  // Arazi malzemesi — vertex paleti × normalize edilmiş doku detayı.
+  // Ajan turunun bıraktığı hâl SALT vertex rengiydi (hiç doku yok) —
+  // ~0,7-1,2 m'lik vertex aralığında hiçbir orta-frekans detay taşınamaz,
+  // kayalık dev, pürüzsüz beyaz bir çarşaf gibi okunuyordu (ekran
+  // görüntüleriyle doğrulandı — "amatör" görünümün bir numaralı kalanı).
+  //
+  // Çözüm üç katman: (1) vertex rengi PALETİ taşır (art-bible tonları,
+  // strata bantları, ıslak kum — yukarıdaki döngü), (2) elimizdeki üç
+  // gerçek doku (tebeşir kaya / kuru çim / kıyı kumu) DETAYI taşır,
+  // (3) `aSplat` attribute'u hangi noktada hangi dokunun örnekleneceğini
+  // söyler. Doku örnekleri kendi (lineer-uzay) ortalama parlaklıklarına
+  // bölünerek "ortalaması 1 olan detay çarpanı"na çevrilir — böylece doku,
+  // paletin RENGİNİ kaydırmadan yalnız yüzey dokusunu ekler. Kaya dokusu
+  // TRIPLANAR örnekleniyor (üç eksen düzleminden, normale göre karışım):
+  // ~70°'lik tebeşir yüzünde tepeden-bakan UV'ler sonsuza gerilirdi —
+  // triplanar bunu yapısal olarak çözer, elle UV açmak gerekmez.
+  const terrainMat = new THREE.MeshStandardMaterial({
+    vertexColors: true,
+    roughness: 0.96,
+    metalness: 0,
+    // FrontSide (varsayılan) — BİLİNÇLİ: mağara İÇİ (D>=0) terrain
+    // yüzeyinin ALTINDA kalıyor; DoubleSide denendi ve içerideki kamera
+    // dağ kütlesinin arka yüzünü siyah bir perde gibi gördü (28 Ağu,
+    // "iç mekan simsiyah" regresyonu — ekran görüntüsüyle bulundu).
+    // Backface-culling içeriden bakışta yüzeyi görünmez yapar, iç mekan
+    // kendi kabuğunu görür; kameranın DIŞARIDA yamaç içine girmesini ise
+    // cyclopsStop'un `cliffFootZ` kelepçesi engelliyor.
+  });
+  {
+    const rockTex = loadAlbedoTexture(assetUrl("assets/textures/rock_chalk_01_albedo_1024.webp")).clone();
+    const grassTex = loadAlbedoTexture(assetUrl("assets/textures/flora_drygrass_01_albedo_1024.webp")).clone();
+    const sandTex = loadAlbedoTexture(assetUrl("assets/textures/sand_coastal_01_albedo_512.webp")).clone();
+    for (const t of [rockTex, grassTex, sandTex]) {
+      t.wrapS = THREE.RepeatWrapping;
+      t.wrapT = THREE.RepeatWrapping;
+      t.needsUpdate = true;
+    }
+    const uniforms = {
+      uRockMap: { value: rockTex },
+      uGrassMap: { value: grassTex },
+      uSandMap: { value: sandTex },
+      // Lineer-uzay ortalama parlaklıklar — doku yüklenince aşağıdaki
+      // `measureLinearAvg` gerçek değeri ölçüp üstüne yazıyor; bunlar
+      // yalnız ilk kareler için makul tahminler.
+      uRockAvg: { value: 0.55 },
+      uGrassAvg: { value: 0.2 },
+      uSandAvg: { value: 0.5 },
+    };
+    // Dokunun gerçek (lineer) ortalama parlaklığını ölç — tahmine dayalı
+    // normalizasyon ya soluk ya patlak görünürdü; 32×32'lik bir canvas
+    // örneklemesi tam değeri verir. Görsel async yüklendiği için hazır
+    // olana dek kısa aralıkla yeniden dener, ölçünce durur.
+    const measureLinearAvg = (tex: THREE.Texture, uni: { value: number }) => {
+      const tryMeasure = (): boolean => {
+        const img = tex.image as (HTMLImageElement & { complete?: boolean }) | undefined;
+        if (!img || !img.width || (img.complete === false)) return false;
+        const c = document.createElement("canvas");
+        c.width = c.height = 32;
+        const g = c.getContext("2d");
+        if (!g) return true;
+        g.drawImage(img, 0, 0, 32, 32);
+        const d = g.getImageData(0, 0, 32, 32).data;
+        const lin = (v: number) => (v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4));
+        let sum = 0;
+        for (let i = 0; i < d.length; i += 4) {
+          sum += 0.2126 * lin(d[i] / 255) + 0.7152 * lin(d[i + 1] / 255) + 0.0722 * lin(d[i + 2] / 255);
+        }
+        uni.value = Math.max(0.05, sum / (d.length / 4));
+        return true;
+      };
+      if (!tryMeasure()) {
+        const id = setInterval(() => {
+          if (tryMeasure()) clearInterval(id);
+        }, 250);
+      }
+    };
+    measureLinearAvg(rockTex, uniforms.uRockAvg);
+    measureLinearAvg(grassTex, uniforms.uGrassAvg);
+    measureLinearAvg(sandTex, uniforms.uSandAvg);
+    terrainMat.onBeforeCompile = (shader) => {
+      Object.assign(shader.uniforms, uniforms);
+      shader.vertexShader = shader.vertexShader
+        .replace(
+          "#include <common>",
+          `#include <common>
+          attribute vec2 aSplat;
+          varying vec2 vSplat;
+          varying vec3 vTerrainWP;
+          varying vec3 vTerrainNW;`,
+        )
+        .replace(
+          "#include <begin_vertex>",
+          `#include <begin_vertex>
+          vSplat = aSplat;
+          vTerrainWP = (modelMatrix * vec4(position, 1.0)).xyz;
+          vTerrainNW = normalize(mat3(modelMatrix) * normal);`,
+        );
+      shader.fragmentShader = shader.fragmentShader
+        .replace(
+          "#include <common>",
+          `#include <common>
+          uniform sampler2D uRockMap;
+          uniform sampler2D uGrassMap;
+          uniform sampler2D uSandMap;
+          uniform float uRockAvg;
+          uniform float uGrassAvg;
+          uniform float uSandAvg;
+          varying vec2 vSplat;
+          varying vec3 vTerrainWP;
+          varying vec3 vTerrainNW;`,
+        )
+        .replace(
+          "#include <color_fragment>",
+          `#include <color_fragment>
+          {
+            vec3 wp = vTerrainWP;
+            vec3 an = abs(normalize(vTerrainNW));
+            an /= max(an.x + an.y + an.z, 1e-4);
+            vec3 rockS =
+              texture2D(uRockMap, wp.zy * vec2(0.17, 0.13)).rgb * an.x +
+              texture2D(uRockMap, wp.xz * 0.17).rgb * an.y +
+              texture2D(uRockMap, wp.xy * vec2(0.17, 0.13)).rgb * an.z;
+            vec3 grassS = texture2D(uGrassMap, wp.xz * 0.16).rgb;
+            vec3 sandS = texture2D(uSandMap, wp.xz * 0.12).rgb;
+            // Detay yalnız PARLAKLIK olarak uygulanıyor (luma / ortalama):
+            // rengi %100 vertex paleti (art-bible) taşır — doku kendi
+            // kromasını eklerse palet kayıyordu (ör. kum dokusunun turuncusu
+            // × kum vertex rengi = referansta olmayan doygun turuncu bant).
+            const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722);
+            float rockL = pow(max(dot(rockS, LUMA) / uRockAvg, 0.0), 1.6);
+            float grassL = dot(grassS, LUMA) / uGrassAvg;
+            float sandL = dot(sandS, LUMA) / uSandAvg;
+            float detail = mix(grassL, sandL, clamp(vSplat.y, 0.0, 1.0));
+            detail = mix(detail, rockL, clamp(vSplat.x, 0.0, 1.0));
+            diffuseColor.rgb *= clamp(detail, 0.25, 2.1);
+          }`,
+        );
+    };
+  }
+  const terrain = new THREE.Mesh(terrainGeo, terrainMat);
+  terrain.receiveShadow = true;
+  terrain.castShadow = true;
+  group.add(terrain);
+
+  // Sırt selvileri — referans görselin (ASSET-109) en okunaklı imzası:
+  // tebeşir kayalığın tepesinde tek tük koyu selvi mızrakları. LOT-28
+  // selvi kiti koy ZEMİNİNDEN sahip isteğiyle kaldırılmıştı (27 Ağu,
+  // "tüm çevre benim gösterdiğim ile tasarlansın" — koy dekoru ASSET-116
+  // paketi); ama sahip 28 Ağu'da "ağaçlar referans görseldeki gibi
+  // gözükmeli" dedi ve referansın sırtındaki silüetler net selvi —
+  // bu yüzden kit yalnız SIRTTA, koy zeminine hiç inmeden kullanılıyor.
+  {
+    const rimRand = mulberry32(20260913);
+    const rimCypress: Array<{ x: number; y: number; z: number; sx: number; sy: number; sz: number; rotY: number }> = [];
+    for (let cx = -104; cx <= 104; cx += 13) {
+      if (rimRand() < 0.5) continue;
+      const x = cx + (rimRand() - 0.5) * 6;
+      // Taban çizgisinin 9-15 m gerisi: platonun ön kenarı — selviler
+      // koydan bakınca gökyüzüne karşı gerçek bir silüet çizsin diye
+      // kasıtlı olarak rimde, platonun derinliklerinde değil.
+      const z = cliffFootZ(x) + 9 + rimRand() * 6;
+      const y = cliffSurfaceY(x, z);
+      if (y < cliffTopY(x) * 0.68) continue;
+      const s = 0.8 + rimRand() * 0.6;
+      rimCypress.push({ x, y: y - 0.1, z, sx: s, sy: s * (1 + rimRand() * 0.25), sz: s, rotY: rimRand() * Math.PI * 2 });
+    }
+    // Kapının üstündeki taca 2 belirgin selvi — referans kadrajının odağı.
+    for (const t of [
+      { x: -6.5, dz: 9.5, s: 1.15 },
+      { x: 6, dz: 10.5, s: 1.3 },
+    ]) {
+      const z = cliffFootZ(t.x) + t.dz;
+      rimCypress.push({
+        x: t.x,
+        y: cliffSurfaceY(t.x, z) - 0.1,
+        z,
+        sx: t.s,
+        sy: t.s * 1.15,
+        sz: t.s,
+        rotY: rimRand() * Math.PI * 2,
+      });
+    }
+    void placeKit(group, ISLAND_KIT.cypress, rimCypress);
+  }
+
+  // Kayalığın dibine moloz (talus) — @quarry araştırması ve art-director
+  // speci ikisi de aynı şeyi söyledi: "amatör" görünümün en yaygın tekil
+  // sebebi kayalığın zemine KESKİN bir çizgiyle oturmasıdır. Elimizdeki
+  // kaya kitleri (ASSET-119/122) zaten vardı ama kovun geneline
+  // serpiliyorlardı, tam da en çok gerektikleri yere değil.
+  {
+    const talusRand = mulberry32(20260911);
+    const talus: RockSpot[] = [];
+    for (let i = 0; i < 190; i++) {
+      const x = -116 + talusRand() * 232;
+      const fz = cliffFootZ(x);
+      // Taban çizgisinin 0.5-6 m ÖNÜNE (koya doğru) — eteğe yığılmış döküntü.
+      const z = fz - 0.4 - talusRand() * 5.8;
+      if (z < shoreLineZ(x) + 0.5) continue;
+      if (Math.abs(x) < 13 && z > -4) continue; // kapının önünü kapatma
+      const s = 0.35 + talusRand() * talusRand() * 1.7; // çoğu küçük, birkaçı iri
+      talus.push({
+        x,
+        y: terrainY(x, z) - s * 0.12,
+        z,
+        sx: s * (0.85 + talusRand() * 0.3),
+        sy: s * (0.7 + talusRand() * 0.4),
+        sz: s * (0.85 + talusRand() * 0.3),
+        rotY: talusRand() * Math.PI * 2,
+      });
+    }
+    scatterRockKit(group, talus, talusRand);
+  }
+
+  // Kıyı çizgisi boyunca kayalar — eski düz `RIDGE_PEAK_Z=-50.6` sırtının
+  // yerine geçiyor. Artık düz bir çizgi değil, `shoreLineZ`'nin kendi
+  // organik eğrisini takip ediyor.
+  {
+    const coastRand = mulberry32(20260830);
+    const spots: CoastRockSpot[] = [];
+    for (let i = 0; i < 120; i++) {
+      const x = -116 + coastRand() * 232;
+      if (coastRand() < 0.34) continue; // gerçek boşluklar — çit gibi olmasın
+      const sz = shoreLineZ(x);
+      const z = sz + (coastRand() - 0.45) * 4.5;
+      if (Math.abs(x - 11) < 8 && Math.abs(z + 51) < 8) continue; // gemi payı
+      if (Math.abs(x) < 4 && z > -48) continue; // spawn/patika ağzı
+      const s = 0.4 + coastRand() * coastRand() * 1.9;
+      spots.push({
+        x,
+        y: terrainY(x, z) - 0.14,
+        z,
+        sx: s * (0.86 + coastRand() * 0.28),
+        sy: s * (0.72 + coastRand() * 0.4),
+        sz: s * (0.86 + coastRand() * 0.28),
+        rotY: coastRand() * Math.PI * 2,
+      });
+    }
+    scatterCoastRockKit(group, spots, coastRand);
+  }
 
   // Sahip (28 Ağu): "ben o beyaz şerit gibi mağaraya giden belirli olan
   // yolu istemiyorum, daha doğal görünümlü bir patika istiyorum." Eskisi
@@ -977,6 +1320,9 @@ export function buildCyclopsCave(): CyclopsCave {
       const side = localX < 0 ? -1 : 1;
       const widthJitter = Math.sin(z * 0.5 + side * 10) * 0.35 + Math.sin(z * 1.3 - side * 3) * 0.15;
       pos.setX(i, pos.getX(i) + side * widthJitter);
+      // Kenar jitter'ı X'i kaydırdı — dalgalı zeminde Y'yi son konumdan
+      // tekrar örnekle, yoksa şerit kenarı zeminden kopar/gömülür.
+      pos.setY(i, groundHeightAt(pos.getX(i), z) + 0.015);
     }
     pos.needsUpdate = true;
     pathGeo.computeVertexNormals();
@@ -1029,13 +1375,21 @@ export function buildCyclopsCave(): CyclopsCave {
   // z=-51 — kayalık sahil sırtının (RIDGE_PEAK_Z=-50.6) hemen ötesi, gemi
   // artık kuru kumun ortasında değil suyun kıyısında duruyor (onbeşinci
   // geri bildirim turunda sırt eklenince eski z=-47 kumun içinde kalmıştı).
-  const COVE_SHIP_CLEAR = { x: 11, z: -51, r: 9 };
+  // z=-53,5: yeni kıyı eğrisinde (`shoreLineZ(11)`≈-50,5) gemi artık net
+  // biçimde SUDA — eski -51 tam su çizgisindeydi ve gövde kumun üstünde
+  // asılı görünüyordu (ajan turu ekran görüntüsüyle doğrulandı).
+  const COVE_SHIP_CLEAR = { x: 11, z: -53.5, r: 9 };
   // Patika/spawn/gemi'ye saygılı temel kontrol — göllerin KENDİ yerleşimi
   // bunu kullanıyor (aşağıda). `coveDressingClear` (asıl dışa açık isim,
   // tüm mevcut çağrı noktaları — ağaç/kaya/koyun/çim demeti — değişmeden
   // kalıyor) bunun üstüne göl kaçınmasını da ekliyor; döngüsel bağımlılık
   // olmasın diye göllerin kendisi bu ham fonksiyonu kullanıyor.
   function baseDressingClear(x: number, z: number): boolean {
+    // Yeni landform (28 Ağu): dekor yalnız yürünebilir koy zemininde —
+    // ne denizde ne kayalık kütlesinin içinde/üstünde. Ajan turunun kendi
+    // tespit ettiği "decor spawning inside the cliff" hatasının kök
+    // düzeltmesi: TEK kapı fonksiyonu, tüm serpme sistemleri miras alıyor.
+    if (!isCoveLand(x, z, 1.0)) return false;
     if (Math.abs(x - pathCenterX(z)) < COVE_CLEAR_HALF_X) return false;
     if (Math.hypot(x - COVE_SPAWN_CLEAR.x, z - COVE_SPAWN_CLEAR.z) < COVE_SPAWN_CLEAR.r) return false;
     if (Math.hypot(x - COVE_SHIP_CLEAR.x, z - COVE_SHIP_CLEAR.z) < COVE_SHIP_CLEAR.r) return false;
@@ -1124,6 +1478,7 @@ export function buildCyclopsCave(): CyclopsCave {
   // patikanın kendi genişliğine yakın bir pay.
   const GRASS_PATH_HALF_X = 2.8;
   function grassDressingClear(x: number, z: number): boolean {
+    if (!isCoveLand(x, z, 0.5)) return false;
     if (Math.abs(x - pathCenterX(z)) < GRASS_PATH_HALF_X) return false;
     if (Math.hypot(x - COVE_SPAWN_CLEAR.x, z - COVE_SPAWN_CLEAR.z) < COVE_SPAWN_CLEAR.r) return false;
     if (Math.hypot(x - COVE_SHIP_CLEAR.x, z - COVE_SHIP_CLEAR.z) < COVE_SHIP_CLEAR.r) return false;
@@ -1141,13 +1496,13 @@ export function buildCyclopsCave(): CyclopsCave {
     // düzeltme, ama olası bir kenar durumunda bile kazının deniz
     // seviyesinin altına inmesini yapısal olarak imkânsız kılıyor.
     const PUDDLE_MIN_Y = 0.15;
-    const pos = grassGeo.attributes.position;
+    const pos = terrainGeo.attributes.position;
     for (let i = 0; i < pos.count; i++) {
       const dip = puddleDipAt(pos.getX(i), pos.getZ(i));
       if (dip > 0) pos.setY(i, Math.max(PUDDLE_MIN_Y, pos.getY(i) - dip));
     }
     pos.needsUpdate = true;
-    grassGeo.computeVertexNormals();
+    terrainGeo.computeVertexNormals();
 
     const puddleWaterMat = new THREE.MeshStandardMaterial({
       color: PALETTE.lagoon,
@@ -1433,7 +1788,31 @@ export function buildCyclopsCave(): CyclopsCave {
     // right at that seam read as floating over the sea from a low, close
     // camera angle (sahip'in referans görsel geri bildirimi turunda
     // bulundu).
-    scatter(reed, 14, -49, -42, 0.7, 0.5);
+    // Sazlık artık sabit bir z-bandına değil kıyı ÇİZGİSİNE bağlı — eski
+    // düz kıyıda (-49..-42) doğru olan bant, yeni organik kıyıda kimi
+    // yerde denizin ortasına kimi yerde kuru çayırın içine düşüyordu.
+    {
+      let placed = 0;
+      let guard = 0;
+      while (placed < 14 && guard < 14 * 20) {
+        guard++;
+        const side = placed % 2 === 0 ? 1 : -1;
+        const x = side * (1 + rand() * 18);
+        const z = shoreLineZ(x) + 0.6 + rand() * 3.2;
+        if (!coveDressingClear(x, z)) continue;
+        const s = 0.7 + rand() * 0.5;
+        reed.push({
+          x,
+          y: groundHeightAt(x, z),
+          z,
+          sx: s * (0.86 + rand() * 0.22),
+          sy: s * (0.9 + rand() * 0.2),
+          sz: s * (0.86 + rand() * 0.22),
+          rotY: rand() * Math.PI * 2,
+        });
+        placed++;
+      }
+    }
     scatter(boulder, 11, -49, -0.5, 0.5, 0.5);
     scatter(pebble, 20, -49, -0.5, 0.35, 0.35);
     // Sahip (27 Ağu, on yedinci geri bildirim): "sahil kumu ... adayla
@@ -1453,7 +1832,9 @@ export function buildCyclopsCave(): CyclopsCave {
         guard++;
         const side = placed % 2 === 0 ? 1 : -1;
         const x = side * (20 + edgeRand() * 85);
-        const z = SAND_Z_MAX + (edgeRand() - 0.5) * 5.5; // dikişin her iki yanı
+        // Kum/çim geçişi artık kıyı çizgisine göreli (+1,5..+7 m içeride) —
+        // eski sabit SAND_Z_MAX çizgisi yeni organik kıyıyla örtüşmüyor.
+        const z = shoreLineZ(x) + 1.5 + edgeRand() * 5.5;
         if (edgeRand() < 0.4) {
           placed++; // gerçek boşluklar da kalsın, tam bir çit gibi olmasın
           continue;
@@ -1526,7 +1907,10 @@ export function buildCyclopsCave(): CyclopsCave {
           coastRockRand,
           10,
           0.4,
-          (i) => ({ x: side * (20 + (i / 9) * 85), z: SAND_Z_MAX }),
+          (i) => {
+            const cx = side * (20 + (i / 9) * 85);
+            return { x: cx, z: shoreLineZ(cx) + 0.8 }; // kıyı çizgisini takip et
+          },
           4.5,
           [0.7, 2.0],
           (x, z) => groundHeightAt(x, z),
@@ -1557,13 +1941,17 @@ export function buildCyclopsCave(): CyclopsCave {
       const spacing = FLORA.grassFieldSpacing;
       const hexH = spacing * 0.8660254;
       let row = 0;
-      for (let z = SAND_Z_MAX; z <= 0; z += hexH) {
+      for (let z = -50; z <= 0; z += hexH) {
         const ox = (row % 2) * spacing * 0.5;
         row++;
         for (let x = -105; x <= 105; x += spacing) {
           const jx = x + ox + (rand() - 0.5) * spacing * 0.38;
           const jz = z + (rand() - 0.5) * hexH * 0.38;
-          if (jz < SAND_Z_MAX || jz > 0) continue;
+          if (jz > 0) continue;
+          // Kum bandında çim demeti olmaz — kıyı çizgisinden en az 8 m
+          // içeride başlasın (renk geçişindeki kum bandı ~10 m; yeşil
+          // demetlerin kumun ortasında bitmesi ilk turda göze battı).
+          if (jz < shoreLineZ(jx) + 8) continue;
           if (!grassDressingClear(jx, jz)) continue;
           const spread = FLORA.grassSpreadScale * (0.9 + rand() * 0.2);
           const h = FLORA.grassHeightScale * (0.85 + rand() * 0.3);
@@ -1613,7 +2001,9 @@ export function buildCyclopsCave(): CyclopsCave {
   // örnek yine ucuz.
   {
     const rand2 = mulberry32(20260828);
-    type PackSpot = { name: string; x: number; z: number; scale: number; rotY: number };
+    // `y` opsiyonel: verilmezse koy zemini (`groundHeightAt`) — kayalık
+    // PLATOSU üstündeki taç bitkileri kendi `cliffSurfaceY`'lerini geçiyor.
+    type PackSpot = { name: string; x: number; z: number; scale: number; rotY: number; y?: number };
     const packSpots: PackSpot[] = [];
     // Sahip (27 Ağu, ondördüncü geri bildirim): "sağ taraftaki ağaç
     // yoğunluğu az olmuş" — saf rastgele X (`(rand()*2-1)*19`) küçük
@@ -1636,6 +2026,15 @@ export function buildCyclopsCave(): CyclopsCave {
       xMin = 1,
       xMax = 18,
     ) => {
+      // Ağaç taçları geniş — gövde koy zemininde olsa bile taç kayalık
+      // yüzünün İÇİNE girebiliyordu (ajan turu ekran görüntüsüyle
+      // doğrulandı). Ağaçlar kayalık tabanından ve kıyıdan en az 5 m
+      // içeride; çiçek/çalı gibi küçük dekor 1,2 m ile yetiniyor
+      // (`coveDressingClear`'ın kendi 1 m'lik payının hafif üstü).
+      const landMargin = name.startsWith("tree") ? 5 : 1.2;
+      // Ağaçlar kum bandında bitmez — kıyı çizgisinden en az 9 m içeride
+      // (renk geçişindeki kum bölgesi ~10 m; referansta plaj çıplak).
+      const shoreMargin = name.startsWith("tree") ? 9 : 2;
       let placed = 0;
       let guard = 0;
       while (placed < count && guard < count * 20) {
@@ -1643,6 +2042,8 @@ export function buildCyclopsCave(): CyclopsCave {
         const side = placed % 2 === 0 ? 1 : -1;
         const x = side * (xMin + rand2() * (xMax - xMin));
         const z = zMin + rand2() * (zMax - zMin);
+        if (!isCoveLand(x, z, landMargin)) continue;
+        if (z < shoreLineZ(x) + shoreMargin) continue;
         if (!coveDressingClear(x, z)) continue;
         packSpots.push({ name, x, z, scale: scaleMin + rand2() * scaleRange, rotY: rand2() * Math.PI * 2 });
         placed++;
@@ -1674,6 +2075,57 @@ export function buildCyclopsCave(): CyclopsCave {
     scatterPack("daffodil-flower-01", 14, -44, -0.5, 0.8, 0.4, 20, 105);
     scatterPack("grass-bushes-01", 26, -44, -0.5, 0.7, 0.5, 20, 105);
     scatterPack("grass-bushes-02", 26, -44, -0.5, 0.7, 0.5, 20, 105);
+
+    // ---------------------------------------------------------------
+    // KAYALIK TACI — sahip (28 Ağu): "sonsuzluk hissi olan, en azından
+    // mağaranın üzerinde bir tepe görüntüsü ve ağaçlar referans
+    // görseldeki gibi gözükmeli." Referans (ASSET-109) kayalığın tepesini
+    // altın çim + selvi kümeleri + tek tük çalıyla taçlandırıyor — plato
+    // rengi zaten terrain boyamasında (düşük eğim + yüksek y → çim), bu
+    // blok da ÜSTÜNE gerçek bitki örtüsünü koyuyor. Noktalar plato
+    // yüzeyinde (`cliffSurfaceY`), koy zemini fonksiyonlarıyla işi yok.
+    {
+      const crownRand = mulberry32(20260912);
+      // Sırt boyunca, taban çizgisinin 11-22 m gerisinde (plato içi) —
+      // her ~9 m'de bir aday, ~%45'i boş geçiliyor (küme + boşluk ritmi).
+      for (let cx = -108; cx <= 108; cx += 9) {
+        if (crownRand() < 0.45) continue;
+        const x = cx + (crownRand() - 0.5) * 5;
+        const z = cliffFootZ(x) + 11 + crownRand() * 11;
+        const y = cliffSurfaceY(x, z);
+        // Yalnız gerçekten platoya oturan noktalar (yüz/etek değil) —
+        // tepenin %70'inin altında kalan yükseklik hâlâ dik yüz demektir.
+        if (y < cliffTopY(x) * 0.7) continue;
+        const kind = crownRand();
+        packSpots.push({
+          name: kind < 0.55 ? "tree-stylized-02-dry" : "grass-bushes-01",
+          x,
+          z,
+          y: y - 0.06,
+          scale: 0.55 + crownRand() * 0.5,
+          rotY: crownRand() * Math.PI * 2,
+        });
+      }
+      // Kapının TAM üstüne bilinçli, sık bir küme — referans kadrajının
+      // kalbi burası: mağara ağzı + üstünde yeşil taç.
+      for (const t of [
+        { x: -10, dz: 10.5, s: 0.9 },
+        { x: -4.5, dz: 13, s: 0.75 },
+        { x: 2.5, dz: 11, s: 1.0 },
+        { x: 8.5, dz: 12.5, s: 0.7 },
+        { x: 14, dz: 11.5, s: 0.85 },
+      ]) {
+        const z = cliffFootZ(t.x) + t.dz;
+        packSpots.push({
+          name: "tree-stylized-02-dry",
+          x: t.x,
+          z,
+          y: cliffSurfaceY(t.x, z) - 0.06,
+          scale: t.s,
+          rotY: crownRand() * Math.PI * 2,
+        });
+      }
+    }
 
     loadGltfBundle("assets/models/flora_lowpoly_pack_01_mesh_2336.glb").then((bundle) => {
       // Sahip (27 Ağu, onikinci geri bildirim): "ağaçlar yatık, dik
@@ -1722,7 +2174,7 @@ export function buildCyclopsCave(): CyclopsCave {
           templates.set(spot.name, tpl);
         }
         const inst = tpl.clone(true);
-        inst.position.set(spot.x, groundHeightAt(spot.x, spot.z), spot.z);
+        inst.position.set(spot.x, spot.y ?? groundHeightAt(spot.x, spot.z), spot.z);
         inst.scale.setScalar(spot.scale);
         inst.rotation.y = spot.rotY;
         group.add(inst);
@@ -1747,6 +2199,10 @@ export function buildCyclopsCave(): CyclopsCave {
     hull.rotation.y = -1.1;
     hull.position.x += COVE_SHIP_CLEAR.x;
     hull.position.z += COVE_SHIP_CLEAR.z;
+    // `plantHero` tabanı y=0'a oturtur (karada dikim varsayımı) — demirli
+    // bir geminin karinası SU İÇİNDE olmalı: deniz yüzeyi ~-0,16, karina
+    // ~0,6 m batık (draft), gövde su hattına oturuyor.
+    hull.position.y -= 0.62;
     group.add(hull);
   });
 
@@ -1955,74 +2411,29 @@ export function buildCyclopsCave(): CyclopsCave {
       cliffGroup.add(scene);
       cliffLoadedFlag = true;
     });
-    const SEAT_TINT = 0x8fa8bd; // buildDistantHills nearLayer.color ile aynı, tutarlılık
-    loadGltfBundle("assets/models/terrain_backdrop_01_mesh_2000.glb").then((seatBundle) => {
-      const seat = seatBundle.scene;
-      seat.traverse((obj) => {
-        if (obj instanceof THREE.Mesh) {
-          obj.castShadow = true;
-          obj.receiveShadow = true;
-          obj.frustumCulled = false;
-          const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-          for (const m of mats) {
-            if (m instanceof THREE.MeshStandardMaterial) m.color.set(SEAT_TINT);
-          }
-        }
-      });
-      // Doğal boyut (GLB'nin kendi bake edilmiş ölçeği, `convert_
-      // terrain003_ambientcg.py`'deki TARGET_WIDTH=480'e göre): genişlik
-      // 480 m, yükseklik ~21,2 m. İlk denemede `seatScaleXZ * SEAT_
-      // SCALE_Y` formülü yanlış hesaplandı — sonuç kapının kendi 12 m
-      // yüksekliğinden bile KISA çıktı (`cliffWorldBox.y` değişmedi,
-      // ölçümle yakalandı). Hedef yükseklik/genişlik artık BAĞIMSIZ ve
-      // doğrudan hesaplanıyor.
-      // **Düzeltme (27 Ağu, sahip, ekran görüntüsüyle): "hâlâ aynı boşluk
-      // var. kapının hemen arkasında olan plaka sağa ve sola doğru
-      // çimenler ne kadar uzanıyorsa uzansın."** `SEAT_WIDTH=40` kovun
-      // ESKİ genişliğine göreydi (x=±20) — ada o zamandan beri `ISLAND_
-      // WIDTH=220`'ye genişledi, plaka artık çok dar kalıyor, iki
-      // yanında çimenle plaka arasında kapının kendi teal iç dokusunun
-      // sızdığı çirkin bir boşluk/kenar bırakıyordu.
-      // **Düzeltme (27 Ağu, sahip, ikinci ekran görüntüsüyle): "hayır tüm
-      // gökyüzü ve giriş kapısı buna gömüldü, böyle olmaması lazım.
-      // sadece yatay uzaması lazım."** İlk düzeltme HATALIYDI — `X` VE
-      // `Z` (derinlik) ikisi de AYNI `SEAT_WIDTH/NATIVE_WIDTH` oranıyla
-      // ölçekleniyordu, yani genişliği 40'tan 220'ye büyütmek kütlenin
-      // DERİNLİĞİNİ de (öne doğru, oyuncuya/gökyüzüne doğru) 5,5×
-      // büyütüp koca bir blok hâline getirdi — kapıyı ve gökyüzünü
-      // gerçekten yuttu. Genişlik (X) ve derinlik (Z) artık BAĞIMSIZ:
-      // yalnız X, `ISLAND_WIDTH` ile büyüyor; derinlik eski 40 m'lik
-      // orana sabit kalıyor (`SEAT_DEPTH`) — kütle yalnız YATAY uzanıyor,
-      // kendi eski (onaylanmış) inceliğini/profilini koruyor.
-      const SEAT_WIDTH = ISLAND_WIDTH;
-      const SEAT_DEPTH = 40; // eski SEAT_WIDTH değeri — yalnız derinlik için, hiç büyümüyor
-      // **Düzeltme (27 Ağu, sahip, üçüncü tur — "hâlâ aynı, yukarısında
-      // kapının dalları içerde gözüküyor"):** yalnız Z'de geri itmek
-      // (2→5) yetmedi — kütle geriye kayınca aynı mutlak yükseklikte
-      // kalıp kameraya göre ekranda daha YUKARI görünüyor (perspektif),
-      // bu da düşük-poly meshin kendi doğal olmayan düz üst/arka
-      // kenarını dalların TAM ÜSTÜNDE, gökyüzüne karşı ortaya
-      // çıkarıyordu — kaynağın kendisi (2047 üçgen, uzak silüet için
-      // optimize) bu kadar yakından bakılınca organik detay taşımıyor.
-      // Yükseklik belirgin artırıldı (22→34) ki o düz kenar çerçevenin
-      // çok üstünde, dalların asla göremeyeceği bir yükseklikte kalsın.
-      const SEAT_HEIGHT = 34; // kapının kendi ~12 m'sinden belirgin daha uzun, gerçek bir kütle hissi
-      const NATIVE_WIDTH = 480;
-      const NATIVE_HEIGHT = 21.2;
-      seat.scale.set(SEAT_WIDTH / NATIVE_WIDTH, SEAT_HEIGHT / NATIVE_HEIGHT, SEAT_DEPTH / NATIVE_WIDTH);
-      // Taban zaten yerel y=0'da (Blender'daki transform_apply) — dikey
-      // gerdirme orijin etrafında olduğundan taban yerinde kalıyor,
-      // yalnız tepe yükseliyor; ekstra "gömme" gerekmiyor (ASSET-117'nin
-      // uzak örneğinin aksine, bu mesh zemine hemen oturuyor).
-      // **Düzeltme (27 Ağu, sahip, ekran görüntüsüyle): "kapının üst
-      // tarafındaki ağaç dalları dağın içinde kalıyor."** Kapı bu turda
-      // %20 büyütüldü (dalları da orantılı uzadı) — mağara kütlesi hâlâ
-      // eski z=2'deydi, artık daha uzun dalların tepesiyle aynı derinlik
-      // aralığına giriyor, gerçek bir Z-örtüşme/kesişme oluşuyordu. z=5'e
-      // itilip dallara gerçek bir boşluk/mesafe bırakıldı.
-      seat.position.set(0, 0, 5);
-      cliffGroup.add(seat);
-    });
+    // **KALDIRILDI (28 Ağu, sahip: "adanin komplesini hic begenmiyorum
+    // geometrisel olarak").** Burada eskiden kapının hemen arkasına
+    // oturtulan bir "seat" kütlesi vardı: `terrain_backdrop_01_mesh_2000.glb`
+    // (ASSET-117), 220 m genişliğinde 34 m yüksekliğinde, soğuk gri-mavi
+    // (0x8fa8bd) boyanmış, tek skalerle gerdirilmiş jenerik bir dağ mesh'i.
+    // Üç ayrı sorunu vardı ve üçü de yamayla çözülemezdi:
+    //   (1) Kapının arkasına "iğnelenmiş" sonlu bir levhaydı — arazinin
+    //       kendisi değil. Bu yüzden her turda başka bir açıdan ya boşluk
+    //       (gökyüzü sızıntısı) ya da adanın içine gömülme üretti; bugünkü
+    //       tur geçmişinin (bkz. ACTIVE_WORK.md) neredeyse tamamı buydu.
+    //   (2) Rengi ATMOSFERİK PERSPEKTİF rengiydi (uzak, puslu katman için
+    //       doğru) ama nesne YAKINDAYDI — bu yüzden hep "arka plan resmi
+    //       önümde duruyor" gibi okundu.
+    //   (3) Provenans: `@quarry` araştırması (28 Ağu) bu mesh'in registry'de
+    //       yazdığı gibi ambientCG Terrain003 OLMADIĞINI kanıtladı (176 KB
+    //       vs. ambientCG'nin en küçük 118 MB indirmesi; dosyanın kendi
+    //       .mtl başlığı "3ds Max Wavefront OBJ Exporter" ve `C:\Users\
+    //       Hunter\` yolları taşıyor). Kaynağı ve lisansı BİLİNMİYOR ve
+    //       sahnedeki ana dağ kütlesi olarak sevk ediliyordu.
+    // Yerine geçen: modül başındaki landform eğrilerinden üretilen gerçek
+    // kayalık (`cliffSurfaceY`) — kapının arkasında ve iki yanında yükselen,
+    // koyun kendi arazisinin parçası olan sürekli bir kütle. Ne iğneleme,
+    // ne boşluk, ne bilinmeyen lisans.
   } else {
     const cliffMat = new THREE.MeshStandardMaterial({ color: 0xe6e2d4, roughness: 0.95 });
     loadGltfBundle("assets/models/rock_cyclops_cliff_01_mesh_4460.glb").then((bundle) => {
@@ -2074,13 +2485,22 @@ export function buildCyclopsCave(): CyclopsCave {
     // okunuyordu (tam ekran görüntüsündeki "plaka"). Arka perdenin işi
     // sadece boşluğu KARARTMAK (tünel karanlığı yerine düz koyu yüzey) —
     // hiç doku gerekmiyor, kendi ayrı/nötr koyu malzemesi.
-    const backstopMat = new THREE.MeshStandardMaterial({ color: 0x2a241d, roughness: 1 });
+    // `MeshBasicMaterial` — ışıktan TAMAMEN bağımsız. Standart malzemeyle
+    // güneş (28 Ağu, -Z'den vuruyor) bu kutuların ön yüzünü aydınlatıp
+    // kapının üstünde parlak gri bir DİKDÖRTGEN olarak ortaya çıkarıyordu
+    // (raycast ile doğrulandı: ekrandaki gri levha = leftWall'un y≈5 üst
+    // bandı). İşi "boşluğu tünel karanlığı gibi göstermek" olan bir perde
+    // hiçbir zaman ışık almamalı.
+    const backstopMat = new THREE.MeshBasicMaterial({ color: 0x120f0b });
     const backHalfWidth = 5;
     const backHeight = 5;
     const doorHalfWidth = 1.9;
     const doorHeight = 2.4;
     const backDepth = 3;
-    const backZ = 1.6;
+    // 2,7 m — kaş (browProfile) bu derinlikte zaten ~13 m kaya yükseltiyor;
+    // perde kutuları artık her açıdan terrain'in ARKASINDA kalıyor, yalnız
+    // kapı-kabuk boşluğundan bakan ışın onların karanlığını görüyor.
+    const backZ = 2.7;
     const sideWidth = backHalfWidth - doorHalfWidth;
     const leftWall = new THREE.Mesh(
       new THREE.BoxGeometry(sideWidth, backHeight, backDepth),

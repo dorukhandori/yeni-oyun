@@ -14,6 +14,8 @@ import {
   roomBounds,
   heightAt,
   groundHeightAt,
+  shoreLineZ,
+  cliffFootZ,
   HEARTH_POS,
   TORCH_POS,
 } from "../world/cyclopsCave";
@@ -126,6 +128,14 @@ function clampCameraInsideCave(pos: THREE.Vector3, playerZ: number): void {
   }
   if (Number.isFinite(room.ceilingY)) {
     pos.y = Math.min(pos.y, room.ceilingY - CAMERA_WALL_MARGIN);
+  }
+  // 28 Ağu landform: oyuncu dışarıdayken kamera kayalık kütlesinin içine
+  // girmesin — oyuncu kelepçesiyle aynı eğri (`cliffFootZ`), aynı kapı
+  // boğazı muafiyeti. (Deniz tarafı bilerek serbest: kameranın suyun
+  // üstünden koya bakması hem güvenli hem güzel bir kadraj.)
+  if (playerZ < 0 && Math.abs(pos.x) >= 8) {
+    const footLim = cliffFootZ(pos.x) - 1.2;
+    if (pos.z > footLim) pos.z = footLim;
   }
 }
 /**
@@ -552,7 +562,10 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
   // eşdeğeri yok.
   const rig = new CameraRig(
     camera,
-    (_x, z) => heightAt(z),
+    // 28 Ağu landform: zemin artık X'e de bağlı — kamera hedef yüksekliği
+    // oyuncununkiyle aynı 2B fonksiyondan gelsin (eski z-only `heightAt`
+    // dalgalı çayırda kamerayı yer yer zemine gömüyordu).
+    (x, z) => groundHeightAt(x, z),
     isCoarsePointer() ? CAMERA.distTouch : CAMERA.dist,
     (pos) => clampCameraInsideCave(pos, player.position.z),
   );
@@ -1181,7 +1194,22 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     if (Number.isFinite(hw)) {
       player.position.x = Math.max(-hw + PLAYER_RADIUS, Math.min(hw - PLAYER_RADIUS, player.position.x));
     }
-    player.position.z = Math.max(-49, Math.min(64.5, player.position.z)); // koy D=-50'ye uzadı, -19→-29→-39→-49
+    player.position.z = Math.min(64.5, player.position.z);
+    // 28 Ağu landform: koy artık dikdörtgen değil — yürünebilir alan iki
+    // organik eğrinin arasında (`shoreLineZ` deniz tarafı, `cliffFootZ`
+    // kayalık tarafı). Kelepçeler Z ekseninde "duvar boyunca kayma" gibi
+    // davranıyor: kıyıya/kayalığa doğru çapraz yürüyüş, oyuncuyu geri
+    // itmek yerine sınır eğrisi boyunca kaydırıyor.
+    if (player.position.z < 0) {
+      const shoreLim = shoreLineZ(player.position.x) + 1.1;
+      if (player.position.z < shoreLim) player.position.z = shoreLim;
+      // Kapı boğazı (|x|<8) muaf — orada koridor kelepçesi devralıyor ve
+      // taban çizgisi zaten kapının arkasında (z≈+1).
+      if (Math.abs(player.position.x) >= 8) {
+        const footLim = cliffFootZ(player.position.x) - 1.0;
+        if (player.position.z > footLim) player.position.z = footLim;
+      }
+    }
     // Sahip (27 Ağu, on sekizinci geri bildirim): "karakter ve koyunlar ve
     // çimenler zeminin altında kalıyor." Kök neden: burada hâlâ düz
     // `heightAt(z)` kullanılıyordu — X'i hiç bilmiyordu. Genişletilmiş
