@@ -5,6 +5,7 @@ import { loadGltfBundle } from "./gltf";
 import { mulberry32 } from "./rng";
 import { ISLAND_KIT, placeKit } from "./islandKit";
 import { plantHero, paintHero, seatHullKeel } from "./ship";
+import { sampleOceanHull } from "./oceanWaves";
 import { buildDistantHills } from "./terrain";
 import { SHIP, PALETTE, FLORA, SEA_TEX } from "../constants";
 
@@ -81,6 +82,18 @@ export function corridorHalfWidthAt(z: number): number {
  * Değer ASSET-109'un solgun, güneşte yıkanmış Ege ufkundan.
  */
 export const CYCLOPS_FOG_COLOR = 0xdde8ea;
+
+/**
+ * Kiklop koyunun dalga dikliği çarpanı. Korunaklı bir koyun suyu açık
+ * denizden çok daha sakin olmalı (27 Ağu, sahip: "suyu adanın içine kadar
+ * gelmesini kes") — en büyük Lotus dalgası burada ~1,26 m yerine ~0,25 m.
+ *
+ * `cyclopsStop.ts` bunu `buildSea({ waveScale })` ile GPU shader'ına,
+ * `buildCyclopsCave()` ise geminin CPU tarafındaki sallanma örneklemesine
+ * (`sampleOceanHull`) veriyor. İkisi AYNI değeri kullanmak zorunda: aksi
+ * hâlde gemi, gözle görülen dalgadan farklı bir dalganın üstünde sallanır.
+ */
+export const CYCLOPS_WAVE_SCALE = 0.2;
 
 // ===================================================================
 // KOY ARAZİSİ — landform (28 Ağu 2026, tam yeniden yazım)
@@ -2298,6 +2311,46 @@ export function buildCyclopsCave(): CyclopsCave {
     // birinde durması için düzlem su seviyesinin ~1,5 m ÜSTÜNDE olmalı.
     seatHullKeel(hull, SEA_TEX.floorY + 1.55);
     group.add(hull);
+
+    // Sahip (28 Ağu): "gemimiz suyun üzerinde sallansın. zaten bu hareket
+    // var." Doğru — Lotus'un kahraman gemisi `ship.ts`'te `sampleOceanHull`
+    // ile aynı Gerstner spektrumundan (GPU'nun çizdiği dalganın CPU
+    // karşılığı, `oceanWaves.ts`) yükseklik + pitch + roll örnekliyor.
+    // Cyclops o kodu hiç kullanmıyordu (gemisi salt dekor, statik).
+    //
+    // Doğrudan yeniden kullanılamadı çünkü `sampleOcean` genliği Lotus'un
+    // ada yarıçapına bağlı `shoreAmp()` ile sönümlüyor — Cyclops kendi
+    // denizini `islandRadius: 0` ile kurduğundan bu her noktada 0 verip
+    // dalgayı tamamen siliyordu. `oceanWaves.ts`'e opsiyonel bir genlik
+    // parametresi eklendi (Lotus'un davranışı birebir aynı kaldı) ve
+    // buradan GPU shader'ıyla AYNI `CYCLOPS_WAVE_SCALE` geçiliyor — gemi
+    // gerçekten gözle görülen dalganın üstünde sallanıyor.
+    const baseY = hull.position.y;
+    // Tekne yarı-boyutları geminin KENDİ ölçeğinde (Lotus'un `deckHalf*`
+    // sabitleri tam boy gemiye göre; burada 0,42 küçültme var).
+    const halfL = SHIP.deckHalfL * COVE_SHIP_SCALE * 0.62;
+    const halfW = SHIP.deckHalfW * COVE_SHIP_SCALE * 0.7;
+    // Koy dalgası zaten çok sakin (~0,25 m); Lotus'un kendi takip
+    // katsayıları burada hareketi neredeyse görünmez bırakıyordu, bu yüzden
+    // pitch/roll biraz yükseltildi — demirli bir teknenin tembel
+    // yalpalaması okunacak kadar, "fırtınada" gibi görünmeyecek kadar.
+    const FOLLOW_Y = 0.9;
+    const FOLLOW_PITCH = 1.6;
+    const FOLLOW_ROLL = 1.6;
+    kitUpdaters.push((t) => {
+      const w = sampleOceanHull(
+        hull.position.x,
+        hull.position.z,
+        hull.rotation.y,
+        t,
+        halfL,
+        halfW,
+        CYCLOPS_WAVE_SCALE,
+      );
+      hull.position.y = baseY + w.y * FOLLOW_Y;
+      hull.rotation.x = w.pitch * FOLLOW_PITCH;
+      hull.rotation.z = w.roll * FOLLOW_ROLL;
+    });
   });
 
   const floorGeo = new THREE.PlaneGeometry(40, 65);

@@ -17,6 +17,7 @@ import {
   shoreLineZ,
   cliffFootZ,
   CYCLOPS_FOG_COLOR,
+  CYCLOPS_WAVE_SCALE,
   HEARTH_POS,
   TORCH_POS,
 } from "../world/cyclopsCave";
@@ -473,7 +474,10 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     islandRadius: 0,
     shoreBlend: false,
     clipZMax: -1,
-    waveScale: 0.2,
+    // Tek kaynak: geminin CPU sallanma örneklemesi de aynı sabiti kullanıyor
+    // (bkz. cyclopsCave.ts `CYCLOPS_WAVE_SCALE`) — ayrışırlarsa gemi
+    // gördüğümüzden başka bir dalganın üstünde sallanır.
+    waveScale: CYCLOPS_WAVE_SCALE,
   });
   sea.group.position.z = -56;
   scene.add(sea.group);

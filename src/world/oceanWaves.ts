@@ -38,8 +38,22 @@ function shoreAmp(x: number, z: number): number {
  * Height + normal at a world XZ. Shore-damped so the beached hull laps
  * instead of riding a 2 m swell. No hull-chop here (that's visual-only).
  */
-export function sampleOcean(x: number, z: number, time: number): OceanSample {
-  const ampMul = shoreAmp(x, z);
+export function sampleOcean(
+  x: number,
+  z: number,
+  time: number,
+  /**
+   * Genlik çarpanını doğrudan ver, `shoreAmp()`'i tamamen atla (28 Ağu 2026).
+   * `shoreAmp` Lotus'un kendi adasına (`islandRadiusAt`) bağlı; kendi denizini
+   * kuran duraklar için (Cyclops: `buildSea({ islandRadius: 0, waveScale })`)
+   * bu damping her noktada 0 döndürüp dalgayı tamamen sıfırlıyor. Değer,
+   * o durağın `buildSea`'ye geçtiği `waveScale` ile aynı olmalı — GPU
+   * shader'ı da steepness'i tam o oranda ölçekliyor, tekne böylece
+   * gördüğü dalganın üstünde sallanır.
+   */
+  ampOverride?: number,
+): OceanSample {
+  const ampMul = ampOverride ?? shoreAmp(x, z);
   let y = 0;
   let tx = 1;
   let ty = 0;
@@ -83,14 +97,16 @@ export function sampleOceanHull(
   time: number,
   halfL: number,
   halfW: number,
+  /** Bkz. `sampleOcean`'ın aynı adlı parametresi. */
+  ampOverride?: number,
 ): { y: number; pitch: number; roll: number } {
   const c = Math.cos(yaw);
   const s = Math.sin(yaw);
-  const mid = sampleOcean(x, z, time);
-  const bow = sampleOcean(x + c * halfL, z + s * halfL, time);
-  const stern = sampleOcean(x - c * halfL, z - s * halfL, time);
-  const stbd = sampleOcean(x - s * halfW, z + c * halfW, time);
-  const port = sampleOcean(x + s * halfW, z - c * halfW, time);
+  const mid = sampleOcean(x, z, time, ampOverride);
+  const bow = sampleOcean(x + c * halfL, z + s * halfL, time, ampOverride);
+  const stern = sampleOcean(x - c * halfL, z - s * halfL, time, ampOverride);
+  const stbd = sampleOcean(x - s * halfW, z + c * halfW, time, ampOverride);
+  const port = sampleOcean(x + s * halfW, z - c * halfW, time, ampOverride);
   const y = (mid.y + bow.y + stern.y) * 0.333;
   const spanL = Math.max(0.5, halfL * 2);
   const spanW = Math.max(0.5, halfW * 2);
