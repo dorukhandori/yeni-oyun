@@ -70,6 +70,23 @@ function oceanMaterial(islandRadius: number, clipZMax: number, waveScale: number
     fog: true,
     transparent: true,
     depthWrite: false,
+    // Bu shader tone-mapping'i KENDİSİ yapıyor (aşağıda
+    // `#include <tonemapping_pars_fragment>` + `<tonemapping_fragment>`).
+    // `toneMapped` açık kalırsa three.js aynı pars bloğunu bir kez daha
+    // prefix'e enjekte ediyor ve fragment shader "toneMappingExposure:
+    // redefinition" ile HİÇ DERLENMİYOR — deniz sessizce görünmez oluyor.
+    //
+    // Bu, render yoluna göre değişen sinsi bir tuzaktı: three yalnız
+    // doğrudan ekrana çizerken (`currentRenderTarget === null`) enjekte
+    // ediyor. Lotus denizi EffectComposer üzerinden bir render target'a
+    // çizdiği için hep kurtulmuştu; Cyclops ise composer kullanmıyor —
+    // 28 Ağu'da renderer'a ACES eklenince (gerçek güneş/ışık turu) Cyclops'un
+    // denizi o andan itibaren hiç render edilmedi. Sahibin "denizin
+    // sonsuzluk hissi çok yapay" dediği görüntüde deniz sanılan şey aslında
+    // gökyüzü küresiydi (piksel taraması: %28-32 bandı dümdüz tek renk).
+    // Workbench aynı çakışmayı bulup ACES'i kapatarak yaşamıştı
+    // (`workbench/viewer.ts` `setBackdrop("ocean")`); asıl düzeltme bu.
+    toneMapped: false,
     uniforms: THREE.UniformsUtils.merge([
       THREE.UniformsLib.fog,
       {

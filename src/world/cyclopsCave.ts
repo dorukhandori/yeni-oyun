@@ -4,9 +4,9 @@ import { loadAlbedoTexture, loadDataTexture } from "./sprite";
 import { loadGltfBundle } from "./gltf";
 import { mulberry32 } from "./rng";
 import { ISLAND_KIT, placeKit } from "./islandKit";
-import { plantHero, paintHero } from "./ship";
+import { plantHero, paintHero, seatHullKeel } from "./ship";
 import { buildDistantHills } from "./terrain";
-import { SHIP, PALETTE, FLORA } from "../constants";
+import { SHIP, PALETTE, FLORA, SEA_TEX } from "../constants";
 
 /**
  * Cyclops Cave (2nd stop) — primitive, code-only geometry + world content.
@@ -71,6 +71,16 @@ export function roomIdAt(z: number): RoomId {
 export function corridorHalfWidthAt(z: number): number {
   return roomAt(z).halfWidth;
 }
+
+/**
+ * Kiklop'un atmosfer rengi — gökyüzünün ufuk bandı, `scene.fog` rengi ve
+ * uzak-tepe halkasının pus karışımı ÜÇÜ de bunu kullanır (28 Ağu 2026,
+ * sahip: "denizin sonsuzluk hissi çok yapay"). Tek kaynak olması şart:
+ * üçü ayrı ayrı ayarlandığında aralarındaki en küçük fark bile ufukta
+ * gözle görülür bir şerit üretiyor — bu hatanın kendisi iki tur sürdü.
+ * Değer ASSET-109'un solgun, güneşte yıkanmış Ege ufkundan.
+ */
+export const CYCLOPS_FOG_COLOR = 0xdde8ea;
 
 // ===================================================================
 // KOY ARAZİSİ — landform (28 Ağu 2026, tam yeniden yazım)
@@ -841,18 +851,30 @@ export function buildCyclopsCave(): CyclopsCave {
   // (asagida, `USE_SKETCHFAB_GATE` blogunda) ayri kaldi - o, sonsuzluk
   // ufku degil, kapinin oyuldugu kayanin kendi yakin dokusu, kasitli
   // olarak sabit/yakin.
-  const horizonGroup = buildDistantHills(mulberry32(20260831));
-  // Yalnız dokulu ufuk HALKASI kalsın — `buildDistantHills`'in 12 düz-renk
-  // konisi Lotus'un kendi adası çevresinde işe yarıyor ama Cyclops'un açık
-  // deniz ufkunda, kameraya kilitli grupta, suyun ÜSTÜNDE asılı duran sert
-  // kenarlı soluk üçgenler gibi okunuyordu (28 Ağu ekran görüntüsüyle
-  // doğrulandı — "kağıttan yelkenler"). Referansın uzak silüeti ufuk
-  // çizgisine oturan alçak, puslu bir bant — onu halka zaten veriyor.
-  for (const child of [...horizonGroup.children]) {
-    if (child instanceof THREE.Mesh && child.geometry instanceof THREE.ConeGeometry) {
-      horizonGroup.remove(child);
-    }
-  }
+  // `cones: false` — `buildDistantHills`'in 12 düz-renk konisi Lotus'un
+  // kendi adası çevresinde işe yarıyor ama Cyclops'un açık deniz ufkunda,
+  // kameraya kilitli grupta, suyun ÜSTÜNDE asılı duran sert kenarlı soluk
+  // üçgenler gibi okunuyordu (28 Ağu ekran görüntüsüyle doğrulandı).
+  //
+  // `hazeAmount: 0.9` — sahip: "denizin sonsuzluk hissi çok yapay."
+  // Ölçümle bulunan iki kök nedenden ikincisi: halkanın malzemesi
+  // `fog: false` olduğu için, sahneye yeni eklenen `scene.fog`'a hiç
+  // katılmıyordu; sonuç, gökyüzü ile deniz arasında doygun/koyu, sert
+  // kenarlı bir şerit (dikey piksel taraması: gökyüzü rgb(140,177,201),
+  // halka bandı rgb(104,150,201) — belirgin bir kopuş). Halka
+  // `SKY_TEX.hillDistance`=310 m'de ve kameraya kilitli olduğundan fog
+  // faktörü sabit: FogExp2 ile 1-exp(-(0.005·310)²) ≈ 0,91. Tam o oranda
+  // pus rengine karıştırılıyor — halka artık sahnenin kendi atmosferine
+  // ait, yalnızca sezilen bir uzak kara silüeti.
+  const horizonGroup = buildDistantHills(mulberry32(20260831), {
+    cones: false,
+    hazeColor: CYCLOPS_FOG_COLOR,
+    hazeAmount: 0.9,
+    // Halkanın alpha fade yönü ölçümle TERS bulundu — bkz. terrain.ts
+    // `uSilhouette` notu. Cyclops doğru yönü kullanıyor: uzak tepeler
+    // opak, fotoğrafın kendi gökyüzü şeffaf.
+    silhouetteFade: true,
+  });
   group.add(horizonGroup);
 
   // Ground strip, split at the cave mouth (D=0) so cove+path can carry a
@@ -966,8 +988,20 @@ export function buildCyclopsCave(): CyclopsCave {
   const TERRAIN_Z_MAX = 44;
 
   /** Görsel yüzey: yürünebilir koy zemini VE kayalık kütlesi birlikte. */
-  const terrainY = (x: number, z: number): number =>
-    Math.max(coveFloorY(x, z), cliffSurfaceY(x, z));
+  const terrainY = (x: number, z: number): number => {
+    const floor = coveFloorY(x, z);
+    const cliff = cliffSurfaceY(x, z);
+    // `cliffSurfaceY` kayalığın ÖNÜNDEKİ her nokta için tam 0 döndürür
+    // (d<=0 → 0). Düz bir `Math.max(floor, cliff)` bu yüzden SU ALTI
+    // yamacını da 0'a kırpıyordu: deniz yüzeyi -0,16'da olduğundan
+    // kıyının ötesindeki bütün deniz tabanı suyun ÜSTÜNDE, dümdüz bir kum
+    // sahanlığı olarak kalıyordu — kıyı çizgisi diye bir şey oluşmuyor,
+    // gemi de kumun üstünde asılı duruyordu (deniz shader'ı düzelip su
+    // gerçekten render olmaya başlayınca ortaya çıktı, 28 Ağu).
+    // Kayalık yalnız GERÇEKTEN yükseldiği yerde (cliff > 0) devreye girer;
+    // aksi hâlde zemin tamamen `coveFloorY`'nin kendi eğrisidir.
+    return cliff > 0 ? Math.max(floor, cliff) : floor;
+  };
 
   const terrainGeo = (() => {
     // 300×170 (~51k vertex) — önceki 190×104'te hücreler ~1,2 m'ydi ve
@@ -2248,10 +2282,21 @@ export function buildCyclopsCave(): CyclopsCave {
     hull.rotation.y = -1.1;
     hull.position.x += COVE_SHIP_CLEAR.x;
     hull.position.z += COVE_SHIP_CLEAR.z;
-    // `plantHero` tabanı y=0'a oturtur (karada dikim varsayımı) — demirli
-    // bir geminin karinası SU İÇİNDE olmalı: deniz yüzeyi ~-0,16, karina
-    // ~0,6 m batık (draft), gövde su hattına oturuyor.
-    hull.position.y -= 0.62;
+    // Demirli bir geminin karinası SU İÇİNDE olmalı. `plantHero` omurgayı
+    // y=0'a oturtuyor ama bunu KENDİ ölçeğinde yapıyor; yukarıdaki
+    // `COVE_SHIP_SCALE` ondan SONRA uygulandığı için omurga oturma
+    // düzleminden kayıyor ve gemi suyun üstünde asılı kalıyordu (sabit bir
+    // -0,62 kaydırmayla telafi denendi, ölçek değişince yine bozulur —
+    // kalıcı çözüm ölçüm). `seatHullKeel` tüm dönüşümlerden SONRA çağrılıyor.
+    //
+    // Hedef yükseklik ölçümle bulundu: `hullKeelY` bu Tripo gövdesinde
+    // gerçek omurga DEĞİL, daha yukarıdaki bir "gövde-altı kuantili"
+    // (oturtma düzlemi -0,66'dayken AABB min.y=-2,77 ölçüldü; aradaki
+    // ~2,1 m kürekler/dümen). Bu yüzden düzlemi deniz seviyesinin ALTINA
+    // koymak gemiyi güvertesine kadar batırıyor (yakın plan ekran
+    // görüntüsünde batık gibi okundu). Su hattının gövdenin alt üçte
+    // birinde durması için düzlem su seviyesinin ~1,5 m ÜSTÜNDE olmalı.
+    seatHullKeel(hull, SEA_TEX.floorY + 1.55);
     group.add(hull);
   });
 

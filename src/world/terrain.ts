@@ -867,7 +867,22 @@ function buildNorthSpikeRocks(rand: () => number): THREE.Group {
  * textured ring using the generated hill backdrop (ASSET-023), which reads
  * far better than a flat-colour cone at that distance.
  */
-export function buildDistantHills(rand: () => number): THREE.Group {
+export function buildDistantHills(
+  rand: () => number,
+  /**
+   * 28 Ağu 2026 (Cyclops, sahip: "denizin sonsuzluk hissi çok yapay").
+   * Halkanın kendi malzemesi `fog: false` — Lotus'ta doğru (orada halka
+   * ufkun KENDİSİ, pusun arkasına saklanmamalı), ama Cyclops artık gerçek
+   * bir `scene.fog` kullanıyor ve halka o pusa hiç katılmadığı için ufukta
+   * doygun, koyu, sert kenarlı bir şerit olarak okunuyordu (piksel ölçümü:
+   * gökyüzü rgb(140,177,201) iken halka bandı rgb(104,150,201)). Halka
+   * sabit ve kameraya kilitli bir mesafede (`SKY_TEX.hillDistance`) durduğu
+   * için fog faktörü de sabittir — pahalı bir fog entegrasyonu yerine
+   * doğrudan o sabit oranda pus rengine karıştırmak yeterli ve daha ucuz.
+   * Varsayılan `hazeAmount: 0` — Lotus'un görünümü birebir korunuyor.
+   */
+  opts?: { hazeColor?: number; hazeAmount?: number; cones?: boolean; silhouetteFade?: boolean },
+): THREE.Group {
   const group = new THREE.Group();
   const nearLayer = {
     dist: ISLAND.radius + 110,
@@ -877,18 +892,26 @@ export function buildDistantHills(rand: () => number): THREE.Group {
   };
 
   const mat = new THREE.MeshBasicMaterial({ color: nearLayer.color, fog: true });
-  for (let i = 0; i < nearLayer.count; i++) {
-    const a = (i / nearLayer.count) * Math.PI * 2 + rand() * 0.4;
-    const d = nearLayer.dist * (0.9 + rand() * 0.25);
-    const h = nearLayer.height * (0.55 + rand() * 0.7);
-    const hill = new THREE.Mesh(new THREE.ConeGeometry(h * 1.5, h, 5, 1), mat);
-    hill.position.set(Math.cos(a) * d, h * 0.5 - h * 0.42, Math.sin(a) * d);
-    hill.rotation.y = rand() * Math.PI;
-    hill.scale.z = 0.5 + rand() * 0.4;
-    group.add(hill);
+  if (opts?.cones !== false) {
+    for (let i = 0; i < nearLayer.count; i++) {
+      const a = (i / nearLayer.count) * Math.PI * 2 + rand() * 0.4;
+      const d = nearLayer.dist * (0.9 + rand() * 0.25);
+      const h = nearLayer.height * (0.55 + rand() * 0.7);
+      const hill = new THREE.Mesh(new THREE.ConeGeometry(h * 1.5, h, 5, 1), mat);
+      hill.position.set(Math.cos(a) * d, h * 0.5 - h * 0.42, Math.sin(a) * d);
+      hill.rotation.y = rand() * Math.PI;
+      hill.scale.z = 0.5 + rand() * 0.4;
+      group.add(hill);
+    }
   }
 
-  group.add(buildHillBackdropRing());
+  group.add(
+    buildHillBackdropRing(
+      opts?.hazeColor ?? 0xffffff,
+      opts?.hazeAmount ?? 0,
+      opts?.silhouetteFade ?? false,
+    ),
+  );
   return group;
 }
 
@@ -901,7 +924,11 @@ export function buildDistantHills(rand: () => number): THREE.Group {
  * gradient instead of cutting a hard horizon line; `fog: false` matches the
  * near cone layer so both stay crisp as atmospheric-perspective cutouts.
  */
-function buildHillBackdropRing(): THREE.Mesh {
+function buildHillBackdropRing(
+  hazeColor: number,
+  hazeAmount: number,
+  silhouetteFade: boolean,
+): THREE.Mesh {
   const tex = loadAlbedoTexture(assetUrl(HILL_BACKDROP_TEX_URL));
   tex.wrapS = THREE.RepeatWrapping;
   tex.wrapT = THREE.ClampToEdgeWrapping;
@@ -916,7 +943,12 @@ function buildHillBackdropRing(): THREE.Mesh {
     true,
   );
   const mat = new THREE.ShaderMaterial({
-    uniforms: { map: { value: tex } },
+    uniforms: {
+      map: { value: tex },
+      uHaze: { value: new THREE.Color(hazeColor) },
+      uHazeAmt: { value: hazeAmount },
+      uSilhouette: { value: silhouetteFade ? 1 : 0 },
+    },
     side: THREE.BackSide,
     fog: false,
     transparent: true,
@@ -930,13 +962,34 @@ function buildHillBackdropRing(): THREE.Mesh {
     `,
     fragmentShader: /* glsl */ `
       uniform sampler2D map;
+      uniform vec3 uHaze;
+      uniform float uHazeAmt;
+      uniform float uSilhouette;
       varying vec2 vUv;
       void main() {
         vec4 c = texture2D(map, vUv);
         // v=0 is the cylinder's top edge (open into the sky) — fade most of
         // the wall so it reads as a horizon silhouette, not a blue slab.
         float topFade = smoothstep(0.0, 0.78, vUv.y);
-        gl_FragColor = vec4(c.rgb, topFade);
+        // uSilhouette (28 Agu 2026, Cyclops): yukaridaki satir olcumle
+        // TERS cikti. three.js CylinderGeometry govdesinde v=1 UST kenar
+        // (v=0 alt), ve doku (hill_backdrop_01) fotografin kendi gokyuzunu
+        // USTTE (imgY=0, beyaz 255,252,249), tepeleri ALTTA (imgY~0.95,
+        // koyu 43,73,113) tasiyor. Yani mevcut topFade fotografin
+        // GOKYUZUNU opak gosterip asil tepe siluetini seffaflastiriyor -
+        // tam tersi. Sonuc ufukta sert kenarli, acik renkli bir serit
+        // (piksel taramasiyla yakalandi, sahibin "sonsuzluk hissi cok
+        // yapay" sikayetinin son parcasi). Dogrusu: tepeler (kucuk v) opak,
+        // fotografin gokyuzu (buyuk v) seffaf - gercek gokyuzu gorunsun.
+        // Lotus'un gorunumunu sessizce degistirmemek icin opt-in; Lotus
+        // tarafi ayri bir turda dogrulanip acilmali (bkz. ACTIVE_WORK).
+        float silo = 1.0 - smoothstep(0.16, 0.46, vUv.y);
+        topFade = mix(topFade, silo, uSilhouette);
+        // Atmosferik perspektif (Cyclops; Lotus'ta uHazeAmt=0, etkisiz):
+        // halka sabit mesafede olduğu için fog faktörü de sabit — sahnenin
+        // pus rengine o oranda karışıyor, ufukta koyu bir şerit bırakmıyor.
+        vec3 rgb = mix(c.rgb, uHaze, uHazeAmt);
+        gl_FragColor = vec4(rgb, topFade);
       }
     `,
   });

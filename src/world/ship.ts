@@ -347,6 +347,21 @@ export function plantHero(scene: THREE.Object3D): void {
   scene.position.y -= hullKeelY(scene);
 }
 
+/**
+ * Re-seat an already-planted hull so its keel plane sits at world `y`.
+ *
+ * `plantHero()` seats the keel at y=0, but it does so at ITS OWN scale. A
+ * stop that applies a further `scale.multiplyScalar(...)` afterwards (Cyclops
+ * shrinks the galley to 0.42 for its small cove) scales the geometry about
+ * the object origin while `position.y` stays put — the keel drifts off the
+ * seating plane and the ship visibly hovers (28 Ağu 2026, sahibin denizi
+ * görünür olunca ortaya çıktı). Call this last, after every transform.
+ */
+export function seatHullKeel(root: THREE.Object3D, y: number): void {
+  root.updateMatrixWorld(true);
+  root.position.y += y - hullKeelY(root);
+}
+
 /** World Y of the hull seating plane, ignoring oars / rudder that set AABB min.y. */
 function hullKeelY(root: THREE.Object3D): number {
   const ys: number[] = [];

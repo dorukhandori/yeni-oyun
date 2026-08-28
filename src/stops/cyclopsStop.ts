@@ -16,6 +16,7 @@ import {
   groundHeightAt,
   shoreLineZ,
   cliffFootZ,
+  CYCLOPS_FOG_COLOR,
   HEARTH_POS,
   TORCH_POS,
 } from "../world/cyclopsCave";
@@ -351,8 +352,43 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
   // soğuk gri (yama) mi" ikilemi değil: ikisinin de dışında, referansın
   // kendi rengi olan yüksek-değerli solgun bir ufuk. Turuncu şikayeti
   // yine gelmez (bu renk amber değil), ama sahne artık güneşli okunuyor.
-  const CYCLOPS_SKY_HORIZON = 0xdde8ea; // solgun, güneşte yıkanmış ufuk pusu (ASSET-109)
-  const skyHorizon = new THREE.Color(CYCLOPS_SKY_HORIZON);
+  // Tek kaynak: gökyüzü ufku + fog + uzak-tepe halkasının pusu aynı rengi
+  // paylaşmalı (bkz. cyclopsCave.ts `CYCLOPS_FOG_COLOR` notu).
+  const skyHorizon = new THREE.Color(CYCLOPS_FOG_COLOR);
+
+  // 28 Ağu, sahip: **"ama şimdi de denizin sonsuzluk hissi çok yapay."**
+  // Kök neden ölçümle bulundu: Kiklop sahnesinde `scene.fog` HİÇ
+  // kurulmamıştı. Bu tek başına iki ayrı yapaylık üretiyor:
+  //   (1) `sea.ts`'in kendi shader'ı atmosferik mesafeyi FOG ÜZERİNDEN
+  //       kuracak şekilde yazılmış (`#include <fog_vertex>` /
+  //       `<fog_fragment>`, `fog: true`) — Lotus `stage.ts:56`'da
+  //       `FogExp2(RENDER.fogColor, 0.0044)` ile bunu besliyor. Cyclops
+  //       kendi ayrı render yolunu kullandığı için (CLAUDE.md standing
+  //       note) o satırı hiç miras almamıştı: deniz, tam doygun turkuazını
+  //       ufka kadar koruyordu. Gerçek denizde uzak su ile gökyüzü aynı
+  //       pusta birleşir; burada iki ayrı düz renk bandı gibi duruyordu.
+  //   (2) Deniz düzlemi (`floodMeters` 1100 m) kameranın uzak kesme
+  //       düzleminden (400 m) çok daha uzağa uzanıyor, yani ~400 m'de
+  //       DONANIMSAL olarak kesiliyor — ufuk çizgisinin hemen altında
+  //       (göz yüksekliği ~4 m'de yalnız ~0,6°) sert, dümdüz bir kenar.
+  //       Fog'suz bu kenar doygun mavi ile gökyüzü arasında keskin bir
+  //       şerit olarak okunuyordu (sahibin gördüğü "yapay" çizgi).
+  // Çözüm ikisini birden kapatıyor: fog rengi gökyüzünün KENDİ ufuk
+  // rengiyle aynı (`CYCLOPS_SKY_HORIZON`) ve yoğunluk, kesme düzleminden
+  // ÖNCE tam doyacak şekilde seçildi — 350 m'de fog faktörü ~%95, yani
+  // denizin kesilen kenarı zaten %100 gökyüzü rengine boyanmış oluyor,
+  // birleşme noktası görünmez hâle geliyor. Yakın koy ise korunuyor:
+  // 60 m'de yalnız ~%9 pus (gerçek atmosferik perspektif, kayalığa
+  // istenen derinliği veriyor), 20 m'de ~%1.
+  const FOG_DENSITY_OUTDOOR = 0.005;
+  // Mağara İÇİ ayrı: aynı açık-gri pus kapalı bir mağarada yanlış olur
+  // (duvarları soluk bir perdeyle yıkardı). İçeride hem çok daha koyu hem
+  // daha yoğun bir fog — tünelin derinliğe doğru kararmasını güçlendiriyor,
+  // ışık profiliyle (aşağıdaki `inside`) aynı anda karışıyor.
+  const FOG_COLOR_OUTDOOR = new THREE.Color(CYCLOPS_FOG_COLOR);
+  const FOG_COLOR_INDOOR = new THREE.Color(0x0d1418);
+  const FOG_DENSITY_INDOOR = 0.02;
+  scene.fog = new THREE.FogExp2(FOG_COLOR_OUTDOOR.getHex(), FOG_DENSITY_OUTDOOR);
   const skyMat = new THREE.ShaderMaterial({
     side: THREE.BackSide,
     depthWrite: false,
@@ -1405,6 +1441,13 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
       // Oyuncu tamamen içerideyken gölge haritasını hesaplamanın hiçbir
       // görsel karşılığı yok (güneş zaten 0.35'e inmiş) — bedava kare süresi.
       sun.castShadow = inside < 0.98;
+      // Fog da aynı `inside` karışımını takip ediyor (bkz. yukarıdaki
+      // FOG_* notu): dışarıda açık gökyüzü pusu ufku kapatıyor, içeride
+      // koyu/yoğun bir pus tünel derinliğini taşıyor.
+      if (scene.fog instanceof THREE.FogExp2) {
+        scene.fog.color.copy(FOG_COLOR_OUTDOOR).lerp(FOG_COLOR_INDOOR, inside);
+        scene.fog.density = THREE.MathUtils.lerp(FOG_DENSITY_OUTDOOR, FOG_DENSITY_INDOOR, inside);
+      }
     }
 
     if (messageT > 0) messageT -= dt;
