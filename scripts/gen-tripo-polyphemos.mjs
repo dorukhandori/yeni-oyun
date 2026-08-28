@@ -227,6 +227,65 @@ async function retexture(apiKey, taskId, tokens) {
 
 const collectModelUrl = (task) => task.output?.pbr_model_url ?? task.output?.model_url ?? task.model_url;
 
+async function uploadModel(apiKey, modelPath) {
+  const buf = readFileSync(modelPath);
+  const form = new FormData();
+  form.append("file", new Blob([buf], { type: "model/gltf-binary" }), basename(modelPath));
+  const data = await tripoFetch(apiKey, "/v3/files", { method: "POST", body: form });
+  const token = data.file_token ?? data.token;
+  if (!token) throw new Error(`Upload returned no file_token: ${JSON.stringify(data).slice(0, 400)}`);
+  return token;
+}
+
+/** POST then poll, unless the response already carries the answer inline. */
+async function postOrPoll(apiKey, endpoint, body, label) {
+  const data = await tripoFetch(apiKey, endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (data.riggable != null || data.rig_type) return data;
+  if (data.output?.riggable != null || data.output?.model_url) return data;
+  const id = data.task_id ?? data.id;
+  if (!id) throw new Error(`${label} returned no task: ${JSON.stringify(data).slice(0, 400)}`);
+  console.error(`Tripo ${label} ${id}`);
+  return pollTask(apiKey, id);
+}
+
+/**
+ * Rig only — no clips (sahip, 28 Ağu: "rig kur, sonra klipleri üretiriz").
+ * `gen-mesh.mjs --animate` chains rig-check → rig → retarget in one shot; the
+ * boss needs its own moveset (overhead slam, sweep, ground slam, grab, blinded
+ * rage), so we stop at the skeleton and choose clips deliberately afterwards.
+ * Prints the rig task id — that id is the input for the later retarget call.
+ */
+async function rigOnly(apiKey, glbPath, outPath) {
+  const source = await uploadModel(apiKey, glbPath);
+  console.error(`Tripo file ${source}`);
+
+  const check = await postOrPoll(apiKey, "/v3/animations/rig-check", { input: source }, "rig-check");
+  const checkOut = check.output ?? check;
+  if (checkOut.riggable === false) {
+    throw new Error(`Not riggable: ${JSON.stringify(checkOut).slice(0, 400)}`);
+  }
+  const rigType = checkOut.rig_type ?? "biped";
+  console.error(`Tripo rig-check riggable=${checkOut.riggable ?? "?"} type=${rigType}`);
+
+  const rig = await postOrPoll(
+    apiKey,
+    "/v3/animations/rig",
+    { input: source, rig_type: rigType, spec: "tripo", out_format: "glb", model: "v1.0-20240301" },
+    "rig",
+  );
+  const rigId = rig.task_id ?? rig.id;
+  const url = collectModelUrl(rig);
+  if (!url) throw new Error(`Rig produced no model url: ${JSON.stringify(rig).slice(0, 600)}`);
+  const bytes = await download(url, outPath);
+  console.log(`rig_task=${rigId}`);
+  console.log(`wrote ${outPath} (${bytes} bytes)`);
+  return rigId;
+}
+
 async function download(url, outPath) {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Download ${res.status}`);
@@ -237,11 +296,13 @@ async function download(url, outPath) {
 }
 
 function parseArgs(argv) {
-  const opts = { polycount: 10000, balance: false, generate: false, textureOnly: false, task: null, out: null };
+  const opts = { polycount: 10000, balance: false, generate: false, textureOnly: false, rigOnly: false, glb: null, task: null, out: null };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--balance") opts.balance = true;
     else if (a === "--generate") opts.generate = true;
+    else if (a === "--rig-only") opts.rigOnly = true;
+    else if (a === "--glb") opts.glb = argv[++i];
     else if (a === "--texture-only") opts.textureOnly = true;
     else if (a === "--task") opts.task = argv[++i];
     else if (a === "--polycount") opts.polycount = Number(argv[++i]);
@@ -261,6 +322,14 @@ async function main() {
     return;
   }
 
+  if (opts.rigOnly) {
+    if (!opts.glb) throw new Error("--rig-only needs --glb <path>");
+    const out = opts.out ? resolve(REPO_ROOT, opts.out) : join(OUT_DIR, "char_polyphemos_boss_01_rig.glb");
+    console.error(`Tripo key ${tag(key)} rig-only`);
+    await rigOnly(key, resolve(REPO_ROOT, opts.glb), out);
+    return;
+  }
+
   let taskId = opts.task;
   let tokens;
   if (opts.generate) {
@@ -273,6 +342,7 @@ async function main() {
     console.error(
       "Usage:\n  node scripts/gen-tripo-polyphemos.mjs --balance\n" +
         "  node scripts/gen-tripo-polyphemos.mjs --generate [--polycount 10000] [-o out.glb]\n" +
+        "  node scripts/gen-tripo-polyphemos.mjs --rig-only --glb <mesh.glb> [-o rig.glb]\n" +
         "  node scripts/gen-tripo-polyphemos.mjs --texture-only --task <geometry_task_id> [-o out.glb]",
     );
     process.exitCode = 1;
