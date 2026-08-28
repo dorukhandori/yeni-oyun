@@ -276,6 +276,23 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: false });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.setSize(window.innerWidth, window.innerHeight);
+  // 28 Ağu, sahip: "böyle hiç beğenmiyorum ve güzel de gözükmüyor" +
+  // "adanın bu hali çok amatör". Kök neden bulundu ve ölçüldü: Kiklop
+  // durağı Lotus'un `createStage()`'ını KULLANMADIĞI için (kendi ayrı
+  // render yolu — CLAUDE.md'nin standing note'u) Lotus'ta uzun süredir
+  // ayarlı olan render kurulumunun HİÇBİRİNİ miras almamıştı:
+  // `toneMapping` hiç set edilmemişti (yani `NoToneMapping` — ham lineer
+  // çıktı, ACES'in omuz eğrisi yok, tüm parlak alanlar donuk), `shadowMap`
+  // kapalıydı (sahnedeki her `castShadow=true` bayrağı ölü koddu — hiçbir
+  // ağacın/kayanın/kayalığın gölgesi yoktu, bu yüzden hiçbir hacim/derinlik
+  // okunmuyordu), `outputColorSpace` varsayılana bırakılmıştı. Bunlar
+  // Lotus'un `render/stage.ts` satır 49-53'ünde zaten çözülmüş; burada
+  // birebir aynı kurulum uygulanıyor (`RENDER.exposure` paylaşılıyor).
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = RENDER.exposure;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
 
   const scene = new THREE.Scene();
   // Fallback flat colour — only ever seen for the first frame before the
@@ -316,7 +333,15 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
   // yukarıdaki not), Lotus'un kendi RENDER.skyHorizon'ına dokunulmadı.
   // Artık halka nerede/ne kadar solursa solsun, altından sızan renk daima
   // sahnenin geri kalanıyla uyumlu — "kötü gözükmeyen" tasarım budur.
-  const CYCLOPS_SKY_HORIZON = 0x9fb2c2; // soğuk gri-mavi ufuk — sis/dağ tint ailesiyle (0x8fa8bd) uyumlu
+  // **Düzeltme (28 Ağu, aynı gün, sahip: "böyle hiç beğenmiyorum"):**
+  // `0x9fb2c2` (koyu, soğuk gri-mavi) turuncu sızıntıyı gerçekten çözdü ama
+  // yanlış yöne aştı — referans görselin (ASSET-109) ufku SOLGUN, neredeyse
+  // beyaz, hafif sıcak bir pus; koyu gri-mavi bir ufuk sahneyi bütün olarak
+  // kapalı/fırtınalı gösteriyordu. Doğru cevap "sıcak amber (Lotus) mı,
+  // soğuk gri (yama) mi" ikilemi değil: ikisinin de dışında, referansın
+  // kendi rengi olan yüksek-değerli solgun bir ufuk. Turuncu şikayeti
+  // yine gelmez (bu renk amber değil), ama sahne artık güneşli okunuyor.
+  const CYCLOPS_SKY_HORIZON = 0xdde8ea; // solgun, güneşte yıkanmış ufuk pusu (ASSET-109)
   const skyHorizon = new THREE.Color(CYCLOPS_SKY_HORIZON);
   const skyMat = new THREE.ShaderMaterial({
     side: THREE.BackSide,
@@ -421,10 +446,55 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
   // "mağara ağzı kapı açıkken 0,95 aydınlık" diyor, kod öyle davranmıyordu).
   // Tam `doorGlobal(D)` derinlik-bazlı formülü (K5'in asıl işi) hâlâ yok,
   // ama en azından kapı durumuna göre değişen, oynanabilir bir taban var.
-  const ambient = new THREE.AmbientLight(0xaab4c2, 1.1);
+  // 28 Ağu, sahip ("güzel de gözükmüyor" / "çok amatör"): buradaki asıl
+  // eksik bir renk ayarı değil, **sahnede hiç güneş olmamasıydı**. Ambient
+  // + Hemisphere ikisi de YÖNSÜZ dolgu ışığıdır — tek başlarına hiçbir
+  // yüzeyin diğerinden daha parlak olmasını sağlamazlar, yani hiçbir form,
+  // hacim ya da gölge okunmaz. Referans görselin (ASSET-109) tüm kimliği
+  // ise sert, sıcak, yüksek bir Ege güneşi: aydınlık tebeşir yüzü, koyu
+  // mağara deliği, çimende uzanan gölgeler. Lotus'un kendi güneşiyle
+  // (`stage.ts`, `RENDER.sunColor/sunIntensity`) aynı ruhta ama Kiklop'a
+  // özel sabit bir yön: koya denizden/-Z tarafından, soldan, ~46° yükseklikle
+  // vuruyor — böylece +Z'ye (mağaraya) bakan oyuncu kayalığın AYDINLIK
+  // yüzünü, mağara ağzını ise onun içindeki karanlık deliği görüyor.
+  const OUTDOOR_AMBIENT = 0.34;
+  const OUTDOOR_HEMI = 0.5;
+  // Mağara İÇİ hâlâ eski, yönsüz/parlak dolguya muhtaç (orada güneş yok ve
+  // oynanış görünürlüğe bağlı — ocak/meşale/oyuncu feneri tek başına
+  // yetmiyordu, 25 Ağu playtest'i). Bu yüzden iki ayrı ışık "profili" var,
+  // oyuncunun D'sine göre yumuşak geçişle karışıyorlar (aşağıda step()).
+  const INDOOR_AMBIENT = 1.1;
+  const INDOOR_HEMI = 0.7;
+  const ambient = new THREE.AmbientLight(0xb9c8d2, OUTDOOR_AMBIENT);
   scene.add(ambient);
-  const hemi = new THREE.HemisphereLight(0xbfd0e0, 0x30281f, 0.7);
+  // Zemin yarısı artık koyu kahve (0x30281f) değil sıcak kum/tebeşir sekmesi —
+  // gerçek bir kumsalda yukarı sekmesi gereken renk bu, referansın alttan
+  // aydınlatılmış sıcak gölgelerini de bu veriyor.
+  const hemi = new THREE.HemisphereLight(0xcfe4f2, 0x9c8a68, OUTDOOR_HEMI);
   scene.add(hemi);
+  const SUN_DIR = new THREE.Vector3(-0.46, 0.72, -0.52).normalize();
+  const OUTDOOR_SUN = 2.3;
+  const INDOOR_SUN = 0.35;
+  const sun = new THREE.DirectionalLight(0xfff1d8, OUTDOOR_SUN);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  {
+    // Gölge kamerası kovun kendi ölçeğine göre (Lotus'un 44 m'lik
+    // `shadowExtent`'i burada dar kalıyor — kova 100 m uzunluğunda ve
+    // kayalık 25 m yüksekliğinde, kayalığın gölgesi çimin yarısına düşmeli).
+    const half = 62;
+    const cam = sun.shadow.camera as THREE.OrthographicCamera;
+    cam.left = -half;
+    cam.right = half;
+    cam.top = half;
+    cam.bottom = -half;
+    cam.near = 1;
+    cam.far = 260;
+    sun.shadow.bias = -0.0022;
+    sun.shadow.normalBias = 0.12;
+  }
+  scene.add(sun);
+  scene.add(sun.target);
   /** Oyuncuyu takip eden ışık — hangi odada olursan ol yakın çevreni
    * görebilmen için (bir "meşale taşıyorsun" varsayımı, temsili). */
   const playerLight = new THREE.PointLight(0xfff2d8, 1.6, 14, 1.6);
@@ -1281,6 +1351,27 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     // kopyalanıyor (Y dahil), tıpkı skyMesh gibi, ki ufuk çizgisi kamera
     // yüksekliğiyle birlikte doğru hizada kalsın.
     cave.horizonGroup.position.copy(camera.position);
+
+    // Güneş yönlü bir ışık — konumu anlamsız, YÖNÜ anlamlı; ama gölge
+    // kamerası ortografik ve sonlu, bu yüzden Lotus'un `placeSunLight()`
+    // deseniyle her karede kameranın üstüne taşınıyor ki gölge hacmi hep
+    // oyuncunun çevresini kapsasın (yoksa kova boyunca yürürken gölgeler
+    // aniden kesilir).
+    sun.target.position.set(camera.position.x, 0, camera.position.z);
+    sun.position.copy(sun.target.position).addScaledVector(SUN_DIR, 120);
+    sun.target.updateMatrixWorld();
+    // Dış/iç ışık profili karışımı — eşiğin (D=0) iki yanında yumuşak geçiş.
+    // Dışarıda: sert güneş + zayıf dolgu (referansın kontrastı). İçeride:
+    // güneş neredeyse yok + güçlü yönsüz dolgu (oynanış görünürlüğü, 25 Ağu).
+    {
+      const inside = THREE.MathUtils.smoothstep(player.position.z, -7, 6);
+      ambient.intensity = THREE.MathUtils.lerp(OUTDOOR_AMBIENT, INDOOR_AMBIENT, inside);
+      hemi.intensity = THREE.MathUtils.lerp(OUTDOOR_HEMI, INDOOR_HEMI, inside);
+      sun.intensity = THREE.MathUtils.lerp(OUTDOOR_SUN, INDOOR_SUN, inside);
+      // Oyuncu tamamen içerideyken gölge haritasını hesaplamanın hiçbir
+      // görsel karşılığı yok (güneş zaten 0.35'e inmiş) — bedava kare süresi.
+      sun.castShadow = inside < 0.98;
+    }
 
     if (messageT > 0) messageT -= dt;
 
