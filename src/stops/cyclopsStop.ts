@@ -4,7 +4,7 @@ import { CAMERA, RENDER, SAILOR, PLAYER } from "../constants";
 import { CameraRig } from "../render/cameraRig";
 import { Input } from "../systems/input";
 import { isCoarsePointer } from "../ui/orientation";
-import { loadGltfBundle } from "../world/gltf";
+import { loadGltfBundle, fitGltfHeight } from "../world/gltf";
 import { createHumanoidActor, type HumanoidActor } from "../world/humanoidRig";
 import {
   buildCyclopsCave,
@@ -92,6 +92,10 @@ const GIANT_WALK_NATURAL_SPEED = 1.669;
  * mantığı) düzeltmesi −π/2. Eskisiyle dev yürüdüğü yöne 90° yan bakarak
  * ilerliyordu. */
 const GIANT_MESH_FACING = -Math.PI / 2;
+/** Devin dünya boyu. Eski ASSET-098 placeholder'ı doğal olarak ~5 m'ydi ve
+ * workbench preset'i de onu "5 m" diye belgeliyordu; ASSET-127 rig'i Tripo
+ * normalizasyonuyla ~0,85 birim geldiği için artık açıkça ölçekleniyor. */
+const GIANT_HEIGHT_M = 5.0;
 const GIANT_TURN_SMOOTH = 0.25; // oyuncudan daha yavaş dönüyor, "ağır ama amaçlı"
 const GIANT_BOB_FREQ = 5.5;
 const GIANT_BOB_AMPLITUDE = 0.12;
@@ -645,14 +649,12 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
       m.emissiveIntensity = active ? 0.55 : 0;
     }
   }
-  // ASSET-098 v2 (26 Ağu 2026, sprint sonu): artık gerçek idle/walk klipleri
-  // var — sahibin S2 kararı ("mevcut rig + Mixamo retarget", 0 kredi).
-  // `scripts/blender/retarget_mixamo_polyphemos.py` ile üretildi (kaynak
-  // FBX'in kendi "koşu" klibi güvenilmezdi, o script'in kendi belgesine
-  // bkz.). `createHumanoidActor()`'a geçmedik (plan §3.5'in "küçük ama
-  // sözleşme değiştiren refactor" notu — HUMANOID_CLIPS `preset:*` isimleri
-  // hardcode ediyor) — burada yalnız 2 klip var, ham `AnimationMixer` yeterli
-  // ve daha az riskli.
+  // Ham `AnimationMixer` (createHumanoidActor DEĞİL — o, HUMANOID_CLIPS'in
+  // `preset:*` isimlerini hardcode ediyor ve devin kendi moveset'i farklı
+  // olacak). Klip adları `idle`/`walk` aranıyor; ASSET-127 rig'i şu an
+  // klipsiz geldiği için mixer null kalıyor ve dev statik duruyor —
+  // aşağıdaki `else` dalı bunu sessizce karşılıyor, boss moveset klipleri
+  // eklenince kendiliğinden çalışmaya başlar.
   let giantMixer: THREE.AnimationMixer | null = null;
   let giantIdleAction: THREE.AnimationAction | null = null;
   let giantWalkAction: THREE.AnimationAction | null = null;
@@ -665,8 +667,24 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     next.reset().fadeIn(0.25).play();
     prev.fadeOut(0.25);
   }
-  loadGltfBundle("assets/models/char_polyphemos_02_animated_8000.glb").then((bundle) => {
+  // ASSET-127 — kendi tasarım turumuzdan (ASSET-123 turnaround → ASSET-125
+  // T-pose seti → ASSET-126 mesh) üretilen boss rig'i. Eski ASSET-098
+  // placeholder'ı (Sketchfab "Cyclop" + Mixamo retarget) 28 Ağu 2026'da
+  // tamamen kaldırıldı (sahip: "eski deve ait assetleri her yerden kaldır").
+  // **Şu an klipsiz** — boss moveset'i (tepeden savurma/süpürme/yer vuruşu/
+  // kapma/körleşmiş öfke) ayrıca üretilecek; aşağıdaki `else` dalı bunu
+  // zaten sessizce karşılıyor (mixer null kalır, dev statik durur).
+  // Bakış yönü ölçüldü: ayak parmakları bileğin +X'inde, yani model +X'e
+  // bakıyor — eskisiyle aynı, `GIANT_MESH_FACING` (-π/2) geçerli kalıyor.
+  loadGltfBundle("assets/models/char_polyphemos_boss_01_rig.glb").then((bundle) => {
     const model = bundle.scene;
+    // Tripo çıktısı ~0,85 birim yüksekliğinde normalize geliyor; eski
+    // ASSET-098 placeholder'ı ise ~5 m'lik doğal ölçekteydi ve kod hiç
+    // ölçeklemiyordu. Ölçek atlanırsa dev, oyuncudan (1,7 m) kısa bir cüce
+    // olarak beliriyor (ölçümle yakalandı: giantWorldBox.y=0.85). Aynı
+    // `fitGltfHeight` yardımcısı Doryseus'ta da kullanılıyor — tabanı y=0'a
+    // oturtup XZ'de ortalıyor, yani `giant.position` sözleşmesi bozulmuyor.
+    fitGltfHeight(model, GIANT_HEIGHT_M);
     model.traverse((o) => {
       if (o instanceof THREE.Mesh && o.material instanceof THREE.MeshStandardMaterial) {
         o.castShadow = false; // primitif geçiş — gölge haritası yok

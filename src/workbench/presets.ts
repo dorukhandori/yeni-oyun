@@ -58,20 +58,16 @@ export const WORKBENCH_PRESETS: WorkbenchPreset[] = [
     clip: "walk",
   },
   {
-    id: "polyphemos-idle",
-    label: "Polyphemos idle",
-    hint: "ASSET-098 — Sketchfab mesh + Mixamo retarget (scripts/blender/retarget_mixamo_polyphemos.py). 5 m — 'fit height' işaretliyse ~5 girin, yoksa küçülür.",
+    // ASSET-098 (Sketchfab "Cyclop" + Mixamo retarget) placeholder'ı 28 Ağu
+    // 2026'da tamamen kaldırıldı — sahip: "eski deve ait assetleri
+    // workbench'ten ve her yerden kaldır." Yerine ASSET-127, kendi tasarım
+    // turumuzdan (ASSET-123/125) üretilmiş boss rig'i. Klipler henüz yok
+    // (bilerek — boss moveset'i ayrıca seçilecek), o yüzden `clip` boş.
+    id: "polyphemos-boss",
+    label: "Polyphemos boss (rig)",
+    hint: "ASSET-127 — Tripo auto-rig, ağırlık QA'sı temiz. Henüz klipsiz: moveset klipleri sıradaki adım.",
     kind: "asset",
-    path: "assets/models/char_polyphemos_02_animated_8000.glb",
-    clip: "idle",
-  },
-  {
-    id: "polyphemos-walk",
-    label: "Polyphemos walk",
-    hint: "Aynı GLB, walk klibi.",
-    kind: "asset",
-    path: "assets/models/char_polyphemos_02_animated_8000.glb",
-    clip: "walk",
+    path: "assets/models/char_polyphemos_boss_01_rig.glb",
   },
   {
     id: "dory-konfuse",
