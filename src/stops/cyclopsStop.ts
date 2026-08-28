@@ -671,12 +671,14 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
   // T-pose seti → ASSET-126 mesh) üretilen boss rig'i. Eski ASSET-098
   // placeholder'ı (Sketchfab "Cyclop" + Mixamo retarget) 28 Ağu 2026'da
   // tamamen kaldırıldı (sahip: "eski deve ait assetleri her yerden kaldır").
-  // ASSET-128: Mixamo iskeletine giydirilmiş, 7 klipli sürüm
-  // (idle/walk/run/sweep/slam/punch/roar). Tripo rig'i (ASSET-127) yedek
-  // olarak repoda duruyor; oyunun kullandığı bu.
+  // ASSET-127 (Tripo rig, klipsiz) — BİLİNÇLİ olarak animasyonlu sürüme
+  // dönülmedi. ASSET-128 (Mixamo iskeleti) hareket ederken mesh'i mahvediyor
+  // (sahip: "klipler ve hareketler çok kötü... berbat olmuş") ve kök neden
+  // çözülene kadar statik ama DOĞRU duran rig, hareketli ama bozuk olandan
+  // iyi. Kod klip yokluğunu zaten sessizce karşılıyor (mixer null kalır).
   // Bakış yönü ölçüldü: ayak parmakları bileğin +X'inde, yani model +X'e
   // bakıyor — eskisiyle aynı, `GIANT_MESH_FACING` (-π/2) geçerli kalıyor.
-  loadGltfBundle("assets/models/char_polyphemos_boss_02_mixamo.glb").then((bundle) => {
+  loadGltfBundle("assets/models/char_polyphemos_boss_01_rig.glb").then((bundle) => {
     const model = bundle.scene;
     // Tripo çıktısı ~0,85 birim yüksekliğinde normalize geliyor; eski
     // ASSET-098 placeholder'ı ise ~5 m'lik doğal ölçekteydi ve kod hiç
