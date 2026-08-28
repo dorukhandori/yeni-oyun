@@ -1137,14 +1137,28 @@ export function buildCyclopsCave(): CyclopsCave {
       PUDDLES.push({ x, z, radius });
     }
   }
+  // Sahip (28 Ağu): "su birikintisi filan görmüyorum." Gerçek bir bug
+  // bulundu — saf parabolik çanak (`t*t`) merkeze çok yakın hariç HER
+  // YERDE sığdı (örn. yarıçapın yarısında dip yalnız ~%25 derinlik), ama
+  // su diski TEK bir düz yükseklikte (merkezin TAM derinliğinde) o
+  // yarıçapın %72'sine kadar yayılıyordu — sonuç: disk kendi kenarlarına
+  // doğru gerçek zeminin ONLARCA santim ALTINDA kalıyordu, tamamen toprağa
+  // gömülü, görünmez. Lotus'un kendi `ponds.ts`'iyle aynı düzeltme: DÜZ bir
+  // taban (iç yarıçapta TAM derinlik) + yalnız kenarda (`PUDDLE_RIM_BLEND`
+  // genişliğinde) yere doğru yumuşak bir geçiş — su diski artık düz tabanın
+  // İÇİNDE kalıyor, her noktada gerçek zeminle eşleşiyor.
   const PUDDLE_DEPTH = 0.3;
+  const PUDDLE_RIM_BLEND = 0.6;
   const puddleDipAt = (x: number, z: number): number => {
     let dip = 0;
     for (const p of PUDDLES) {
       const d = Math.hypot(x - p.x, z - p.z);
-      if (d < p.radius) {
-        const t = 1 - d / p.radius;
-        dip = Math.max(dip, PUDDLE_DEPTH * t * t); // kenarda sığ, ortada derin — gerçek bir çukur profili
+      const floorR = p.radius - PUDDLE_RIM_BLEND;
+      if (d <= floorR) {
+        dip = Math.max(dip, PUDDLE_DEPTH);
+      } else if (d < p.radius) {
+        const t = (p.radius - d) / PUDDLE_RIM_BLEND;
+        dip = Math.max(dip, PUDDLE_DEPTH * t * t);
       }
     }
     return dip;
@@ -1180,7 +1194,9 @@ export function buildCyclopsCave(): CyclopsCave {
     const puddleWobbleRand = mulberry32(20260912);
     for (const p of PUDDLES) {
       const segments = 20;
-      const waterR = p.radius * 0.72; // PONDS.discInset ile aynı ruh — su, oyulan çukurdan küçük, asla kuru çime taşmıyor
+      // Düz tabanın (`floorR`) İÇİNDE kalmalı — dışına taşarsa disk yine
+      // eğimli kenar bölgesinde toprağın altında kalır.
+      const waterR = Math.max(0.5, (p.radius - PUDDLE_RIM_BLEND) * 0.9);
       const shape = new THREE.Shape();
       const seed = p.x * 0.13 + p.z * 0.07;
       for (let i = 0; i <= segments; i++) {
