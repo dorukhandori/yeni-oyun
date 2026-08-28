@@ -716,17 +716,38 @@ export function buildCyclopsCave(): CyclopsCave {
     // koyun HEM mağara ağzına yakın hem açık deniz ucuna yakın kesiminde de
     // dolu, oyuncunun asıl gezdiği tüm z aralığında sürekli bir siluet var.
     const SIDE_THICKNESS_SCALE = 0.35;
+    // **Düzeltme (28 Ağu, sahip, ekran görüntüsüyle): "aynı ekran görüntüsünde
+    // turuncu bir sızıntı daha var... zemin sorunu var bence."** Bu, göldeki
+    // gibi bir zemin/geometri sorunu değildi — kök neden `buildDistantHills`'in
+    // paylaşılan `buildHillBackdropRing`'i: silindir gökyüzüne doğru kasıtlı
+    // olarak solup şeffaflaşıyor (üstündeki `topFade` shader'ı), o solma
+    // bandında alttaki çıplak `RENDER.skyHorizon` (sıcak amber, 0xf5d29a)
+    // görünüyor. Kapının SOL yanında (D≈10-20, x≈-15..-35) ağaçlar seyrek
+    // kaldığı bir açıda bu solma bandı çim/ağaç çizgisiyle uzak sırt/dağ
+    // örnekleri (yalnız x=±150'de, çok uzakta) arasındaki boşluktan direkt
+    // görünüyordu — göldeki gibi oyulmuş bir zemin hatası değil, bu belirli
+    // açıda hiç engelleyici geometri olmaması. Kalıcı çözüm: aynı
+    // `terrain_backdrop` meshinden (aynı soğuk tint, sıcaklık artık zaten
+    // bertaraf edilmiş) kapının hemen sol/sağ yanına, önceki x=±150
+    // örneklerinden çok daha YAKIN iki tane daha eklendi — burada zemin
+    // kesintisiz olduğundan (uzak x=±150 örneklerindeki 85 m'lik boşluk
+    // sorunu yok) çok daha sığ bir gömme (`bury=-6`, `-22` yerine) yeterli,
+    // bu da meshin görünür kısmını ağaç tepelerinin ÜSTÜNE, halkanın solma
+    // bandını kapatacak kadar yükseltiyor.
+    const GATE_FLANK_BURY = -6;
     const placements = [
       { x: 0, z: 150, rotY: 0, thin: false }, // mağaranın arkası
       { x: 150, z: 20, rotY: Math.PI / 2, thin: true }, // sağ sınır — mağara ağzı yakını
       { x: -150, z: 20, rotY: -Math.PI / 2, thin: true }, // sol sınır — mağara ağzı yakını
       { x: 150, z: -40, rotY: Math.PI / 2, thin: true }, // sağ sınır — açık koy ortası
       { x: -150, z: -40, rotY: -Math.PI / 2, thin: true }, // sol sınır — açık koy ortası
+      { x: -35, z: 14, rotY: -Math.PI / 2, thin: true, bury: GATE_FLANK_BURY }, // kapının hemen sol yanı — halka solma bandı sızıntısı
+      { x: 35, z: 14, rotY: Math.PI / 2, thin: true, bury: GATE_FLANK_BURY }, // kapının hemen sağ yanı — simetri
     ];
     placements.forEach((p, i) => {
       const inst = i === 0 ? original : original.clone(true);
       inst.scale.set(1, TERRAIN_BACKDROP_SCALE_Y, p.thin ? SIDE_THICKNESS_SCALE : 1);
-      inst.position.set(p.x, TERRAIN_BACKDROP_BURY, p.z);
+      inst.position.set(p.x, p.bury ?? TERRAIN_BACKDROP_BURY, p.z);
       inst.rotation.y = p.rotY;
       group.add(inst);
     });
@@ -1165,7 +1186,15 @@ export function buildCyclopsCave(): CyclopsCave {
       guard++;
       const side = PUDDLES.length % 2 === 0 ? 1 : -1;
       const x = side * (4 + puddleRand() * 100);
-      const z = -46 + puddleRand() * 42;
+      // Sahip (28 Ağu, ikinci tur): "yokuş görünümünde hâlâ altından su
+      // gözüküyor." Kök neden: bazı göller z=-9..-4 (mağara ağzına
+      // yükselen `PATH_MAX_RISE` rampası) veya z=-46 civarı (kıyı
+      // sırtına inen taper) gibi zaten DOĞAL OLARAK alçak/ince zemin
+      // bölgelerine düşüyordu — oraya ekstra `PUDDLE_DEPTH` (0,3 m)
+      // kazmak zemini deniz seviyesinin altına itip denizin sızmasına
+      // yol açıyordu. Göl siteleri artık yalnız z=-42..-9 (güvenli, kalın
+      // zemin) aralığında.
+      const z = -42 + puddleRand() * 33;
       const radius = 1.5 + puddleRand() * 2.1;
       if (!baseDressingClear(x, z)) continue;
       let ok = true;
@@ -1235,10 +1264,14 @@ export function buildCyclopsCave(): CyclopsCave {
     // yalnız göl sitelerinin ETRAFINDA bir çukur oymak için vertex'leri
     // tekrar dokunuyoruz (ayrı bir geçiş — grassGeo zaten `group`'un içinde,
     // referansla değişiklik görünür oluyor).
+    // Savunma amaçlı bir taban — yukarıdaki z-aralığı sınırlaması esas
+    // düzeltme, ama olası bir kenar durumunda bile kazının deniz
+    // seviyesinin altına inmesini yapısal olarak imkânsız kılıyor.
+    const PUDDLE_MIN_Y = 0.15;
     const pos = grassGeo.attributes.position;
     for (let i = 0; i < pos.count; i++) {
       const dip = puddleDipAt(pos.getX(i), pos.getZ(i));
-      if (dip > 0) pos.setY(i, pos.getY(i) - dip);
+      if (dip > 0) pos.setY(i, Math.max(PUDDLE_MIN_Y, pos.getY(i) - dip));
     }
     pos.needsUpdate = true;
     grassGeo.computeVertexNormals();
@@ -1270,7 +1303,7 @@ export function buildCyclopsCave(): CyclopsCave {
       const geo = new THREE.ShapeGeometry(shape, segments);
       geo.rotateX(-Math.PI / 2);
       const disc = new THREE.Mesh(geo, puddleWaterMat);
-      disc.position.set(p.x, groundHeightAt(p.x, p.z) - PUDDLE_DEPTH + 0.04, p.z);
+      disc.position.set(p.x, Math.max(PUDDLE_MIN_Y, groundHeightAt(p.x, p.z) - PUDDLE_DEPTH) + 0.04, p.z);
       disc.receiveShadow = true;
       group.add(disc);
       // Çukurun kenarına birkaç küçük taş — ıslak bir gölcük gibi okunsun,
@@ -2026,76 +2059,96 @@ export function buildCyclopsCave(): CyclopsCave {
       // yakın bir kütle. Doğal en/boy oranı (480 m'de ~21 m yükseklik)
       // bu ölçekte fazla düz/basık kalırdı — bağımsız bir dikey gerdirme
       // (`SEAT_SCALE_Y`) ile gerçek bir kütle hissi veriyor.
-      loadGltfBundle("assets/models/terrain_backdrop_01_mesh_2000.glb").then((seatBundle) => {
-        const seat = seatBundle.scene;
-        const SEAT_TINT = 0x8fa8bd; // buildDistantHills nearLayer.color ile aynı, tutarlılık
-        seat.traverse((obj) => {
-          if (obj instanceof THREE.Mesh) {
-            obj.castShadow = true;
-            obj.receiveShadow = true;
-            obj.frustumCulled = false;
-            const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-            for (const m of mats) {
-              if (m instanceof THREE.MeshStandardMaterial) m.color.set(SEAT_TINT);
-            }
-          }
-        });
-        // Doğal boyut (GLB'nin kendi bake edilmiş ölçeği, `convert_
-        // terrain003_ambientcg.py`'deki TARGET_WIDTH=480'e göre): genişlik
-        // 480 m, yükseklik ~21,2 m. İlk denemede `seatScaleXZ * SEAT_
-        // SCALE_Y` formülü yanlış hesaplandı — sonuç kapının kendi 12 m
-        // yüksekliğinden bile KISA çıktı (`cliffWorldBox.y` değişmedi,
-        // ölçümle yakalandı). Hedef yükseklik/genişlik artık BAĞIMSIZ ve
-        // doğrudan hesaplanıyor.
-        // **Düzeltme (27 Ağu, sahip, ekran görüntüsüyle): "hâlâ aynı boşluk
-        // var. kapının hemen arkasında olan plaka sağa ve sola doğru
-        // çimenler ne kadar uzanıyorsa uzansın."** `SEAT_WIDTH=40` kovun
-        // ESKİ genişliğine göreydi (x=±20) — ada o zamandan beri `ISLAND_
-        // WIDTH=220`'ye genişledi, plaka artık çok dar kalıyor, iki
-        // yanında çimenle plaka arasında kapının kendi teal iç dokusunun
-        // sızdığı çirkin bir boşluk/kenar bırakıyordu.
-        // **Düzeltme (27 Ağu, sahip, ikinci ekran görüntüsüyle): "hayır tüm
-        // gökyüzü ve giriş kapısı buna gömüldü, böyle olmaması lazım.
-        // sadece yatay uzaması lazım."** İlk düzeltme HATALIYDI — `X` VE
-        // `Z` (derinlik) ikisi de AYNI `SEAT_WIDTH/NATIVE_WIDTH` oranıyla
-        // ölçekleniyordu, yani genişliği 40'tan 220'ye büyütmek kütlenin
-        // DERİNLİĞİNİ de (öne doğru, oyuncuya/gökyüzüne doğru) 5,5×
-        // büyütüp koca bir blok hâline getirdi — kapıyı ve gökyüzünü
-        // gerçekten yuttu. Genişlik (X) ve derinlik (Z) artık BAĞIMSIZ:
-        // yalnız X, `ISLAND_WIDTH` ile büyüyor; derinlik eski 40 m'lik
-        // orana sabit kalıyor (`SEAT_DEPTH`) — kütle yalnız YATAY uzanıyor,
-        // kendi eski (onaylanmış) inceliğini/profilini koruyor.
-        const SEAT_WIDTH = ISLAND_WIDTH;
-        const SEAT_DEPTH = 40; // eski SEAT_WIDTH değeri — yalnız derinlik için, hiç büyümüyor
-        // **Düzeltme (27 Ağu, sahip, üçüncü tur — "hâlâ aynı, yukarısında
-        // kapının dalları içerde gözüküyor"):** yalnız Z'de geri itmek
-        // (2→5) yetmedi — kütle geriye kayınca aynı mutlak yükseklikte
-        // kalıp kameraya göre ekranda daha YUKARI görünüyor (perspektif),
-        // bu da düşük-poly meshin kendi doğal olmayan düz üst/arka
-        // kenarını dalların TAM ÜSTÜNDE, gökyüzüne karşı ortaya
-        // çıkarıyordu — kaynağın kendisi (2047 üçgen, uzak silüet için
-        // optimize) bu kadar yakından bakılınca organik detay taşımıyor.
-        // Yükseklik belirgin artırıldı (22→34) ki o düz kenar çerçevenin
-        // çok üstünde, dalların asla göremeyeceği bir yükseklikte kalsın.
-        const SEAT_HEIGHT = 34; // kapının kendi ~12 m'sinden belirgin daha uzun, gerçek bir kütle hissi
-        const NATIVE_WIDTH = 480;
-        const NATIVE_HEIGHT = 21.2;
-        seat.scale.set(SEAT_WIDTH / NATIVE_WIDTH, SEAT_HEIGHT / NATIVE_HEIGHT, SEAT_DEPTH / NATIVE_WIDTH);
-        // Taban zaten yerel y=0'da (Blender'daki transform_apply) — dikey
-        // gerdirme orijin etrafında olduğundan taban yerinde kalıyor,
-        // yalnız tepe yükseliyor; ekstra "gömme" gerekmiyor (ASSET-117'nin
-        // uzak örneğinin aksine, bu mesh zemine hemen oturuyor).
-        // **Düzeltme (27 Ağu, sahip, ekran görüntüsüyle): "kapının üst
-        // tarafındaki ağaç dalları dağın içinde kalıyor."** Kapı bu turda
-        // %20 büyütüldü (dalları da orantılı uzadı) — mağara kütlesi hâlâ
-        // eski z=2'deydi, artık daha uzun dalların tepesiyle aynı derinlik
-        // aralığına giriyor, gerçek bir Z-örtüşme/kesişme oluşuyordu. z=5'e
-        // itilip dallara gerçek bir boşluk/mesafe bırakıldı.
-        seat.position.set(0, 0, 5);
-        cliffGroup.add(seat);
-      });
+      //
+      // **Düzeltme (28 Ağu, sahip, ekran görüntüsüyle): "aynı ekran
+      // görüntüsünde turuncu bir sızıntı daha var... zemin sorunu var
+      // bence."** Bu kütleyi yükleyen çağrı (aşağıda `seatPromise`) daha
+      // önce TAM BURADA, kapının kendi `loadGltfBundle(...).then()`'i
+      // İÇİNE İÇ İÇE (nested) yazılıydı — kapı yüklenmeden bu ikinci ağ
+      // isteği hiç BAŞLAMIYORDU bile, iki ayrı network+parse turu SERİ
+      // (art arda) çalışıyordu. Konumu/ölçeği (`seat.position.set(0,0,5)`,
+      // `SEAT_WIDTH/HEIGHT`) kapının kendi ölçülen kutusuna (`fitted`) hiç
+      // bağlı değil — sabit değerler — yani iç içe olmasının hiçbir gerçek
+      // nedeni yoktu. O seri gecikme penceresinde (kapı yükleniyor + bu
+      // kütle henüz BAŞLAMAMIŞ) oyuncu kovu görürse, bu kütlenin kapatması
+      // gereken boşluktan çıplak gökyüzü ufku (`RENDER.skyHorizon`, sıcak
+      // amber) sızıyordu — sahibin gördüğü "turuncu sızıntı" tam buydu,
+      // ölçümle doğrulandı (tarayıcıda taze `navigate` sonrası ilk kare
+      // sızıntıyı gösterdi, ~2 sn bekleyip yeniden render edince kayboldu).
+      // Kalıcı çözüm: bu isteği kapının KENDİ isteğiyle PARALEL başlat
+      // (aşağıya, `if` bloğunun hemen dışına taşındı) — iki ayrı ağ isteği
+      // artık aynı anda gidiyor, seri gecikme yarı yarıya kısaldı, sızıntı
+      // penceresi önemli ölçüde daraldı.
       cliffGroup.add(scene);
       cliffLoadedFlag = true;
+    });
+    const SEAT_TINT = 0x8fa8bd; // buildDistantHills nearLayer.color ile aynı, tutarlılık
+    loadGltfBundle("assets/models/terrain_backdrop_01_mesh_2000.glb").then((seatBundle) => {
+      const seat = seatBundle.scene;
+      seat.traverse((obj) => {
+        if (obj instanceof THREE.Mesh) {
+          obj.castShadow = true;
+          obj.receiveShadow = true;
+          obj.frustumCulled = false;
+          const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+          for (const m of mats) {
+            if (m instanceof THREE.MeshStandardMaterial) m.color.set(SEAT_TINT);
+          }
+        }
+      });
+      // Doğal boyut (GLB'nin kendi bake edilmiş ölçeği, `convert_
+      // terrain003_ambientcg.py`'deki TARGET_WIDTH=480'e göre): genişlik
+      // 480 m, yükseklik ~21,2 m. İlk denemede `seatScaleXZ * SEAT_
+      // SCALE_Y` formülü yanlış hesaplandı — sonuç kapının kendi 12 m
+      // yüksekliğinden bile KISA çıktı (`cliffWorldBox.y` değişmedi,
+      // ölçümle yakalandı). Hedef yükseklik/genişlik artık BAĞIMSIZ ve
+      // doğrudan hesaplanıyor.
+      // **Düzeltme (27 Ağu, sahip, ekran görüntüsüyle): "hâlâ aynı boşluk
+      // var. kapının hemen arkasında olan plaka sağa ve sola doğru
+      // çimenler ne kadar uzanıyorsa uzansın."** `SEAT_WIDTH=40` kovun
+      // ESKİ genişliğine göreydi (x=±20) — ada o zamandan beri `ISLAND_
+      // WIDTH=220`'ye genişledi, plaka artık çok dar kalıyor, iki
+      // yanında çimenle plaka arasında kapının kendi teal iç dokusunun
+      // sızdığı çirkin bir boşluk/kenar bırakıyordu.
+      // **Düzeltme (27 Ağu, sahip, ikinci ekran görüntüsüyle): "hayır tüm
+      // gökyüzü ve giriş kapısı buna gömüldü, böyle olmaması lazım.
+      // sadece yatay uzaması lazım."** İlk düzeltme HATALIYDI — `X` VE
+      // `Z` (derinlik) ikisi de AYNI `SEAT_WIDTH/NATIVE_WIDTH` oranıyla
+      // ölçekleniyordu, yani genişliği 40'tan 220'ye büyütmek kütlenin
+      // DERİNLİĞİNİ de (öne doğru, oyuncuya/gökyüzüne doğru) 5,5×
+      // büyütüp koca bir blok hâline getirdi — kapıyı ve gökyüzünü
+      // gerçekten yuttu. Genişlik (X) ve derinlik (Z) artık BAĞIMSIZ:
+      // yalnız X, `ISLAND_WIDTH` ile büyüyor; derinlik eski 40 m'lik
+      // orana sabit kalıyor (`SEAT_DEPTH`) — kütle yalnız YATAY uzanıyor,
+      // kendi eski (onaylanmış) inceliğini/profilini koruyor.
+      const SEAT_WIDTH = ISLAND_WIDTH;
+      const SEAT_DEPTH = 40; // eski SEAT_WIDTH değeri — yalnız derinlik için, hiç büyümüyor
+      // **Düzeltme (27 Ağu, sahip, üçüncü tur — "hâlâ aynı, yukarısında
+      // kapının dalları içerde gözüküyor"):** yalnız Z'de geri itmek
+      // (2→5) yetmedi — kütle geriye kayınca aynı mutlak yükseklikte
+      // kalıp kameraya göre ekranda daha YUKARI görünüyor (perspektif),
+      // bu da düşük-poly meshin kendi doğal olmayan düz üst/arka
+      // kenarını dalların TAM ÜSTÜNDE, gökyüzüne karşı ortaya
+      // çıkarıyordu — kaynağın kendisi (2047 üçgen, uzak silüet için
+      // optimize) bu kadar yakından bakılınca organik detay taşımıyor.
+      // Yükseklik belirgin artırıldı (22→34) ki o düz kenar çerçevenin
+      // çok üstünde, dalların asla göremeyeceği bir yükseklikte kalsın.
+      const SEAT_HEIGHT = 34; // kapının kendi ~12 m'sinden belirgin daha uzun, gerçek bir kütle hissi
+      const NATIVE_WIDTH = 480;
+      const NATIVE_HEIGHT = 21.2;
+      seat.scale.set(SEAT_WIDTH / NATIVE_WIDTH, SEAT_HEIGHT / NATIVE_HEIGHT, SEAT_DEPTH / NATIVE_WIDTH);
+      // Taban zaten yerel y=0'da (Blender'daki transform_apply) — dikey
+      // gerdirme orijin etrafında olduğundan taban yerinde kalıyor,
+      // yalnız tepe yükseliyor; ekstra "gömme" gerekmiyor (ASSET-117'nin
+      // uzak örneğinin aksine, bu mesh zemine hemen oturuyor).
+      // **Düzeltme (27 Ağu, sahip, ekran görüntüsüyle): "kapının üst
+      // tarafındaki ağaç dalları dağın içinde kalıyor."** Kapı bu turda
+      // %20 büyütüldü (dalları da orantılı uzadı) — mağara kütlesi hâlâ
+      // eski z=2'deydi, artık daha uzun dalların tepesiyle aynı derinlik
+      // aralığına giriyor, gerçek bir Z-örtüşme/kesişme oluşuyordu. z=5'e
+      // itilip dallara gerçek bir boşluk/mesafe bırakıldı.
+      seat.position.set(0, 0, 5);
+      cliffGroup.add(seat);
     });
   } else {
     const cliffMat = new THREE.MeshStandardMaterial({ color: 0xe6e2d4, roughness: 0.95 });
