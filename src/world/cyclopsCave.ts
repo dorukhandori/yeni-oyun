@@ -1287,6 +1287,69 @@ export function buildCyclopsCave(): CyclopsCave {
     }
     scatterRockKit(group, trailSpots, trailRand);
   }
+
+  // Sahip (28 Ağu): "gemiye doğru giden kıvrımlı yolu da bizim
+  // taşlarımızdan yap. ama daha belirgin bir patika olsun." Ana patika
+  // (`pathGeo`) yalnız D=-48..0'ı kaplıyor — gemi D=-51'de, o dokulu
+  // şeridin hiç ulaşmadığı bir yerde. Yukarıdaki kapı izlerinden (seyrek/
+  // kesik, "belli belirsiz") FARKLI olarak burada gerçekten sürekli/yoğun
+  // bir taş patika: neredeyse hiç atlama yok, taşlar belirgin daha büyük,
+  // gerçek bir "döşeli yol genişliği" hissi için iki paralel sıra.
+  // **Bulunan bug, düzeltildi:** ilk denemede rota (0,-44)→gemi MERKEZİ
+  // (11,-51) idi ve genel `coveDressingClear`'ı (gemi için 9 m — genel
+  // dekor kaçınması için kalibre, bilerek geniş) kullanıyordu — rotanın
+  // neredeyse tamamı ya ana patikanın ya da geminin geniş "temiz" alanının
+  // içine düşüp neredeyse hiç taş hayatta kalmıyordu (36 yerine yalnız 8-9,
+  // ölçülüp bulundu). Rota artık ikisinden de baştan uzak bir noktadan
+  // (7,-42) başlıyor, sadece bu patikaya özel daha DAR bir gemi payı
+  // (`SHIP_PATH_KEEPOUT=5.5`, genel 9 m'nin yerine) kullanıyor — patika
+  // gerçekten gemiye kadar uzanabiliyor.
+  {
+    const shipTrailRand = mulberry32(20260914);
+    const SHIP_PATH_KEEPOUT = 5.5;
+    const shipPathClear = (x: number, z: number): boolean => {
+      if (Math.abs(x - pathCenterX(z)) < COVE_CLEAR_HALF_X - 0.5) return false;
+      if (Math.hypot(x - COVE_SPAWN_CLEAR.x, z - COVE_SPAWN_CLEAR.z) < COVE_SPAWN_CLEAR.r) return false;
+      if (Math.hypot(x - COVE_SHIP_CLEAR.x, z - COVE_SHIP_CLEAR.z) < SHIP_PATH_KEEPOUT) return false;
+      for (const p of PUDDLES) {
+        if (Math.hypot(x - p.x, z - p.z) < p.radius + 1.0) return false;
+      }
+      return true;
+    };
+    const start = { x: 7, z: -42 }; // ana patikadan/spawn'dan baştan ayrık
+    const end = { x: COVE_SHIP_CLEAR.x, z: COVE_SHIP_CLEAR.z };
+    const steps = 40;
+    const shipTrailSpots: RockSpot[] = [];
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const bx = start.x + (end.x - start.x) * t;
+      const bz = start.z + (end.z - start.z) * t;
+      // Gerçek bir "kıvrım" — tek bir dalga değil, iki farklı frekansın
+      // toplamı, doğal bir patika kıvrımı gibi.
+      const wobble = Math.sin(t * 5.2) * 2.6 + Math.sin(t * 11 + 1.4) * 0.9;
+      const nx = Math.cos(Math.atan2(end.z - start.z, end.x - start.x) + Math.PI / 2);
+      const nz = Math.sin(Math.atan2(end.z - start.z, end.x - start.x) + Math.PI / 2);
+      const cx = bx + nx * wobble;
+      const cz = bz + nz * wobble;
+      for (const laneOffset of [-0.55, 0.55]) {
+        if (shipTrailRand() < 0.12) continue; // hafif düzensizlik — çok mekanik/ızgara gibi görünmesin
+        const x = cx + nx * laneOffset + (shipTrailRand() - 0.5) * 0.4;
+        const z = cz + nz * laneOffset + (shipTrailRand() - 0.5) * 0.4;
+        if (!shipPathClear(x, z)) continue;
+        const s = 0.75 + shipTrailRand() * 0.45;
+        shipTrailSpots.push({
+          x,
+          y: groundHeightAt(x, z) - 0.03,
+          z,
+          sx: s,
+          sy: s * 0.5,
+          sz: s,
+          rotY: shipTrailRand() * Math.PI * 2,
+        });
+      }
+    }
+    scatterRockKit(group, shipTrailSpots, shipTrailRand);
+  }
   // Rüzgâr/sallanma güncellemesi (çim + saz) — `placeKit()`'in döndürdüğü
   // `update(t)` callback'leri burada toplanıp `CyclopsCave.update()` ile
   // dışa açılıyor, `cyclopsStop.ts`'in kendi `step()`'i her karede çağırıyor.
