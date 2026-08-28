@@ -14,6 +14,17 @@ art-source/**
 !art-source/**/
 !art-source/**/.gitkeep
 
+# İSTİSNA — Mixamo kaynak klipleri (28 Ağu 2026, sahip: "sakın bir daha
+# kaybetme, gerekirse git'e pushla"). Bunlar üretilmiş çıktı DEĞİL, elle
+# indirilmiş, yeniden üretilemeyen girdi: Mixamo indirmesi hesap girişi
+# istiyor, yani kaybolduklarında bir script'le geri getirilemiyorlar.
+# Önceki kütüphane (art-source/work/mixamo/locomotion/**) tam da bu yüzden
+# kayboldu: iCloud dosyaları materyalize etmedi (`ls` doğru boyutu
+# gösteriyordu ama gerçek okuma 0 bayt döndü) ve gitignore'da oldukları için
+# `git checkout` ile kurtarılacak bir blob da yoktu. ~6 MB, kalıcılık bu
+# bedele değer.
+!art-source/work/mixamo/boss/**
+
 .env
 
 # asset-qa failure artifacts (diff/actual PNGs). The *baselines* in
