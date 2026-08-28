@@ -1062,16 +1062,58 @@ export function buildCyclopsCave(): CyclopsCave {
   grass.receiveShadow = true;
   group.add(grass);
 
+  // Sahip (28 Ağu): "ben o beyaz şerit gibi mağaraya giden belirli olan
+  // yolu istemiyorum, daha doğal görünümlü bir patika istiyorum." Eskisi
+  // (parlak `0xc9c2af` tebeşir tonu + sabit PATH_HALF_W ile dümdüz
+  // dikdörtgen kenarlar + sık döşenmiş tek tip taş dokusu) gerçekten
+  // "döşenmiş bir yol" gibi okunuyordu. Üç düzeltme: (1) renk çok daha
+  // koyu/toprak tonuna çekildi + grass/sand'la aynı vertex-renk teknigiyle
+  // aşınmış/kuru leke varyasyonu eklendi (düz-boyalı hissi kırar), (2)
+  // patikanın GENİŞLİĞİ artık sabit değil — uzunluğu boyunca organik
+  // biçimde daralıp genişliyor (gerçek bir keçi yolu/patika gibi, cetvelle
+  // çizilmiş bir şerit değil), (3) doku tekrarı seyrekleştirildi ki tek
+  // tip "döşeme" deseni daha az göze batsın.
   const PATH_HALF_W = 2.2; // COVE_CLEAR_HALF_X (4.5) içinde kalır — kenarda çim payı
   const pathGeo = makeGroundGeo(PATH_HALF_W * 2, -48, 0, 96, 0.015, pathCenterX);
+  {
+    const pos = pathGeo.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      const z = pos.getZ(i);
+      const localX = pos.getX(i) - pathCenterX(z);
+      const side = localX < 0 ? -1 : 1;
+      const widthJitter = Math.sin(z * 0.5 + side * 10) * 0.35 + Math.sin(z * 1.3 - side * 3) * 0.15;
+      pos.setX(i, pos.getX(i) + side * widthJitter);
+    }
+    pos.needsUpdate = true;
+    pathGeo.computeVertexNormals();
+  }
+  {
+    const cDirtDry = new THREE.Color(0x8a7355);
+    const cDirtWorn = new THREE.Color(0x6f5c42);
+    const cDirtDust = new THREE.Color(0x9c8468);
+    const pos = pathGeo.attributes.position;
+    const col = new Float32Array(pos.count * 3);
+    const tmp = new THREE.Color();
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i);
+      const z = pos.getZ(i);
+      const n =
+        0.5 + 0.5 * (Math.sin(x * 0.9 + z * 0.5) * 0.6 + Math.sin(x * 2.1 - z * 1.4 + 0.8) * 0.4);
+      tmp.copy(n < 0.5 ? cDirtDry : cDirtWorn).lerp(n < 0.5 ? cDirtWorn : cDirtDust, (n < 0.5 ? n : n - 0.5) * 2);
+      col[i * 3] = tmp.r;
+      col[i * 3 + 1] = tmp.g;
+      col[i * 3 + 2] = tmp.b;
+    }
+    pathGeo.setAttribute("color", new THREE.BufferAttribute(col, 3));
+  }
   const pathTex = loadAlbedoTexture(assetUrl("assets/textures/rock_chalk_01_albedo_1024.webp")).clone();
   pathTex.needsUpdate = true;
   pathTex.wrapS = THREE.RepeatWrapping;
   pathTex.wrapT = THREE.RepeatWrapping;
-  pathTex.repeat.set(PATH_HALF_W * 2 * 0.45, 48 * 0.45);
+  pathTex.repeat.set(PATH_HALF_W * 2 * 0.22, 48 * 0.22);
   const path = new THREE.Mesh(
     pathGeo,
-    new THREE.MeshStandardMaterial({ color: 0xc9c2af, roughness: 0.95, map: pathTex }),
+    new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.97, map: pathTex }),
   );
   path.receiveShadow = true;
   group.add(path);
