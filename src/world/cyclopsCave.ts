@@ -371,6 +371,13 @@ export interface CyclopsCave {
   cliffLoaded(): boolean;
   /** DEV-testing yalnız — dünya-uzayı bounding box ölçümü için. */
   cliffGroup: THREE.Group;
+  /** Uzak-tepe halkası (`buildDistantHills`) — 28 Ağu köktenreki tasarım:
+   * sky sphere'le aynı teknik, `cyclopsStop.ts` her karede bunun
+   * `.position`'ını kameranın (x,z)'sine kopyalıyor ki halka gerçekten
+   * "sonsuz" görünsün (kamera nereye giderse gitsin ondan hep aynı
+   * mesafede kalır) — kova etrafına elle iğnelenmiş sonlu kopyaların
+   * yerini aldı. */
+  horizonGroup: THREE.Group;
   /** Sprint sonu sır özelliği (26 Ağu 2026, sahip) — T/Ü/R/K duvar levhaları,
    * sırayla dokununca İç nöy geçidini erkenden açan gizli kısayol. Konum/
    * etkileşim mantığı cyclopsStop.ts'te; burada yalnız geometri + koordinat. */
@@ -573,185 +580,51 @@ export function buildCyclopsCave(): CyclopsCave {
   // dosya: `docs/art/asset-registry.md` ASSET-121 satırı. Sahil kıyısı
   // yeniden ASSET-119'un (temiz, stilize) kaya kitini kullanıyor.
 
-  // Sahip (27 Ağu, on altıncı geri bildirim): "mağaranın ve adanın
-  // arkasındaki sonsuzluk hissine çalışacağız" — 5 yeni Sketchfab linki
-  // değerlendirildi, hiçbiri temiz kullanılabilir çıkmadı (2'si "Standard"
-  // lisans/indirilemiyor, 1'i yalnız iframe-embed — sayfa görüntüleyici,
-  // motora aktarılabilir bir 3D dosya vermiyor, 2'si indirilebilir ama
-  // milyonlarca üçgenli fotogrametri taraması + fotogerçekçi, üstelik biri
-  // ("Witcher 3 in Toussaint") kendi açıklamasında CD Projekt Red'e ait
-  // olduğunu ve yalnız gayriresmi izin alındığını söylüyor — CC olarak
-  // yeniden lisanslama hakkı vermez, kullanmadım). Bunun yerine Lotus'un
-  // kendi, zaten üretilmiş, sıfır ek kredi/lisans riski taşıyan uzak-tepe
-  // sistemini (terrain.ts `buildDistantHills`/`buildHillBackdropRing`,
-  // ASSET-023 `hill_backdrop_01_albedo_2048` dokusu) tekrar kullanıyoruz —
-  // ISLAND.radius+110 mesafesinde (varsayılan "real" profilde ~270 m),
-  // Cyclops'un ~115 m'lik toplam koy+mağara derinliğinin çok ötesinde,
-  // orijin (0,0,0) merkezli tam bir halka: hem koydan bakınca hem mağara
-  // ağzından dışarı bakınca ufukta beliriyor, mağara içinden görünmüyor
-  // (tavan/duvarlar zaten kapatıyor) — tam istenen yer.
-  group.add(buildDistantHills(mulberry32(20260831)));
-
-  // Sahip'in az önce indirdiği ambientCG "Terrain003" (CC0, gerçek
-  // heykellenmiş arazi meshi, 2047 üçgen) — mağaranın ARKASINDA (D>0,
-  // mağara içinin de ötesinde), halkanın hemen içinde tek, daha detaylı bir
-  // dağ silueti olarak. **Düzeltme (27 Ağu, sahip):** "yanlış yere
-  // koymuşsun mağaranın arkasına koyacaktın" — ilk denemede D=-150'ye
-  // (denize doğru, kovun önü) koymuştum; mağara D=0 eşiğinden D>0'a doğru
-  // kazılıyor (en derin oda "pens" D≈65'e kadar), "arkası" oraya göre daha
-  // da +Z, D≈+150. `scripts/blender/convert_terrain003_ambientcg.py` ile
-  // dönüştürüldü: MTL'nin bozuk Windows yolu yüzünden doku elle yeniden
-  // bağlandı, yalnız albedo tutuldu (normal/roughness/AO/metallic bir
-  // sis-siluetine hiç katkı yapmaz), 1024px'e küçültüldü, taban y=0'a
-  // oturtulup 480 m genişliğe ölçeklendi.
+  // Sahip (27 Agu, on altinci geri bildirim): "magaranin ve adanin
+  // arkasindaki sonsuzluk hissine calisacagiz" - 5 yeni Sketchfab linki
+  // degerlendirildi, hicbiri temiz kullanilabilir cikmadi. Bunun yerine
+  // Lotus'un kendi, zaten uretilmis uzak-tepe sistemini (terrain.ts
+  // `buildDistantHills`/`buildHillBackdropRing`, ASSET-023
+  // `hill_backdrop_01_albedo_2048` dokusu) kullaniyoruz.
   //
-  // **Düzeltme (27 Ağu, sahip): "havada kaldı görünüm."** Kök neden doku
-  // değildi (vertex-UV renk örneklemesiyle doğrulandı — düşük irtifa=sıcak
-  // toprak, yüksek irtifa=gri kaya, doğal bir gradyan, hiç mavi/gökyüzü
-  // rengi yok). Gerçek sebep: mesh'in tabanı tam y=0'a oturtulmuştu ama
-  // Cyclops'un gerçek zemini yalnız ~D65'e kadar var, dağ D150'de —
-  // aradaki ~85 m'de hiç zemin geometrisi yok, o boşlukta dağın alçak
-  // kesimi gökyüzüne karışıp "havada asılı" bir tepe gibi okunuyordu.
-  // `buildDistantHills`'in kendi koni tepeleri de aynı sorunu yaşamamak
-  // için tabanlarını bilerek yerin altına gömüyor
-  // (`h*0.5-h*0.42`) — aynı numara burada da: mesh'i yüksekliğinin
-  // yaklaşık yarısı kadar batırıp yalnız üst/renkli kesimi görünür
-  // bırakıyoruz, boşluk kapanıyor.
+  // **KOKTEN YENIDEN TASARIM (28 Agu, sahip, ucuncu tur): "hala
+  // turunculuklar var ve bu sefer de sag ve sol taraftan gelen dag
+  // goruntusu direkt adanin icinde gozukuyor... bize daha radikal bir
+  // cozum lazim. tam bir ada gorunumu ve sonsuzluk hissi verecek bir
+  // tasarim istiyorum."** Sahip haklaydi - onceki yaklasim temelden
+  // kirilgandi: `terrain_backdrop_01_mesh_2000.glb`'den elle 5-7 kopya,
+  // her biri sabit bir dunya (x,z) + tahmini bir gomme derinligiyle
+  // kova etrafina "ignelenmisti" (z=150 arkada, x=+-150 yanlarda, en son
+  // turda x=+-35 kapi yaninda). Bu, sonlu/parcali bir kaplama - her
+  // parca yalniz DAR bir aci penceresini kapatiyor, aralarinda kacinilmaz
+  // boslulklar kaliyor (turuncu sizinti) VE bazi parcalar (x=+-35, ISLAND_
+  // WIDTH=220'nin/2=110 icinde, yani adanin kendi cim alaninin TAM
+  // ORTASINDA) adanin icinde duruyormus gibi gorunuyordu - sahibin son
+  // sikayeti buydu, kendi ekledigim yama tam bu hatayi yaratmisti.
   //
-  // **Düzeltme (27 Ağu, sahip, ekran görüntüsüyle): "hâlâ sarılıklar
-  // filan kalıyor."** -10 m gömme boşluğu kapattı ama yeterince derin
-  // değildi — Python'un ölçtüğü yükseklik-renk bantlarına göre "sıcak
-  // toprak" tonu (RGB~170-180, R>G>B belirgin) tam ~11,3 m'ye kadar
-  // sürüyor, ondan sonra griye dönüyor; -10 m'de bu sıcak bandın üst
-  // ucu hâlâ ~1,3 m yerin üstünde kalıp gri sisli gövdenin altında
-  // sarımsı bir "yaka" gibi görünüyordu. -14 m'ye çekilip tüm sıcak
-  // bantlar (0-3, üst sınır 11,3 m) yerin altına gömüldü, yalnız
-  // nötr gri-mavimsi üst bantlar (166-169 RGB, düşük doygunluk)
-  // görünür kalıyor — uzak/sisli bir dağ silüetine daha uygun.
-  //
-  // **Düzeltme (27 Ağu, sahip): "hâlâ aynı, turuncu rengi bizim
-  // dağlarla uyumlu yap, dağların boyunu da yükselt."** Gömme derinliği
-  // yanlış teşhisti — "sarılık" bir yükseklik-bandı sorunu değil,
-  // dokunun KENDİ genel tonu (en gri bandı bile R>G≈B, ılık bir gri)
-  // `buildDistantHills`'in mevcut tepelerinin soğuk mavi-gri paletiyle
-  // (`nearLayer.color` 0x8fa8bd, B>G>R) baştan uyumsuzdu — hangi
-  // yükseklikte kessek de sıcak kalıyordu. Malzemeye aynı mavi-gri
-  // rengi çarpan (multiply) bir `color` tint'i verilip doku o palete
-  // çekildi (Blender'a dönmeye gerek yok, GLTFLoader materyali
-  // `MeshStandardMaterial` çıkarıyor, `.color` doğrudan texture'ı
-  // çarpıyor). Boy için: mesh'in KENDİ orijini zaten tabana (yerel
-  // y=0) oturtulmuştu (Blender'daki `transform_apply`), o yüzden
-  // `scene.scale.y` orijin etrafında ölçekleyip tabanı yerinde bırakır
-  // — yalnız tepe yükselir. 1,8× dikey ölçek uygulandı (görünür
-  // yükseklik ~7 m'den ~16 m'ye çıktı); sıcak bandın yerel eşiği de
-  // aynı oranda büyüdüğünden (11,3 m → 20,3 m) gömme -14'ten -22'ye
-  // büyütüldü ki hâlâ tam gizlensin.
-  const TERRAIN_BACKDROP_SCALE_Y = 1.8;
-  const TERRAIN_BACKDROP_BURY = -22;
-  const TERRAIN_BACKDROP_TINT = 0x8fa8bd; // buildDistantHills nearLayer.color ile aynı
-  //
-  // **Düzeltme (27 Ağu, sahip): "mağara uzunluk derinlik arkaplana
-  // yerleştirdiğimiz dağ görselinin önünde kaldığı için girişte anormallik
-  // gözüküyor. adanın sağ ve sol sınırlarına da dağ modelini yerleştir."**
-  // Tek bir dağ örneği yalnız mağaranın arkasındaydı (D=150) — kapının
-  // hemen arkasında AÇIK GÖKYÜZÜNE karşı yalnız o dar açıda duruyordu, sağ/
-  // sol açılardan bakınca (kapının kendi "Cave" gövdesinin göründüğü
-  // açılar) arkada hiç dağ yoktu, çıplak ufuk + yakın kaba geometri yan
-  // yana bir "anormallik" gibi okunuyordu. Aynı meshin iki kopyası daha
-  // (`.clone(true)` — geometri/malzeme paylaşılıyor, ucuz; malzeme
-  // paylaşıldığı için tint bir kez uygulanması üç örneğe de yansıyor)
-  // adanın sağ ve sol sınırına eklendi — artık koydan hangi yöne bakarsa
-  // baksın ufukta bir dağ siluetinin devam ettiği hissi var.
-  loadGltfBundle("assets/models/terrain_backdrop_01_mesh_2000.glb").then((bundle) => {
-    const original = bundle.scene;
-    original.traverse((obj) => {
-      if (obj instanceof THREE.Mesh) {
-        obj.castShadow = false;
-        obj.receiveShadow = false;
-        const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-        for (const m of mats) {
-          if (m instanceof THREE.MeshStandardMaterial) {
-            m.color.set(TERRAIN_BACKDROP_TINT);
-          }
-        }
-      }
-    });
-    // **Düzeltme (27 Ağu, sahip): "sağ ve sol tarafta dağ görsellerine
-    // kadar hâlâ boşluk var."** x=±180 kapının arkasına oturttuğumuz yakın
-    // kütleden (±20) çok uzaktaydı — koydan yana bakınca aradaki ~160 m
-    // boş gökyüzü olarak görünüyordu. **İlk denemede x=±25'e çekildi ama
-    // bu, mesh'in kendi gerçek kalınlığını hesaba katmıyordu:** 90°
-    // döndürülünce meshin yerel X ekseni (480 m, "genişlik") dünya Z'ye
-    // (kovun uzunluğu boyunca — istenen), yerel Z ekseni (~182 m, "diğer
-    // yatay eksen") dünya X'ine (yana doğru KALINLIK) karşılık geliyor —
-    // yarı-kalınlık ~91 m, x=25'te merkezlenince yakın kenarı x≈-66'ya
-    // kadar kova içine gömülüyordu (tarayıcıda kamera meshin içinde
-    // sıkıştı, doğrulandı). Merkez x=±120'ye çekildi (yakın kenar
-    // ≈120-91=29, kovun ~20 m kenarını güvenle geçiyor) — hem x=±180'den
-    // belirgin daha yakın/bağlantılı hem kovu istila etmiyor.
-    // **Düzeltme (27 Ağu, sahip): "yanlardan gelen dağ görüntüsü çok yakın
-    // onu inceltmemiz lazım."** x=120'de yarı-kalınlığı (~91 m, yukarıdaki
-    // notta ölçülen yerel-Z→dünya-X eksen takası) hâlâ tam haliyle
-    // duruyordu — kalın/bulky bir kütle gibi yakın hissediliyordu. Yalnız
-    // yan örneklerde (`i>0`) yerel Z'ye (dünya X'teki KALINLIK) ekstra bir
-    // `SIDE_THICKNESS_SCALE` çarpanı uygulanıyor — uzunluk (dünya Z boyunca
-    // kovun kenarı) ve yükseklik dokunulmadan kalıyor, yalnız yana doğru
-    // ince bir sırt gibi okunuyor. İncelme sayesinde merkez de daha güvenle
-    // yakınlaştırılabildi (yeni yarı-kalınlık ~91×0,35≈32 m, x=60'ta yakın
-    // kenar ≈28 m — kovun ~20 m kenarını hâlâ güvenle geçiyor).
-    // **Düzeltme (27 Ağu, sahip): "sağa ve sola gelen dağ görüntüsünü de
-    // kıs, sadece uzak bir siluet olucak."** x=60 + incelme (0,35×) yakın
-    // mesafede hâlâ fazla belirgin/hazır bir kütle gibi duruyordu. Merkez
-    // x=±150'ye geri çekildi (incelme aynı kaldı) — hem thin hem uzak,
-    // gerçekten yalnız hazy bir ufuk siluetine dönüşsün diye.
-    // **Düzeltme (27 Ağu, sahip, ekran görüntüsüyle): "mağaranın yanları
-    // hâlâ sonsuzluk efekti yok, buraların görünmemesi lazım."** Yukarıdaki
-    // üç örnek yalnız z=20/150'de (mağara ağzının hemen arkası) duruyordu —
-    // ama koy o zamandan beri iki kez uzadı, oyuncu artık z=-50'ye kadar
-    // (açık koyun tamamı, gemi dahil) serbestçe geziyor. O bölgeden yana
-    // baktığında en yakın "sağ/sol sınır" örneği hâlâ z=20'deydi — 40-70 m
-    // GERİDE, tam yana bakan bir açıda görünür bir boşluk bırakıyordu
-    // (yalnız halkanın seyrek/rastgele 12 konisi o açıyı garanti kapsamıyor).
-    // İki örnek daha eklendi (z=-40, açık koyun ortası) — sağ/sol sınır artık
-    // koyun HEM mağara ağzına yakın hem açık deniz ucuna yakın kesiminde de
-    // dolu, oyuncunun asıl gezdiği tüm z aralığında sürekli bir siluet var.
-    const SIDE_THICKNESS_SCALE = 0.35;
-    // **Düzeltme (28 Ağu, sahip, ekran görüntüsüyle): "aynı ekran görüntüsünde
-    // turuncu bir sızıntı daha var... zemin sorunu var bence."** Bu, göldeki
-    // gibi bir zemin/geometri sorunu değildi — kök neden `buildDistantHills`'in
-    // paylaşılan `buildHillBackdropRing`'i: silindir gökyüzüne doğru kasıtlı
-    // olarak solup şeffaflaşıyor (üstündeki `topFade` shader'ı), o solma
-    // bandında alttaki çıplak `RENDER.skyHorizon` (sıcak amber, 0xf5d29a)
-    // görünüyor. Kapının SOL yanında (D≈10-20, x≈-15..-35) ağaçlar seyrek
-    // kaldığı bir açıda bu solma bandı çim/ağaç çizgisiyle uzak sırt/dağ
-    // örnekleri (yalnız x=±150'de, çok uzakta) arasındaki boşluktan direkt
-    // görünüyordu — göldeki gibi oyulmuş bir zemin hatası değil, bu belirli
-    // açıda hiç engelleyici geometri olmaması. Kalıcı çözüm: aynı
-    // `terrain_backdrop` meshinden (aynı soğuk tint, sıcaklık artık zaten
-    // bertaraf edilmiş) kapının hemen sol/sağ yanına, önceki x=±150
-    // örneklerinden çok daha YAKIN iki tane daha eklendi — burada zemin
-    // kesintisiz olduğundan (uzak x=±150 örneklerindeki 85 m'lik boşluk
-    // sorunu yok) çok daha sığ bir gömme (`bury=-6`, `-22` yerine) yeterli,
-    // bu da meshin görünür kısmını ağaç tepelerinin ÜSTÜNE, halkanın solma
-    // bandını kapatacak kadar yükseltiyor.
-    const GATE_FLANK_BURY = -6;
-    const placements = [
-      { x: 0, z: 150, rotY: 0, thin: false }, // mağaranın arkası
-      { x: 150, z: 20, rotY: Math.PI / 2, thin: true }, // sağ sınır — mağara ağzı yakını
-      { x: -150, z: 20, rotY: -Math.PI / 2, thin: true }, // sol sınır — mağara ağzı yakını
-      { x: 150, z: -40, rotY: Math.PI / 2, thin: true }, // sağ sınır — açık koy ortası
-      { x: -150, z: -40, rotY: -Math.PI / 2, thin: true }, // sol sınır — açık koy ortası
-      { x: -35, z: 14, rotY: -Math.PI / 2, thin: true, bury: GATE_FLANK_BURY }, // kapının hemen sol yanı — halka solma bandı sızıntısı
-      { x: 35, z: 14, rotY: Math.PI / 2, thin: true, bury: GATE_FLANK_BURY }, // kapının hemen sağ yanı — simetri
-    ];
-    placements.forEach((p, i) => {
-      const inst = i === 0 ? original : original.clone(true);
-      inst.scale.set(1, TERRAIN_BACKDROP_SCALE_Y, p.thin ? SIDE_THICKNESS_SCALE : 1);
-      inst.position.set(p.x, p.bury ?? TERRAIN_BACKDROP_BURY, p.z);
-      inst.rotation.y = p.rotY;
-      group.add(inst);
-    });
-  });
+  // Kalici/radikal cozum: bu parcali sistemi TAMAMEN kaldirip, sky
+  // sphere'in zaten kullandigi KANITLANMIS teknigi (`skyMesh.position.
+  // copy(camera.position)`, cyclopsStop.ts) `buildDistantHills`'in
+  // dondurdugu gruba da uyguluyoruz: `horizonGroup`'u her karede
+  // kameranin (x,z)'sine kopyaliyoruz (bkz. `CyclopsCave.horizonGroup`,
+  // `cyclopsStop.ts`'teki `skyMesh.position.copy(...)`'nin hemen
+  // yanindaki cagri). Sonuc: halka ARTIK gercekten "sonsuz" - kamera
+  // nereye giderse gitsin (kapi onu, kova ortasi, gemi yani) merkezi
+  // her zaman kameranin kendisi, yani halkaya olan mesafe HER YONDE HER
+  // ZAMAN sabit ~310 m. Bu uc seyi ayni anda cozer: (1) hicbir acida
+  // asla bosluk yok - halka zaten kesintisiz 360 derece bir silindir
+  // (bkz. `buildHillBackdropRing`), onceden onu sonlu/sabit parcalarla
+  // "yamalamaya" calismak gereksizdi; (2) adanin icinde gorundugu hissi
+  // imkansiz hale gelir - 310 m sabit mesafe, adanin kendi ~110 m'lik
+  // yari-genisliginin cok otesinde, kamera oraya asla "yaklasamaz";
+  // (3) tek bir teknik, tum kova + magara agzi + gemi ucu acilarini ayni
+  // anda kapsiyor, konuma ozel elle-ayarlanmis istisna/bury/scale
+  // parametresi kalmadi. Kapinin hemen ARKASINDAKI yakin "seat" kutlesi
+  // (asagida, `USE_SKETCHFAB_GATE` blogunda) ayri kaldi - o, sonsuzluk
+  // ufku degil, kapinin oyuldugu kayanin kendi yakin dokusu, kasitli
+  // olarak sabit/yakin.
+  const horizonGroup = buildDistantHills(mulberry32(20260831));
+  group.add(horizonGroup);
 
   // Ground strip, split at the cave mouth (D=0) so cove+path can carry a
   // real sandy coastal look + the heightAt() slope, while the cave interior
@@ -2771,6 +2644,7 @@ export function buildCyclopsCave(): CyclopsCave {
   return {
     group,
     items,
+    horizonGroup,
     update(t: number, dt: number) {
       for (const fn of kitUpdaters) fn(t);
       hearthLight.intensity = HEARTH_BASE_INTENSITY * lightFlicker(t, 0);

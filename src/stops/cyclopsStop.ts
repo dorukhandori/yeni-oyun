@@ -296,7 +296,28 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
   // asıl bulut/güneş-diski sistemleri (`clouds.ts`/`sunDisk.ts`) atlandı —
   // onlar update-loop'a bağlı, bu ilk geçiş için orantısız bir yatırım.
   const skyTop = new THREE.Color(RENDER.skyTop);
-  const skyHorizon = new THREE.Color(RENDER.skyHorizon);
+  // 28 Ağu, sahip (üçüncü tur, "daha radikal bir çözüm lazım"): kova
+  // etrafına elle iğnelenmiş sonlu dağ kopyaları (yukarıda kaldırıldı,
+  // bkz. `cave.horizonGroup`) hem boşluk bırakıyor hem adanın içinde
+  // duruyormuş gibi görünüyordu — kök neden fiziksel kapatma değil, RENK
+  // uyuşmazlığıydı: `RENDER.skyHorizon` (0xf5d29a, sıcak amber) Lotus'un
+  // güneşli öğleden sonrası için doğru, ama uzak-tepe halkasının kendi
+  // KASITLI solma tasarımı (`buildHillBackdropRing`'in `topFade`
+  // shader'ı — yüksekliğinin büyük kısmı zaten gökyüzüne doğru şeffaflaşan
+  // bir geçiş bandı) HER ZAMAN bir miktar çıplak ufuk rengini gösteriyor;
+  // bu Lotus'ta sıcak/güneşli bir haze gibi okunup hoş dururken, Cyclops'un
+  // soğuk/puslu mağara paletiyle (`0x8fa8bd` tüm sis/dağ tint'lerinde)
+  // çelişip "turuncu sızıntı" gibi okunuyordu. Kalıcı çözüm: fiziksel
+  // kapatmayı iyileştirmeye devam etmek yerine (kırılgan, önceki turlarda
+  // defalarca başarısız oldu) sorunun KÖKÜNÜ kesiyoruz — Cyclops kendi
+  // gökyüzü shader'ında `RENDER.skyHorizon` yerine sisin/dağın aynı soğuk
+  // ailesinden bir ufuk rengi kullanıyor. Bu tamamen Cyclops-yerel (bu
+  // shader zaten Lotus'un `stage.ts`'inden ayrı, statik bir kopya — bkz.
+  // yukarıdaki not), Lotus'un kendi RENDER.skyHorizon'ına dokunulmadı.
+  // Artık halka nerede/ne kadar solursa solsun, altından sızan renk daima
+  // sahnenin geri kalanıyla uyumlu — "kötü gözükmeyen" tasarım budur.
+  const CYCLOPS_SKY_HORIZON = 0x9fb2c2; // soğuk gri-mavi ufuk — sis/dağ tint ailesiyle (0x8fa8bd) uyumlu
+  const skyHorizon = new THREE.Color(CYCLOPS_SKY_HORIZON);
   const skyMat = new THREE.ShaderMaterial({
     side: THREE.BackSide,
     depthWrite: false,
@@ -1249,6 +1270,17 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     // Sky sphere is camera-centered (same convention as stage.ts) — copy
     // AFTER rig.update() so it uses this frame's final camera position.
     skyMesh.position.copy(camera.position);
+    // 28 Ağu, sahip: "daha radikal bir çözüm lazım, tam bir ada görünümü ve
+    // sonsuzluk hissi." Uzak-tepe halkası (`cave.horizonGroup`) artık kova
+    // etrafına elle iğnelenmiş sonlu kopyalar yerine AYNI sky-sphere
+    // tekniğiyle kamerayı takip ediyor — halkaya olan mesafe kamera nereye
+    // giderse gitsin her yönde hep sabit (~310 m), hem hiçbir açıda boşluk
+    // kalmıyor hem de adanın kendi ~110 m'lik yarısına asla giremiyor
+    // (bkz. `cyclopsCave.ts`, `buildDistantHills` çağrısının hemen üstündeki
+    // not). Sky sphere'in aksine yalnız X/Z alınıyor DEĞİL — tam pozisyon
+    // kopyalanıyor (Y dahil), tıpkı skyMesh gibi, ki ufuk çizgisi kamera
+    // yüksekliğiyle birlikte doğru hizada kalsın.
+    cave.horizonGroup.position.copy(camera.position);
 
     if (messageT > 0) messageT -= dt;
 
@@ -1311,6 +1343,18 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
       render: () => renderer.render(scene, camera),
       rotateCamera: (yaw: number, pitch = 0) => rig.rotate(yaw, pitch),
       cameraPos: () => ({ x: camera.position.x, y: camera.position.y, z: camera.position.z }),
+      // 28 Ağu, sahip'in "turuncu sızıntı" raporunu ekran-pikseline kadar
+      // izlemek için — geçici tanı aracı, DEV-only. nx/ny -1..1 NDC.
+      raycastScreen: (nx: number, ny: number) => {
+        const ray = new THREE.Raycaster();
+        ray.setFromCamera(new THREE.Vector2(nx, ny), camera);
+        const hits = ray.intersectObjects(scene.children, true);
+        return hits.slice(0, 10).map((h) => ({
+          name: h.object.name || h.object.type,
+          dist: Number(h.distance.toFixed(1)),
+          point: { x: Number(h.point.x.toFixed(1)), y: Number(h.point.y.toFixed(1)), z: Number(h.point.z.toFixed(1)) },
+        }));
+      },
       setMove: (x: number, z: number) => {
         manualMove.x = x;
         manualMove.z = z;
