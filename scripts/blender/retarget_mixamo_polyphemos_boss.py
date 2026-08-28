@@ -35,7 +35,7 @@ from mathutils import Matrix, Vector
 
 ROOT = Path(__file__).resolve().parents[2]
 SRC_MESH = ROOT / "public/assets/models/char_polyphemos_boss_01_mesh_10000.glb"
-MIXAMO = ROOT / "art-source/work/mixamo/locomotion"
+MIXAMO = ROOT / "art-source/work/mixamo/boss"
 DST = ROOT / "public/assets/models/char_polyphemos_boss_02_mixamo.glb"
 DST_RAW = ROOT / "art-source/raw/char_polyphemos_boss_02_mixamo.glb"
 HEIGHT_M = 5.0  # dev boyu, cyclopsStop.ts GIANT_HEIGHT_M ile aynı
@@ -43,9 +43,13 @@ HEIGHT_M = 5.0  # dev boyu, cyclopsStop.ts GIANT_HEIGHT_M ile aynı
 # `cyclopsStop.ts` "idle" ve "walk" adlarını arıyor. Saldırı klipleri
 # sahip Mixamo'dan indirdikçe buraya eklenecek (bkz. dosya başlığı).
 CLIPS = (
-    ("idle", MIXAMO / "idle.fbx"),
-    ("walk", MIXAMO / "walking.fbx"),
-    ("run", MIXAMO / "running.fbx"),
+    ("idle", MIXAMO / "idle.fbx"),      # Mutant Breathing Idle
+    ("walk", MIXAMO / "walk.fbx"),      # Mutant Walking
+    ("run", MIXAMO / "run.fbx"),        # Mutant Run
+    ("sweep", MIXAMO / "sweep.fbx"),    # Mutant Swiping — yatay süpürme
+    ("slam", MIXAMO / "slam.fbx"),      # Mutant Jump Attack — tepeden vuruş
+    ("punch", MIXAMO / "punch.fbx"),    # Mutant Punch — kapma/ileri hamle
+    ("roar", MIXAMO / "roar.fbx"),      # Mutant Roaring — körleşmiş öfke
 )
 
 MAJOR = (
@@ -112,7 +116,7 @@ def import_boss_mesh():
         v.co.y = (v.co.y - cy) * s
         v.co.z = (v.co.z - min_z) * s
     mesh.data.update()
-    mesh.name = "DoryseusMesh"
+    mesh.name = "PolyphemosBossMesh"
 
     # Mixamo faces -Y after FBX apply. Doryseus GLB face is +X (game meshFacing
     # -π/2). Rotate so the textured face looks Mixamo-forward.
@@ -236,44 +240,75 @@ def make_cage(mesh):
 
 
 def heat_and_transfer(original, cage, arm_obj) -> None:
+    """Skin the boss mesh to the Mixamo armature via a voxel cage.
+
+    Bone Heat cannot solve on the boss mesh directly — a direct
+    `parent_set(ARMATURE_AUTO)` returns ZERO weighted vertices (measured,
+    28 Ağu 2026). It solves fine on a voxel remesh of the same surface, so
+    the cage detour inherited from the Doryseus pipeline is genuinely
+    required here too.
+
+    What is NOT inherited is the transfer back. The DATA_TRANSFER modifier
+    path silently produced zero weights on this mesh: all 65 vertex groups
+    existed but were empty, so the glTF exporter dropped the skin and wrote
+    an unskinned, unanimated GLB while the log still claimed "baked 7
+    clips". It was caught by measuring the export (skins=0) and then the
+    scene (with_any_weight=0) — never visible in a render.
+
+    The transfer is now explicit: a KDTree nearest-neighbour copy from cage
+    vertex to mesh vertex. This is the same thing POLYINTERP_NEAREST is
+    meant to do, just without the operator's context quirks, and it is
+    verifiable — the function refuses to continue unless the weights
+    actually landed. (This is a COPY of solver-produced weights between two
+    versions of one surface, not distance-to-bone weights invented by hand;
+    the latter is what broke Doryseus once — see the blender-rig-fix-lessons
+    memory.)
+    """
+    import mathutils
+
     bpy.ops.object.select_all(action="DESELECT")
     cage.select_set(True)
     arm_obj.select_set(True)
     bpy.context.view_layer.objects.active = arm_obj
     bpy.ops.object.parent_set(type="ARMATURE_AUTO")
+
     cage_counts = {vg.name: group_count(cage, vg) for vg in cage.vertex_groups}
     missed = [n for n in MAJOR if cage_counts.get(n, 0) == 0]
     if missed:
         raise RuntimeError(f"Bone Heat missed major bones on cage: {missed}")
-    print(
-        "[mixamo] cage heat major",
-        {n: cage_counts.get(n, 0) for n in MAJOR},
-    )
-    print(
-        "[mixamo] cage heat hands",
-        {
-            n: cage_counts.get(n, 0)
-            for n in ("mixamorig:LeftHand", "mixamorig:RightHand")
-        },
-    )
+    print("[mixamo] cage heat major", {n: cage_counts.get(n, 0) for n in MAJOR})
 
-    bpy.ops.object.select_all(action="DESELECT")
-    original.select_set(True)
-    bpy.context.view_layer.objects.active = original
+    # --- explicit nearest-neighbour weight transfer, cage -> original ---
+    cage_verts = cage.data.vertices
+    kd = mathutils.kdtree.KDTree(len(cage_verts))
+    for i, v in enumerate(cage_verts):
+        kd.insert(cage.matrix_world @ v.co, i)
+    kd.balance()
+
+    cage_group_name = {vg.index: vg.name for vg in cage.vertex_groups}
     while original.vertex_groups:
         original.vertex_groups.remove(original.vertex_groups[0])
-    for vg in cage.vertex_groups:
-        original.vertex_groups.new(name=vg.name)
+    dst_group = {name: original.vertex_groups.new(name=name) for name in cage_group_name.values()}
 
-    dt = original.modifiers.new("WeightsFromCage", "DATA_TRANSFER")
-    dt.object = cage
-    dt.use_vert_data = True
-    dt.data_types_verts = {"VGROUP_WEIGHTS"}
-    dt.vert_mapping = "POLYINTERP_NEAREST"
-    dt.layers_vgroup_select_src = "ALL"
-    dt.mix_mode = "REPLACE"
-    bpy.ops.object.datalayout_transfer(modifier="WeightsFromCage")
-    bpy.ops.object.modifier_apply(modifier="WeightsFromCage")
+    for v in original.data.vertices:
+        _co, idx, _dist = kd.find(original.matrix_world @ v.co)
+        for g in cage_verts[idx].groups:
+            name = cage_group_name.get(g.group)
+            if name and g.weight > 0.0:
+                dst_group[name].add([v.index], g.weight, "REPLACE")
+
+    weighted = sum(1 for v in original.data.vertices if len(v.groups) > 0)
+    print(f"[mixamo] transferred weights: {weighted}/{len(original.data.vertices)} verts")
+    if weighted == 0:
+        raise RuntimeError("Weight transfer produced no weights")
+    counts = {vg.name: group_count(original, vg) for vg in original.vertex_groups}
+    missed = [b for b in MAJOR if counts.get(b, 0) == 0]
+    if missed:
+        raise RuntimeError(f"Transfer missed major bones: {missed}")
+    print(
+        "[mixamo] hands",
+        {n: counts.get(n, 0) for n in ("mixamorig:LeftHand", "mixamorig:RightHand")},
+    )
 
     for mod in list(original.modifiers):
         if mod.type == "ARMATURE":
@@ -397,7 +432,13 @@ def push_nla(arm, actions: list[bpy.types.Action]) -> None:
 
 def export_glb(path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    keep = {"preset:idle", "preset:walk", "preset:run", "preset:biped:dig"}
+    # Bu liste CLIPS'ten türetilmeli. Doryseus'tan miras alınan sabit
+    # `preset:*` kümesi burada sessiz bir felakete yol açıyordu: bizim klip
+    # adları ("idle"/"walk"/"sweep"/...) o kümede olmadığı için TÜM action'lar
+    # export'tan hemen önce siliniyordu — Blender "baked ... 7 clips" diye
+    # loglayıp ardından skin'siz, animasyonsuz bir GLB yazıyordu (dışa aktarım
+    # sonrası ölçümle yakalandı: skins=0, animations=[]).
+    keep = {name for name, _path in CLIPS}
     for action in list(bpy.data.actions):
         if action.name not in keep:
             bpy.data.actions.remove(action)
@@ -416,6 +457,18 @@ def export_glb(path: Path) -> None:
         export_lights=False,
         export_extras=False,
     )
+    for o in bpy.context.scene.objects:
+        mods = [(m.type, getattr(m, "object", None).name if getattr(m, "object", None) else None,
+                 m.show_viewport, m.show_render) for m in getattr(o, "modifiers", [])]
+        print(f"[diag] obj={o.name} type={o.type} parent={o.parent.name if o.parent else None} "
+              f"parent_type={getattr(o,'parent_type',None)} visible={o.visible_get()} "
+              f"hide_viewport={o.hide_viewport} mods={mods} vgroups={len(getattr(o,'vertex_groups',[]) or [])}")
+        if o.type == "MESH":
+            weighted = sum(1 for v in o.data.vertices if len(v.groups) > 0)
+            print(f"[diag]   verts={len(o.data.vertices)} with_any_weight={weighted}")
+        if o.type == "ARMATURE":
+            deform = sum(1 for b in o.data.bones if b.use_deform)
+            print(f"[diag]   bones={len(o.data.bones)} use_deform={deform}")
     bpy.ops.object.select_all(action="DESELECT")
     try:
         bpy.ops.export_scene.gltf(**kwargs, export_animation_mode="NLA_TRACKS")

@@ -64,10 +64,19 @@ export const WORKBENCH_PRESETS: WorkbenchPreset[] = [
     // turumuzdan (ASSET-123/125) üretilmiş boss rig'i. Klipler henüz yok
     // (bilerek — boss moveset'i ayrıca seçilecek), o yüzden `clip` boş.
     id: "polyphemos-boss",
-    label: "Polyphemos boss (rig)",
-    hint: "ASSET-127 — Tripo auto-rig, ağırlık QA'sı temiz. Henüz klipsiz: moveset klipleri sıradaki adım.",
+    label: "Polyphemos boss idle",
+    hint: "ASSET-128 — Mixamo iskeleti + 7 klip (idle/walk/run/sweep/slam/punch/roar). 5 m: 'fit height' 5 girin.",
     kind: "asset",
-    path: "assets/models/char_polyphemos_boss_01_rig.glb",
+    path: "assets/models/char_polyphemos_boss_02_mixamo.glb",
+    clip: "idle",
+  },
+  {
+    id: "polyphemos-boss-slam",
+    label: "Polyphemos boss slam",
+    hint: "Aynı GLB, tepeden vuruş klibi — telgraf okunabilirliği için.",
+    kind: "asset",
+    path: "assets/models/char_polyphemos_boss_02_mixamo.glb",
+    clip: "slam",
   },
   {
     id: "dory-konfuse",
