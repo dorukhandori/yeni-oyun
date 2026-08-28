@@ -2227,21 +2227,22 @@ export function buildCyclopsCave(): CyclopsCave {
     const fogSprites: Array<{ sprite: THREE.Sprite; baseY: number; phase: number; speed: number }> = [];
     for (const side of [-1, 1]) {
       for (let i = 0; i < 16; i++) {
+        // Sahip (28 Ağu): "mağara girişindeki sis biraz daha kalın ve
+        // yüksek bir sis olsun." Opaklık artırıldı (daha "kalın"/yoğun),
+        // dikey ölçek (`scaleY`) ve taban yüksekliği (`baseY`) büyütüldü
+        // (daha "yüksek").
         const mat = new THREE.SpriteMaterial({
           map: fogTex,
           transparent: true,
           depthWrite: false,
-          opacity: 0.28 + fogRand() * 0.22,
+          opacity: 0.4 + fogRand() * 0.3,
         });
         const sprite = new THREE.Sprite(mat);
         const dist = doorHalfWidth + 1.5 + fogRand() * 46; // açıklığa hiç girmiyor
         const scaleX = 7 + fogRand() * 9;
-        const scaleY = 1.4 + fogRand() * 1.4;
+        const scaleY = 2.6 + fogRand() * 2.6;
         sprite.scale.set(scaleX, scaleY, 1);
-        // Sahip (27 Ağu): "sisi biraz daha yükseltelim" — bant 0,2-1,6'dan
-        // 0,9-2,7'ye kaldırıldı (yer hizasına fazla yapışık/gömülü
-        // duruyordu).
-        const baseY = 0.9 + fogRand() * 1.8;
+        const baseY = 1.6 + fogRand() * 2.6;
         sprite.position.set(side * dist, baseY, -1 + fogRand() * 6);
         group.add(sprite);
         fogSprites.push({ sprite, baseY, phase: fogRand() * Math.PI * 2, speed: 0.15 + fogRand() * 0.2 });
