@@ -1212,6 +1212,24 @@ export function buildCyclopsCave(): CyclopsCave {
     }
     return true;
   }
+  // Sahip (28 Ağu): "yolun kenarındaki çimenler kaybolmuş gibi
+  // gözüküyor." `COVE_CLEAR_HALF_X=4.5` — ağaç/büyük kaya gibi iri
+  // objeler için makul bir tampon — ama patikanın kendi görsel genişliği
+  // yalnız ~2,2-2,7 m (`PATH_HALF_W` + organik kenar dalgalanması). 3B çim
+  // demeti (ince, küçük) o geniş tamponu miras alınca patikanın iki
+  // yanında ~1,8-2,3 m'lik gerçekten ÇIPLAK bir şerit bırakıyordu — çim
+  // "kaybolmuş" gibi okunuyordu. Yalnız çim demeti alanı için daha dar,
+  // patikanın kendi genişliğine yakın bir pay.
+  const GRASS_PATH_HALF_X = 2.8;
+  function grassDressingClear(x: number, z: number): boolean {
+    if (Math.abs(x - pathCenterX(z)) < GRASS_PATH_HALF_X) return false;
+    if (Math.hypot(x - COVE_SPAWN_CLEAR.x, z - COVE_SPAWN_CLEAR.z) < COVE_SPAWN_CLEAR.r) return false;
+    if (Math.hypot(x - COVE_SHIP_CLEAR.x, z - COVE_SHIP_CLEAR.z) < COVE_SHIP_CLEAR.r) return false;
+    for (const p of PUDDLES) {
+      if (Math.hypot(x - p.x, z - p.z) < p.radius + 1.0) return false;
+    }
+    return true;
+  }
   if (PUDDLES.length > 0) {
     // Çim mesh'i zaten yukarıda tam kuruldu (`groundHeightAt` ile) — burada
     // yalnız göl sitelerinin ETRAFINDA bir çukur oymak için vertex'leri
@@ -1277,6 +1295,35 @@ export function buildCyclopsCave(): CyclopsCave {
       }
       scatterRockKit(group, rimSpots, puddleWobbleRand);
     }
+  }
+
+  // Sahip (28 Ağu): "güzel patika boyunca kayalar ve taşlar serpilmiş
+  // olsun." Ana patikanın (`pathGeo`) hemen iki yanına, gerçek 3D kaya/
+  // taş parçaları (aynı yüklü ASSET-119 kiti) — sürekli bir duvar değil,
+  // doğal/seyrek bir serpinti (kayıt gap'i ~%40), küçükten ortaya boy
+  // varyasyonu.
+  {
+    const pathRockRand = mulberry32(20260915);
+    const pathRockSpots: RockSpot[] = [];
+    for (let z = -45; z <= -3; z += 1.6) {
+      for (const side of [-1, 1] as const) {
+        if (pathRockRand() < 0.42) continue;
+        const x = pathCenterX(z) + side * (2.9 + pathRockRand() * 3.2);
+        const jz = z + (pathRockRand() - 0.5) * 1.2;
+        if (!coveDressingClear(x, jz)) continue;
+        const s = 0.35 + pathRockRand() * 0.55;
+        pathRockSpots.push({
+          x,
+          y: groundHeightAt(x, jz) - 0.05,
+          z: jz,
+          sx: s,
+          sy: s * 0.7,
+          sz: s,
+          rotY: pathRockRand() * Math.PI * 2,
+        });
+      }
+    }
+    scatterRockKit(group, pathRockSpots, pathRockRand);
   }
 
   // Sahip (27 Ağu, yirmi üçüncü geri bildirim): "ada içerisinde belli
@@ -1577,7 +1624,7 @@ export function buildCyclopsCave(): CyclopsCave {
           const jx = x + ox + (rand() - 0.5) * spacing * 0.38;
           const jz = z + (rand() - 0.5) * hexH * 0.38;
           if (jz < SAND_Z_MAX || jz > 0) continue;
-          if (!coveDressingClear(jx, jz)) continue;
+          if (!grassDressingClear(jx, jz)) continue;
           const spread = FLORA.grassSpreadScale * (0.9 + rand() * 0.2);
           const h = FLORA.grassHeightScale * (0.85 + rand() * 0.3);
           grassPoses.push({
