@@ -257,12 +257,14 @@ function cliffProfile(d: number, h: number): number {
  * zaten 12 m yüksekte, yani kapının kendi tepesinin (~12 m) üstünde. */
 function browProfile(d: number, h: number): number {
   if (d <= 0) return 0;
-  // İki kademe (28 Ağu, ekran görüntüsü + raycast bulgusu): ilk kademe
-  // ~2,2 m derinlikte zaten ~%55 yüksekliğe fırlıyor — kapının taç
-  // noktasının (12 m) hemen üstünü kayanın kendisi dolduruyor, arkadaki
-  // karartma kutuları/kabuk hiçbir açıdan görünmüyor; ikinci kademe
-  // 6 m'de platoya tamamlanıyor.
-  return h * (0.55 * THREE.MathUtils.smoothstep(d, 0, 2.2) + 0.45 * THREE.MathUtils.smoothstep(d, 1.8, 6));
+  // İki kademe (28 Ağu, ekran görüntüsü + raycast bulgusu; ikinci tur
+  // daha da dikleştirildi): ilk kademe 1,4 m derinlikte %62 yüksekliğe
+  // fırlıyor — kapı gövdesiyle kaya yüzü arasındaki krevas o kadar
+  // inceliyor ki arkadaki karartma kutularının düz kenarı hiçbir açıdan
+  // görünmüyor (ilk hâlinde d=0,9'da yalnız ~6 m vardı ve kutunun keskin
+  // kenarı kapının sağında dik siyah bir DİKDÖRTGEN gibi okunuyordu —
+  // raycast ile doğrulandı); ikinci kademe 6 m'de platoya tamamlanıyor.
+  return h * (0.62 * THREE.MathUtils.smoothstep(d, 0, 1.4) + 0.38 * THREE.MathUtils.smoothstep(d, 1.2, 6));
 }
 
 /** Kayalığın görsel yüzeyi — YALNIZ mesh için. Oyuncu/dekor bunu kullanmaz
@@ -277,6 +279,18 @@ export function cliffSurfaceY(x: number, z: number): number {
   // |x|<11 tam dik "kaş", 11-17 arası geçiş, ötesi normal uçurum profili.
   const brow = 1 - THREE.MathUtils.smoothstep(ax, 11, 17);
   let y = normal + (steep - normal) * brow;
+  // Kapı AĞZI oyuğu (28 Ağu): kaş, koridor ağzının tam önünde de
+  // yükseliyordu — kapı kemerinin içinden karanlık tünel yerine AYDINLIK
+  // gri kaya yüzü görünüyordu (kemer içi grisi ekran görüntüsüyle
+  // yakalandı). Koridor genişliğinde (|x|<~3,2, 5,2'ye yumuşayan) ve
+  // ~7 m derinliğe kadar kaş bastırılıyor — kemerin içi yine karartma
+  // perdesinin karanlığını gösteriyor; oyuğun bittiği derinlik zaten
+  // perdenin arkasında, hiçbir açıdan görünmüyor.
+  // x-aralığı BİLİNÇLİ dar (2,2→3,6): kapı açıklığı zaten yalnız ±1,9 —
+  // ilk deneme (3,2→5,2) perde kanatlarının durduğu x=4-5 bandında da kaşı
+  // yarı-bastırıp kanatların üst köşesini yeniden açığa çıkarmıştı.
+  const doorMask = (1 - THREE.MathUtils.smoothstep(ax, 2.2, 3.6)) * (1 - THREE.MathUtils.smoothstep(d, 5, 8.5));
+  y *= 1 - doorMask;
   // Yüzeyde dikey oluk/rib deseni (art-director speci: dikey erozyon
   // kolonları, 1,5-2,5 m periyot) — salt renk değil GERÇEK geometri, çünkü
   // silüet ve gölge de bu desenden beslenmeli.
@@ -566,6 +580,10 @@ export interface CyclopsCave {
   /** DEV-testing yalnız — ASSET-090 mağara kabuğunun (tek merged GLB, async)
    * yüklemesi tamamlandı mı. */
   shellLoaded(): boolean;
+  /** 28 Ağu: kabuk yalnız oyuncu eşiğe yaklaşınca render edilir — dışarıdan
+   * BackSide kabuğun iç-duvar arka yüzleri kapı çevresindeki boşluklardan
+   * "siyah dikdörtgen" olarak sızıyordu. cyclopsStop.ts step()'i sürer. */
+  setShellVisible(v: boolean): void;
   /** DEV-testing yalnız — ASSET-104'ün oval kaya kemeri (dış cephe) GLB'sinin
    * yüklemesi tamamlandı mı. */
   cliffLoaded(): boolean;
@@ -1270,6 +1288,37 @@ export function buildCyclopsCave(): CyclopsCave {
       });
     }
     scatterRockKit(group, talus, talusRand);
+  }
+
+  // Kapı-kaya dikişi (28 Ağu): ASSET-115 kapı kayasının kendi organik
+  // silüeti ile kayalık kaşı her açıdan tam örtüşmüyor — aralarındaki dar
+  // dikişten karartma perdesinin düz kenarı ince, dik bir "siyah şerit"
+  // olarak okunuyordu. Dikişe iki yandan sıkışmış/devrilmiş tebeşir
+  // kayaları — düz kenar organik bir moloz yığınına dönüşüyor (referans
+  // görselde de mağara ağzının çevresi kaya bloklarıyla çevrili).
+  {
+    const seamRand = mulberry32(20260914);
+    const seam: RockSpot[] = [];
+    for (const side of [-1, 1] as const) {
+      for (const t of [
+        { z: 0.9, y: 1.2, s: 2.3 },
+        { z: 1.5, y: 3.6, s: 1.9 },
+        { z: 2.1, y: 6.2, s: 2.1 },
+        { z: 2.6, y: 8.8, s: 1.7 },
+        { z: 3.2, y: 11.3, s: 1.9 },
+      ]) {
+        seam.push({
+          x: side * (6.6 + seamRand() * 1.1),
+          y: t.y,
+          z: t.z,
+          sx: t.s * (0.85 + seamRand() * 0.3),
+          sy: t.s * (0.8 + seamRand() * 0.35),
+          sz: t.s * (0.85 + seamRand() * 0.3),
+          rotY: seamRand() * Math.PI * 2,
+        });
+      }
+    }
+    scatterRockKit(group, seam, seamRand);
   }
 
   // Kıyı çizgisi boyunca kayalar — eski düz `RIDGE_PEAK_Z=-50.6` sırtının
@@ -2256,6 +2305,18 @@ export function buildCyclopsCave(): CyclopsCave {
     // göze batıyor.
     t.repeat.set(1 / 9, 1 / 9);
   }
+  // 28 Ağu landform bulgusu (kapı gizlenerek + isimle-gizle tanı aracıyla
+  // kanıtlandı): kabuk `BackSide` olduğu için DIŞARIDAN bakan kamera, kapı
+  // kayası ile kayalık kaşı arasındaki boşluklardan kabuğun İÇ duvarlarının
+  // arka yüzlerini görüyor — kapının yanında keskin kenarlı "siyah
+  // dikdörtgen" tam buydu (eski dağ levhası bunu tesadüfen kapatıyordu,
+  // levha kalkınca ortaya çıktı). Kalıcı çözüm: kabuk yalnız oyuncu
+  // eşiğe yaklaşınca/içerideyken render ediliyor (`setShellVisible`,
+  // cyclopsStop.ts step()'i sürüyor) — dışarıdan kapı açıklığı zaten
+  // yalnız karartma perdesinin karanlığını gösteriyor, kabuğun dışarıda
+  // hiçbir görsel katkısı yok, yalnız sızıntısı vardı.
+  let shellRoot: THREE.Object3D | null = null;
+  let shellVisibleWanted = true;
   loadGltfBundle("assets/models/cave_cyclops_shell_01_mesh_68.glb").then((bundle) => {
     bundle.scene.traverse((obj) => {
       if (obj instanceof THREE.Mesh) {
@@ -2263,6 +2324,8 @@ export function buildCyclopsCave(): CyclopsCave {
         obj.receiveShadow = true;
       }
     });
+    shellRoot = bundle.scene;
+    shellRoot.visible = shellVisibleWanted;
     group.add(bundle.scene);
     shellLoadedFlag = true;
   });
@@ -2492,15 +2555,31 @@ export function buildCyclopsCave(): CyclopsCave {
     // bandı). İşi "boşluğu tünel karanlığı gibi göstermek" olan bir perde
     // hiçbir zaman ışık almamalı.
     const backstopMat = new THREE.MeshBasicMaterial({ color: 0x120f0b });
+    // Boyut BİLEREK mütevazı (5×5, yalnız açıklığın hemen çevresi) — bir
+    // ara 7×13'e büyütüldü ve bu HATAYDI: 13 m'lik ışıksız kara perde,
+    // kapının silüeti çevresinde asıl görünmesi gereken AYDINLIK tebeşir
+    // yüzünü kapatan dev bir pano gibi okundu (ekran görüntüsüyle
+    // doğrulandı, geri alındı). Kapı çevresindeki asıl sızıntının (dıştan
+    // görünen `cave_cyclops_shell` kesiti — "siyah dikdörtgen", isimle-
+    // gizle tanı aracıyla kanıtlandı) gerçek çözümü aşağıda:
+    // `setShellVisible` — oyuncu dışarıdayken kabuk hiç render edilmiyor.
     const backHalfWidth = 5;
-    const backHeight = 5;
+    // 5→8 m: kemer açıklığının üst kesiminden bakan sightline'lar da
+    // perdenin karanlığında bitsin (perde artık z=3,1'de, dağ gövdesine
+    // tam gömülü — yükseltmek hiçbir açıdan dışarı taşırmıyor).
+    const backHeight = 8;
     const doorHalfWidth = 1.9;
     const doorHeight = 2.4;
     const backDepth = 3;
-    // 2,7 m — kaş (browProfile) bu derinlikte zaten ~13 m kaya yükseltiyor;
-    // perde kutuları artık her açıdan terrain'in ARKASINDA kalıyor, yalnız
-    // kapı-kabuk boşluğundan bakan ışın onların karanlığını görüyor.
-    const backZ = 2.7;
+    // 4,6 m (28 Ağu, raycast ile kesinleşti): perde kutusunun ÖN yüzü
+    // artık z=3,1'de — kaş yüzeyi orada ~19-21 m, kutu (5 m) dağın
+    // gövdesine TAMAMEN gömülü. Önceki 2,7'de ön yüz z=1,2'ye uzanıyordu
+    // ve dağ yüzeyi orada daha ~1-2 m'yken kutunun üst köşesi yamacın
+    // DIŞINA taşıp kapının yanında çıplak siyah bir çentik oluşturuyordu
+    // (kapı önü A-kadrajında raycast: ilk opak vuruş z=1,2'de kutunun
+    // kendisiydi). Kapı açıklığından bakınca hâlâ kutunun karanlığı
+    // görünüyor (z=3,1-6,1 ağız odasının içinde) — işlev değişmedi.
+    const backZ = 4.6;
     const sideWidth = backHalfWidth - doorHalfWidth;
     const leftWall = new THREE.Mesh(
       new THREE.BoxGeometry(sideWidth, backHeight, backDepth),
@@ -2517,7 +2596,7 @@ export function buildCyclopsCave(): CyclopsCave {
     for (const m of [leftWall, rightWall, topWall]) {
       m.receiveShadow = true;
       m.castShadow = false;
-      group.add(m);
+      if (!(globalThis as { __CYC_HIDE_BACKSTOP__?: boolean }).__CYC_HIDE_BACKSTOP__) group.add(m);
     }
 
     // Sahip (27 Ağu): "kapının yanlarına doğru uzanan ama kapıyı asla
@@ -3101,6 +3180,10 @@ export function buildCyclopsCave(): CyclopsCave {
     setInnerGateOpen,
     sheepLoaded: () => sheepLoadedFlag,
     shellLoaded: () => shellLoadedFlag,
+    setShellVisible(v: boolean) {
+      shellVisibleWanted = v;
+      if (shellRoot) shellRoot.visible = v;
+    },
     cliffLoaded: () => cliffLoadedFlag,
     cliffGroup,
     runes,

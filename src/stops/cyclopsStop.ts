@@ -1218,6 +1218,12 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     // oyuncu oraya yürüyünce eski kod onu görsel zeminin ALTINDA
     // bırakıyordu. Aynı, tek paylaşılan fonksiyona geçildi.
     player.position.y = groundHeightAt(player.position.x, player.position.z); // koy/patika yokuşu
+    // Kabuk yalnız eşiğe yaklaşınca render edilir (bkz. cyclopsCave.ts,
+    // `setShellVisible` notu — dıştan BackSide sızıntısı). Eşik -3:
+    // oyuncu kapının hemen önündeyken kabuk çoktan görünür, geçişte
+    // hiçbir "pat diye belirme" yakalanmıyor (kapı açıklığı o mesafede
+    // tüm kadrajı dolduruyor).
+    cave.setShellVisible(player.position.z > -3);
 
     // ------------------------------------------------------- player rig
     // game.ts'in aynı deseni (facing + SAILOR.meshFacing, üstel yumuşatma) —
@@ -1464,6 +1470,26 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
       cameraPos: () => ({ x: camera.position.x, y: camera.position.y, z: camera.position.z }),
       // 28 Ağu, sahip'in "turuncu sızıntı" raporunu ekran-pikseline kadar
       // izlemek için — geçici tanı aracı, DEV-only. nx/ny -1..1 NDC.
+      // Tanı: isim alt-dizesine göre görünürlük kapat/aç — "şu siyah
+      // dikdörtgen hangi mesh?" sınıfı soruları ikiye-bölme yöntemiyle
+      // saniyeler içinde cevaplamak için (28 Ağu). DEV-only.
+      setVisibleByName: (substr: string, v: boolean) => {
+        let n = 0;
+        scene.traverse((o) => {
+          if (o.name && o.name.includes(substr)) {
+            o.visible = v;
+            n++;
+          }
+        });
+        return n;
+      },
+      listMeshNames: () => {
+        const names = new Set<string>();
+        scene.traverse((o) => {
+          if ((o as THREE.Mesh).isMesh && o.name) names.add(o.name);
+        });
+        return [...names];
+      },
       raycastScreen: (nx: number, ny: number) => {
         const ray = new THREE.Raycaster();
         ray.setFromCamera(new THREE.Vector2(nx, ny), camera);
