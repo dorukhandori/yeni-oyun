@@ -1326,6 +1326,40 @@ export function buildCyclopsCave(): CyclopsCave {
     scatterRockKit(group, pathRockSpots, pathRockRand);
   }
 
+  // Sahip (28 Ağu, ikinci tur): "hâlâ yolun üzerinde seyrek taşları
+  // göremiyorum." Yukarıdaki parça patikanın YANINA (2,9-6,1 m dışına)
+  // serpiliyordu — sahip "yolun üzerinde" (patikanın kendi yüzeyinde)
+  // istiyordu, gerçek bir toprak yolda çakıl/taş poking-through hissi.
+  // Bunlar `coveDressingClear`'ı BİLEREK kullanmıyor (o zaten patikayı
+  // dışlıyor) — yalnız patikanın kendi genişliği + spawn/gemi ucu
+  // dışında kalıyor, kayalar/koyunlarınkinden belirgin küçük (çakıl
+  // ölçeği) ki patikayı kapatmasın.
+  {
+    const pathPebbleRand = mulberry32(20260916);
+    const pathPebbleSpots: RockSpot[] = [];
+    for (let z = -44; z <= -4; z += 1.1) {
+      if (pathPebbleRand() < 0.55) continue; // seyrek
+      const x = pathCenterX(z) + (pathPebbleRand() - 0.5) * PATH_HALF_W * 1.5;
+      const jz = z + (pathPebbleRand() - 0.5) * 0.8;
+      if (Math.hypot(x - COVE_SPAWN_CLEAR.x, jz - COVE_SPAWN_CLEAR.z) < COVE_SPAWN_CLEAR.r) continue;
+      if (Math.hypot(x - COVE_SHIP_CLEAR.x, jz - COVE_SHIP_CLEAR.z) < COVE_SHIP_CLEAR.r) continue;
+      // İlk denemede (0,16-0,34, 3 cm gömülü) neredeyse görünmüyordu —
+      // aynı "çok küçük + gömülü" hatası (kıyı/kapı izlerinde daha önce
+      // bulunan ders) burada da tekrarlandı. Büyütüldü, gömme kaldırıldı.
+      const s = 0.4 + pathPebbleRand() * 0.35;
+      pathPebbleSpots.push({
+        x,
+        y: groundHeightAt(x, jz),
+        z: jz,
+        sx: s,
+        sy: s * 0.55,
+        sz: s,
+        rotY: pathPebbleRand() * Math.PI * 2,
+      });
+    }
+    scatterRockKit(group, pathPebbleSpots, pathPebbleRand);
+  }
+
   // Sahip (27 Ağu, yirmi üçüncü geri bildirim): "ada içerisinde belli
   // belirsiz taş katalogumuzdan seçtiğin taşlarla mağara girişine
   // patikalar olsun." Ana patika (`pathGeo`, dokulu tek şerit) zaten var —
