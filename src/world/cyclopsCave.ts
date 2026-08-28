@@ -95,6 +95,25 @@ export const CYCLOPS_FOG_COLOR = 0xdde8ea;
  */
 export const CYCLOPS_WAVE_SCALE = 0.2;
 
+/**
+ * Mağara ağzına oturan yapı. **Sahip (28 Ağu): "kapıdaki kaya mekanizmasını
+ * kaldır. çok daha doğal gözüken bir mekanizma getireceğiz, bu kapıdaki taş
+ * çok çirkin duruyor."** → `"none"`.
+ *
+ * Kaldırılan `"sketchfab"` (ASSET-115, "Cave gate Stylized"): altın sütunlu,
+ * parlayan gözlü, mor gövdeli süslü bir fantezi zindan kapısıydı — Kiklop'un
+ * tebeşir kayalığı ve referans görselin (ASSET-109) sade dili yanında yabancı
+ * duruyordu. Referansın kendisinde zaten bir kapı YOK: beyaz kayalığa oyulmuş
+ * düz, karanlık bir delik var. `"none"` tam olarak onu veriyor — ağzın kendisi
+ * artık arazinin içine oyulu (`browProfile`'ın `doorMask` girintisi), arkasını
+ * karartma perdesi kapatıyor.
+ *
+ * İki eski yol da yerinde duruyor (`"sketchfab"` / `"legacy"` — ASSET-114
+ * prosedürel kemer): sahip yeni mekanizmayı getirdiğinde tek satır değişir.
+ */
+type GateAsset = "none" | "sketchfab" | "legacy";
+const GATE_ASSET: GateAsset = "sketchfab";
+
 // ===================================================================
 // KOY ARAZİSİ — landform (28 Ağu 2026, tam yeniden yazım)
 // ===================================================================
@@ -1343,7 +1362,10 @@ export function buildCyclopsCave(): CyclopsCave {
   // olarak okunuyordu. Dikişe iki yandan sıkışmış/devrilmiş tebeşir
   // kayaları — düz kenar organik bir moloz yığınına dönüşüyor (referans
   // görselde de mağara ağzının çevresi kaya bloklarıyla çevrili).
-  {
+  //
+  // Kapı asset'i kaldırılınca (28 Ağu, `GATE_ASSET = "none"`) kapatacak bir
+  // dikiş de kalmadı — bu bloklar boş ağzın önünde havada duracaktı.
+  if (GATE_ASSET !== "none") {
     const seamRand = mulberry32(20260914);
     const seam: RockSpot[] = [];
     for (const side of [-1, 1] as const) {
@@ -2442,12 +2464,11 @@ export function buildCyclopsCave(): CyclopsCave {
   // için kullanmayı deneyebiliriz" — bir deneme, kesin karar değil. Tek
   // satırlık bir anahtar: `false` yaparsan doğrudan eski prosedürel
   // ASSET-114 kemerine döner, hiçbir başka kod değişmez.
-  const USE_SKETCHFAB_GATE = true;
   let cliffLoadedFlag = false;
   const cliffGroup = new THREE.Group();
   group.add(cliffGroup);
 
-  if (USE_SKETCHFAB_GATE) {
+  if (GATE_ASSET === "sketchfab") {
     // ASSET-115 — "Cave gate Stylized" by alzarac, Sketchfab, CC-BY-4.0
     // (atıf: docs/art/asset-registry.md). Blender'da import+export
     // round-trip'iyle tek bir self-contained .glb'ye dönüştürüldü
@@ -2595,7 +2616,7 @@ export function buildCyclopsCave(): CyclopsCave {
     // kayalık (`cliffSurfaceY`) — kapının arkasında ve iki yanında yükselen,
     // koyun kendi arazisinin parçası olan sürekli bir kütle. Ne iğneleme,
     // ne boşluk, ne bilinmeyen lisans.
-  } else {
+  } else if (GATE_ASSET === "legacy") {
     const cliffMat = new THREE.MeshStandardMaterial({ color: 0xe6e2d4, roughness: 0.95 });
     loadGltfBundle("assets/models/rock_cyclops_cliff_01_mesh_4460.glb").then((bundle) => {
       bundle.scene.traverse((obj) => {
@@ -2794,7 +2815,7 @@ export function buildCyclopsCave(): CyclopsCave {
   // tepesinin çok üstünde kalıyor, "ağaçlar havada asılı kalmış" (sahip,
   // dokuzuncu geri bildirim) buradan geliyordu — ayrıca kapının kendi
   // dokusunda zaten yosun/yeşillik var, ek bir şapkaya ihtiyacı yok.
-  if (!USE_SKETCHFAB_GATE) {
+  if (GATE_ASSET === "legacy") {
     const capGeo = new THREE.PlaneGeometry(19, 2.6, 24, 4);
     capGeo.rotateX(-Math.PI / 2);
     capGeo.translate(0, 14.05, 0);
@@ -2934,42 +2955,25 @@ export function buildCyclopsCave(): CyclopsCave {
     };
   });
 
-  // ASSET-097 — the cave-mouth "koca kaya" (great boulder, [H] IX.240 —
-  // Polyphemos seals the entrance with a boulder so massive no one else
-  // could move it). Until now the door was purely a logical state (setDoorOpen only
-  // touched light radii) — no visible geometry blocked the threshold when
-  // "closed", which was the single biggest visible gap in the plan's own
-  // inventory. Reuses build_island_kit.py's existing chalk boulder (0 new
-  // credit, same art-bible palette as the outdoor cliffs) as a cluster —
-  // one scaled-up single rock read as an oddly smooth giant pebble; several
-  // at varied scale/rotation piled across the mouth reads as a real rockfall
-  // seal instead.
-  const boulderCluster = new THREE.Group();
-  boulderCluster.position.set(0, 0, 0.2); // just inside the D=0 threshold
-  const BOULDER_SPOTS: { x: number; y: number; scale: number; rotY: number }[] = [
-    { x: -3.6, y: 0, scale: 2.6, rotY: 0.4 },
-    { x: -1.4, y: 0, scale: 3.1, rotY: 2.1 },
-    { x: 1.1, y: 0, scale: 2.9, rotY: 5.0 },
-    { x: 3.5, y: 0, scale: 2.4, rotY: 1.2 },
-    { x: -2.4, y: 1.9, scale: 2.2, rotY: 3.4 },
-    { x: 0.2, y: 2.3, scale: 2.5, rotY: 0.9 },
-    { x: 2.6, y: 1.8, scale: 2.0, rotY: 4.2 },
-  ];
-  loadGltfBundle("assets/models/rock_chalk_boulder_01_mesh_800.glb").then((bundle) => {
-    for (const spot of BOULDER_SPOTS) {
-      const rock = bundle.scene.clone(true);
-      rock.position.set(spot.x, spot.y, 0);
-      rock.rotation.y = spot.rotY;
-      rock.scale.setScalar(spot.scale);
-      boulderCluster.add(rock);
-    }
-  });
-  group.add(boulderCluster);
-
+  // **KALDIRILDI (28 Ağu 2026, sahip): "kapıdaki kaya mekanizmasını kaldır.
+  // çok daha doğal gözüken bir mekanizma getireceğiz, bu kapıdaki taş çok
+  // çirkin duruyor."** (netleştirme: "kapıdan kastım kapının arkasına devin
+  // içeri girerken getirilen taş görünümüydü, bizim güzel girişimize
+  // dokunma!" — yani ASSET-115 giriş kemeri DEĞİL, aşağıdaki mühür taşı.)
+  //
+  // Burada ASSET-097 vardı: dev içeri girip kapıyı "kapattığında" eşiğe
+  // (D=0.2) yığılan 7 parçalık tebeşir kaya kümesi ([H] IX.240 — Polyphemos
+  // girişi kimsenin kıpırdatamayacağı bir kayayla mühürler). Kümenin kendisi
+  // `rock_chalk_boulder_01`'in ölçeklenmiş kopyalarıydı ve mağara ağzının
+  // önünde yapay/iri bir çakıl yığını gibi duruyordu.
+  //
+  // Kapının MANTIĞI olduğu gibi duruyor (ışık yarıçapları, `setDoorOpen`
+  // çağrıları, dev girip çıkarken tetiklenen tüm akış) — yalnız görünür
+  // mühür geometrisi yok. Yeni, daha doğal mekanizma geldiğinde tek yapılacak
+  // onu burada `setDoorOpen`'ın `open` durumuna bağlamak.
   function setDoorOpen(open: boolean): void {
     hearthLight.distance = open ? 6.0 : 3.0;
     torchLight.distance = 3.0; // unaffected by door state (tuning.md §12)
-    boulderCluster.visible = !open;
   }
   setDoorOpen(true);
 

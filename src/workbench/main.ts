@@ -8,11 +8,11 @@ import {
   loadGltfBundle,
   cloneGltfBundle,
   pinClipBonePositions,
+  rebindSkinned,
   restBonePositions,
   type GltfBundle,
 } from "../world/gltf";
 import {
-  findClipDonors,
   findRigForAnimPreview,
   findVisibleMesh,
   formatOptionLabel,
@@ -74,6 +74,9 @@ let mixer: THREE.AnimationMixer | null = null;
 let actions: THREE.AnimationAction[] = [];
 let activeClipIndex = -1;
 let pendingClipName = "";
+/** Filename last passed to mountAsset — used so Idle does not swap the
+ *  klipsiz textured body for the separate rig GLB. */
+let currentAssetFile = "";
 
 // Scene mode
 let scenePreview: ScenePreview | null = null;
@@ -118,6 +121,7 @@ function clearAll(): void {
   showLiveControls("none");
   clipList.innerHTML = "";
   modelListSelect.value = "";
+  currentAssetFile = "";
   infoBox.innerHTML = `<p class="wb-empty">Temizlendi.</p>`;
 }
 
@@ -162,7 +166,9 @@ function rebuildActions(): void {
   }
 
   const prevIndex = activeClipIndex;
-  const prevName = bundle.animations[prevIndex]?.name ?? pendingClipName;
+  // Preset clip name wins over the previously playing index — otherwise
+  // "Doryseus idle" keeps `preset:walk` highlighted after a walk preset.
+  const want = pendingClipName || (prevIndex >= 0 ? bundle.animations[prevIndex]?.name : "") || "";
   if (mixer) mixer.stopAllAction();
   mixer = new THREE.AnimationMixer(animRoot);
   viewer.setMixer(mixer);
@@ -187,11 +193,9 @@ function rebuildActions(): void {
   });
 
   let start = 0;
-  if (prevName) {
-    const idx = bundle.animations.findIndex((c) => c.name === prevName);
+  if (want) {
+    const idx = bundle.animations.findIndex((c) => c.name === want);
     if (idx >= 0) start = idx;
-  } else if (prevIndex >= 0 && prevIndex < actions.length) {
-    start = prevIndex;
   }
   playClip(start);
   pendingClipName = "";
@@ -222,7 +226,13 @@ function mountAsset(scene: THREE.Group, animations: THREE.AnimationClip[], label
     if (skinned.isSkinnedMesh) skinned.frustumCulled = false;
   });
   restMap = restBonePositions(scene);
-  if (fitEnable.checked) fitGltfHeight(scene, Number(fitMeters.value) || 1.8);
+  if (fitEnable.checked) {
+    fitGltfHeight(scene, Number(fitMeters.value) || 1.8);
+    // fitGltfHeight scales the parent group; GLTFLoader bound the skeleton at
+    // export scale, so bone.matrixWorld and inverseBindMatrices now disagree →
+    // vertices get pulled to wrong positions (same fix humanoidRig.ts applies).
+    rebindSkinned(scene);
+  }
 
   animRoot = scene;
   viewer.setBackdrop("studio");
@@ -241,16 +251,18 @@ function mountAsset(scene: THREE.Group, animations: THREE.AnimationClip[], label
     if ((mesh as THREE.SkinnedMesh).isSkinnedMesh) skin = true;
   });
 
+  const clipNames = animations.map((c) => c.name || "(adsız)").join(", ") || "yok";
   renderInfo(`
     <dl>
       <dt>Kaynak</dt><dd>${label}</dd>
       <dt>Rig</dt><dd>${skin ? "var" : "yok"}</dd>
-      <dt>Klip</dt><dd>${animations.length}</dd>
+      <dt>Klip</dt><dd>${animations.length} — ${clipNames}</dd>
       <dt>Üçgen</dt><dd>${Math.round(tris).toLocaleString("tr-TR")}</dd>
     </dl>
   `);
 
   bundle = { scene, animations };
+  currentAssetFile = label.split("/").pop() ?? label;
   rebuildActions();
   showLiveControls("asset");
 }
@@ -276,6 +288,9 @@ async function loadCatalogEntry(entry: AssetCatalogEntry, clipName?: string): Pr
     }
   }
   pendingClipName = clipName ?? "";
+  clearAll();
+  mode = "asset";
+  showLiveControls("asset");
   if (entry.kind === "clip-only") {
     const rig =
       findVisibleMesh(entry, catalog)?.skins
@@ -292,51 +307,64 @@ async function loadCatalogEntry(entry: AssetCatalogEntry, clipName?: string): Pr
     return;
   }
 
-  const rigRedirect = findRigForAnimPreview(entry, catalog);
-  if (rigRedirect) {
-    const b = await loadGltfBundle(`assets/models/${rigRedirect.file}`);
-    mountAsset(cloneGltfBundle(b), b.animations, rigRedirect.file);
-    setStatus(`"${entry.file}" iskeletsiz — rig yüklendi: ${rigRedirect.file}`);
-    for (const donor of findClipDonors(entry, catalog)) {
-      await appendClipsFromPath(`assets/models/${donor.file}`);
-    }
-    return;
-  }
-
+  // A file that already has clips is the source of truth — do not merge
+  // family "donors" (gestures / a second rig). That made idle/walk look
+  // like they came from another asset.
   const path = `assets/models/${entry.file}`;
   if (entry.anims > 0) {
     const b = await loadGltfBundle(path);
     mountAsset(cloneGltfBundle(b), b.animations, entry.file);
-  } else {
-    const scene = await loadGltf(path);
-    mountAsset(scene, [], entry.file);
+    setStatus(`Yüklendi: ${entry.file} (${entry.anims} klip, başka dosya yok)`);
+    if (clipName) {
+      const idx = bundle?.animations.findIndex((c) => c.name === clipName) ?? -1;
+      if (idx >= 0) playClip(idx);
+    }
+    return;
   }
-  setStatus(`Yüklendi: ${entry.file}`);
-  if (clipName) {
-    const idx = bundle?.animations.findIndex((c) => c.name === clipName) ?? -1;
-    if (idx >= 0) playClip(idx);
-  }
+
+  const scene = await loadGltf(path);
+  mountAsset(scene, [], entry.file);
+  setStatus(`Yüklendi: ${entry.file} (klipsiz mesh — rig ile değiştirilmedi)`);
+}
+
+function assetFileName(path: string): string {
+  return path.split("/").pop() ?? path;
 }
 
 async function loadAssetPreset(preset: WorkbenchPreset): Promise<void> {
+  if (!preset.path) {
+    setStatus(`Preset ${preset.id} path yok.`);
+    return;
+  }
+  const presetFile = assetFileName(preset.path);
+  const onScreen = currentAssetFile;
+
+  // Already showing this GLB — only switch clip.
+  if (onScreen === presetFile && bundle) {
+    setPresetActive(preset.id);
+    pendingClipName = preset.clip ?? "";
+    rebuildActions();
+    if (preset.clip) {
+      const idx = bundle.animations.findIndex((c) => c.name === preset.clip);
+      if (idx >= 0) playClip(idx);
+    }
+    setStatus(`${presetFile}` + (preset.clip ? ` → ${preset.clip}` : ""));
+    return;
+  }
+
   clearAll();
   mode = "asset";
   setPresetActive(preset.id);
-  setStatus(`Yükleniyor: ${preset.label}…`);
-  const file = preset.path?.split("/").pop() ?? "";
-  const entry = catalog.find((e) => e.file === file);
-  if (entry) {
-    await loadCatalogEntry(entry, preset.clip);
-  } else if (preset.path) {
-    pathInput.value = preset.path;
-    const b = await loadGltfBundle(preset.path);
-    mountAsset(cloneGltfBundle(b), b.animations, preset.path);
-    if (preset.clip) {
-      const idx = bundle?.animations.findIndex((c) => c.name === preset.clip) ?? -1;
-      if (idx >= 0) playClip(idx);
-    }
-    setStatus(`Yüklendi: ${preset.path}`);
+  pendingClipName = preset.clip ?? "";
+  pathInput.value = preset.path;
+  setStatus(`Yükleniyor: ${preset.path}…`);
+  const b = await loadGltfBundle(preset.path);
+  mountAsset(cloneGltfBundle(b), b.animations, preset.path);
+  if (preset.clip) {
+    const idx = bundle?.animations.findIndex((c) => c.name === preset.clip) ?? -1;
+    if (idx >= 0) playClip(idx);
   }
+  setStatus(`Yüklendi: ${preset.path}` + (preset.clip ? ` → ${preset.clip}` : ""));
 }
 
 function loadScenePreset(preset: WorkbenchPreset): void {
@@ -510,12 +538,6 @@ dropZone.addEventListener("drop", (e) => {
 extraClipAdd.addEventListener("click", () => {
   const path = extraClipListSelect.value;
   if (path) void appendClipsFromPath(path).then((n) => setStatus(n ? `${n} klip eklendi` : "Klip zaten yüklü"));
-});
-extraClipListSelect.addEventListener("change", () => {
-  const path = extraClipListSelect.value;
-  if (!path) return;
-  void appendClipsFromPath(path);
-  extraClipListSelect.value = "";
 });
 
 clearBtn.addEventListener("click", () => {

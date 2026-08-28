@@ -547,7 +547,10 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
   scene.add(sun.target);
   /** Oyuncuyu takip eden ışık — hangi odada olursan ol yakın çevreni
    * görebilmen için (bir "meşale taşıyorsun" varsayımı, temsili). */
-  const playerLight = new THREE.PointLight(0xfff2d8, 1.6, 14, 1.6);
+  const INDOOR_PLAYER_LIGHT = 1.6;
+  /** Dışarıda neredeyse kapalı — bkz. step()'teki karışım notu (28 Ağu). */
+  const OUTDOOR_PLAYER_LIGHT = 0.12;
+  const playerLight = new THREE.PointLight(0xfff2d8, INDOOR_PLAYER_LIGHT, 14, 1.6);
 
   const cave = buildCyclopsCave();
   scene.add(cave.group);
@@ -1441,6 +1444,15 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
       const inside = THREE.MathUtils.smoothstep(player.position.z, -7, 6);
       ambient.intensity = THREE.MathUtils.lerp(OUTDOOR_AMBIENT, INDOOR_AMBIENT, inside);
       hemi.intensity = THREE.MathUtils.lerp(OUTDOOR_HEMI, INDOOR_HEMI, inside);
+      // Sahip (28 Ağu): "karakterin parlamasını normal haline getir."
+      // Kök neden: `playerLight` bir "meşale taşıyorsun" varsayımı — mağara
+      // içinde yakın çevreyi görmek için ŞART, ama dışarıda hiç kısılmıyordu.
+      // Açık havada zaten sert bir güneş (2,3) + dolgu varken 14 m menzilli,
+      // 1,6 yoğunluklu sıcak bir nokta ışığı tam karakterin üstünde durup onu
+      // yıkıyordu — sahnenin geri kalanı doğru pozlanmışken karakter tek
+      // başına parlıyordu. Diğer üç ışıkla aynı `inside` karışımına bağlandı:
+      // dışarıda neredeyse yok, mağarada tam güçte.
+      playerLight.intensity = THREE.MathUtils.lerp(OUTDOOR_PLAYER_LIGHT, INDOOR_PLAYER_LIGHT, inside);
       sun.intensity = THREE.MathUtils.lerp(OUTDOOR_SUN, INDOOR_SUN, inside);
       // Oyuncu tamamen içerideyken gölge haritasını hesaplamanın hiçbir
       // görsel karşılığı yok (güneş zaten 0.35'e inmiş) — bedava kare süresi.
