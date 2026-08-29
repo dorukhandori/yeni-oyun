@@ -674,15 +674,12 @@ export const AUDIO = {
       kiklop: { src: "assets/audio/music_kiklop_theme_01.mp3", gain: 0.24 },
       /** Mağaranın içi — ağızdan Boğaz B'ye kadar. */
       cave: { src: "assets/audio/music_cave_inside_01.mp3", gain: 0.2 },
-      /**
-       * İç nöy (devin uyuma köşesi). Dosya adı "stones_chamber" — mağarada
-       * "taş oda" diye ayrı bir mekân YOK, en yakın karşılık mağaranın en
-       * derin, en ayrı odası. Rün taşları depot/gorgeA/pens'e dağılmış
-       * durumda, tek bir odaya bağlanamıyor. Bu eşleştirme bir tahmin,
-       * diğer üçü gibi dosya adından kesin değil — sahip başka bir yer
-       * kastettiyse tek satırlık değişiklik.
-       */
-      stones: { src: "assets/audio/music_stones_chamber_01.mp3", gain: 0.22 },
+      // `music_stones_chamber_01.mp3` BİLEREK burada değil. Adının işaret
+      // ettiği "taş oda" oyunda yok — ne mağarada ne adada öyle bir mekân
+      // var, rün taşları da depot/gorgeA/pens'e dağılmış durumda, tek bir
+      // odaya karşılık gelmiyor. Sahibe soruldu, cevap: "şu anlık hiçbir
+      // yerde" (29 Ağu 2026). Dosya diskte duruyor; yeri belli olduğunda
+      // buraya bir satır eklemek yetiyor.
     },
     fade: 2.2,
   },

@@ -835,8 +835,8 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
   // ortak; oyuncunun sesi Lotus'ta kapatıp Kiklop'ta açık bulması olmuyor.
   //
   // Yatak seçimi mekân başına: dışarısı (koy/patika) Kiklop teması, mağara
-  // içi mağara parçası, iç nöy kendi parçası. Geçişler `AUDIO.music.fade`
-  // ile çapraz sönüyor, oda sınırında kesme yok.
+  // içi baştan sona mağara parçası. Geçişler `AUDIO.music.fade` ile çapraz
+  // sönüyor, oda sınırında kesme yok.
   const audio = new GameAudio();
   const unlockAudio = () => audio.unlock();
   window.addEventListener("pointerdown", unlockAudio, { once: true });
@@ -844,9 +844,7 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
 
   function bedForRoom(z: number): MusicBed {
     const room = roomIdAt(z);
-    if (room === "cove" || room === "path") return "kiklop";
-    if (room === "inner") return "stones";
-    return "cave";
+    return room === "cove" || room === "path" ? "kiklop" : "cave";
   }
 
   // ------------------------------------------------------------- run state
