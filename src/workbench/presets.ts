@@ -58,16 +58,15 @@ export const WORKBENCH_PRESETS: WorkbenchPreset[] = [
     clip: "walk",
   },
   {
-    // ASSET-098 (Sketchfab "Cyclop" + Mixamo retarget) placeholder'ı 28 Ağu
-    // 2026'da tamamen kaldırıldı — sahip: "eski deve ait assetleri
-    // workbench'ten ve her yerden kaldır." Yerine ASSET-127, kendi tasarım
-    // turumuzdan (ASSET-123/125) üretilmiş boss rig'i. Klipler henüz yok
-    // (bilerek — boss moveset'i ayrıca seçilecek), o yüzden `clip` boş.
+    // ASSET-129 — ASSET-127 Tripo rig'i + üzerine retarget edilmiş 7 Mixamo
+    // klibi. ASSET-128 (mesh'i Mixamo iskeletine taşıma denemesi) 744c7f8'de
+    // reddedildi; bu sürüm ağırlıkları hiç taşımıyor, yalnız kemik
+    // rotasyonu yazıyor.
     id: "polyphemos-boss",
     label: "Polyphemos boss idle",
-    hint: "ASSET-128 — Mixamo iskeleti + 7 klip (idle/walk/run/sweep/slam/punch/roar). 5 m: 'fit height' 5 girin.",
+    hint: "ASSET-129 — Tripo rig + 7 retarget klip (idle/walk/run/sweep/slam/punch/roar). 5 m: 'fit height' 5 girin.",
     kind: "asset",
-    path: "assets/models/char_polyphemos_boss_02_mixamo.glb",
+    path: "assets/models/char_polyphemos_boss_03_anim.glb",
     clip: "idle",
   },
   {
@@ -75,7 +74,7 @@ export const WORKBENCH_PRESETS: WorkbenchPreset[] = [
     label: "Polyphemos boss slam",
     hint: "Aynı GLB, tepeden vuruş klibi — telgraf okunabilirliği için.",
     kind: "asset",
-    path: "assets/models/char_polyphemos_boss_02_mixamo.glb",
+    path: "assets/models/char_polyphemos_boss_03_anim.glb",
     clip: "slam",
   },
   {

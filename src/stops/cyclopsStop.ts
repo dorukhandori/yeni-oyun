@@ -72,17 +72,23 @@ const CYCLOPS_GIANT_SPEED = 3.0;
  * gerçek hareketi `walkGiantTowards()` sağlıyor — ama klibin KENDİ doğal
  * temposu (bacakların bir tam döngüde ne kadar "ilerlediği hissi") ile
  * `CYCLOPS_GIANT_SPEED` arasında hiçbir bağ yoktu, bu da ayakların zeminde
- * kaymasına neden oluyordu. Kaynak Mixamo `walking.fbx`'in KENDİ kalça
- * kökü (retarget'tan önce, orijinal FBX) headless Blender'da ölçüldü: 32
- * kare / 30 fps = 1.0333 sn'lik döngüde 172.44 ham birim (santimetre —
- * FBX'in kendi iskelet-dinlenme yüksekliği metreye çevrilmiş 1.96 birim
- * çıkıyordu ama animasyon eğrileri hâlâ ham cm'deydi, iki eksende de
- * tutarlıydı: yatay 172 cm ✓ mantıklı adım mesafesi, dikey ~9 cm ✓
- * mantıklı sıçrama genliği — ×100 olsaydı saçma olurdu) = 1.7244 m ileri.
- * Doğal tempo = 1.7244 / 1.0333 ≈ 1.669 m/s. `AnimationAction.timeScale`
- * bunu gerçek hıza (3.0) oranlıyor — ayaklar artık zeminle senkron.
+ * kaymasına neden oluyordu.
+ *
+ * 29 Ağu: klip kaynağı değişti (ASSET-129, `boss/walk.fbx`), yani sayı da
+ * değişmek zorundaydı — eski 1.669 başka bir klibin ölçümüydü ve olduğu
+ * gibi bırakılsa düzeltilmiş bir hata sessizce geri gelirdi. Yeni ölçüm
+ * (headless Blender, kaynak FBX'in kendi kalça kökü): 44 kare / 30 fps =
+ * 1.433 sn'de 1.877 m ileri → 1.309 m/s.
+ *
+ * Ama asıl saklanması gereken sayı bu değil: adım uzunluğu karakterin
+ * boyuyla ölçekleniyor, dev ise `GIANT_HEIGHT_M`'e büyütülüyor. Bu yüzden
+ * sabit artık **boy başına** tutuluyor (1.309 / 1.838 m kaynak boyu =
+ * 0.7123 boy/sn); doğal hız `× GIANT_HEIGHT_M` ile kullanım yerinde
+ * türetiliyor, böylece `GIANT_HEIGHT_M` değişirse tempo kendiliğinden
+ * doğru kalıyor. (Eski sabit bu ölçeklemeyi hiç yapmıyordu — Mixamo
+ * ölçeğindeki m/s'yi doğrudan 5 m'lik deve uyguluyordu.)
  */
-const GIANT_WALK_NATURAL_SPEED = 1.669;
+const GIANT_WALK_CLIP_HEIGHTS_PER_SEC = 0.7123;
 /** Yön dönüşü/stomp — 26 Ağu, "dev'in hareketleri yok" bulgusu. Prosedürel,
  * gerçek animasyon klibi değil (bkz. walkGiantTowards'taki not). Facing
  * sabiti önce 🔬 tahminle (0) gönderildi; `producer`/`@axiom`'un asset
@@ -667,18 +673,19 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     next.reset().fadeIn(0.25).play();
     prev.fadeOut(0.25);
   }
-  // ASSET-127 — kendi tasarım turumuzdan (ASSET-123 turnaround → ASSET-125
-  // T-pose seti → ASSET-126 mesh) üretilen boss rig'i. Eski ASSET-098
-  // placeholder'ı (Sketchfab "Cyclop" + Mixamo retarget) 28 Ağu 2026'da
-  // tamamen kaldırıldı (sahip: "eski deve ait assetleri her yerden kaldır").
-  // ASSET-127 (Tripo rig, klipsiz) — BİLİNÇLİ olarak animasyonlu sürüme
-  // dönülmedi. ASSET-128 (Mixamo iskeleti) hareket ederken mesh'i mahvediyor
-  // (sahip: "klipler ve hareketler çok kötü... berbat olmuş") ve kök neden
-  // çözülene kadar statik ama DOĞRU duran rig, hareketli ama bozuk olandan
-  // iyi. Kod klip yokluğunu zaten sessizce karşılıyor (mixer null kalır).
-  // Bakış yönü ölçüldü: ayak parmakları bileğin +X'inde, yani model +X'e
-  // bakıyor — eskisiyle aynı, `GIANT_MESH_FACING` (-π/2) geçerli kalıyor.
-  loadGltfBundle("assets/models/char_polyphemos_boss_01_rig.glb").then((bundle) => {
+  // ASSET-129 — ASSET-127 Tripo rig'inin ÜZERİNE retarget edilmiş 7 Mixamo
+  // klibi (`scripts/blender/retarget_mixamo_polyphemos_boss_tripo.py`).
+  // ASSET-127'nin mesh'i, vertex grupları ve bind matrisleri bit birebir
+  // korunuyor — yalnız kemik rotasyonları yazılıyor. ASSET-128'i (mesh'i
+  // Mixamo iskeletine taşıma denemesi) mahveden şey tam olarak buydu:
+  // ağırlık, çözüldüğü bind matrisi olmadan anlamsız (sahip: "klipler ve
+  // hareketler çok kötü... berbat olmuş"). Bu sürüm hiç ağırlık taşımıyor,
+  // o hata sınıfı yapısal olarak imkânsız.
+  // Bakış yönü: model +X'e bakıyor, `GIANT_MESH_FACING` (-π/2) geçerli —
+  // retarget da bu 90°'yi kendi ölçüp klipleri ona göre hizalıyor.
+  // Şu an yalnız idle/walk oynatılıyor; run/sweep/slam/punch/roar dosyada
+  // hazır duruyor ama boss faz tasarımı (@helix) yapılmadan bağlanmıyor.
+  loadGltfBundle("assets/models/char_polyphemos_boss_03_anim.glb").then((bundle) => {
     const model = bundle.scene;
     // Tripo çıktısı ~0,85 birim yüksekliğinde normalize geliyor; eski
     // ASSET-098 placeholder'ı ise ~5 m'lik doğal ölçekteydi ve kod hiç
@@ -700,7 +707,8 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
       giantMixer = new THREE.AnimationMixer(model);
       giantIdleAction = giantMixer.clipAction(idleClip);
       giantWalkAction = giantMixer.clipAction(walkClip);
-      giantWalkAction.timeScale = CYCLOPS_GIANT_SPEED / GIANT_WALK_NATURAL_SPEED; // ayak kayması düzeltmesi, bkz. sabitin üstündeki not
+      giantWalkAction.timeScale =
+        CYCLOPS_GIANT_SPEED / (GIANT_WALK_CLIP_HEIGHTS_PER_SEC * GIANT_HEIGHT_M); // ayak kayması düzeltmesi, bkz. sabitin üstündeki not
       giantIdleAction.play();
     } else {
       console.warn("[cyclopsStop] Polyphemos GLB missing idle/walk clips", bundle.animations.map((c) => c.name));
@@ -1594,6 +1602,23 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
         dashT = DASH_DURATION;
         dashCooldownT = DASH_COOLDOWN;
       },
+      /** 29 Ağu — devin İSKELETİNİN gerçekten oynadığını oyunun içinde
+       * ölçmek için. `giantWorldBox` bunu yapamaz: `Box3.setFromObject`
+       * SkinnedMesh'te deforme olmamış geometriyi kullanır, o yüzden klip
+       * oynarken bile sabit kalır (26 Ağu'da "stabil kutu"nun yanlışlıkla
+       * sağlık işareti sayılmasının nedeni buydu). Bu ise gerçek kemik
+       * dünya konumunu döndürür — 744c7f8'in dersinin ölçüm tarafı. */
+      giantBone: (name: string) => {
+        let found: THREE.Object3D | null = null;
+        giant.traverse((o) => {
+          if (o instanceof THREE.Bone && o.name === name) found = o;
+        });
+        if (!found) return null;
+        const v = new THREE.Vector3();
+        (found as THREE.Object3D).getWorldPosition(v);
+        return { x: Number(v.x.toFixed(3)), y: Number(v.y.toFixed(3)), z: Number(v.z.toFixed(3)) };
+      },
+      giantAnim: () => ({ slot: giantAnimSlot, mixerTime: giantMixer ? Number(giantMixer.time.toFixed(2)) : null }),
       restart: () => resetRun(),
       state: () => ({
         phase,
