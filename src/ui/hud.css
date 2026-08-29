@@ -641,6 +641,21 @@ body.has-fs-toggle .memory {
   font-size: 15px;
 }
 
+/* Kiklop durağının "Saklan" uyarısı (29 Ağu 2026). Ayrı bir görsel sistem
+   değil — `.prompt`'un alarm varyantı: aynı parşömen sayfası, uyarı
+   mürekkebi. Üstte durur, böylece alt-ortadaki gerçek etkileşim prompt'uyla
+   aynı anda okunabilir. */
+.prompt.alarm {
+  top: max(20px, var(--sat));
+  bottom: auto;
+  color: #7a2418;
+  background-color: #f6dcc8;
+  border-color: rgba(150, 60, 30, 0.55);
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+}
+
 .prompt b {
   background: #7c4a12;
   color: #fff6e0;

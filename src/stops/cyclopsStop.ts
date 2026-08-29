@@ -301,7 +301,10 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
   // çubuğu vb.) statik HTML'de varsayılan görünür — yalnız Lotus'un kendi
   // step() döngüsü faz'a göre gizler/gösterir, o kod bu yolda hiç
   // çalışmıyor, panel kalıcı görünür kalıp yeni HUD'ın üstüne biniyordu.
-  for (const id of ["titleScreen", "hubScreen", "hud"]) {
+  // 29 Ağu: `#hud` artık bu listede DEĞİL. Eskiden gizleniyordu çünkü içinde
+  // Lotus'un kendi panelleri duruyordu; artık Kiklop o kabı kendi içeriğiyle
+  // dolduruyor (aşağıdaki K12 HUD bloğu), yani gizlenecek bir şey kalmıyor.
+  for (const id of ["titleScreen", "hubScreen"]) {
     const el = document.getElementById(id);
     if (el) el.style.display = "none";
   }
@@ -747,57 +750,77 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
   const manualMove = { x: 0, z: 0 };
 
   // ------------------------------------------------------------ K12 HUD
-  // Primitive styling (plain CSS, no parchment/art-bible pass yet — that's
-  // polish, comes after the mechanic itself is signed off), but the
-  // DISCIPLINE is the real one, not a placeholder: DETECT and crush count
-  // are never shown as numbers (P2 — "ölçek ekranın kendisidir", and the
-  // crush cap is explicitly "ekranda gösterilmez" per tuning.md §12). The
-  // delivery counter IS shown on purpose — unlike Lotus's forgetting meter,
-  // this is a plain progress target, not the thing being hidden.
-  const hud = document.createElement("div");
-  hud.style.cssText =
-    "position:fixed;top:14px;left:14px;color:#f3e6c8;font:600 14px system-ui,sans-serif;text-shadow:0 1px 3px rgba(0,0,0,.8);z-index:40;pointer-events:none;";
-  document.body.appendChild(hud);
-
-  const promptEl = document.createElement("div");
-  promptEl.style.cssText =
-    "position:fixed;left:50%;bottom:64px;transform:translateX(-50%);color:#f3e6c8;font:15px/1.4 system-ui,sans-serif;text-align:center;text-shadow:0 1px 4px rgba(0,0,0,.9);z-index:40;pointer-events:none;max-width:70vw;transition:opacity .4s;";
-  document.body.appendChild(promptEl);
-
-  const hideWarnEl = document.createElement("div");
-  hideWarnEl.textContent = "Saklan!";
-  hideWarnEl.style.cssText =
-    "position:fixed;left:50%;top:14px;transform:translateX(-50%);color:#e8b0a0;font:700 16px system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;text-shadow:0 1px 4px rgba(0,0,0,.9);z-index:40;pointer-events:none;opacity:0;transition:opacity .4s;";
-  document.body.appendChild(hideWarnEl);
+  // 29 Ağu 2026, sahip: "lotus adasindaki kullaniciya oyun ile alakali
+  // yazilari gosterdigimiz kart tasarim sistemini geri getir. gostergelerin
+  // lotus adasiyla ayni tasarimda olmasini istiyorum, onlar sabit."
+  //
+  // Burada eskiden `style.cssText` ile body'ye eklenen ayrı bir primitif
+  // overlay vardı ve Lotus'un `#hud`'ı tamamen gizleniyordu — tek oyunda iki
+  // ayrı görsel dil. Artık Kiklop, Lotus'un KENDİ kabını ve hud.css
+  // sınıflarını kullanıyor (`.panel.quest`, `.prompt`, `.card`, `.hint`);
+  // Kiklop'a ait olan yalnız içerik. Kap zaten `position:absolute; inset:0`
+  // olduğu için parçaların yerleşimi de beraberinde geliyor — Kiklop'un
+  // kopyalaması gereken tek bir konum/renk değeri yok, bu da iki HUD'ın
+  // ileride birbirinden ayrı sürüklenmesini yapısal olarak engelliyor.
+  //
+  // DİSİPLİN değişmedi: DETECT ve ezilme sayısı hâlâ sayı olarak
+  // gösterilmiyor (P2 — "ölçek ekranın kendisidir", tuning.md §12). Teslim
+  // sayacı bilerek görünür: Lotus'un unutuş ölçeğinin aksine bu, saklanan
+  // şey değil, düpedüz bir ilerleme hedefi.
+  const hudRoot = document.getElementById("hud");
+  if (!hudRoot) throw new Error("[cyclopsStop] #hud yok — index.html değişmiş");
+  hudRoot.style.display = "";
+  hudRoot.innerHTML = `
+    <div class="panel quest" id="cycQuest">
+      <div class="quest-title">Kiklop Mağarası</div>
+      <div class="quest-line">Azık — gemiye teslim: <b id="cycDelivered">0</b> / <b id="cycTarget">0</b></div>
+      <div class="quest-line dim">Taşınan: <b id="cycCarried">0</b> / <b id="cycCap">0</b></div>
+    </div>
+    <div class="prompt alarm" id="cycAlarm">Saklan</div>
+    <div class="prompt" id="cycPrompt"></div>
+    <div class="hint" id="cycHint">
+      WASD yürü · fare kamera · <b>E</b> al/bırak · <b>Shift</b> atıl · <b>Ctrl</b> sürün
+    </div>
+    <div class="card lost" id="cycCard">
+      <h1>Kaybettin</h1>
+      <p>Dev seni üç kez yakaladı.</p>
+      <button type="button" class="card-btn" id="cycCardBtn">Yeniden Oyna</button>
+    </div>
+  `;
+  const el = (id: string): HTMLElement => {
+    const found = document.getElementById(id);
+    if (!found) throw new Error(`[cyclopsStop] HUD parçası yok: ${id}`);
+    return found;
+  };
+  const deliveredEl = el("cycDelivered");
+  const carriedEl = el("cycCarried");
+  const promptEl = el("cycPrompt");
+  const alarmEl = el("cycAlarm");
+  const hintEl = el("cycHint");
+  // Hedefler sabit — her karede DOM'a yazmak yerine bir kez.
+  el("cycTarget").textContent = String(CYCLOPS_ITEM_TARGET);
+  el("cycCap").textContent = String(CYCLOPS_CARRY_CAP);
+  // Lotus'un ipucu satırıyla aynı davranış ve aynı mekanizma: `.hint`'in
+  // kendi kuralı hud.css'te `.on`'dan SONRA geldiği için sınıf çalışmıyor
+  // (eşit özgüllük, kaynak sırası kazanıyor) — Lotus'un `hud.ts`'i de bu
+  // yüzden doğrudan `style.opacity` yazıyor. Aynısı yapılıyor ki iki HUD
+  // aynı kuralı aynı şekilde kullansın.
+  hintEl.style.opacity = "1";
+  window.setTimeout(() => (hintEl.style.opacity = "0"), 12000);
 
   // ------------------------------------------------------- loss screen
   // Sahip (26 Ağu 2026): "ezilme 3/3 olunca KAYBETTIN, yeniden oyna ekranı
   // gelsin" — eskiden sessizce (bir toast mesajıyla) sıfırlanıyordu.
-  // Primitif overlay (art-bible geçmedi henüz, salt işlevsel): step()
-  // lostRun true iken tamamen duruyor (aşağıdaki erken return), sahne son
-  // kare donuk kalıyor arkada — "yakalandığın an" görüntüsü kasıtlı.
-  const lossOverlay = document.createElement("div");
-  lossOverlay.style.cssText =
-    "position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:rgba(10,4,4,.82);z-index:60;";
-  const lossTitle = document.createElement("div");
-  lossTitle.textContent = "KAYBETTİN";
-  lossTitle.style.cssText =
-    "color:#e8574a;font:800 42px system-ui,sans-serif;letter-spacing:.06em;text-shadow:0 2px 8px rgba(0,0,0,.7);";
-  const lossSub = document.createElement("div");
-  lossSub.textContent = "Dev seni üç kez yakaladı.";
-  lossSub.style.cssText = "color:#e8d8c8;font:16px system-ui,sans-serif;opacity:.85;";
-  const lossBtn = document.createElement("button");
-  lossBtn.textContent = "Yeniden Oyna";
-  lossBtn.style.cssText =
-    "padding:12px 28px;font:600 16px system-ui,sans-serif;color:#2a1a12;background:#e8c165;border:none;border-radius:6px;cursor:pointer;";
-  lossBtn.addEventListener("click", () => resetRun());
-  lossOverlay.append(lossTitle, lossSub, lossBtn);
-  document.body.appendChild(lossOverlay);
+  // 29 Ağu: kendi kırmızı/siyah overlay'i yerine Lotus'un bitiş kartı
+  // (`.card.lost`) — sahnenin son karesi arkada donuk kalmaya devam ediyor
+  // ("yakalandığın an" görüntüsü kasıtlıydı, korunuyor), çünkü `.card`
+  // yarı saydam bir parşömen yıkaması, opak bir perde değil.
+  const lossCard = el("cycCard");
+  el("cycCardBtn").addEventListener("click", () => resetRun());
 
   // ------------------------------------------------------- debug HUD (dev)
-  // Kept alongside the real HUD above — useful while K5-K11 are still
-  // being tuned. Not shown to a real player once this ships; small and
-  // out of the way so it doesn't get confused for the real HUD.
+  // Kasıtlı olarak hud.css'in parşömen dilinin DIŞINDA: bu bir gösterge
+  // değil, tuning aracı — gerçek HUD'la karışmaması için ayrı duruyor.
   const debugEl = document.createElement("div");
   debugEl.style.cssText =
     "position:fixed;bottom:8px;left:8px;color:#9c9;font:10px monospace;background:rgba(0,0,0,.5);padding:6px;white-space:pre;z-index:50;pointer-events:none;opacity:.75;";
@@ -829,7 +852,7 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
   let message = "";
   let messageT = 0;
   /** true after the 3rd crush — step() freezes (see the early return at its
-   * top), lossOverlay is shown, only resetRun() (via the button) clears it. */
+   * top), the loss card is shown, only resetRun() (via the button) clears it. */
   let lostRun = false;
 
   // ---------------------------------------------------------- dash / crawl
@@ -910,7 +933,7 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
 
   function triggerLoss(): void {
     lostRun = true;
-    lossOverlay.style.display = "flex";
+    lossCard.classList.add("on");
   }
 
   /** Yeniden Oyna — tüm run durumunu sıfırlar, overlay'i kapatır, step() döngüsü
@@ -963,7 +986,7 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
       it.mesh.visible = true;
     }
     lostRun = false;
-    lossOverlay.style.display = "none";
+    lossCard.classList.remove("on");
   }
 
   function step(dt: number): void {
@@ -1508,19 +1531,22 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     if (messageT > 0) messageT -= dt;
 
     // -------------------------------------------------------------- K12 HUD
-    hud.innerHTML =
-      `<div style="font-size:17px;letter-spacing:.02em;">Azık — gemiye teslim: ${delivered} / ${CYCLOPS_ITEM_TARGET}</div>` +
-      `<div style="opacity:.85;margin-top:2px;">Taşınan: ${carriedCount} / ${CYCLOPS_CARRY_CAP}</div>`;
-    promptEl.textContent = message;
-    promptEl.style.opacity = messageT > 0 ? "1" : "0";
+    // Sayaçlar textContent ile, string karşılaştırmasından sonra — bu blok
+    // 60 Hz'de çalışıyor, her karede DOM'a yazmanın anlamı yok.
+    const deliveredText = String(delivered);
+    if (deliveredEl.textContent !== deliveredText) deliveredEl.textContent = deliveredText;
+    const carriedText = String(carriedCount);
+    if (carriedEl.textContent !== carriedText) carriedEl.textContent = carriedText;
+    if (promptEl.textContent !== message) promptEl.textContent = message;
+    promptEl.classList.toggle("on", messageT > 0);
     // Present = the real hide-or-be-caught window, pulses harder than the
     // return telegraph. No countdown number shown either way (P2).
     if (phase === "present") {
-      hideWarnEl.style.opacity = String(0.55 + 0.45 * Math.sin(simTime * 4));
+      alarmEl.style.opacity = String(0.55 + 0.45 * Math.sin(simTime * 4));
     } else if (phase === "return") {
-      hideWarnEl.style.opacity = "0.6";
+      alarmEl.style.opacity = "0.6";
     } else {
-      hideWarnEl.style.opacity = "0";
+      alarmEl.style.opacity = "0";
     }
 
     // --------------------------------------------------------- debug (dev)
