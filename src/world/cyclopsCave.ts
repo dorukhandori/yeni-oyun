@@ -59,6 +59,32 @@ const ROOMS: RoomSpan[] = [
   { id: "inner", dMin: 48, dMax: 65, halfWidth: 4.5, ceilingY: 5, color: 0x45443d },
 ];
 
+/**
+ * Devin baş payı (29 Ağu 2026, sahip: "mağaranın tavanını yükselt, dev
+ * içerde dolaşırken kafası tavandan dışarı çıkıyor").
+ *
+ * `level-cyclops-cave.md` §1.2'nin tavan tablosu (ağız 6→4, depo 4,
+ * boğazlar 3, iç nöy 5) devin boyu `GIANT_HEIGHT_M = 5.0`'a oturmadan önce
+ * yazılmış: dev bu odaların DÖRDÜNE birden sığmıyor, boğazlarda 2 m'si
+ * tavanın dışında kalıyor. Ölçüm basit ve tartışmasız — 5 m'lik bir figür
+ * 3 m'lik bir koridordan geçemez.
+ *
+ * Tek tek sayı seçmek yerine tablo bir TABANA kırpılıyor: §1.2'nin daha
+ * yüksek verdiği yerler (ağıllar 7, patika 12, koy açık gökyüzü) olduğu
+ * gibi kalıyor, yalnız devin sığmadığı odalar yükseliyor. Boğazların
+ * "dar geçit" kimliği tavandan değil `halfWidth: 2`'den geliyor, o
+ * dokunulmadı — boğaz hâlâ yandan sıkışık, artık yalnız yeterince yüksek.
+ *
+ * Doküman çelişkisi bilinçli: §1.2 tavan satırları bu taban yürürlükteyken
+ * artık tavan DEĞERİ değil, alt sınırın altında kalan bir niyet notu.
+ */
+export const CAVE_MIN_CEILING_Y = 6.8;
+
+// Tabanı uygula. `cove` (Infinity) ve zaten yüksek olan odalar değişmiyor.
+for (const room of ROOMS) {
+  room.ceilingY = Math.max(room.ceilingY, CAVE_MIN_CEILING_Y);
+}
+
 export function roomAt(z: number): RoomSpan {
   for (const r of ROOMS) if (z >= r.dMin && z < r.dMax) return r;
   return z < ROOMS[0].dMin ? ROOMS[0] : ROOMS[ROOMS.length - 1];

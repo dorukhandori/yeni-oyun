@@ -16,6 +16,7 @@ import {
   groundHeightAt,
   shoreLineZ,
   cliffFootZ,
+  CAVE_MIN_CEILING_Y,
   CYCLOPS_FOG_COLOR,
   CYCLOPS_WAVE_SCALE,
   HEARTH_POS,
@@ -102,6 +103,16 @@ const GIANT_MESH_FACING = -Math.PI / 2;
  * workbench preset'i de onu "5 m" diye belgeliyordu; ASSET-127 rig'i Tripo
  * normalizasyonuyla ~0,85 birim geldiği için artık açıkça ölçekleniyor. */
 const GIANT_HEIGHT_M = 5.0;
+// Devi büyütmek sessizce mağaraya sığmamasına yol açabilir — 29 Ağu'da
+// tam bu olmuştu (sahip: "kafası tavandan dışarı çıkıyor"). Tavan tabanı
+// cyclopsCave'de, boy burada; ikisi ayrı dosyada olduğu için bağ DEV'de
+// açıkça kontrol ediliyor, bir dahakini render'da fark etmeye kalmıyoruz.
+if (import.meta.env.DEV && GIANT_HEIGHT_M > CAVE_MIN_CEILING_Y - 1.0) {
+  console.error(
+    `[cyclopsStop] dev (${GIANT_HEIGHT_M} m) mağara tavanına sığmıyor ` +
+      `(CAVE_MIN_CEILING_Y=${CAVE_MIN_CEILING_Y} m, en az 1 m baş payı gerekli)`,
+  );
+}
 const GIANT_TURN_SMOOTH = 0.25; // oyuncudan daha yavaş dönüyor, "ağır ama amaçlı"
 const GIANT_BOB_FREQ = 5.5;
 const GIANT_BOB_AMPLITUDE = 0.12;
