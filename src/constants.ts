@@ -646,16 +646,44 @@ export const AUDIO = {
   /** localStorage key. Safari private mode may throw; callers try/catch. */
   muteStorageKey: "lotophagoi.muted",
   /**
-   * Title/Hub vs island beds. Files are Mixkit Stock Music Free License
-   * (no attribution required) — see assets.csv ASSET-088/089.
+   * Müzik yatakları. `menu` hâlâ Mixkit Stock Music Free License (atıf
+   * gerekmiyor) — assets.csv ASSET-088/089; geri kalanı 28 Ağu 2026'da
+   * repoya alınan kendi parçalarımız.
+   *
+   * 29 Ağu 2026, sahip: "dun konustugumuz muzik klasorune goz at ve
+   * muzikleri de ayarla." Dört parça (`music_*.mp3`) 28 Ağu'dan beri
+   * `public/assets/audio/`'da duruyordu ama `src/` içinde tek bir referansı
+   * yoktu — yani hiçbiri çalmıyordu. Artık hepsi bir yatağa bağlı.
+   *
+   * Ada yatağı (`play`) eski Mixkit "mist" döngüsünden `music_lotus_theme`
+   * parçasına geçti — dosyanın adı zaten onu söylüyordu.
+   *
+   * Kayıt tablosu, tek satırlık `{src, gain}`: audio.ts bu tablonun
+   * anahtarlarından başka hiçbir yatak adı bilmiyor, yani yeni bir parça
+   * eklemek burada bir satır. Yataklar TEK TEK, ilk istendiklerinde
+   * yükleniyor (audio.ts `ensureBed`) — dört parça birden ~15 MB, hepsini
+   * açılışta indirmek oyunu ilk kareye kadar bekletirdi.
    */
   music: {
-    menu: "assets/audio/fx_musictitle_01_loop_256.mp3",
-    play: "assets/audio/fx_musicplay_01_loop_256.mp3",
-    /** Under the parchment screens — a little more present than the island. */
-    menuGain: 0.38,
-    /** Under waves + one-shots; keep it a mist, not a soundtrack. */
-    playGain: 0.22,
+    beds: {
+      /** Parşömen ekranların altında — adadan biraz daha önde. */
+      menu: { src: "assets/audio/fx_musictitle_01_loop_256.mp3", gain: 0.38 },
+      /** Lotus adası. Dalga + one-shot'ların altında; sis olsun, film müziği değil. */
+      play: { src: "assets/audio/music_lotus_theme_01.mp3", gain: 0.22 },
+      /** Kiklop durağı, dışarısı — koy, patika, gemi. */
+      kiklop: { src: "assets/audio/music_kiklop_theme_01.mp3", gain: 0.24 },
+      /** Mağaranın içi — ağızdan Boğaz B'ye kadar. */
+      cave: { src: "assets/audio/music_cave_inside_01.mp3", gain: 0.2 },
+      /**
+       * İç nöy (devin uyuma köşesi). Dosya adı "stones_chamber" — mağarada
+       * "taş oda" diye ayrı bir mekân YOK, en yakın karşılık mağaranın en
+       * derin, en ayrı odası. Rün taşları depot/gorgeA/pens'e dağılmış
+       * durumda, tek bir odaya bağlanamıyor. Bu eşleştirme bir tahmin,
+       * diğer üçü gibi dosya adından kesin değil — sahip başka bir yer
+       * kastettiyse tek satırlık değişiklik.
+       */
+      stones: { src: "assets/audio/music_stones_chamber_01.mp3", gain: 0.22 },
+    },
     fade: 2.2,
   },
 } as const;

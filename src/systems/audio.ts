@@ -6,7 +6,12 @@
 import { AUDIO } from "../constants";
 import { assetUrl } from "../assets/paths";
 
-export type MusicBed = "menu" | "play" | "none";
+/**
+ * Yatak adları `AUDIO.music.beds` tablosundan türetiliyor — burada ikinci
+ * bir liste tutulmuyor, yoksa yeni bir parça eklerken ikisini birden
+ * güncellemeyi unutmak mümkün olurdu.
+ */
+export type MusicBed = keyof typeof AUDIO.music.beds | "none";
 
 function readStoredMute(): boolean {
   try {
@@ -38,12 +43,9 @@ export class GameAudio {
   private waveNodes: AudioNode[] = [];
   private muted = readStoredMute();
   private wantedBed: MusicBed = "none";
-  private musicReady = false;
-  private musicLoading = false;
-  private musicSlots: {
-    menu: { gain: GainNode; src: AudioBufferSourceNode | null };
-    play: { gain: GainNode; src: AudioBufferSourceNode | null };
-  } | null = null;
+  /** Yalnız GERÇEKTEN istenmiş yataklar. Bkz. ensureBed. */
+  private beds = new Map<string, { gain: GainNode; src: AudioBufferSourceNode | null }>();
+  private bedsLoading = new Set<string>();
 
   isMuted(): boolean {
     return this.muted;
@@ -90,16 +92,18 @@ export class GameAudio {
     this.startWaves();
     this.started = true;
     void this.ctx.resume();
-    this.beginMusicLoad();
+    this.ensureBed(this.wantedBed);
   }
 
   /**
-   * Title/Hub = menu theme, island = mystical bed, end-cards = silence.
-   * Safe before unlock — the wanted bed is applied once buffers decode.
+   * Title/Hub = menu, Lotus = play, Kiklop dışı/içi/iç nöy = kiklop/cave/
+   * stones, bitiş kartları = sessizlik. Unlock'tan ÖNCE de güvenli —
+   * istenen yatak, buffer'ı çözülür çözülmez uygulanıyor.
    */
   setMusicBed(bed: MusicBed): void {
     if (this.wantedBed === bed) return;
     this.wantedBed = bed;
+    this.ensureBed(bed);
     this.applyMusicBed();
   }
 
@@ -155,34 +159,30 @@ export class GameAudio {
     this.waveNodes.push(lfo, lfoGain);
   }
 
-  private beginMusicLoad(): void {
-    if (this.musicLoading || this.musicReady || !this.ctx || !this.filter) return;
-    this.musicLoading = true;
-    const ctx = this.ctx;
-    const menuGain = ctx.createGain();
-    const playGain = ctx.createGain();
-    menuGain.gain.value = 0;
-    playGain.gain.value = 0;
-    menuGain.connect(this.filter);
-    playGain.connect(this.filter);
-    this.musicSlots = {
-      menu: { gain: menuGain, src: null },
-      play: { gain: playGain, src: null },
-    };
-    void Promise.all([
-      this.decodeMusic(AUDIO.music.menu),
-      this.decodeMusic(AUDIO.music.play),
-    ])
-      .then(([menuBuf, playBuf]) => {
-        if (!this.ctx || !this.musicSlots) return;
-        this.musicSlots.menu.src = this.startLoop(menuBuf, this.musicSlots.menu.gain);
-        this.musicSlots.play.src = this.startLoop(playBuf, this.musicSlots.play.gain);
-        this.musicReady = true;
+  /**
+   * Bir yatağı ilk istendiğinde yükler. Dört parça birden ~15 MB — hepsini
+   * unlock'ta indirmek, oyuncunun hiç gitmeyeceği durakların müziğini de
+   * indirmek demekti. Aynı yatak iki kez istenirse ikinci çağrı no-op.
+   */
+  private ensureBed(bed: MusicBed): void {
+    if (bed === "none") return;
+    if (!this.ctx || !this.filter) return; // unlock'ta yeniden denenecek
+    if (this.beds.has(bed) || this.bedsLoading.has(bed)) return;
+    this.bedsLoading.add(bed);
+    const gain = this.ctx.createGain();
+    gain.gain.value = 0;
+    gain.connect(this.filter);
+    void this.decodeMusic(AUDIO.music.beds[bed].src)
+      .then((buf) => {
+        if (!this.ctx) return;
+        this.beds.set(bed, { gain, src: this.startLoop(buf, gain) });
         this.applyMusicBed();
       })
       .catch((err: unknown) => {
-        console.warn("[audio] music beds failed to load", err);
-        this.musicLoading = false;
+        console.warn(`[audio] music bed '${bed}' failed to load`, err);
+      })
+      .finally(() => {
+        this.bedsLoading.delete(bed);
       });
   }
 
@@ -205,18 +205,16 @@ export class GameAudio {
   }
 
   private applyMusicBed(): void {
-    if (!this.ctx || !this.musicSlots || !this.musicReady) return;
+    if (!this.ctx) return;
     const t = this.ctx.currentTime;
     const fade = AUDIO.music.fade;
-    const menuTarget = this.wantedBed === "menu" ? AUDIO.music.menuGain : 0.0001;
-    const playTarget = this.wantedBed === "play" ? AUDIO.music.playGain : 0.0001;
-    const ramp = (g: GainNode, target: number) => {
-      g.gain.cancelScheduledValues(t);
-      g.gain.setValueAtTime(Math.max(g.gain.value, 0.0001), t);
-      g.gain.exponentialRampToValueAtTime(target, t + fade);
-    };
-    ramp(this.musicSlots.menu.gain, menuTarget);
-    ramp(this.musicSlots.play.gain, playTarget);
+    for (const [name, slot] of this.beds) {
+      const target =
+        name === this.wantedBed ? AUDIO.music.beds[name as keyof typeof AUDIO.music.beds].gain : 0.0001;
+      slot.gain.gain.cancelScheduledValues(t);
+      slot.gain.gain.setValueAtTime(Math.max(slot.gain.gain.value, 0.0001), t);
+      slot.gain.gain.exponentialRampToValueAtTime(target, t + fade);
+    }
   }
 
   /** Distance to shore / sea — louder near water. */

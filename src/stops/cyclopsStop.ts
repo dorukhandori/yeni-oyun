@@ -23,6 +23,7 @@ import {
   TORCH_POS,
 } from "../world/cyclopsCave";
 import { Bursts } from "../systems/burst";
+import { GameAudio, type MusicBed } from "../systems/audio";
 import { buildSea } from "../world/sea";
 
 /**
@@ -826,6 +827,28 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     "position:fixed;bottom:8px;left:8px;color:#9c9;font:10px monospace;background:rgba(0,0,0,.5);padding:6px;white-space:pre;z-index:50;pointer-events:none;opacity:.75;";
   document.body.appendChild(debugEl);
 
+  // ------------------------------------------------------------------ audio
+  // 29 Ağu 2026, sahip: "dun konustugumuz muzik klasorune goz at ve
+  // muzikleri de ayarla." Kiklop durağının bu ana kadar HİÇ sesi yoktu —
+  // Lotus'un `GameAudio`'su bu yolda kurulmuyordu bile. Aynı sınıf burada da
+  // kuruluyor, yani sessize alma tercihi (localStorage) iki durak arasında
+  // ortak; oyuncunun sesi Lotus'ta kapatıp Kiklop'ta açık bulması olmuyor.
+  //
+  // Yatak seçimi mekân başına: dışarısı (koy/patika) Kiklop teması, mağara
+  // içi mağara parçası, iç nöy kendi parçası. Geçişler `AUDIO.music.fade`
+  // ile çapraz sönüyor, oda sınırında kesme yok.
+  const audio = new GameAudio();
+  const unlockAudio = () => audio.unlock();
+  window.addEventListener("pointerdown", unlockAudio, { once: true });
+  window.addEventListener("keydown", unlockAudio, { once: true });
+
+  function bedForRoom(z: number): MusicBed {
+    const room = roomIdAt(z);
+    if (room === "cove" || room === "path") return "kiklop";
+    if (room === "inner") return "stones";
+    return "cave";
+  }
+
   // ------------------------------------------------------------- run state
   let phase: Phase = "out";
   let giantState: GiantState = "outside";
@@ -934,6 +957,10 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
   function triggerLoss(): void {
     lostRun = true;
     lossCard.classList.add("on");
+    // Bitiş kartında sessizlik — Lotus'un bitiş kartlarıyla aynı kural.
+    // Burada, step()'te değil: `lostRun` step()'i en tepesinden donduruyor,
+    // aşağıdaki yatak seçimi bir daha hiç çalışmıyor.
+    audio.setMusicBed("none");
   }
 
   /** Yeniden Oyna — tüm run durumunu sıfırlar, overlay'i kapatır, step() döngüsü
@@ -1531,6 +1558,8 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     if (messageT > 0) messageT -= dt;
 
     // -------------------------------------------------------------- K12 HUD
+    audio.setMusicBed(bedForRoom(player.position.z));
+
     // Sayaçlar textContent ile, string karşılaştırmasından sonra — bu blok
     // 60 Hz'de çalışıyor, her karede DOM'a yazmanın anlamı yok.
     const deliveredText = String(delivered);
