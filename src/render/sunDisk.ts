@@ -11,6 +11,19 @@ import { loadGltf } from "../world/gltf";
  * it drew a muddy ring around the sun. This ramp stays inside the bible: a
  * white-gold core, the bible's own halo hex `#ffcf80`, kehribar `#eeae6a`,
  * then a gül `#e08a86` edge that fades to nothing.
+ *
+ * 18 Aug 2026 (sahip: "güneşi küçült ve daha gerçekçi yap"): the plateau of
+ * full-bright cream used to run all the way to 42% of the radius — a big,
+ * evenly-lit graphic disc with a thin edge tacked on. Real bright light
+ * sources read as a small blinding point with a longer graded falloff, not a
+ * flat-lit circle, so every stop is pulled inward (plateau now ends at 16%,
+ * was 42%) while the same bible hexes still carry the ramp — nothing left the
+ * palette, the ramp is just compressed toward the centre. The outer edge
+ * fades a touch softer too (last stop's alpha down from 0.92 to 0.85, and its
+ * position pushed from 92% to 85% of the radius) since the disc itself is
+ * now drawn much smaller in world units (see SUN_DISK.coreRadius) and a
+ * slightly longer, softer taper reads as "real" rather than "cut out" at
+ * that size.
  */
 function discTexture(size: number): THREE.CanvasTexture {
   const canvas = document.createElement("canvas");
@@ -19,13 +32,14 @@ function discTexture(size: number): THREE.CanvasTexture {
   if (!ctx) throw new Error("sunDisk: 2d context unavailable");
   const cx = size / 2;
   const g = ctx.createRadialGradient(cx, cx, 0, cx, cx, cx);
-  g.addColorStop(0, "rgba(255,252,240,1)");
-  g.addColorStop(0.42, "rgba(255,244,214,1)");
-  g.addColorStop(0.68, "rgba(255,207,128,1)");
-  g.addColorStop(0.84, "rgba(238,174,106,1)");
-  // A crisp-ish edge: the last 8% is the whole falloff, so the sun keeps a
-  // readable circumference instead of dissolving into the sky.
-  g.addColorStop(0.92, "rgba(224,138,134,0.92)");
+  g.addColorStop(0, "rgba(255,255,250,1)");
+  g.addColorStop(0.16, "rgba(255,244,214,1)");
+  g.addColorStop(0.4, "rgba(255,207,128,1)");
+  g.addColorStop(0.62, "rgba(238,174,106,1)");
+  // The falloff itself is a touch wider than before (last 15% vs. 8%) — at
+  // the new, smaller world radius a razor edge read as a coin-punched hole;
+  // this keeps a readable circumference without a crisp graphic rim.
+  g.addColorStop(0.85, "rgba(224,138,134,0.85)");
   g.addColorStop(1, "rgba(224,138,134,0)");
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, size, size);
