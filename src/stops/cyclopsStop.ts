@@ -40,6 +40,22 @@ import {
   type CrushShock,
 } from "./cyclopsRules";
 import { HUB_URL, TITLE_URL, markCleared } from "./progress";
+import {
+  FINALE_BOULDER_INTERVAL,
+  FINALE_BOULDER_RADIUS,
+  FINALE_BOULDER_TELEGRAPH_SECONDS,
+  FINALE_GUARD_ATTACK_INTERVAL,
+  FINALE_GUARD_HEAR_RADIUS,
+  finaleObjective,
+  giantPassedOut,
+  initialFinale,
+  stepFinale,
+  type FinaleEvent,
+  type FinaleStage,
+  type FinaleState,
+  type Vec2,
+} from "./cyclopsFinale";
+import { FINALE_GUARD_POS, FINALE_STAKE_HOME, FINALE_WINE_HOME, buildFinaleProps } from "../world/cyclopsFinaleProps";
 
 /**
  * Cyclops Cave (2nd Odyssey stop) — primitive playable mechanic.
@@ -180,6 +196,8 @@ const DASH_COOLDOWN = 1.4; // s
 const CRAWL_SPEED_MULT = 0.45; // sürünürken normal hızın oranı (DETECT çarpanı: cyclopsRules.CRAWL_DETECT_MULT)
 /** Teslim bölgesi — oyuncu z bunun altındayken gemidedir (koy). */
 const SHIP_ZONE_Z = -15;
+/** Standing this close to the hearth counts as "in the fire" for the stake. */
+const FINALE_HEARTH_REACH = 2.4;
 /**
  * "Dev bazen rage geçirecek kendi odasında, sarhoş gibi hareket edecek ve
  * bir aRPG'deki bosslar gibi yapacağı hareket önceden yuvarlaklarla
@@ -235,7 +253,13 @@ type GiantState =
   | "sleeping"
   | "wanderingPost"
   | "raging"
-  | "exiting";
+  | "exiting"
+  // gdd-cyclops-finale.md — driven by the finale, never by the cycle:
+  | "drunk" // walking to bed after the wine
+  | "passedOut" // lying on the bed, no detect / no crush
+  | "blindRoar" // just blinded — on his feet, roaring
+  | "blindToDoor"
+  | "blindGuard"; // seated in the mouth, feeling the flock
 
 interface WanderTarget {
   x: number;
@@ -684,16 +708,17 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
   // aşağıdaki `else` dalı bunu sessizce karşılıyor, boss moveset klipleri
   // eklenince kendiliğinden çalışmaya başlar.
   let giantMixer: THREE.AnimationMixer | null = null;
-  let giantIdleAction: THREE.AnimationAction | null = null;
-  let giantWalkAction: THREE.AnimationAction | null = null;
-  let giantAnimSlot: "idle" | "walk" = "idle";
-  function playGiantAnim(slot: "idle" | "walk"): void {
-    if (slot === giantAnimSlot || !giantIdleAction || !giantWalkAction) return;
+  type GiantClip = "idle" | "walk" | "run" | "sweep" | "slam" | "punch" | "roar";
+  const giantActions = new Map<GiantClip, THREE.AnimationAction>();
+  let giantAnimSlot: GiantClip = "idle";
+  function playGiantAnim(slot: GiantClip): void {
+    if (slot === giantAnimSlot) return;
+    const next = giantActions.get(slot);
+    const prev = giantActions.get(giantAnimSlot);
+    if (!next) return;
     giantAnimSlot = slot;
-    const next = slot === "idle" ? giantIdleAction : giantWalkAction;
-    const prev = slot === "idle" ? giantWalkAction : giantIdleAction;
     next.reset().fadeIn(0.25).play();
-    prev.fadeOut(0.25);
+    prev?.fadeOut(0.25);
   }
   // ASSET-129 — ASSET-127 Tripo rig'inin ÜZERİNE retarget edilmiş 7 Mixamo
   // klibi (`scripts/blender/retarget_mixamo_polyphemos_boss_tripo.py`).
@@ -726,12 +751,14 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     const idleClip = bundle.animations.find((c) => c.name === "idle");
     const walkClip = bundle.animations.find((c) => c.name === "walk");
     if (idleClip && walkClip) {
-      giantMixer = new THREE.AnimationMixer(model);
-      giantIdleAction = giantMixer.clipAction(idleClip);
-      giantWalkAction = giantMixer.clipAction(walkClip);
-      giantWalkAction.timeScale =
-        CYCLOPS_GIANT_SPEED / (GIANT_WALK_CLIP_HEIGHTS_PER_SEC * GIANT_HEIGHT_M); // ayak kayması düzeltmesi, bkz. sabitin üstündeki not
-      giantIdleAction.play();
+      const mixer = new THREE.AnimationMixer(model);
+      giantMixer = mixer;
+      for (const clip of bundle.animations) giantActions.set(clip.name as GiantClip, mixer.clipAction(clip));
+      const walk = giantActions.get("walk");
+      if (walk)
+        walk.timeScale =
+          CYCLOPS_GIANT_SPEED / (GIANT_WALK_CLIP_HEIGHTS_PER_SEC * GIANT_HEIGHT_M); // ayak kayması düzeltmesi, bkz. sabitin üstündeki not
+      giantActions.get("idle")?.play();
     } else {
       console.warn("[cyclopsStop] Polyphemos GLB missing idle/walk clips", bundle.animations.map((c) => c.name));
     }
@@ -783,6 +810,7 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
       <div class="quest-title">Kiklop Mağarası</div>
       <div class="quest-line">Azık — gemiye teslim: <b id="cycDelivered">0</b> / <b id="cycTarget">0</b></div>
       <div class="quest-line dim">Taşınan: <b id="cycCarried">0</b> / <b id="cycCap">0</b></div>
+      <div class="quest-line" id="cycObjective" hidden></div>
     </div>
     <div class="prompt alarm" id="cycAlarm">Saklan</div>
     <div class="prompt" id="cycPrompt"></div>
@@ -801,7 +829,7 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     </div>
     <div class="card" id="cycWin" role="dialog" aria-labelledby="cycWinTitle">
       <h1 id="cycWinTitle">Yelken açıldı</h1>
-      <p>Azık ambarda, tayfa küreklerde. Arkanda mağaranın ağzı kararıyor.</p>
+      <p>Kör dev kayaları denize savuruyor, "Kimse beni kör etti!" diye haykırıyor. Kimse küreklerin başında.</p>
       <ul class="card-stats" id="cycWinStats"></ul>
       <p class="card-verdict" id="cycWinVerdict"></p>
       <p class="card-key" id="cycWinSave" hidden></p>
@@ -817,6 +845,7 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     return found;
   };
   const deliveredEl = el("cycDelivered");
+  const objectiveEl = el("cycObjective");
   const carriedEl = el("cycCarried");
   const promptEl = el("cycPrompt");
   const alarmEl = el("cycAlarm");
@@ -960,8 +989,111 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
   let lostRun = false;
   /** true once the player set sail with the target delivered — same freeze as lostRun. */
   let wonRun = false;
-  /** Target delivered; the stop ends on E at the ship (§8 kriter 14). */
-  let readyToSail = false;
+  /** Homeric finale (gdd-cyclops-finale.md) — the stop now ends on its `sailed` event. */
+  let finale: FinaleState = initialFinale();
+  /** Where the wine skin lies when not carried (moves if dropped on a catch). */
+  let wineAt: Vec2 = { ...FINALE_WINE_HOME };
+  let guardAttackT = 0;
+  let boulderT = 0;
+  let boulder: { x: number; z: number; t: number } | null = null;
+  const finaleProps = buildFinaleProps(scene);
+  let blindRoarT = 0;
+  /** Blind guard hears footsteps — last frame's movement (the giant updates before input). */
+  let playerMovedLastFrame = false;
+  const boulderRing = new THREE.Mesh(
+    new THREE.RingGeometry(FINALE_BOULDER_RADIUS * 0.85, FINALE_BOULDER_RADIUS, 32),
+    new THREE.MeshBasicMaterial({ color: 0xffb040, transparent: true, opacity: 0.5, side: THREE.DoubleSide }),
+  );
+  boulderRing.rotation.x = -Math.PI / 2;
+  boulderRing.visible = false;
+  scene.add(boulderRing);
+  const GIANT_DRUNK_SPEED_MULT = 0.9; // sendeliyor ama oyuncuyu yarım dakika bekletmiyor
+  const GIANT_BLIND_ROAR_SECONDS = 2.8;
+  /** Lying head-first toward the cave mouth (rotation about world X). */
+  function giantHead(): Vec2 {
+    return giantState === "passedOut"
+      ? { x: giant.position.x, z: giant.position.z - GIANT_HEIGHT_M * 0.85 }
+      : { x: giant.position.x, z: giant.position.z };
+  }
+  function giantAwake(): boolean {
+    return giant.visible && giantState !== "sleeping" && giantState !== "drunk" && giantState !== "passedOut";
+  }
+  function finaleDrivesGiant(): boolean {
+    return (
+      giantState === "drunk" ||
+      giantState === "passedOut" ||
+      giantState === "blindRoar" ||
+      giantState === "blindToDoor" ||
+      giantState === "blindGuard"
+    );
+  }
+  /** Stages where the old cycle's stealth rules still apply. */
+  function stealthStage(stage: FinaleStage): boolean {
+    return stage === "gather" || stage === "wine";
+  }
+  function onFinaleEvent(ev: FinaleEvent): void {
+    switch (ev) {
+      case "wineAppeared":
+        finaleProps.showWine(wineAt);
+        say("Tayfa Maron'un şarabını çıkardı — tulumu kıyıdan al.");
+        break;
+      case "wineTaken":
+        audio.pick();
+        say("Şarap elinde. Deve uyanıkken sun.");
+        break;
+      case "wineGiven":
+        finaleProps.showWine(null);
+        attackTelegraph = null;
+        setGiantRageTint(false);
+        detect = 0;
+        giantState = "drunk";
+        finaleProps.showStake(FINALE_STAKE_HOME);
+        say("Dev tulumu bir dikişte bitirdi. \"Adın ne?\" — \"Kimse.\"");
+        break;
+      case "stakeTaken":
+        audio.pick();
+        say("Zeytin kazığı. Ucunu ocakta kızdır.");
+        break;
+      case "stakeHot":
+        audio.gift();
+        say("Kazığın ucu kor gibi — çabuk!");
+        break;
+      case "stakeCooled":
+        audio.warn();
+        say("Kazık soğudu. Yeniden ocağa.");
+        break;
+      case "blinded":
+        finaleProps.holdStake(null, false);
+        finaleProps.showStake(null);
+        shock = crushShock(CYCLOPS_CRUSH_CAP);
+        shockAge = 0;
+        rig.kick(0.85);
+        audio.roar(1);
+        giant.rotation.x = 0;
+        {
+          const idle = giantActions.get("idle");
+          if (idle) idle.timeScale = 1;
+        }
+        giant.position.y = 0;
+        giantState = "blindRoar";
+        blindRoarT = GIANT_BLIND_ROAR_SECONDS;
+        playGiantAnim("roar");
+        say("Göz cızırdadı! Dev uluyarak ayağa fırladı.");
+        break;
+      case "clung":
+        say("Koyunun yünlü karnına tutundun.");
+        break;
+      case "released":
+        break;
+      case "escaped":
+        finaleProps.stopFlock();
+        boulderT = 1.0;
+        say("Dışarıdasın! Gemiye koş — dev sesine kaya fırlatıyor.");
+        break;
+      case "sailed":
+        break;
+    }
+  }
   /** Win-card "Atlattığın kapanma" — PRESENT windows that ended without a loss. */
   let closingsSurvived = 0;
   let prevPhase: Phase = "out";
@@ -1031,7 +1163,12 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     carriedCount = 0;
     detect = 0;
     crushGraceT = CRUSH_GRACE_SECONDS;
-    readyToSail = delivered >= CYCLOPS_ITEM_TARGET;
+    if (finale.carry === "wine") {
+      // Dropped like the food (D2) — never lost.
+      finale = { ...finale, carry: "none" };
+      wineAt = { x: player.position.x, z: player.position.z };
+      finaleProps.showWine(wineAt);
+    }
     shock = crushShock(crushCount);
     shockAge = 0;
     rig.kick(shock.shake);
@@ -1078,7 +1215,6 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
 
   function triggerWin(): void {
     wonRun = true;
-    readyToSail = false;
     clearTransientHud();
     const { saved } = markCleared("cyclops");
     winStatsEl.replaceChildren(
@@ -1156,7 +1292,21 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     lostRun = false;
     lossCard.classList.remove("on");
     wonRun = false;
-    readyToSail = false;
+    finale = initialFinale();
+    wineAt = { ...FINALE_WINE_HOME };
+    guardAttackT = 0;
+    boulderT = 0;
+    boulder = null;
+    finaleProps.showWine(null);
+    finaleProps.showStake(null);
+    finaleProps.holdStake(null, false);
+    finaleProps.stopFlock();
+    finaleProps.boulder(null, 0);
+    giant.rotation.x = 0;
+    const idleAction = giantActions.get("idle");
+    if (idleAction) idleAction.timeScale = 1;
+    blindRoarT = 0;
+    playerMovedLastFrame = false;
     winCard.classList.remove("on");
     closingsSurvived = 0;
     prevPhase = "out";
@@ -1218,6 +1368,64 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
       return false;
     }
 
+    // gdd-cyclops-finale.md — sarhoş uyku, kör kalkış, kapı bekçisi.
+    function stepFinaleGiant(): void {
+      if (giantState === "drunk") {
+        phase = "present";
+        if (walkGiantTowards(GIANT_BED, CYCLOPS_GIANT_SPEED * GIANT_DRUNK_SPEED_MULT)) {
+          giantState = "passedOut";
+          playGiantAnim("idle");
+          const idle = giantActions.get("idle");
+          if (idle) idle.timeScale = 0.15; // ağır, sarhoş nefes
+          giantFacing = 0;
+          giant.rotation.set(-Math.PI / 2, GIANT_MESH_FACING, 0);
+          giant.position.y = 0.6;
+          say("Dev yatağına devrildi, horluyor.");
+        }
+      } else if (giantState === "passedOut") {
+        phase = "present";
+      } else if (giantState === "blindRoar") {
+        phase = "present";
+        blindRoarT -= dt;
+        if (blindRoarT <= 0) giantState = "blindToDoor";
+      } else if (giantState === "blindToDoor") {
+        phase = "present";
+        if (walkGiantTowards(FINALE_GUARD_POS)) {
+          giantState = "blindGuard";
+          giantFacing = 0;
+          giant.rotation.y = GIANT_MESH_FACING; // içeriye, sürüye dönük
+          playGiantAnim("idle");
+          cave.setDoorOpen(true);
+          phase = "out";
+          finaleProps.startFlock();
+          say("Dev taşı çekti, kapıya oturdu. Koyunlar otlağa çıkmak istiyor…");
+        }
+      } else {
+        // blindGuard — kör, ama sesi duyuyor.
+        phase = "out";
+        giant.position.y = heightAt(giant.position.z);
+        guardAttackT -= dt;
+        const d = Math.hypot(player.position.x - giant.position.x, player.position.z - giant.position.z);
+        const heard = finale.stage === "escape" && finale.clingSheep === null && playerMovedLastFrame;
+        if (heard && d < FINALE_GUARD_HEAR_RADIUS && guardAttackT <= 0 && !attackTelegraph) {
+          attackTelegraph = { x: player.position.x, z: player.position.z, t: CYCLOPS_ATTACK_TELEGRAPH_SECONDS };
+          guardAttackT = FINALE_GUARD_ATTACK_INTERVAL;
+          playGiantAnim("sweep");
+        } else if (!attackTelegraph && giantAnimSlot !== "idle" && guardAttackT < FINALE_GUARD_ATTACK_INTERVAL - 1.0) {
+          playGiantAnim("idle");
+        }
+        // Kıyıya kaçana kaya (Odysseia IX.481).
+        if (finale.stage === "sail" && player.position.z > SHIP_ZONE_Z) {
+          boulderT -= dt;
+          if (!boulder && boulderT <= 0) {
+            boulder = { x: player.position.x, z: player.position.z, t: FINALE_BOULDER_TELEGRAPH_SECONDS };
+            boulderT = FINALE_BOULDER_INTERVAL;
+            playGiantAnim("punch");
+          }
+        }
+      }
+    }
+
     // "wanderingPre/Post bir hedefe varınca ne olur" ortak kuyruğu — raging
     // dönüşünde de aynı yoldan devam edilsin diye ayrı bir fonksiyon.
     function finishWanderLeg(continueState: GiantState, doneState: GiantState): void {
@@ -1244,7 +1452,9 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
       say("Dev çıldırdı!");
     }
 
-    if (giantState === "outside") {
+    if (finaleDrivesGiant()) {
+      stepFinaleGiant();
+    } else if (giantState === "outside") {
       phase = "out";
       giant.visible = false;
       outWaitT -= dt;
@@ -1411,6 +1621,30 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     } else {
       attackRing.visible = false;
     }
+    if (boulder) {
+      boulder.t -= dt;
+      const p = 1 - Math.max(0, boulder.t) / FINALE_BOULDER_TELEGRAPH_SECONDS;
+      boulderRing.visible = true;
+      boulderRing.position.set(boulder.x, groundHeightAt(boulder.x, boulder.z) + 0.05, boulder.z);
+      boulderRing.scale.setScalar(0.55 + 0.45 * p);
+      (boulderRing.material as THREE.MeshBasicMaterial).opacity = 0.3 + 0.5 * p;
+      finaleProps.boulder(boulder, p);
+      if (boulder.t <= 0) {
+        const hit = Math.hypot(player.position.x - boulder.x, player.position.z - boulder.z) < FINALE_BOULDER_RADIUS;
+        boulder = null;
+        boulderRing.visible = false;
+        finaleProps.boulder(null, 0);
+        rig.kick(0.25);
+        if (hit && crushGraceT <= 0) {
+          say("Kaya isabet etti!");
+          onCaught();
+          if (lostRun) {
+            input.endFrame();
+            return;
+          }
+        }
+      }
+    }
 
     // ------------------------------------------------------- camera look
     const sens = input.touchActive ? CAMERA.touchSens : CAMERA.mouseSens;
@@ -1503,6 +1737,15 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     // oyuncu oraya yürüyünce eski kod onu görsel zeminin ALTINDA
     // bırakıyordu. Aynı, tek paylaşılan fonksiyona geçildi.
     player.position.y = groundHeightAt(player.position.x, player.position.z); // koy/patika yokuşu
+    // Koyunun altında: kendi adımın yok, koyun seni taşıyor (Odysseia IX.431).
+    if (finale.clingSheep !== null) {
+      const sp = finaleProps.sheepPositions()[finale.clingSheep];
+      if (sp) {
+        player.position.set(sp.x, groundHeightAt(sp.x, sp.z), sp.z);
+        player.scale.y = 0.5;
+      }
+    }
+    playerMovedLastFrame = moving || dashT > 0;
     // Kabuk yalnız eşiğe yaklaşınca render edilir (bkz. cyclopsCave.ts,
     // `setShellVisible` notu — dıştan BackSide sızıntısı). Eşik -3:
     // oyuncu kapının hemen önündeyken kabuk çoktan görünür, geçişte
@@ -1542,6 +1785,7 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
       );
     }
     hearthEmbers.update(dt);
+    finaleProps.update(dt);
     cave.update(simTime, dt); // çim/saz rüzgâr sallanması + koyun dolaşma AI'ı (dt hareket için)
 
     // Sea's own hull/foam-wake uniforms default to Lotus's SHIP.pos if not
@@ -1565,7 +1809,7 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
       hideTaught = true;
       say("Kayanın gölgesi — burada kıpırdamazsan seni görmez.");
     }
-    if (crushGraceT <= 0 && giant.visible && !hidden) {
+    if (crushGraceT <= 0 && giant.visible && !hidden && !giantPassedOut(finale.stage)) {
       const dist = Math.hypot(player.position.x - giant.position.x, player.position.z - giant.position.z);
       if (dist < CYCLOPS_CRUSH_RADIUS) onCaught();
     }
@@ -1576,7 +1820,7 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     // mağara dışı) için de 1'e doğru clamp'leniyordu, yani oyuncu gemideyken
     // bile DETECT birikiyordu. Algılanma yalnız mağara içinde (z>=0, eşikten
     // itibaren) anlamlı — dışarısı hiçbir zaman risk taşımaz.
-    if (crushGraceT <= 0 && phase !== "out" && player.position.z >= 0) {
+    if (crushGraceT <= 0 && phase !== "out" && player.position.z >= 0 && stealthStage(finale.stage)) {
       const room = roomIdAt(player.position.z);
       const inHearth =
         Math.hypot(player.position.x - HEARTH_POS.x, player.position.z - HEARTH_POS.z) <
@@ -1656,18 +1900,45 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
       }
       carriedCount = 0;
       audio.deliver();
-      if (delivered >= CYCLOPS_ITEM_TARGET) readyToSail = true;
-      else say(`Gemiye teslim: ${delivered}/${CYCLOPS_ITEM_TARGET}`);
+      if (delivered < CYCLOPS_ITEM_TARGET) say(`Gemiye teslim: ${delivered}/${CYCLOPS_ITEM_TARGET}`);
     }
-    // §8 kriter 14 — teslim tamam, gemide E: yelken aç.
-    if (readyToSail && player.position.z <= SHIP_ZONE_Z) {
-      if (input.interact) {
+
+    // ------------------------------------------------------------ finale
+    // gdd-cyclops-finale.md — saf durum makinesi (cyclopsFinale.ts); burası
+    // yalnız dünyayı besliyor ve olaylara tepki veriyor.
+    {
+      const res = stepFinale(finale, {
+        dt,
+        player: { x: player.position.x, z: player.position.z },
+        interact: input.interact,
+        interactHeld: input.interactHeld,
+        delivered,
+        target: CYCLOPS_ITEM_TARGET,
+        giant: { pos: giantHead(), visible: giant.visible, awake: giantAwake() },
+        hearth: HEARTH_POS,
+        hearthRadius: FINALE_HEARTH_REACH,
+        stakeHome: FINALE_STAKE_HOME,
+        wineHome: wineAt,
+        sheep: finaleProps.sheepPositions(),
+        atShip: player.position.z <= SHIP_ZONE_Z,
+      });
+      finale = res.state;
+      for (const ev of res.events) onFinaleEvent(ev);
+      if (res.events.includes("sailed")) {
         triggerWin();
         input.endFrame();
         return;
       }
-      message = "Azık yeter. E — yelken aç";
-      messageT = 0.2;
+      if (finale.carry === "wine") finaleProps.holdWine(player);
+      if (finale.carry === "stake") finaleProps.holdStake(player, finale.stage === "blind");
+      if (finale.stage === "harden" && input.interactHeld && finale.heat > 0 && finale.heat < 1) {
+        message = "Kazık ısınıyor…";
+        messageT = 0.2;
+      }
+      if (finale.stage === "sail" && player.position.z <= SHIP_ZONE_Z) {
+        message = "E — yelken aç";
+        messageT = 0.2;
+      }
     }
 
     // Bir kapanma (PRESENT) sona erdi ve hâlâ ayaktasın → atlatıldı.
@@ -1752,6 +2023,9 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
       alarmEl.style.opacity = "0";
     }
 
+    const objective = finaleObjective(finale);
+    objectiveEl.hidden = objective === null;
+    if (objective !== null && objectiveEl.textContent !== objective) objectiveEl.textContent = objective;
     detectEl.style.opacity = detectGlow(detect).toFixed(3);
     shockEl.style.opacity = shock ? shockFlashAt(shock, shockAge).toFixed(3) : "0";
 
@@ -1824,8 +2098,14 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
         const ray = new THREE.Raycaster();
         ray.setFromCamera(new THREE.Vector2(nx, ny), camera);
         const hits = ray.intersectObjects(scene.children, true);
+        const chain = (o: THREE.Object3D | null): string => {
+          const names: string[] = [];
+          for (let c = o; c; c = c.parent) if (c.name) names.push(c.name);
+          return names.join("<");
+        };
         return hits.slice(0, 10).map((h) => ({
           name: h.object.name || h.object.type,
+          chain: chain(h.object),
           dist: Number(h.distance.toFixed(1)),
           point: { x: Number(h.point.x.toFixed(1)), y: Number(h.point.y.toFixed(1)), z: Number(h.point.z.toFixed(1)) },
         }));
@@ -1863,6 +2143,27 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
       },
       giantAnim: () => ({ slot: giantAnimSlot, mixerTime: giantMixer ? Number(giantMixer.time.toFixed(2)) : null }),
       restart: () => resetRun(),
+      sheep: () => finaleProps.sheepPositions(),
+      /** DEV — jump straight to a finale beat for testing (skips the walk-throughs). */
+      finaleJump: (stage: "passedOut" | "escape" | "sail") => {
+        delivered = CYCLOPS_ITEM_TARGET;
+        giant.visible = true;
+        cave.setDoorOpen(stage !== "passedOut");
+        if (stage === "passedOut") {
+          finale = { ...initialFinale(), stage: "stake" };
+          finaleProps.showStake(FINALE_STAKE_HOME);
+          giant.position.set(GIANT_BED.x, 0, GIANT_BED.z);
+          giantState = "drunk";
+          return;
+        }
+        giant.rotation.set(0, GIANT_MESH_FACING, 0);
+        giant.position.set(FINALE_GUARD_POS.x, 0, FINALE_GUARD_POS.z);
+        giantState = "blindGuard";
+        phase = "out";
+        finale = { ...initialFinale(), stage };
+        if (stage === "escape") finaleProps.startFlock();
+      },
+      boulder: () => (boulder ? { ...boulder } : null),
       state: () => ({
         phase,
         giantState,
@@ -1876,7 +2177,7 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
         crushGraceT: Number(crushGraceT.toFixed(2)),
         lostRun,
         wonRun,
-        readyToSail,
+        finale: { ...finale },
         closingsSurvived,
         hidden,
         paused,

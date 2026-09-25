@@ -581,7 +581,7 @@ const ITEM_DEFS: { id: string; kind: ItemKind; room: RoomId; x: number; z: numbe
 // stretched sphere read as an egg, not "wineskin". A rind ring and a real
 // tied-neck bag shape are both readable from a walking distance without
 // needing an actual texture.
-function makeItemMesh(kind: ItemKind): THREE.Object3D {
+export function makeItemMesh(kind: ItemKind): THREE.Object3D {
   if (kind === "cheese") {
     const group = new THREE.Group();
     const wheelMat = new THREE.MeshStandardMaterial({ color: 0xe8c165, roughness: 0.8 });
