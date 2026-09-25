@@ -2233,3 +2233,9 @@ body.has-fs-toggle .pause-toggle {
   font-weight: 600;
   letter-spacing: 0.3px;
 }
+
+/* Sirenler — şarkının altın kenar pusu (sirensStop.ts, opaklık = şarkı yoğunluğu). */
+.cyc-detect.sir-song {
+  background: radial-gradient(ellipse at 50% 50%, transparent 48%, rgba(255, 214, 140, 0.5) 100%);
+  box-shadow: inset 0 0 120px rgba(255, 226, 160, 0.55);
+}

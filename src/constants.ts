@@ -54,12 +54,12 @@ export const ACTIVE_PROFILE: WorldProfileKey = resolveProfileFromUrl();
  * This is a page-load selector, not in-run navigation — moving between stops
  * happens through the Hub, which reloads with a different `?stop=`.
  */
-export type ActiveStop = "lotus" | "cyclops";
+export type ActiveStop = "lotus" | "cyclops" | "sirens";
 
 function resolveStopFromUrl(): ActiveStop {
   if (typeof window === "undefined") return "lotus";
   const q = new URLSearchParams(window.location.search).get("stop");
-  return q === "cyclops" ? "cyclops" : "lotus";
+  return q === "cyclops" || q === "sirens" ? q : "lotus";
 }
 
 export const ACTIVE_STOP: ActiveStop = resolveStopFromUrl();

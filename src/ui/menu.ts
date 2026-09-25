@@ -13,7 +13,7 @@ import {
 } from "../net/leaderboard";
 import { loadSavedSkin, PLAYER_SKINS, saveSkin, type SkinId } from "../skins";
 import { createSkinPreview, type SkinPreview } from "./skinPreview";
-import { cyclopsUnlocked, type StopProgress } from "../stops/progress";
+import { cyclopsUnlocked, sirensUnlocked, type StopProgress } from "../stops/progress";
 import "./skin.css";
 
 export interface MenuHandlers {
@@ -166,9 +166,9 @@ export class Menu {
   private cardLotus = must("cardLotus") as HTMLButtonElement;
   private questLotusEdge = must("questLotusEdge") as HTMLButtonElement;
   private cardCyclops = must("cardCyclops") as HTMLButtonElement;
-  private cardSirens = must("cardSirens");
+  private cardSirens = must("cardSirens") as HTMLButtonElement;
   /** Last progress pushed by game.ts — gates the Cyclops card click. */
-  private progress: StopProgress = { lotusCleared: false, cyclopsCleared: false };
+  private progress: StopProgress = { lotusCleared: false, cyclopsCleared: false, sirensCleared: false };
   private denyTimer = 0;
   private btnHubMenu = must("btnHubMenu") as HTMLButtonElement;
 
@@ -240,6 +240,14 @@ export class Menu {
         return;
       }
       this.denyCyclops();
+    });
+    // Sirenler Geçidi (3. durak) — Kiklop bitince açılır, aynı kalıp.
+    this.cardSirens.addEventListener("click", () => {
+      if (sirensUnlocked(this.progress)) {
+        window.location.href = "?stop=sirens";
+        return;
+      }
+      this.deny(this.cardSirens, "Önce Kiklop'tan kurtul");
     });
 
     this.btnNickStart.addEventListener("click", () => this.confirmNick());
@@ -319,21 +327,38 @@ export class Menu {
         ? "Kiklop Mağarası. Körleşmeden, tayfanla birlikte çık."
         : "Kiklop Mağarası. Kilitli — önce Lotus Adası'ndan kurtul.",
     );
-    // Sirenler henüz yapılmadı — Kiklop bitince yalnız "sıradaki" olduğu söylenir.
+    const sirensOpen = sirensUnlocked(p);
     const sirensBadge = this.cardSirens.querySelector(".hub-island-badge");
-    if (sirensBadge) sirensBadge.textContent = p.cyclopsCleared ? "Sıradaki · yakında" : "🔒 Yakında";
+    if (sirensBadge) {
+      sirensBadge.textContent = p.sirensCleared ? "Kurtuldun" : sirensOpen ? "Hazır" : "🔒 Önce Kiklop";
+      sirensBadge.classList.toggle("ready", sirensOpen);
+      sirensBadge.classList.toggle("locked-badge", !sirensOpen);
+    }
+    this.cardSirens.classList.toggle("locked", !sirensOpen);
+    this.cardSirens.setAttribute("aria-disabled", String(!sirensOpen));
+    this.cardSirens.setAttribute(
+      "aria-label",
+      sirensOpen
+        ? "Sirenler Geçidi. Şarkıya kapılmadan geçidi aş."
+        : "Sirenler Geçidi. Kilitli — önce Kiklop Mağarası'ndan kurtul.",
+    );
   }
 
   private denyCyclops(): void {
-    const badge = this.cardCyclops.querySelector(".hub-island-badge");
-    this.cardCyclops.classList.remove("deny");
+    this.deny(this.cardCyclops, "Önce Lotus Adası'ndan kurtul");
+  }
+
+  /** Locked-card refusal: a short shake and the reason on the badge (never silent). */
+  private deny(card: HTMLElement, reason: string): void {
+    const badge = card.querySelector(".hub-island-badge");
+    card.classList.remove("deny");
     // Reflow so the shake restarts on a quick second click.
-    void this.cardCyclops.offsetWidth;
-    this.cardCyclops.classList.add("deny");
-    if (badge) badge.textContent = "Önce Lotus Adası'ndan kurtul";
+    void card.offsetWidth;
+    card.classList.add("deny");
+    if (badge) badge.textContent = reason;
     window.clearTimeout(this.denyTimer);
     this.denyTimer = window.setTimeout(() => {
-      this.cardCyclops.classList.remove("deny");
+      card.classList.remove("deny");
       this.setProgress(this.progress);
     }, 1800);
   }

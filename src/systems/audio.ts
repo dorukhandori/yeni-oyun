@@ -322,6 +322,60 @@ export class GameAudio {
     }
   }
 
+  private sirenVoices: { lead: OscillatorNode; gain: GainNode } | null = null;
+  private sirenNote = -1;
+
+  /**
+   * Sirens Passage — a procedural, wordless three-voice song whose loudness
+   * follows `level` (0..1, the ship's song intensity). Stand-in until a real
+   * recording (Cursor `@echo`) — 0 credits.
+   */
+  setSirenSong(level: number): void {
+    if (!this.ctx || !this.master) return;
+    const ctx = this.ctx;
+    const t = ctx.currentTime;
+    if (!this.sirenVoices) {
+      const gain = ctx.createGain();
+      gain.gain.value = 0;
+      const lp = ctx.createBiquadFilter();
+      lp.type = "lowpass";
+      lp.frequency.value = 2400;
+      lp.connect(gain);
+      gain.connect(this.master);
+      const vibrato = ctx.createOscillator();
+      vibrato.frequency.value = 5.1;
+      const depth = ctx.createGain();
+      depth.gain.value = 5;
+      vibrato.connect(depth);
+      vibrato.start();
+      const make = (freq: number, type: OscillatorType, g: number): OscillatorNode => {
+        const o = ctx.createOscillator();
+        o.type = type;
+        o.frequency.value = freq;
+        depth.connect(o.frequency);
+        const og = ctx.createGain();
+        og.gain.value = g;
+        o.connect(og);
+        og.connect(lp);
+        o.start();
+        return o;
+      };
+      make(196, "sine", 0.5); // drone G3
+      make(293.7, "sine", 0.35); // D4
+      const lead = make(587.3, "triangle", 0.4);
+      this.sirenVoices = { lead, gain };
+    }
+    // A slow, rising-and-falling line in G minor — the lure is the melody.
+    const LINE = [587.3, 622.3, 698.5, 783.99, 698.5, 622.3, 587.3, 523.3];
+    const idx = Math.floor(t / 1.15) % LINE.length;
+    if (idx !== this.sirenNote) {
+      this.sirenNote = idx;
+      this.sirenVoices.lead.frequency.setTargetAtTime(LINE[idx], t, 0.12);
+    }
+    const lv = Math.max(0, Math.min(1, level));
+    this.sirenVoices.gain.gain.setTargetAtTime(0.2 * lv * lv, t, 0.35);
+  }
+
   private blip(
     freq: number,
     dur: number,

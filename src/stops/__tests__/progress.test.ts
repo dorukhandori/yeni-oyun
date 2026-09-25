@@ -5,6 +5,7 @@ import {
   markCleared,
   parseProgress,
   readProgress,
+  sirensUnlocked,
   wantsHubOnBoot,
   type ProgressStorage,
 } from "../progress";
@@ -21,7 +22,7 @@ function memoryStorage(): ProgressStorage & { data: Map<string, string> } {
 describe("stop progress", () => {
   it("starts with nothing cleared and Cyclops locked", () => {
     const p = readProgress(memoryStorage());
-    expect(p).toEqual({ lotusCleared: false, cyclopsCleared: false });
+    expect(p).toEqual({ lotusCleared: false, cyclopsCleared: false, sirensCleared: false });
     expect(cyclopsUnlocked(p)).toBe(false);
   });
 
@@ -36,13 +37,16 @@ describe("stop progress", () => {
     const s = memoryStorage();
     markCleared("lotus", s);
     markCleared("cyclops", s);
-    expect(readProgress(s)).toEqual({ lotusCleared: true, cyclopsCleared: true });
+    expect(readProgress(s)).toEqual({ lotusCleared: true, cyclopsCleared: true, sirensCleared: false });
+    expect(sirensUnlocked(readProgress(s))).toBe(true);
+    markCleared("sirens", s);
+    expect(readProgress(s).sirensCleared).toBe(true);
   });
 
   it("reads malformed or foreign data as nothing cleared", () => {
-    expect(parseProgress("not json")).toEqual({ lotusCleared: false, cyclopsCleared: false });
-    expect(parseProgress("[1,2]")).toEqual({ lotusCleared: false, cyclopsCleared: false });
-    expect(parseProgress('{"lotusCleared":"yes"}')).toEqual({ lotusCleared: false, cyclopsCleared: false });
+    expect(parseProgress("not json")).toEqual({ lotusCleared: false, cyclopsCleared: false, sirensCleared: false });
+    expect(parseProgress("[1,2]")).toEqual({ lotusCleared: false, cyclopsCleared: false, sirensCleared: false });
+    expect(parseProgress('{"lotusCleared":"yes"}')).toEqual({ lotusCleared: false, cyclopsCleared: false, sirensCleared: false });
   });
 
   it("reports saved:false when storage throws, without throwing", () => {

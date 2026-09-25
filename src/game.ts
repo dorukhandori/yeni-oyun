@@ -28,6 +28,7 @@ import {
 import { CameraRig } from "./render/cameraRig";
 import { createStage } from "./render/stage";
 import { startCyclopsStop } from "./stops/cyclopsStop";
+import { startSirensStop } from "./stops/sirensStop";
 import { markCleared, readProgress, wantsHubOnBoot } from "./stops/progress";
 import { GameAudio } from "./systems/audio";
 import { Bursts } from "./systems/burst";
@@ -107,6 +108,7 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
   // completely separate, minimal boot path (src/stops/cyclopsStop.ts). Not
   // one line of the Lotus path below this branch is touched by that change.
   if (ACTIVE_STOP === "cyclops") return startCyclopsStop(canvas);
+  if (ACTIVE_STOP === "sirens") return startSirensStop(canvas);
 
   const stage = createStage(canvas);
 

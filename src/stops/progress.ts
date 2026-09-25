@@ -14,9 +14,10 @@ export const PROGRESS_STORAGE_KEY = "lotophagoi.progress.v1";
 export interface StopProgress {
   lotusCleared: boolean;
   cyclopsCleared: boolean;
+  sirensCleared: boolean;
 }
 
-export type ClearableStop = "lotus" | "cyclops";
+export type ClearableStop = "lotus" | "cyclops" | "sirens";
 
 /** Minimal storage surface — `window.localStorage` in the game, a Map-backed fake in tests. */
 export interface ProgressStorage {
@@ -24,7 +25,7 @@ export interface ProgressStorage {
   setItem(key: string, value: string): void;
 }
 
-const EMPTY: StopProgress = { lotusCleared: false, cyclopsCleared: false };
+const EMPTY: StopProgress = { lotusCleared: false, cyclopsCleared: false, sirensCleared: false };
 
 function defaultStorage(): ProgressStorage | null {
   try {
@@ -41,7 +42,11 @@ export function parseProgress(raw: string | null): StopProgress {
     const v: unknown = JSON.parse(raw);
     if (typeof v !== "object" || v === null) return { ...EMPTY };
     const o = v as Record<string, unknown>;
-    return { lotusCleared: o.lotusCleared === true, cyclopsCleared: o.cyclopsCleared === true };
+    return {
+      lotusCleared: o.lotusCleared === true,
+      cyclopsCleared: o.cyclopsCleared === true,
+      sirensCleared: o.sirensCleared === true,
+    };
   } catch {
     return { ...EMPTY };
   }
@@ -66,7 +71,7 @@ export function markCleared(stop: ClearableStop, storage: ProgressStorage | null
   const prev = readProgress(storage);
   const progress: StopProgress = {
     ...prev,
-    ...(stop === "lotus" ? { lotusCleared: true } : { cyclopsCleared: true }),
+    ...(stop === "lotus" ? { lotusCleared: true } : stop === "cyclops" ? { cyclopsCleared: true } : { sirensCleared: true }),
   };
   if (!storage) return { progress, saved: false };
   try {
@@ -81,6 +86,11 @@ export function markCleared(stop: ClearableStop, storage: ProgressStorage | null
 /** Cyclops opens once Lotus has been cleared (K40, sahip 24 Ağu). */
 export function cyclopsUnlocked(p: StopProgress): boolean {
   return p.lotusCleared;
+}
+
+/** Sirens opens once Cyclops has been cleared (K40 chain). */
+export function sirensUnlocked(p: StopProgress): boolean {
+  return p.cyclopsCleared;
 }
 
 /** URL that boots the Lotus page straight onto the Hub map (read by game.ts). */
