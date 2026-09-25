@@ -63,6 +63,8 @@ export interface SirensWorld {
   setWaxVisible(onDeck: boolean): void;
   setKneadGlow(amount: number): void;
   hullLoaded(): boolean;
+  /** Camera collision geometry: the galley on deck, the strait rocks during the passage. */
+  cameraColliders(passage: boolean): THREE.Object3D[];
   /** DEV diagnostics. */
   debugCrew(): { children: number; world: { x: number; y: number; z: number } }[];
   update(t: number, dt: number, song: number, cam: THREE.Vector3): void;
@@ -317,6 +319,7 @@ export function buildSirensWorld(scene: THREE.Scene): SirensWorld {
       (kneadGlow.material as THREE.MeshBasicMaterial).opacity = 0.25 + 0.6 * Math.max(0, Math.min(1, amount));
     },
     hullLoaded: () => hullReady,
+    cameraColliders: (passage) => (passage ? rockGroup.children : hullMeshes),
     debugCrew: () =>
       crewSlots.map((slot) => {
         const w = slot.getWorldPosition(new THREE.Vector3());

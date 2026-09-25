@@ -40,6 +40,8 @@ const SHIP_BOB_AMPLITUDE = 0.12;
 const PASSAGE_CAMERA_EXTRA_DIST = 14;
 const PASSAGE_CAMERA_EXTRA_HEIGHT = 5;
 const SONG_CAMERA_ROLL = 0.035;
+const CAMERA_WALL_MARGIN = 0.4;
+const CAMERA_MIN_BOOM = 0.8;
 /** On deck the default boom sits inside the mast and sail — lift it and pull back. */
 const DECK_CAMERA_EXTRA_DIST = 0.5;
 const DECK_CAMERA_EXTRA_HEIGHT = 2.6;
@@ -67,7 +69,32 @@ export function startSirensStop(canvas: HTMLCanvasElement): TestHooks | null {
     })
     .catch((err) => console.warn("[sirensStop] player rig failed to load", err));
 
-  const rig = new CameraRig(camera, () => 0, isCoarsePointer() ? CAMERA.distTouch : CAMERA.dist);
+  // 25 Eyl, sahip: "sirens'de de aynı kitleniyor" — fareyle çevirince kamera
+  // direğin/yelkenin/gövdenin içine giriyor, görüntü ona kilitleniyordu.
+  // Kiklop mağarasıyla aynı çözüm: odaktan kameraya ışın, ilk engelde dur.
+  const camRay = new THREE.Raycaster();
+  const camOrigin = new THREE.Vector3();
+  const camDir = new THREE.Vector3();
+  function collideCamera(pos: THREE.Vector3, focus: THREE.Vector3): void {
+    const passage = st.stage === "passage" || st.stage === "clear";
+    const colliders = world.cameraColliders(passage);
+    if (colliders.length === 0) return;
+    camOrigin.set(focus.x, focus.y + CAMERA.lookHeight, focus.z);
+    camDir.subVectors(pos, camOrigin);
+    const len = camDir.length();
+    if (len < 1e-3) return;
+    camDir.divideScalar(len);
+    camRay.set(camOrigin, camDir);
+    camRay.far = len + CAMERA_WALL_MARGIN;
+    const hit = camRay.intersectObjects(colliders, false)[0];
+    if (hit) pos.copy(camOrigin).addScaledVector(camDir, Math.max(CAMERA_MIN_BOOM, hit.distance - CAMERA_WALL_MARGIN));
+  }
+  const rig = new CameraRig(
+    camera,
+    () => 0,
+    isCoarsePointer() ? CAMERA.distTouch : CAMERA.dist,
+    (pos, focus) => collideCamera(pos, focus),
+  );
   // Lotus's rest yaw looks toward −z; the galley sails +z — face the bow.
   rig.yaw = CAMERA.yawStart + Math.PI;
   const input = new Input();

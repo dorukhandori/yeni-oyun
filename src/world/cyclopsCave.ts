@@ -337,6 +337,19 @@ function browProfile(d: number, h: number): number {
 
 /** Kayalığın görsel yüzeyi — YALNIZ mesh için. Oyuncu/dekor bunu kullanmaz
  * (bkz. `groundHeightAt`), yoksa kayalığa "tırmanmış" olurlardı. */
+/**
+ * Terrain inside the cave mouth's volume is always discarded (see the terrain
+ * shader). 25 Eyl: bu hacmin içindeki arazi zemini mağara tabanıyla z-fight
+ * ediyordu — kapıdan girerken görünen tırtıklı yeşil levha buydu.
+ */
+const MOUTH_TERRAIN_CLIP = { zMin: 0.3, halfX: 5.0, maxY: 6.5 } as const;
+
+/** Dark safety envelope behind the shell, beyond the mouth room (see `interiorEnclosure`). */
+const ENCLOSURE = { halfX: 9, height: 10, zMin: 8, zMax: 68 } as const;
+
+/** Raycast-only material for camera collider proxies (never rendered). */
+const CAMERA_COLLIDER_MAT = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
+
 export function cliffSurfaceY(x: number, z: number): number {
   const d = z - cliffFootZ(x);
   if (d <= 0) return 0;
@@ -367,7 +380,15 @@ export function cliffSurfaceY(x: number, z: number): number {
   // frekans eklendi — 0,7 m'lik yeni vertex aralığında desen artık
   // çözünüyor ama eski genlikte yüz hâlâ "gerilmiş kumaş" gibi pürüzsüz
   // okunuyordu; gölge/silüet ancak gerçek girinti-çıkıntıyla oluşuyor.
-  y += faceMask * (Math.sin(x * 3.1 + 0.6) * 0.85 + Math.sin(x * 1.27 + 2.4) * 1.25 + Math.sin(x * 6.4 + 1.9) * 0.32);
+  // 25 Eyl: oluk deseni de kapı oyuğunda bastırılıyor. Önceden `doorMask`'tan
+  // SONRA eklendiği için oyuğun içinde ~2 m'lik tırtıklı bir çim/kaya levhası
+  // kalıyordu — kemerin açıklığından içeri girerken/çıkarken kapının içinde
+  // görünen "yeşil eğik levha" buydu (headless kare karşılaştırmasıyla bulundu).
+  // Kemer ve kaş kayalığının dış yüzü değişmiyor: maske yalnız |x|<3,6'da.
+  y +=
+    (1 - doorMask) *
+    faceMask *
+    (Math.sin(x * 3.1 + 0.6) * 0.85 + Math.sin(x * 1.27 + 2.4) * 1.25 + Math.sin(x * 6.4 + 1.9) * 0.32);
   return Math.max(0, y);
 }
 
@@ -663,6 +684,8 @@ export interface CyclopsCave {
    * girişe dokunma" — sahip).
    */
   setInteriorClip(active: boolean): void;
+  /** Geometry the third-person camera must stay inside (the cave shell), empty until loaded. */
+  cameraColliders(): THREE.Object3D[];
   /** DEV-testing yalnız — ASSET-104'ün oval kaya kemeri (dış cephe) GLB'sinin
    * yüklemesi tamamlandı mı. */
   cliffLoaded(): boolean;
@@ -1319,6 +1342,8 @@ export function buildCyclopsCave(): CyclopsCave {
           "#include <color_fragment>",
           `#include <color_fragment>
           if (vTerrainWP.z > uInteriorClipZ) discard;
+          // mouth volume belongs to the cave, never to the exterior terrain
+          if (vTerrainWP.z > ${MOUTH_TERRAIN_CLIP.zMin.toFixed(2)} && abs(vTerrainWP.x) < ${MOUTH_TERRAIN_CLIP.halfX.toFixed(2)} && vTerrainWP.y < ${MOUTH_TERRAIN_CLIP.maxY.toFixed(2)}) discard;
           {
             vec3 wp = vTerrainWP;
             vec3 an = abs(normalize(vTerrainNW));
@@ -2500,6 +2525,20 @@ export function buildCyclopsCave(): CyclopsCave {
   // yalnız karartma perdesinin karanlığını gösteriyor, kabuğun dışarıda
   // hiçbir görsel katkısı yok, yalnız sızıntısı vardı.
   let shellRoot: THREE.Object3D | null = null;
+  // 25 Eyl, sahip: "mouse ile oynattığımda kamera görüntüyü mağaranın dışına
+  // taşırıyor." Kabuk modelinde (ASSET-090) iç nöy'ün arka köşesinde duvar
+  // üstü ile tavan arasında gerçek bir boşluk var (tavan tablosu 29 Ağu'da
+  // 6,8'e kırpıldı ama GLB duvarları ~4,5'te bitiyor) — kamera oradan 230 m
+  // ötedeki uzak tepeleri görüyordu. Kabuğun ARKASINA karanlık, BackSide bir
+  // zarf: boşluklardan artık gökyüzü değil karanlık görünür, kamera ışını da
+  // orada durur. Yalnız ağız odasının gerisinde (z>8) — dağın derinliği,
+  // dışarıdan hiçbir açıdan görünmez; kabukla birlikte gizlenir/görünür.
+  const interiorEnclosure = new THREE.Mesh(
+    new THREE.BoxGeometry(ENCLOSURE.halfX * 2, ENCLOSURE.height, ENCLOSURE.zMax - ENCLOSURE.zMin),
+    new THREE.MeshBasicMaterial({ color: 0x0b0f12, side: THREE.BackSide }),
+  );
+  interiorEnclosure.position.set(0, ENCLOSURE.height / 2 - 0.5, (ENCLOSURE.zMin + ENCLOSURE.zMax) / 2);
+  interiorEnclosure.name = "cave_interior_enclosure";
   let shellVisibleWanted = true;
   loadGltfBundle("assets/models/cave_cyclops_shell_01_mesh_68.glb").then((bundle) => {
     bundle.scene.traverse((obj) => {
@@ -2510,6 +2549,7 @@ export function buildCyclopsCave(): CyclopsCave {
     });
     shellRoot = bundle.scene;
     shellRoot.visible = shellVisibleWanted;
+    shellRoot.add(interiorEnclosure);
     group.add(bundle.scene);
     shellLoadedFlag = true;
   });
@@ -2529,6 +2569,8 @@ export function buildCyclopsCave(): CyclopsCave {
   // satırlık bir anahtar: `false` yaparsan doğrudan eski prosedürel
   // ASSET-114 kemerine döner, hiçbir başka kod değişmez.
   let cliffLoadedFlag = false;
+  const gateCameraColliders: THREE.Mesh[] = [];
+  const backstopColliders: THREE.Mesh[] = [];
   const cliffGroup = new THREE.Group();
   group.add(cliffGroup);
 
@@ -2546,6 +2588,7 @@ export function buildCyclopsCave(): CyclopsCave {
     loadGltfBundle("assets/models/rock_cave_gate_stylized_01_mesh_3998.glb").then((bundle) => {
       const scene = bundle.scene;
       const keep: THREE.Mesh[] = [];
+      const lampGlowMeshes = new Set<THREE.Mesh>();
       scene.traverse((obj) => {
         if (!(obj instanceof THREE.Mesh)) return;
         const matName = Array.isArray(obj.material) ? "" : (obj.material?.name ?? "");
@@ -2554,6 +2597,7 @@ export function buildCyclopsCave(): CyclopsCave {
           return;
         }
         if (matName === "Lamp_Glow") {
+          lampGlowMeshes.add(obj);
           // Sahip (27 Ağu, dokuzuncu geri bildirim): "girişte lamba tutan
           // figür gözükmüyor" — model dosyasının kendi malzemesi
           // (`KHR_materials_unlit`, hiç baseColor yok → glTF varsayılanı
@@ -2655,6 +2699,19 @@ export function buildCyclopsCave(): CyclopsCave {
       // artık aynı anda gidiyor, seri gecikme yarı yarıya kısaldı, sızıntı
       // penceresi önemli ölçüde daraldı.
       cliffGroup.add(scene);
+      // Kamera çarpışması (25 Eyl, sahip: "giriş çıkış hareketleri sorunlu"):
+      // kemerin kaya kütlesi mağaranın içine ~5 m uzanıyor ve kamera
+      // çıkarken onun içinden geçiyordu. Görünen mesh'lere dokunmadan,
+      // aynı geometriyi paylaşan çift-yüzlü görünmez vekiller üretiliyor —
+      // yalnız raycast için, sahneye eklenmiyor.
+      for (const m of keep) {
+        if (lampGlowMeshes.has(m)) continue; // lamba alevi — küçük, kamerayı durdurmasın
+        m.updateWorldMatrix(true, false);
+        const proxy = new THREE.Mesh(m.geometry, CAMERA_COLLIDER_MAT);
+        proxy.matrixAutoUpdate = false;
+        proxy.matrixWorld.copy(m.matrixWorld);
+        gateCameraColliders.push(proxy);
+      }
       cliffLoadedFlag = true;
     });
     // **KALDIRILDI (28 Ağu, sahip: "adanin komplesini hic begenmiyorum
@@ -2780,6 +2837,7 @@ export function buildCyclopsCave(): CyclopsCave {
       m.receiveShadow = true;
       m.castShadow = false;
       if (!(globalThis as { __CYC_HIDE_BACKSTOP__?: boolean }).__CYC_HIDE_BACKSTOP__) group.add(m);
+      backstopColliders.push(m); // kamera bu perdenin içine de girmesin
     }
 
     // Sahip (27 Ağu): "kapının yanlarına doğru uzanan ama kapıyı asla
@@ -3349,6 +3407,15 @@ export function buildCyclopsCave(): CyclopsCave {
     setShellVisible(v: boolean) {
       shellVisibleWanted = v;
       if (shellRoot) shellRoot.visible = v;
+    },
+    cameraColliders: () => {
+      const list: THREE.Object3D[] = [...gateCameraColliders, ...backstopColliders];
+      if (shellRoot) list.push(shellRoot);
+      // Boğaz B levhası kapalıyken oyuncu içinden yürüyebiliyor ama kamera
+      // arkasında kalırsa oyuncuyu tamamen saklıyordu — kamerayı oyuncunun
+      // tarafında tut.
+      if (gate.visible) list.push(gate);
+      return list;
     },
     setInteriorClip(active: boolean) {
       interiorClipActive = active;

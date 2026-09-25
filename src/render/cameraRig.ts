@@ -25,7 +25,7 @@ export class CameraRig {
      * no such constraint); Cyclops passes one to stop the boom camera from
      * swinging past a room's walls into unmodeled open air outside the cave.
      */
-    private clampPos?: (pos: THREE.Vector3) => void,
+    private clampPos?: (pos: THREE.Vector3, focus: THREE.Vector3) => void,
   ) {
     this.zoomDist = startDist;
   }
@@ -89,7 +89,7 @@ export class CameraRig {
     out.y = focus.y + height + extraHeight + this.pitch * 3.2;
     const floor = Math.max(0, this.groundAt(out.x, out.z)) + CAMERA.minClearance;
     if (out.y < floor) out.y = floor;
-    this.clampPos?.(out);
+    this.clampPos?.(out, focus);
     return out;
   }
 
@@ -97,6 +97,10 @@ export class CameraRig {
     const want = this.desired(focus, undefined, extraHeight, extraDist);
     const k = 1 - Math.pow(1 - CAMERA.lerp, dt * 60);
     this.pos.lerp(want, k);
+    // The smoothed position must respect the same walls as the target —
+    // otherwise the lerp itself swings the camera behind them for a few
+    // frames when the target jumps (Cyclops cave threshold, 25 Eyl 2026).
+    this.clampPos?.(this.pos, focus);
     this.camera.position.copy(this.pos);
 
     // Decaying sinusoidal kick — reads as impact, not TV static.

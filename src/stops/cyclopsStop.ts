@@ -165,25 +165,56 @@ const CAMERA_WALL_MARGIN = 0.5;
  * düşmemesi ile — bu son satır olmadan X kelepçesi işe yaramıyordu, çünkü
  * path/cove'un `halfWidth:Infinity` olması X ekseninde hiç sınır koymuyor.
  */
-function clampCameraInsideCave(pos: THREE.Vector3, playerZ: number): void {
-  if (playerZ >= 0) pos.z = Math.max(pos.z, CAMERA_WALL_MARGIN);
-  const room = roomAt(pos.z);
-  if (Number.isFinite(room.halfWidth)) {
-    const hw = room.halfWidth - CAMERA_WALL_MARGIN;
-    pos.x = Math.max(-hw, Math.min(hw, pos.x));
-  }
-  if (Number.isFinite(room.ceilingY)) {
-    pos.y = Math.min(pos.y, room.ceilingY - CAMERA_WALL_MARGIN);
+function clampCameraInsideCave(
+  pos: THREE.Vector3,
+  focus: THREE.Vector3,
+  colliders: readonly THREE.Object3D[],
+): void {
+  // 25 Eyl 2026, sahip: "mouse ile oynattığımda kamera görüntüyü mağaranın
+  // dışına taşırıyor" + giriş/çıkışta sıçrama. Eski sert kural (oyuncu
+  // içerideyken kamera z>=0,5) eşiği geçtiğin karede kamerayı dışarıdan
+  // eşiğe fırlatıyordu; oda dikdörtgenine göre X kırpması da gerçek duvarı
+  // bilmiyordu. Şimdi kamera, oyuncunun başından kameraya atılan bir ışınla
+  // GERÇEK mağara kabuğunda duruyor: duvarın arkasına hiç geçmiyor, kapı
+  // açıklığından ise doğal olarak dışarı taşabiliyor (girerken kamera arkadan
+  // kemerin içinden takip eder).
+  if (colliders.length > 0) {
+    camOrigin.set(focus.x, focus.y + CAMERA.lookHeight, focus.z);
+    camDir.subVectors(pos, camOrigin);
+    const len = camDir.length();
+    if (len > 1e-3) {
+      camDir.divideScalar(len);
+      camRay.set(camOrigin, camDir);
+      camRay.far = len + CAMERA_WALL_MARGIN;
+      const hit = camRay.intersectObjects(colliders as THREE.Object3D[], true)[0];
+      lastCamHit = hit ? { dist: hit.distance, len, name: hit.object.name || hit.object.type, z: hit.point.z } : null;
+      if (hit) pos.copy(camOrigin).addScaledVector(camDir, Math.max(CAMERA_MIN_BOOM, hit.distance - CAMERA_WALL_MARGIN));
+    }
+  } else if (focus.z >= 0) {
+    // Kabuk henüz yüklenmediyse eski oda-zarfı kırpması yedek olarak kalır.
+    const room = roomAt(pos.z);
+    if (Number.isFinite(room.halfWidth)) {
+      const hw = room.halfWidth - CAMERA_WALL_MARGIN;
+      pos.x = Math.max(-hw, Math.min(hw, pos.x));
+    }
+    if (Number.isFinite(room.ceilingY)) pos.y = Math.min(pos.y, room.ceilingY - CAMERA_WALL_MARGIN);
   }
   // 28 Ağu landform: oyuncu dışarıdayken kamera kayalık kütlesinin içine
   // girmesin — oyuncu kelepçesiyle aynı eğri (`cliffFootZ`), aynı kapı
   // boğazı muafiyeti. (Deniz tarafı bilerek serbest: kameranın suyun
   // üstünden koya bakması hem güvenli hem güzel bir kadraj.)
-  if (playerZ < 0 && Math.abs(pos.x) >= 8) {
+  if (focus.z < 0 && Math.abs(pos.x) >= 8) {
     const footLim = cliffFootZ(pos.x) - 1.2;
     if (pos.z > footLim) pos.z = footLim;
   }
 }
+const camRay = new THREE.Raycaster();
+/** DEV diagnostics — last camera collision. */
+let lastCamHit: { dist: number; len: number; name: string; z: number } | null = null;
+const camOrigin = new THREE.Vector3();
+const camDir = new THREE.Vector3();
+/** Never pull the camera closer than this to the player's head. */
+const CAMERA_MIN_BOOM = 0.8;
 /**
  * Bulundu (sahip talebi, 26 Ağu 2026): "dash movement da olacak, yerde
  * sürünme gibi." İki yeni oyuncu hareketi — henüz tuning.md'ye işlenmedi
@@ -666,7 +697,7 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     // dalgalı çayırda kamerayı yer yer zemine gömüyordu).
     (x, z) => groundHeightAt(x, z),
     isCoarsePointer() ? CAMERA.distTouch : CAMERA.dist,
-    (pos) => clampCameraInsideCave(pos, player.position.z),
+    (pos, focus) => clampCameraInsideCave(pos, focus, cave.cameraColliders()),
   );
   rig.snap(player.position);
   const fwd = new THREE.Vector3();
@@ -1752,13 +1783,16 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     // oyuncu kapının hemen önündeyken kabuk çoktan görünür, geçişte
     // hiçbir "pat diye belirme" yakalanmıyor (kapı açıklığı o mesafede
     // tüm kadrajı dolduruyor).
-    cave.setShellVisible(player.position.z > -3);
+    cave.setShellVisible(player.position.z > -3 || camera.position.z > -1);
     // Aynı eşik, aynı gerekçe (yukarıdaki not) — mağara İÇİNDEN girişe
     // bakınca koy arazisinin D=0'ı aşan "kaş" kayalığı artık kameraya çok
     // yakın bir yama gibi göze çarpıyordu (cyclopsCave.ts `setInteriorClip`
     // notu). Yalnız içeride kırpılıyor, dışarıdan bakışta hiç devreye
     // girmiyor.
-    cave.setInteriorClip(player.position.z > -3);
+    // 25 Eyl: koşul oyuncudan KAMERAYA taşındı — oyuncu içerideyken kamera
+    // hâlâ kemerin dışındaysa (girişte) kaş kayalığı kırpılmamalı, yoksa
+    // kapının üstünde delik görünür.
+    cave.setInteriorClip(camera.position.z > 0.2);
 
     // ------------------------------------------------------- player rig
     // game.ts'in aynı deseni (facing + SAILOR.meshFacing, üstel yumuşatma) —
@@ -2150,6 +2184,8 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
       },
       giantAnim: () => ({ slot: giantAnimSlot, mixerTime: giantMixer ? Number(giantMixer.time.toFixed(2)) : null }),
       restart: () => resetRun(),
+      camHit: () => lastCamHit,
+      camColliders: () => cave.cameraColliders().length,
       sheep: () => finaleProps.sheepPositions(),
       /** DEV — jump straight to a finale beat for testing (skips the walk-throughs). */
       finaleJump: (stage: "passedOut" | "escape" | "sail") => {
