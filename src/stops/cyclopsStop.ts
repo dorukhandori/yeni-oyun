@@ -25,6 +25,21 @@ import {
 import { Bursts } from "../systems/burst";
 import { GameAudio, type MusicBed } from "../systems/audio";
 import { buildSea } from "../world/sea";
+import {
+  CYCLOPS_CRUSH_CAP,
+  DETECT_MAX,
+  crushShock,
+  departureLedger,
+  departureVerdict,
+  detectGlow,
+  detectRate,
+  hideSpotAt,
+  isHidden,
+  shockFlashAt,
+  stepDetect,
+  type CrushShock,
+} from "./cyclopsRules";
+import { HUB_URL, TITLE_URL, markCleared } from "./progress";
 
 /**
  * Cyclops Cave (2nd Odyssey stop) — primitive playable mechanic.
@@ -44,24 +59,16 @@ import { buildSea } from "../world/sea";
 
 // ---------------------------------------------------------------- constants
 // All from docs/design/tuning.md §12/§12.1 — names kept identical to the
-// design doc so a future diff against it is trivial.
-const DETECT_MAX = 100.0;
-const DETECT_RATE_SHADOW_STILL = 0.0;
-const DETECT_RATE_SHADOW_MOVING = 3.0;
-const DETECT_RATE_LIT_STILL = 4.0;
-const DETECT_RATE_LIT_MOVING = 12.0;
-const DETECT_DECAY = 8.0;
+// design doc so a future diff against it is trivial. The DETECT matrix,
+// multipliers and CRUSH_CAP live in ./cyclopsRules (single source, unit-
+// tested); only scene/locomotion numbers stay here.
 // tuning.md §12'nin sabit CYCLOPS_PHASE_OUT/RETURN/PRESENT (58/8/30 s)
 // süreleri buradan kaldırıldı — sahip (26 Ağu) devin tüm hareketlerinin
 // gerçekten yapılmasını istedi (ışınlanma yok), bu da faz sürelerini artık
 // bir zamanlayıcı değil, devin gerçek yürüyüş/uyku süresinin bir SONUCU
 // yapıyor (bkz. GIANT_* sabitleri, aşağıda). Gerçek toplam döngü süresi
 // ölçülüp tuning.md'ye geri yazılacak — bkz. bu commit'in notu.
-const CYCLOPS_RETURN_MULTIPLIER = 1.5;
-const CYCLOPS_PRESENT_MULTIPLIER = 3.0;
 const CAUGHT_DROP_RADIUS = 2.0;
-/** 🟡 Deneysel — tuning.md §12: playtest'e kadar kesin değil. */
-const CYCLOPS_CRUSH_CAP = 3;
 const CYCLOPS_ITEM_TARGET = 4;
 const CYCLOPS_CARRY_CAP = 4;
 const CYCLOPS_DOOR_LIGHT_REACH = 45.0;
@@ -119,7 +126,6 @@ const GIANT_BOB_FREQ = 5.5;
 const GIANT_BOB_AMPLITUDE = 0.12;
 const CYCLOPS_CRUSH_RADIUS = 2.0;
 const CYCLOPS_GIANT_PROXIMITY_RADIUS = 8.0;
-const CYCLOPS_PROXIMITY_MULTIPLIER = 2.0;
 const PLAYER_SPEED = 4.0;
 const PLAYER_RADIUS = 0.4;
 const CAMERA_WALL_MARGIN = 0.5;
@@ -171,8 +177,9 @@ function clampCameraInsideCave(pos: THREE.Vector3, playerZ: number): void {
 const DASH_DISTANCE = 4.5; // metre, tek atılış
 const DASH_DURATION = 0.15; // s — bu sürede DASH_DISTANCE kat edilir
 const DASH_COOLDOWN = 1.4; // s
-const CRAWL_SPEED_MULT = 0.45; // sürünürken normal hızın oranı
-const CRAWL_DETECT_MULT = 0.4; // sürünürken DETECT birikim hızı çarpanı — asıl gizlenme faydası bu
+const CRAWL_SPEED_MULT = 0.45; // sürünürken normal hızın oranı (DETECT çarpanı: cyclopsRules.CRAWL_DETECT_MULT)
+/** Teslim bölgesi — oyuncu z bunun altındayken gemidedir (koy). */
+const SHIP_ZONE_Z = -15;
 /**
  * "Dev bazen rage geçirecek kendi odasında, sarhoş gibi hareket edecek ve
  * bir aRPG'deki bosslar gibi yapacağı hareket önceden yuvarlaklarla
@@ -782,10 +789,26 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     <div class="hint" id="cycHint">
       WASD yürü · fare kamera · <b>E</b> al/bırak · <b>Shift</b> atıl · <b>Ctrl</b> sürün
     </div>
-    <div class="card lost" id="cycCard">
-      <h1>Kaybettin</h1>
-      <p>Dev seni üç kez yakaladı.</p>
-      <button type="button" class="card-btn" id="cycCardBtn">Yeniden Oyna</button>
+    <div class="cyc-detect" id="cycDetect" aria-hidden="true"></div>
+    <div class="cyc-shock" id="cycShock" aria-hidden="true"></div>
+    <div class="card lost" id="cycCard" role="dialog" aria-labelledby="cycCardTitle">
+      <h1 id="cycCardTitle">Kaybettin</h1>
+      <p>Dev seni üç kez yakaladı. Bu denemede taşıdığın her şey mağarada kaldı.</p>
+      <div class="card-actions">
+        <button type="button" class="card-btn" id="cycCardBtn">Yeniden Oyna</button>
+        <button type="button" class="card-btn" id="cycCardHub">Haritaya dön</button>
+      </div>
+    </div>
+    <div class="card" id="cycWin" role="dialog" aria-labelledby="cycWinTitle">
+      <h1 id="cycWinTitle">Yelken açıldı</h1>
+      <p>Azık ambarda, tayfa küreklerde. Arkanda mağaranın ağzı kararıyor.</p>
+      <ul class="card-stats" id="cycWinStats"></ul>
+      <p class="card-verdict" id="cycWinVerdict"></p>
+      <p class="card-key" id="cycWinSave" hidden></p>
+      <div class="card-actions">
+        <button type="button" class="card-btn" id="cycWinHub">Haritaya dön</button>
+        <button type="button" class="card-btn" id="cycWinAgain">Yeniden Oyna</button>
+      </div>
     </div>
   `;
   const el = (id: string): HTMLElement => {
@@ -818,6 +841,66 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
   // yarı saydam bir parşömen yıkaması, opak bir perde değil.
   const lossCard = el("cycCard");
   el("cycCardBtn").addEventListener("click", () => resetRun());
+  // gdd-cyclops-blinding.md bitiş sözleşmesi: kayıp → hub. Sahip'in 26 Ağu
+  // "yeniden oyna" isteği de duruyor — iki yol yan yana, oyuncu seçer.
+  el("cycCardHub").addEventListener("click", () => leaveTo(HUB_URL));
+
+  // ------------------------------------------------------ departure (win)
+  // §8 kriter 14: 4/4 teslim + gemide E → durak kazanıldı. Kiklop'un
+  // "temizlendi" bayrağı kalıcı yazılıyor (progress.ts) — hub'da rozet.
+  const winCard = el("cycWin");
+  const winStatsEl = el("cycWinStats");
+  const winVerdictEl = el("cycWinVerdict");
+  const winSaveEl = el("cycWinSave");
+  el("cycWinHub").addEventListener("click", () => leaveTo(HUB_URL));
+  el("cycWinAgain").addEventListener("click", () => resetRun());
+
+  // ------------------------------------------------ detect glow / shock
+  // gdd-cyclops-blinding.md §7.2: kehribar kenar parıltısı = DETECT'in tek
+  // görünür yüzü (sayı/bar yok, P2). Ezilme şoku ayrı bir kırmızı kenar —
+  // her ezilmede ağırlaşıyor, kalan hakkı SAYMADAN hissettiren tek kanal.
+  const detectEl = el("cycDetect");
+  const shockEl = el("cycShock");
+
+  // ---------------------------------------------------------------- pause
+  // §8 kriter 12: Esc ile duraklat → detect, faz, dev tamamen donar.
+  // Lotus'un kendi #pause sayfası (index.html) aynen kullanılıyor.
+  const pauseEl = el("pause");
+  const pauseHeading = document.getElementById("pauseHeading");
+  let paused = false;
+  function setPaused(on: boolean): void {
+    if (lostRun || wonRun) on = false;
+    paused = on;
+    pauseEl.hidden = !on;
+    input.lockBlocked = on;
+    if (on) {
+      document.exitPointerLock?.();
+      if (pauseHeading) pauseHeading.textContent = "Duraklatıldı";
+      el("pauseResume").focus();
+    }
+  }
+  el("pauseResume").addEventListener("click", () => setPaused(false));
+  el("pauseRestart").addEventListener("click", () => {
+    setPaused(false);
+    resetRun();
+  });
+  el("pauseHub").addEventListener("click", () => leaveTo(HUB_URL));
+  el("pauseTitle").addEventListener("click", () => leaveTo(TITLE_URL));
+  pauseEl.addEventListener("click", (e) => {
+    if (e.target === pauseEl) setPaused(false);
+  });
+  // Dokunmatikte Esc yok — Lotus'un menü düğmesi burada da görünür.
+  const pauseToggle = document.getElementById("pauseToggle");
+  if (pauseToggle) {
+    pauseToggle.hidden = false;
+    pauseToggle.addEventListener("click", () => setPaused(!paused));
+  }
+
+  /** Stops are page loads (constants.ts ACTIVE_STOP) — leaving is navigation. */
+  function leaveTo(url: string): void {
+    audio.setMusicBed("none");
+    window.location.href = url;
+  }
 
   // ------------------------------------------------------- debug HUD (dev)
   // Kasıtlı olarak hud.css'in parşömen dilinin DIŞINDA: bu bir gösterge
@@ -875,6 +958,20 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
   /** true after the 3rd crush — step() freezes (see the early return at its
    * top), the loss card is shown, only resetRun() (via the button) clears it. */
   let lostRun = false;
+  /** true once the player set sail with the target delivered — same freeze as lostRun. */
+  let wonRun = false;
+  /** Target delivered; the stop ends on E at the ship (§8 kriter 14). */
+  let readyToSail = false;
+  /** Win-card "Atlattığın kapanma" — PRESENT windows that ended without a loss. */
+  let closingsSurvived = 0;
+  let prevPhase: Phase = "out";
+  let runSeconds = 0;
+  /** Last crush shock and how long ago it fired — drives shake/flash. */
+  let shock: CrushShock | null = null;
+  let shockAge = 0;
+  /** One-time teaching line the first time the player stands in a hide spot. */
+  let hideTaught = false;
+  let hidden = false;
 
   // ---------------------------------------------------------- dash / crawl
   let dashT = 0; // >0 while a dash burst is actively moving the player
@@ -934,6 +1031,11 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     carriedCount = 0;
     detect = 0;
     crushGraceT = CRUSH_GRACE_SECONDS;
+    readyToSail = delivered >= CYCLOPS_ITEM_TARGET;
+    shock = crushShock(crushCount);
+    shockAge = 0;
+    rig.kick(shock.shake);
+    audio.roar(shock.roar);
     if (crushCount >= CYCLOPS_CRUSH_CAP) {
       // Sahip (26 Ağu 2026): "3/3 olunca KAYBETTIN, yeniden oyna ekranı
       // gelsin" — eski davranış (sessiz sıfırlama + toast) bir hard-stop'a
@@ -952,13 +1054,54 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     say(`Ezildin (${crushCount}/${CYCLOPS_CRUSH_CAP})${crushCount === 2 ? " — bir daha kaldıramazsın." : ""}`);
   }
 
+  /** End cards own the screen — no stale toast/alarm behind them. */
+  function clearTransientHud(): void {
+    message = "";
+    messageT = 0;
+    promptEl.textContent = "";
+    promptEl.classList.remove("on");
+    alarmEl.style.opacity = "0";
+  }
+
   function triggerLoss(): void {
     lostRun = true;
+    clearTransientHud();
     lossCard.classList.add("on");
+    document.exitPointerLock?.();
+    el("cycCardBtn").focus();
     // Bitiş kartında sessizlik — Lotus'un bitiş kartlarıyla aynı kural.
     // Burada, step()'te değil: `lostRun` step()'i en tepesinden donduruyor,
     // aşağıdaki yatak seçimi bir daha hiç çalışmıyor.
     audio.setMusicBed("none");
+    audio.lose();
+  }
+
+  function triggerWin(): void {
+    wonRun = true;
+    readyToSail = false;
+    clearTransientHud();
+    const { saved } = markCleared("cyclops");
+    winStatsEl.replaceChildren(
+      ...departureLedger({
+        delivered,
+        target: CYCLOPS_ITEM_TARGET,
+        closingsSurvived,
+        seconds: runSeconds,
+      }).map((line) => {
+        const li = document.createElement("li");
+        li.textContent = line;
+        return li;
+      }),
+    );
+    winVerdictEl.textContent = departureVerdict(crushCount);
+    // Kaydedilemediyse söyle — "kilit açıldı" yalanı yok (house rule 1).
+    winSaveEl.hidden = saved;
+    winSaveEl.textContent = saved ? "" : "İlerleme bu tarayıcıya kaydedilemedi.";
+    winCard.classList.add("on");
+    document.exitPointerLock?.();
+    el("cycWinHub").focus();
+    audio.setMusicBed("none");
+    audio.win();
   }
 
   /** Yeniden Oyna — tüm run durumunu sıfırlar, overlay'i kapatır, step() döngüsü
@@ -1012,17 +1155,29 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     }
     lostRun = false;
     lossCard.classList.remove("on");
+    wonRun = false;
+    readyToSail = false;
+    winCard.classList.remove("on");
+    closingsSurvived = 0;
+    prevPhase = "out";
+    runSeconds = 0;
+    shock = null;
+    shockAge = 0;
+    hidden = false;
   }
 
   function step(dt: number): void {
     // KAYBETTIN ekranı açıkken tüm simülasyon donuyor — yalnız Yeniden Oyna
     // butonu (resetRun) devam ettirebilir. input.endFrame() yine de
     // çağrılıyor ki overlay'in arkasında sızan bir tuş sonraki step'e taşınmasın.
-    if (lostRun) {
+    if (input.wantsPause && !lostRun && !wonRun) setPaused(!paused);
+    if (lostRun || wonRun || paused) {
       input.endFrame();
       return;
     }
     simTime += dt;
+    runSeconds += dt;
+    if (shock) shockAge += dt;
     if (crushGraceT > 0) crushGraceT = Math.max(0, crushGraceT - dt);
 
     // -------------------------------------------------- giant state machine
@@ -1401,7 +1556,16 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     // giant.visible (fiziksel varlığı), phase==="present" değil — dev artık
     // gerçekten yürüyerek girip çıktığı için girerken/çıkarken de (RETURN/
     // OUT'a dönerken hâlâ görünürken) çarpışmak fiziksel olarak mümkün.
-    if (crushGraceT <= 0 && giant.visible) {
+    // Saklaş noktası — §4.2/§4.4: içinde hareketsizsen gölgedesin (ocak/meşale
+    // yanında bile) ve dev'in ayağı seni ezmiyor. Rage vuruşu hâlâ her yere
+    // iniyor (sahip, 26 Ağu: "güvenli alanları da kapsasın").
+    const spot = player.position.z >= 0 ? hideSpotAt(player.position.x, player.position.z, cave.hideSpots) : null;
+    hidden = isHidden(spot !== null, moving);
+    if (spot && !hideTaught) {
+      hideTaught = true;
+      say("Kayanın gölgesi — burada kıpırdamazsan seni görmez.");
+    }
+    if (crushGraceT <= 0 && giant.visible && !hidden) {
       const dist = Math.hypot(player.position.x - giant.position.x, player.position.z - giant.position.z);
       if (dist < CYCLOPS_CRUSH_RADIUS) onCaught();
     }
@@ -1419,22 +1583,19 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
         cave.hearthLight.distance;
       const inTorch =
         Math.hypot(player.position.x - TORCH_POS.x, player.position.z - TORCH_POS.z) < cave.torchLight.distance;
-      const lit = inHearth || inTorch || (doorOpen() && doorGlobal(player.position.z) >= CYCLOPS_DOOR_LIT_THRESHOLD);
-      let rate = lit ? (moving ? DETECT_RATE_LIT_MOVING : DETECT_RATE_LIT_STILL) : moving ? DETECT_RATE_SHADOW_MOVING : DETECT_RATE_SHADOW_STILL;
-      if (phase === "return") rate *= CYCLOPS_RETURN_MULTIPLIER;
-      if (phase === "present" && (room === "pens" || room === "inner")) rate *= CYCLOPS_PRESENT_MULTIPLIER;
+      const lit =
+        !hidden &&
+        (inHearth || inTorch || (doorOpen() && doorGlobal(player.position.z) >= CYCLOPS_DOOR_LIT_THRESHOLD));
       // "Yerleştikten (uyuduktan) sonra düşer — uyuyan dev izlemiyor"
       // (tuning.md §12.1) — giantSettled tekil bayrağının yerini giantState
       // aldı, "sleeping" dışındaki her state hareket halinde demek.
-      if (giant.visible && giantState !== "sleeping") {
-        const gDist = Math.hypot(player.position.x - giant.position.x, player.position.z - giant.position.z);
-        if (gDist < CYCLOPS_GIANT_PROXIMITY_RADIUS) rate *= CYCLOPS_PROXIMITY_MULTIPLIER;
-      }
-      // "yerde sürünme gibi" — asıl mekanik fayda burada: gizlenirken
-      // birikim çok daha yavaş.
-      if (crawling) rate *= CRAWL_DETECT_MULT;
-      if (rate > 0) detect = Math.min(DETECT_MAX, detect + rate * dt);
-      else detect = Math.max(0, detect - DETECT_DECAY * dt);
+      const giantNearAndAwake =
+        giant.visible &&
+        giantState !== "sleeping" &&
+        Math.hypot(player.position.x - giant.position.x, player.position.z - giant.position.z) <
+          CYCLOPS_GIANT_PROXIMITY_RADIUS;
+      const rate = detectRate({ phase, room, lit, moving, crawling, giantNearAndAwake });
+      detect = stepDetect(detect, rate, dt);
       if (detect >= DETECT_MAX) onCaught();
     }
     if (lostRun) return; // DETECT_MAX'a değip onCaught() KAYBETTIN'i tetiklemiş olabilir
@@ -1486,7 +1647,7 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     }
 
     // ------------------------------------------------------------ delivery
-    if (carriedCount > 0 && player.position.z <= -15) {
+    if (carriedCount > 0 && player.position.z <= SHIP_ZONE_Z) {
       for (const it of cave.items) {
         if (!it.carried) continue;
         it.carried = false;
@@ -1494,9 +1655,24 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
         delivered++;
       }
       carriedCount = 0;
-      if (delivered >= CYCLOPS_ITEM_TARGET) say(`Hedef tamam: ${delivered}/${CYCLOPS_ITEM_TARGET} — durak bitti!`);
+      audio.deliver();
+      if (delivered >= CYCLOPS_ITEM_TARGET) readyToSail = true;
       else say(`Gemiye teslim: ${delivered}/${CYCLOPS_ITEM_TARGET}`);
     }
+    // §8 kriter 14 — teslim tamam, gemide E: yelken aç.
+    if (readyToSail && player.position.z <= SHIP_ZONE_Z) {
+      if (input.interact) {
+        triggerWin();
+        input.endFrame();
+        return;
+      }
+      message = "Azık yeter. E — yelken aç";
+      messageT = 0.2;
+    }
+
+    // Bir kapanma (PRESENT) sona erdi ve hâlâ ayaktasın → atlatıldı.
+    if (prevPhase === "present" && phase !== "present") closingsSurvived++;
+    prevPhase = phase;
 
     // -------------------------------------------------------------- camera
     rig.update(player.position, dt);
@@ -1575,6 +1751,9 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     } else {
       alarmEl.style.opacity = "0";
     }
+
+    detectEl.style.opacity = detectGlow(detect).toFixed(3);
+    shockEl.style.opacity = shock ? shockFlashAt(shock, shockAge).toFixed(3) : "0";
 
     // --------------------------------------------------------- debug (dev)
     debugEl.textContent =
@@ -1696,6 +1875,12 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
         crushCount,
         crushGraceT: Number(crushGraceT.toFixed(2)),
         lostRun,
+        wonRun,
+        readyToSail,
+        closingsSurvived,
+        hidden,
+        paused,
+        hideSpots: cave.hideSpots.map((h) => ({ room: h.room, x: h.x, z: h.z, radius: h.radius })),
         playerPos: { x: player.position.x, y: player.position.y, z: player.position.z },
         giantVisible: giant.visible,
         giantModelLoaded: giant.children.length > 0,

@@ -28,6 +28,7 @@ import {
 import { CameraRig } from "./render/cameraRig";
 import { createStage } from "./render/stage";
 import { startCyclopsStop } from "./stops/cyclopsStop";
+import { markCleared, readProgress, wantsHubOnBoot } from "./stops/progress";
 import { GameAudio } from "./systems/audio";
 import { Bursts } from "./systems/burst";
 import { Input } from "./systems/input";
@@ -517,7 +518,7 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
     hud.hideRunClock();
     hud.hideTide();
     hud.clearToasts();
-    menu.setCyclopsReady(false);
+    menu.setProgress(readProgress());
     st.phase = "title";
     menu.showTitle();
   }
@@ -548,7 +549,11 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
     },
     onHubMenu: goTitle,
   });
+  menu.setProgress(readProgress());
   menu.showTitle();
+  // Returning from another stop (cyclopsStop "Haritaya dön") lands on the map,
+  // not the Title — the player already chose "Oyna" once this session.
+  if (wantsHubOnBoot(window.location.search)) goHub();
 
   hud.setRestartHandler(goHub);
   hud.setPauseHandlers({
@@ -618,6 +623,7 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
     sailor.playDelivery();
     pulseBloom(FEEL.deliverBloomPulse);
     if (!WORLD.k35 && st.delivered >= LOTUS.target) {
+      clearLotus();
       st.phase = "departing";
       sailor.playWave();
       hud.say("Yeter bu kadar — yelken aç!");
@@ -626,9 +632,14 @@ export function startGame(canvas: HTMLCanvasElement): TestHooks | null {
     }
   }
 
+  /** Escaping Lotus (either mode) opens Cyclops for good — plan step 2b, K40. */
+  function clearLotus(): void {
+    menu.setProgress(markCleared("lotus").progress);
+  }
+
   function startDepart(): void {
     if (st.delivered < LOTUS.target) return;
-    menu.setCyclopsReady(true);
+    clearLotus();
     st.phase = "departing";
     sailor.playWave();
     hud.say("Ağlayarak kürek çektiler. Bağladım onları sıraların altına.");

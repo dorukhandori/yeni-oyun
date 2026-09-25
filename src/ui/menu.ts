@@ -13,6 +13,7 @@ import {
 } from "../net/leaderboard";
 import { loadSavedSkin, PLAYER_SKINS, saveSkin, type SkinId } from "../skins";
 import { createSkinPreview, type SkinPreview } from "./skinPreview";
+import { cyclopsUnlocked, type StopProgress } from "../stops/progress";
 import "./skin.css";
 
 export interface MenuHandlers {
@@ -164,7 +165,11 @@ export class Menu {
   private btnAboutBack = must("btnAboutBack") as HTMLButtonElement;
   private cardLotus = must("cardLotus") as HTMLButtonElement;
   private questLotusEdge = must("questLotusEdge") as HTMLButtonElement;
-  private cardCyclops = must("cardCyclops");
+  private cardCyclops = must("cardCyclops") as HTMLButtonElement;
+  private cardSirens = must("cardSirens");
+  /** Last progress pushed by game.ts — gates the Cyclops card click. */
+  private progress: StopProgress = { lotusCleared: false, cyclopsCleared: false };
+  private denyTimer = 0;
   private btnHubMenu = must("btnHubMenu") as HTMLButtonElement;
 
   // ---- skin picker (Title + Hub, same modal; chrome is mounted in JS so
@@ -223,16 +228,18 @@ export class Menu {
     this.cardLotus.addEventListener("click", () => handlers.onSelectLotus());
     this.questLotusEdge.addEventListener("click", () => this.openNick());
     this.btnHubMenu.addEventListener("click", () => handlers.onHubMenu());
-    // Kiklop Cave (2. durak) — dev/test amaçlı geçici bağlama (25 Ağu 2026,
-    // sahip: normal navigasyondan hiç erişilemiyordu, K13'ün ilk dilimi).
-    // Gerçek kilit kontrolü (Lotus tamamlandı mı, kalıcı mı) YOK — bilerek,
-    // kilit durumuna bakmadan her zaman tıklanabilir. Kalıcı "bir kez
-    // bitirince açık kalsın" mantığı ayrı, sonraki bir iş (implementation-
-    // spec-sprint1.md K13'ün geri kalanı). ?stop=cyclops zaten bir sayfa-
-    // yükleme seçicisi (constants.ts) — tam sayfa yeniden yükleme burada
-    // doğru araç, in-run bir geçiş değil.
+    // Kiklop Mağarası (2. durak) — plan adım 9 + 2b. Lotus bir kez bitince
+    // kalıcı açılır (progress.ts, K40). Kilitliyken tıklama sessizce
+    // yutulmuyor: kart sallanır ve gerekçeyi söyler (plan §6 adım 9'un
+    // "sessiz reddetme" UX eksiği). Test yolu değişmedi: `?stop=cyclops`
+    // doğrudan açılır, kilide bakmaz. Duraklar sayfa yüklemesidir
+    // (constants.ts ACTIVE_STOP) — tam yeniden yükleme doğru araç.
     this.cardCyclops.addEventListener("click", () => {
-      window.location.href = "?stop=cyclops";
+      if (cyclopsUnlocked(this.progress)) {
+        window.location.href = "?stop=cyclops";
+        return;
+      }
+      this.denyCyclops();
     });
 
     this.btnNickStart.addEventListener("click", () => this.confirmNick());
@@ -294,14 +301,41 @@ export class Menu {
     document.body.dataset.uiPhase = "hub";
   }
 
-  setCyclopsReady(ready: boolean): void {
+  /** Paint the Hub map from saved stop progress (progress.ts). */
+  setProgress(p: StopProgress): void {
+    this.progress = p;
+    const unlocked = cyclopsUnlocked(p);
     const badge = this.cardCyclops.querySelector(".hub-island-badge");
     if (badge) {
-      badge.textContent = ready ? "Kilidi açıldı" : "🔒 Yakında";
-      badge.classList.toggle("ready", ready);
-      badge.classList.toggle("locked-badge", !ready);
+      badge.textContent = p.cyclopsCleared ? "Kurtuldun" : unlocked ? "Hazır" : "🔒 Önce Lotus";
+      badge.classList.toggle("ready", unlocked);
+      badge.classList.toggle("locked-badge", !unlocked);
     }
-    this.cardCyclops.classList.toggle("locked", !ready);
+    this.cardCyclops.classList.toggle("locked", !unlocked);
+    this.cardCyclops.setAttribute("aria-disabled", String(!unlocked));
+    this.cardCyclops.setAttribute(
+      "aria-label",
+      unlocked
+        ? "Kiklop Mağarası. Körleşmeden, tayfanla birlikte çık."
+        : "Kiklop Mağarası. Kilitli — önce Lotus Adası'ndan kurtul.",
+    );
+    // Sirenler henüz yapılmadı — Kiklop bitince yalnız "sıradaki" olduğu söylenir.
+    const sirensBadge = this.cardSirens.querySelector(".hub-island-badge");
+    if (sirensBadge) sirensBadge.textContent = p.cyclopsCleared ? "Sıradaki · yakında" : "🔒 Yakında";
+  }
+
+  private denyCyclops(): void {
+    const badge = this.cardCyclops.querySelector(".hub-island-badge");
+    this.cardCyclops.classList.remove("deny");
+    // Reflow so the shake restarts on a quick second click.
+    void this.cardCyclops.offsetWidth;
+    this.cardCyclops.classList.add("deny");
+    if (badge) badge.textContent = "Önce Lotus Adası'ndan kurtul";
+    window.clearTimeout(this.denyTimer);
+    this.denyTimer = window.setTimeout(() => {
+      this.cardCyclops.classList.remove("deny");
+      this.setProgress(this.progress);
+    }, 1800);
   }
 
   /** Hides both menu screens — called once actual play starts. */

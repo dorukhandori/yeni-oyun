@@ -701,6 +701,8 @@ Roadmap Faz 2.6b/2.6e'nin altını dolduran, **oturum bazlı** liste. Roadmap ta
 
 > **24 Ağu 2026 — bu tablo yeniden yazıldı.** Adım 0 (karar turu) **kapandı**. Adım 8 (unutuş taşıma) **düştü**. Adım 5 (algılanma) **ikiye bölündü** (körleşme ayrı bir sistem). Adım 3'e **zorunlu Gemini onay kapısı** girdi. Adım 7 P-A'dan **P-C**'ye çıktı. Yeni bir ses adımı eklendi.
 
+> **25 Eyl 2026 — durum (Claude, sahip: "kendi kendine bitirsin").** Durak artık uçtan uca bitirilebilir: **2b** ✅ (`src/stops/progress.ts`, kalıcı kilit; Lotus'un iki çıkış yolu da işaretliyor; hub'da kilitli kart sallanıp gerekçe söylüyor), **9** ✅ kısmen (Kiklop kartı gerçek `<button>`, `?to=hub` dönüşü, Ayrılış kartı; açılış perdesi ve Sirenler seviyesi yok), **5a** ✅ saklaş noktaları mekanik (içinde hareketsiz = gölge + ayak ezmez; rage vuruşu hâlâ iner), Esc duraklatma (§8 kriter 12), **6** kısmen (kehribar DETECT kenar parıltısı), **7** kısmen (ezilme başına ağırlaşan şok: sarsıntı + kırmızı kenar + prosedürel kükreme; sleep/settle klipleri bağlı değil). Saf kurallar `src/stops/cyclopsRules.ts`, birim testleri `npm test` (vitest). **Hâlâ açık:** 0b, 6b (gerçek ses — Cursor `@echo`), 10–11 (playtest), boss dövüşü tasarımı (`@helix`, sahip kararı).
+
 | # | İş | Rol | Kapsam |
 |---|---|---|---|
 | ~~**0**~~ | ~~Karar turu — sahip~~ | — | ✅ **KAPANDI (24 Ağu 2026)** — D1–D9 + körleşme + korku teması + K40. Tek kalan: **D10** (§7.2), ama o yalnız **adım 7'yi** blokluyor, 1–6'yı değil |

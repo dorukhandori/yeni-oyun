@@ -287,6 +287,41 @@ export class GameAudio {
     this.blip(110, 0.4, "triangle", 0.1, 0.15);
   }
 
+  /**
+   * Cyclops crush — one-shot roar (production plan §6 step 7). Procedural
+   * stand-in until the Cursor `@echo` sound pass (step 6b) delivers a real
+   * sample: two detuned sawtooths gliding down through a closing low-pass.
+   * `weight` 0..1 scales loudness and length — the 3rd crush is the heaviest.
+   */
+  roar(weight = 1): void {
+    if (!this.ctx || !this.master) return;
+    const w = Math.max(0, Math.min(1, weight));
+    const t0 = this.ctx.currentTime;
+    const dur = 0.9 + 0.8 * w;
+    const lp = this.ctx.createBiquadFilter();
+    lp.type = "lowpass";
+    lp.frequency.setValueAtTime(900, t0);
+    lp.frequency.exponentialRampToValueAtTime(160, t0 + dur);
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(0.12 + 0.18 * w, t0 + 0.12);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    lp.connect(g);
+    g.connect(this.master);
+    for (const [f0, f1] of [
+      [92, 41],
+      [97, 44],
+    ]) {
+      const osc = this.ctx.createOscillator();
+      osc.type = "sawtooth";
+      osc.frequency.setValueAtTime(f0, t0);
+      osc.frequency.exponentialRampToValueAtTime(f1, t0 + dur);
+      osc.connect(lp);
+      osc.start(t0);
+      osc.stop(t0 + dur + 0.05);
+    }
+  }
+
   private blip(
     freq: number,
     dur: number,

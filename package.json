@@ -18,7 +18,8 @@
     "gen:sea": "blender --background --python scripts/blender/build_sea.py",
     "gen:meshy": "node scripts/gen-meshy.mjs",
     "sheet:still": "node scripts/sheet-from-still.mjs",
-    "sheet:video": "node scripts/sheet-from-video.mjs"
+    "sheet:video": "node scripts/sheet-from-video.mjs",
+    "test": "vitest run"
   },
   "devDependencies": {
     "@types/three": "^0.185.0",
@@ -27,7 +28,8 @@
     "playwright": "^1.62.1",
     "pngjs": "^7.0.0",
     "typescript": "^5.6.3",
-    "vite": "^5.4.11"
+    "vite": "^5.4.11",
+    "vitest": "^2.1.9"
   },
   "dependencies": {
     "three": "^0.185.1"
