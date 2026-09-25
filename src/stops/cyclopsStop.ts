@@ -1302,6 +1302,7 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     finaleProps.holdStake(null, false);
     finaleProps.stopFlock();
     finaleProps.boulder(null, 0);
+    boulderRing.visible = false;
     giant.rotation.x = 0;
     const idleAction = giantActions.get("idle");
     if (idleAction) idleAction.timeScale = 1;

@@ -407,7 +407,9 @@ Tek liste. Numaralar kalıcı; karar verilince satır silinmez, **sonuç ve tari
 
 ## 5. Şimdi ne yapmalıyız
 
-**Tek adım:** K35 `real` oynanır — playtest. Kiklop level’ı hâlâ yok.
+**Durum (25 Eyl 2026):** üç durak da uçtan uca oynanabilir ve bitirilebilir — Lotus → Kiklop (Homeros finali: `gdd-cyclops-finale.md`) → Sirenler Geçidi (`gdd-sirens-passage.md`, oyun sonu kartı). Hub kilidi kalıcı, sırayla açılıyor (`src/stops/progress.ts`). Sahip seçimleri 25 Eyl: "Homeros finali", "Gemi geçişi", "Önce 0 kredi", multiplayer "Ayrı yeni proje".
+
+**Tek adım:** sahip playtest'i — üç durak baştan sona. Ölçülecekler: Kiklop `gdd-cyclops-blinding.md` §6 adım 10 listesi + final (şarap bekleme süresi, kazık soğuma baskısı, koyun geçişi), Sirenler (geçit süresi ~70 s, şarkı çekişi direnilebilir mi, gövde tavanı 3). Açık kalanlar: gerçek ses (Cursor `@echo`), devin uyku/yerleşme klipleri, Sirenler için gerçek figür/ada görselleri (şimdilik prosedürel/yeniden kullanım — kredi kararı sahipte).
 
 ### Backlog (park)
 
