@@ -1752,6 +1752,12 @@ export function startCyclopsStop(canvas: HTMLCanvasElement): TestHooks | null {
     // hiçbir "pat diye belirme" yakalanmıyor (kapı açıklığı o mesafede
     // tüm kadrajı dolduruyor).
     cave.setShellVisible(player.position.z > -3);
+    // Aynı eşik, aynı gerekçe (yukarıdaki not) — mağara İÇİNDEN girişe
+    // bakınca koy arazisinin D=0'ı aşan "kaş" kayalığı artık kameraya çok
+    // yakın bir yama gibi göze çarpıyordu (cyclopsCave.ts `setInteriorClip`
+    // notu). Yalnız içeride kırpılıyor, dışarıdan bakışta hiç devreye
+    // girmiyor.
+    cave.setInteriorClip(player.position.z > -3);
 
     // ------------------------------------------------------- player rig
     // game.ts'in aynı deseni (facing + SAILOR.meshFacing, üstel yumuşatma) —

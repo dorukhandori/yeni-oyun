@@ -652,6 +652,17 @@ export interface CyclopsCave {
    * BackSide kabuğun iç-duvar arka yüzleri kapı çevresindeki boşluklardan
    * "siyah dikdörtgen" olarak sızıyordu. cyclopsStop.ts step()'i sürer. */
   setShellVisible(v: boolean): void;
+  /** 25 Eyl 2026 — mağara İÇİNDEN girişe doğru bakışta bug raporu: koy
+   * arazisinin tek sürekli terrain mesh'i (kum/çim/kayalık) kasıtlı olarak
+   * D=0 eşiğini aşıp mağara ağzının hemen arkasına kadar uzanıyor (kapının
+   * "kaş" kayalığı — dışarıdan görünmesi gerekiyor). Oyuncu mağara İÇİNDE
+   * eşiğe geri bakınca aynı kütle birkaç metre mesafede, karanlık oda
+   * içinde çıplak/parlak bir yama olarak beliriyordu. Yalnız oyuncu eşiği
+   * geçtiğinde (cyclopsStop.ts step(), `setShellVisible` ile aynı koşul)
+   * çağrılır — dışarıdan bakışta hiçbir zaman devreye girmiyor ("güzel
+   * girişe dokunma" — sahip).
+   */
+  setInteriorClip(active: boolean): void;
   /** DEV-testing yalnız — ASSET-104'ün oval kaya kemeri (dış cephe) GLB'sinin
    * yüklemesi tamamlandı mı. */
   cliffLoaded(): boolean;
@@ -1184,6 +1195,12 @@ export function buildCyclopsCave(): CyclopsCave {
   // TRIPLANAR örnekleniyor (üç eksen düzleminden, normale göre karışım):
   // ~70°'lik tebeşir yüzünde tepeden-bakan UV'ler sonsuza gerilirdi —
   // triplanar bunu yapısal olarak çözer, elle UV açmak gerekmez.
+  // 25 Eyl — `setInteriorClip` (aşağıda API'ye eklendi) bu uniform'u
+  // kırpıyor; malzeme derlenene kadar (async doku yükü) null, o yüzden
+  // "istenen" durum ayrı tutulup derleme anında uniform'a uygulanıyor.
+  const TERRAIN_INTERIOR_CLIP_Z = 0; // mağara ağzı eşiği (D=0), dosyanın her yerinde aynı sabit
+  let terrainInteriorClipUniform: { value: number } | null = null;
+  let interiorClipActive = false;
   const terrainMat = new THREE.MeshStandardMaterial({
     vertexColors: true,
     roughness: 0.96,
@@ -1215,6 +1232,24 @@ export function buildCyclopsCave(): CyclopsCave {
       uRockAvg: { value: 0.55 },
       uGrassAvg: { value: 0.2 },
       uSandAvg: { value: 0.5 },
+      // 25 Eyl (mağara ağzından dışarı bakış hatası): bu TEK sürekli arazi
+      // yüzeyi (kum→çim→kayalık, hepsi bir heightfield) kasıtlı olarak D=0
+      // eşiğini AŞIP mağara içine kadar uzanıyor (kapının hemen arkasındaki
+      // "kaş" kayalığı — bkz. `browProfile`, `cliffFootZ` FOOT_TABLE'daki
+      // [-9,1]/[9,1] niş girişleri, z=1'e kadar). Oyuncu mağara İÇİNDEYKEN
+      // (mouth/depot odaları, D=0..22) girişe doğru geri bakınca bu aynı
+      // kaş kütlesi artık kameraya birkaç metre mesafede, ışıksız oda
+      // karanlığının ortasında çıplak/parlak vertex-renkli bir "yeşil
+      // parça" gibi doğrudan göze çarpıyordu (sahip raporu + raycast
+      // doğrulaması — isabet noktaları bu terrain mesh'in kendisiydi,
+      // 51471 vertex'lik tek obje). DIŞARIDAN hiçbir zaman sorun değil —
+      // kaş kütlesi zaten kapının/iç mekan mimarisinin ARKASINDA kalıp
+      // görünmüyor. Sea'nin kendi `uClipZMax` deseniyle (sea.ts) aynı
+      // fragment-discard tekniği — yalnız oyuncu eşiği geçtiğinde
+      // (`setInteriorClip`, cyclopsStop.ts) devreye giriyor, dışarıdan
+      // bakışta uInteriorClipZ hep +Infinity (hiç kırpma yok, "güzel
+      // girişe dokunma" — sahip'in talimatı).
+      uInteriorClipZ: { value: interiorClipActive ? TERRAIN_INTERIOR_CLIP_Z : Infinity },
     };
     // Dokunun gerçek (lineer) ortalama parlaklığını ölç — tahmine dayalı
     // normalizasyon ya soluk ya patlak görünürdü; 32×32'lik bir canvas
@@ -1275,6 +1310,7 @@ export function buildCyclopsCave(): CyclopsCave {
           uniform float uRockAvg;
           uniform float uGrassAvg;
           uniform float uSandAvg;
+          uniform float uInteriorClipZ;
           varying vec2 vSplat;
           varying vec3 vTerrainWP;
           varying vec3 vTerrainNW;`,
@@ -1282,6 +1318,7 @@ export function buildCyclopsCave(): CyclopsCave {
         .replace(
           "#include <color_fragment>",
           `#include <color_fragment>
+          if (vTerrainWP.z > uInteriorClipZ) discard;
           {
             vec3 wp = vTerrainWP;
             vec3 an = abs(normalize(vTerrainNW));
@@ -1306,6 +1343,7 @@ export function buildCyclopsCave(): CyclopsCave {
           }`,
         );
     };
+    terrainInteriorClipUniform = uniforms.uInteriorClipZ;
   }
   const terrain = new THREE.Mesh(terrainGeo, terrainMat);
   terrain.receiveShadow = true;
@@ -3311,6 +3349,12 @@ export function buildCyclopsCave(): CyclopsCave {
     setShellVisible(v: boolean) {
       shellVisibleWanted = v;
       if (shellRoot) shellRoot.visible = v;
+    },
+    setInteriorClip(active: boolean) {
+      interiorClipActive = active;
+      if (terrainInteriorClipUniform) {
+        terrainInteriorClipUniform.value = active ? TERRAIN_INTERIOR_CLIP_Z : Infinity;
+      }
     },
     cliffLoaded: () => cliffLoadedFlag,
     cliffGroup,
