@@ -5,6 +5,7 @@
 > **Otorite:** Lotus Adası’nın **oynanır koşusu** için bu dosya kazanır. Çelişen eski cümleler (`gdd-lotus-collection.md` 28/küme/gün-kaybı, `gdd-memory-system.md` §3.1.9 Lotus kayıp finali, `level-lotus-island.md` üç cep, `tuning.md` `DAY` kaybı, `game-concept.md` “güneş batmadan 12”, `scenario.md` 14 Ağu taslağı) **bu adada geçersizdir.** Kiklop / Sirenler bu dosyayı okumaz.
 > **Sayılar:** yeni sabitler §7. Eski `MEMORY.*` oranları (`real` profil) korunur; isimler İngilizce kalır.
 > **Anlatı:** `scenario.md` (aynı gün K35’e çekildi). Karar kaydı: `lotus-exploration-reframe.md`.
+> **Açık öneri (22 Ağu 2026):** `gdd-lotus-island-scenario.md` — playtest geri bildirimi (*“ne yapacağımızı anlamadık, oyun gibi hissettirmiyor”*) üzerine yazılmış **okunabilirlik + senaryo katmanı önerisi**. Bu dosyanın §3 kurallarını değiştirmez, üstüne çerçeve koyar; tek çakışma §10 ile (bkz. orada §7). **Sahip onaylamadan bağlayıcı değildir.**
 > **Profil:** yalnızca `real` (varsayılan). `?profile=test` eski 28’li sandbox — bu GDD’nin dışında.
 
 **Etiketler:** **[H]** Homeros · **[O]** oyun icadı · **[P]** uygulama varsayılanı (eski açık soru, boşluk kalmasın diye kilitlendi).

@@ -37,11 +37,13 @@ ok &&= await probe("auto-loads ship-sea on boot", async () => {
   if (mode !== "scene") throw new Error(`expected scene mode, got ${mode}`);
 });
 
-ok &&= await probe("dory walk preset inline clips", async () => {
-  await page.locator(".wb-preset", { hasText: "Doryseus yürüyüş" }).click();
+ok &&= await probe("dory mesh preset loads", async () => {
+  await page.locator(".wb-preset", { hasText: "Doryseus" }).click();
   await page.waitForTimeout(3500);
-  const clips = await page.locator(".wb-clip-btn").count();
-  if (clips < 1) throw new Error(`no clip buttons, got ${clips}`);
+  const info = await page.locator("#wb-info").textContent();
+  if (!info?.includes("char_doryseus_02_textured")) {
+    throw new Error(`expected textured mesh in info, got ${info}`);
+  }
 });
 
 await browser.close();

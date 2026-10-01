@@ -94,22 +94,32 @@ function parseArgs(argv) {
     else if (a === "--seconds") opts.seconds = Number(rest[++i]);
     else if (a === "-o" || a === "--output") opts.output = rest[++i];
     else if (a === "--prompt-file") prompt = readFileSync(resolve(rest[++i]), "utf-8").trim();
-    else if (a === "--image") opts.image = resolve(rest[++i]);
+    else if (a === "--image") {
+      if (!opts.images) opts.images = [];
+      opts.images.push(resolve(rest[++i]));
+      opts.image = opts.images[0];
+    }
     else if (a === "--last-frame") opts.lastFrame = resolve(rest[++i]);
     else if (prompt === undefined) prompt = a;
   }
   return { mode, prompt, opts };
 }
 
-async function generateImage(prompt, apiKey, model, aspect, imagePath) {
+function mimeForImage(path) {
+  const ext = path.toLowerCase();
+  if (ext.endsWith(".jpg") || ext.endsWith(".jpeg")) return "image/jpeg";
+  if (ext.endsWith(".webp")) return "image/webp";
+  return "image/png";
+}
+
+async function generateImage(prompt, apiKey, model, aspect, imagePaths) {
   const url = `${API_BASE}/models/${model}:generateContent`;
   const requestParts = [{ text: prompt }];
-  if (imagePath) {
+  const paths = Array.isArray(imagePaths) ? imagePaths.filter(Boolean) : imagePaths ? [imagePaths] : [];
+  for (const imagePath of paths) {
     if (!existsSync(imagePath)) throw new Error(`Reference image not found: ${imagePath}`);
     const buf = readFileSync(imagePath);
-    const ext = imagePath.toLowerCase();
-    const mime = ext.endsWith(".jpg") || ext.endsWith(".jpeg") ? "image/jpeg" : "image/png";
-    requestParts.push({ inlineData: { mimeType: mime, data: buf.toString("base64") } });
+    requestParts.push({ inlineData: { mimeType: mimeForImage(imagePath), data: buf.toString("base64") } });
   }
   const body = {
     contents: [{ parts: requestParts }],
@@ -221,7 +231,7 @@ async function main() {
       const model = opts.model ?? (mode === "image" ? DEFAULT_IMAGE_MODEL : DEFAULT_VIDEO_MODEL);
       const bytes =
         mode === "image"
-          ? await generateImage(prompt, key, model, opts.aspect, opts.image)
+          ? await generateImage(prompt, key, model, opts.aspect, opts.images ?? (opts.image ? [opts.image] : []))
           : await generateVideo(
               prompt,
               key,
