@@ -1181,6 +1181,24 @@ body.has-fs-toggle .memory {
   z-index: 5;
 }
 
+/* Studio link, just above the version tag (the menu panel owns the right side on phones). */
+.studio-link {
+  position: absolute;
+  left: 10px;
+  bottom: 24px;
+  font: 500 12px/1.2 "Optima", "Palatino Linotype", "Georgia", serif;
+  letter-spacing: 0.5px;
+  color: rgba(255, 255, 255, 0.75);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  text-decoration: none;
+  z-index: 5;
+}
+.studio-link:hover,
+.studio-link:focus-visible {
+  color: #fff;
+  text-decoration: underline;
+}
+
 /* ------------------------------------------------------------ floating motes
    Slow-drifting pollen/firefly glints over the key art (sahip brief item 3).
    Pure CSS transform/opacity animation — no JS, no reflow. */

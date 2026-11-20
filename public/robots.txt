@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://lotophagoi.ovarlak.games/sitemap.xml
